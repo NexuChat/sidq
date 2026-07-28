@@ -1,0 +1,63 @@
+version: 1
+settings:
+  wide_blast_radius_threshold: 5
+rules:
+  - id: catalog_reality_mismatch
+    match:
+      evidence_kind: catalog_reality_mismatch
+    severity: block
+    reason_code: STALE_CONTEXT
+    message: >-
+      The catalog disagrees with the live source for {subject}.
+      Graph: {detail.graph_fields}. Source: {detail.live_fields}.
+  - id: unknown_field
+    match:
+      evidence_kind: unknown_field
+    severity: block
+    message: >-
+      Referenced field is not present in the catalog: {subject}.
+  - id: pii_exposure
+    match:
+      evidence_kind: pii_exposure
+    severity: block
+    message: >-
+      PII exposure is not permitted for {subject}.
+  - id: assertion_dependency_break
+    match:
+      evidence_kind: assertion_dependency_break
+    severity: block
+    message: >-
+      A required assertion depends on a removed or renamed field in {subject}.
+  - id: critical_downstream
+    match:
+      evidence_kind: blast_radius
+      where_any:
+        - field: detail.critical_assets
+          op: not_empty
+        - field: detail.cross_team_owners
+          op: not_empty
+    severity: block
+    message: >-
+      This change has critical or cross-team downstream consumers for {subject}.
+  - id: wide_blast_radius
+    match:
+      evidence_kind: blast_radius
+      where:
+        - field: detail.downstream_count
+          op: gt
+          value: "$settings.wide_blast_radius_threshold"
+    severity: warn
+    message: >-
+      This change affects {detail.downstream_count} downstream consumers for {subject}.
+  - id: deprecated_upstream
+    match:
+      evidence_kind: deprecated_upstream
+    severity: warn
+    message: >-
+      This change depends on a deprecated upstream asset: {subject}.
+  - id: unowned_asset
+    match:
+      evidence_kind: unowned_asset
+    severity: warn
+    message: >-
+      The touched asset has no owner: {subject}.
