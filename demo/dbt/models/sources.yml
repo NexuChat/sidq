@@ -1,0 +1,16 @@
+version: 2
+
+sources:
+  - name: raw
+    database: warehouse
+    schema: raw
+    tables:
+      - name: customers
+        description: Canonical customer records from the commerce application.
+        columns:
+          - name: email
+            description: PII customer email address.
+            tags:
+              - PII
+      - name: orders
+      - name: order_items

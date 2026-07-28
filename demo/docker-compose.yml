@@ -1,0 +1,33 @@
+name: sidq-demo
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: sidq-demo-postgres
+    environment:
+      POSTGRES_DB: warehouse
+      POSTGRES_USER: sidq
+      POSTGRES_PASSWORD: sidq
+    ports:
+      - "55432:5432"
+    volumes:
+      - demo-postgres-data:/var/lib/postgresql/data
+      - ./seed.sql:/docker-entrypoint-initdb.d/001-seed.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sidq -d warehouse"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+    networks:
+      default:
+      datahub:
+        aliases:
+          - sidq-demo-postgres
+
+volumes:
+  demo-postgres-data:
+
+networks:
+  datahub:
+    external: true
+    name: datahub_network

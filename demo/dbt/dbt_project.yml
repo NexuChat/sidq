@@ -1,0 +1,12 @@
+name: sidq_demo
+version: "1.0.0"
+config-version: 2
+
+profile: sidq_demo
+model-paths:
+  - models
+
+models:
+  sidq_demo:
+    +schema: analytics
+    +materialized: view
