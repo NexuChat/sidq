@@ -72,11 +72,14 @@ the previous worker.
 
 **Verdict: present, extensive, and cross-platform.** I fetched each dataset's persisted
 `upstreamLineage` aspect through `DataHubGraph.get_aspect(...,
-UpstreamLineageClass)` and counted the actual `fineGrainedLineages` records:
+UpstreamLineageClass)`. The 835 stored `fineGrainedLineages` records contain 844
+upstream field references (eight transformations have multiple inputs), yielding
+844 concrete upstream-field → downstream-field edge pairs:
 
 ```text
 datasets_scanned=67 datasets_with_upstreams=32 datasets_with_fine_grained_lineage=32
-datasets_scanned=67 fine_grained_edges=844
+fine_grained_records=835 upstream_field_refs=844 downstream_field_refs=835
+cartesian_edge_pairs=844 multi_input_records=8
 platform_transitions:
   dbt -> dbt: 60
   dbt -> snowflake: 60
