@@ -124,7 +124,7 @@ def _manifest_candidates(root: Path, manifest_path: Path | None) -> tuple[Path, 
 
 def _manifest_index(
     root: Path, manifest_path: Path | None
-) -> dict[str, tuple[str, str]]:
+) -> dict[str, tuple[str, str, tuple[str, ...]]]:
     for candidate in _manifest_candidates(root, manifest_path):
         try:
             document = json.loads(candidate.read_text(encoding="utf-8"))
@@ -139,7 +139,7 @@ def _manifest_index(
         nodes = document.get("nodes", {}) if isinstance(document, Mapping) else {}
         if not isinstance(nodes, Mapping):
             continue
-        indexed: dict[str, tuple[str, str]] = {}
+        indexed: dict[str, tuple[str, str, tuple[str, ...]]] = {}
         for node in nodes.values():
             if not isinstance(node, Mapping):
                 continue
@@ -159,7 +159,9 @@ def _manifest_index(
             urn = node_meta.get("dataset_urn")
             if not isinstance(urn, str):
                 urn = dataset_urn(str(platform), relation, env)
-            indexed[_normalise_path(source_path, root)] = (urn, "dbt_manifest")
+            columns = node.get("columns", {})
+            previous_fields = tuple(sorted(str(name) for name in columns)) if isinstance(columns, Mapping) else ()
+            indexed[_normalise_path(source_path, root)] = (urn, "dbt_manifest", previous_fields)
         if indexed:
             return indexed
     return {}
@@ -252,11 +254,11 @@ class Resolver:
         ):
             resolved = manifest.get(changed_file)
             if resolved is None and changed_file in explicit:
-                resolved = (explicit[changed_file], "explicit_map")
+                resolved = (explicit[changed_file], "explicit_map", ())
             if resolved is None and convention is not None:
                 urn = convention.urn_for_path(changed_file)
                 if urn is not None:
-                    resolved = (urn, "naming_convention")
+                    resolved = (urn, "naming_convention", ())
             if resolved is None:
                 evidence.append(
                     Evidence(
@@ -264,8 +266,9 @@ class Resolver:
                     )
                 )
                 continue
-            urn, strategy = resolved
+            urn, strategy, previous_fields = resolved
             added_fields: tuple[str, ...] = ()
+            removed_fields: tuple[str, ...] = ()
             referenced_fields: tuple[FieldRef, ...] = ()
             file_path = self.repo_root / changed_file
             if changed_file.lower().endswith(".sql"):
@@ -273,6 +276,10 @@ class Resolver:
                     added_fields, referenced_fields = _sql_parts(
                         file_path.read_text(encoding="utf-8"), urn, convention
                     )
+                    # ``--file`` evaluates the working tree against the checked-in
+                    # dbt manifest: its column set is the pre-change contract.
+                    if previous_fields:
+                        removed_fields = tuple(sorted(set(previous_fields) - set(added_fields)))
                 except Exception as error:  # noqa: BLE001
                     # Parsing and filesystem failures are evidence, never a crash.
                     evidence.append(
@@ -290,7 +297,7 @@ class Resolver:
                     urn=urn,
                     source_path=changed_file,
                     added_fields=added_fields,
-                    removed_fields=(),
+                    removed_fields=removed_fields,
                     referenced_fields=referenced_fields,
                     resolution_strategy=strategy,
                 )

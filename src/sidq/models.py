@@ -1,4 +1,4 @@
-"""Immutable vocabulary shared by the sidq engine."""
+"""Immutable vocabulary shared by the Sidq engine."""
 
 from __future__ import annotations
 

@@ -1,166 +1,20 @@
 {
   "metadata": {
-    "dbt_schema_version": "https://schemas.getdbt.com/dbt/manifest/v12.json",
-    "dbt_version": "1.10.0",
-    "generated_at": "2026-07-28T00:00:00Z",
-    "invocation_id": "sidq-demo-fixture",
-    "invocation_started_at": "2026-07-28T00:00:00Z",
-    "env": {},
-    "project_name": "sidq_demo",
-    "project_id": "sidq_demo",
-    "user_id": null,
-    "send_anonymous_usage_stats": false,
-    "adapter_type": "postgres"
+    "adapter_type": "dbt"
   },
   "nodes": {
-    "model.sidq_demo.customer_revenue": {
-      "database": "warehouse",
-      "schema": "analytics",
-      "name": "customer_revenue",
-      "resource_type": "model",
-      "package_name": "sidq_demo",
-      "path": "customer_revenue.sql",
-      "original_file_path": "models/customer_revenue.sql",
-      "unique_id": "model.sidq_demo.customer_revenue",
-      "fqn": [
-        "sidq_demo",
-        "customer_revenue"
-      ],
-      "alias": "customer_revenue",
-      "checksum": {
-        "name": "sha256",
-        "checksum": "fixture"
-      },
-      "config": {
-        "enabled": true,
-        "alias": null,
-        "schema": "analytics",
-        "database": "warehouse",
-        "tags": [],
-        "meta": {
-          "environment": "PROD"
-        },
-        "group": null,
-        "materialized": "view"
-      },
-      "meta": {
-        "dataset_urn": "urn:li:dataset:(urn:li:dataPlatform:postgres,sidq-demo.warehouse.analytics.customer_revenue,PROD)"
-      },
-      "relation_name": "\"warehouse\".\"analytics\".\"customer_revenue\"",
-      "raw_code": "select customers.customer_id, customers.email, customers.full_name, customers.country, min(orders.ordered_at) as first_order_at, max(orders.ordered_at) as last_order_at, count(distinct orders.order_id)::bigint as order_count, sum(order_items.quantity)::bigint as items_purchased, sum(order_items.quantity * order_items.unit_price)::numeric(14, 2) as lifetime_revenue from warehouse.raw.customers as customers join warehouse.raw.orders as orders on orders.customer_id = customers.customer_id join warehouse.raw.order_items as order_items on order_items.order_id = orders.order_id group by customers.customer_id, customers.email, customers.full_name, customers.country",
-      "compiled": true,
-      "compiled_code": "select customers.customer_id, customers.email, customers.full_name, customers.country, min(orders.ordered_at) as first_order_at, max(orders.ordered_at) as last_order_at, count(distinct orders.order_id)::bigint as order_count, sum(order_items.quantity)::bigint as items_purchased, sum(order_items.quantity * order_items.unit_price)::numeric(14, 2) as lifetime_revenue from warehouse.raw.customers as customers join warehouse.raw.orders as orders on orders.customer_id = customers.customer_id join warehouse.raw.order_items as order_items on order_items.order_id = orders.order_id group by customers.customer_id, customers.email, customers.full_name, customers.country",
+    "model.sidq_demo.customers": {
+      "original_file_path": "models/order_entry/customers.sql",
+      "relation_name": "b2fd91.order_entry_db.order_entry.customers",
+      "config": {"meta": {"environment": "PROD"}},
       "columns": {
-        "customer_id": {
-          "name": "customer_id",
-          "description": "Customer identifier",
-          "meta": {},
-          "data_type": "bigint",
-          "constraints": [],
-          "quote": null,
-          "tags": [],
-          "granularity": null
-        },
-        "email": {
-          "name": "email",
-          "description": "PII customer email address",
-          "meta": {
-            "pii": true
-          },
-          "data_type": "text",
-          "constraints": [],
-          "quote": null,
-          "tags": [
-            "PII"
-          ],
-          "granularity": null
-        },
-        "lifetime_revenue": {
-          "name": "lifetime_revenue",
-          "description": "Lifetime merchandise revenue",
-          "meta": {},
-          "data_type": "numeric(14,2)",
-          "constraints": [],
-          "quote": null,
-          "tags": [],
-          "granularity": null
-        }
-      },
-      "depends_on": {
-        "macros": [],
-        "nodes": [
-          "source.sidq_demo.raw.customers",
-          "source.sidq_demo.raw.orders",
-          "source.sidq_demo.raw.order_items"
-        ]
+        "account_mgr_id": {}, "address_line1": {}, "address_line2": {}, "address_line3": {},
+        "country_id": {}, "credit_limit": {}, "cust_email": {}, "cust_first_name": {},
+        "cust_last_name": {}, "customer_class": {}, "customer_id": {}, "customer_since": {},
+        "dob": {}, "mailshot": {}, "nls_language": {}, "nls_territory": {},
+        "partner_mailshot": {}, "phone_number": {}, "region_id": {}, "suggestions": {},
+        "town_city": {}, "zipcode": {}
       }
     }
-  },
-  "sources": {
-    "source.sidq_demo.raw.customers": {
-      "database": "warehouse",
-      "schema": "raw",
-      "name": "customers",
-      "resource_type": "source",
-      "package_name": "sidq_demo",
-      "path": "sources.yml",
-      "original_file_path": "models/sources.yml",
-      "unique_id": "source.sidq_demo.raw.customers",
-      "source_name": "raw",
-      "identifier": "customers",
-      "relation_name": "\"warehouse\".\"raw\".\"customers\""
-    },
-    "source.sidq_demo.raw.orders": {
-      "database": "warehouse",
-      "schema": "raw",
-      "name": "orders",
-      "resource_type": "source",
-      "package_name": "sidq_demo",
-      "path": "sources.yml",
-      "original_file_path": "models/sources.yml",
-      "unique_id": "source.sidq_demo.raw.orders",
-      "source_name": "raw",
-      "identifier": "orders",
-      "relation_name": "\"warehouse\".\"raw\".\"orders\""
-    },
-    "source.sidq_demo.raw.order_items": {
-      "database": "warehouse",
-      "schema": "raw",
-      "name": "order_items",
-      "resource_type": "source",
-      "package_name": "sidq_demo",
-      "path": "sources.yml",
-      "original_file_path": "models/sources.yml",
-      "unique_id": "source.sidq_demo.raw.order_items",
-      "source_name": "raw",
-      "identifier": "order_items",
-      "relation_name": "\"warehouse\".\"raw\".\"order_items\""
-    }
-  },
-  "macros": {},
-  "docs": {},
-  "exposures": {},
-  "metrics": {},
-  "groups": {},
-  "selectors": {},
-  "disabled": {},
-  "parent_map": {
-    "model.sidq_demo.customer_revenue": [
-      "source.sidq_demo.raw.customers",
-      "source.sidq_demo.raw.orders",
-      "source.sidq_demo.raw.order_items"
-    ]
-  },
-  "child_map": {
-    "model.sidq_demo.customer_revenue": [],
-    "source.sidq_demo.raw.customers": [
-      "model.sidq_demo.customer_revenue"
-    ],
-    "source.sidq_demo.raw.orders": [
-      "model.sidq_demo.customer_revenue"
-    ],
-    "source.sidq_demo.raw.order_items": [
-      "model.sidq_demo.customer_revenue"
-    ]
   }
 }

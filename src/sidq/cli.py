@@ -1,4 +1,4 @@
-"""Command-line entry point over the same canonical sidq artifact."""
+"""Command-line entry point over the same canonical Sidq artifact."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from typing import Any
 from sidq.gates.blast import BlastRadiusGate
 from sidq.gates.reality import RealityGate
 from sidq.gates.schema import SchemaGate
-from sidq.graph.client import DatasetInfo, GraphClient, LineagePath, LineageResult
+from sidq.graph.client import DatasetInfo, GraphClient, LineagePath, LineageResult, MCPGraphClient, StdioMCPToolCaller
 from sidq.graph.live_source import LiveSourceClient
 from sidq.models import Evidence, Verdict
 from sidq.policy.engine import PolicyEngine, load_policy
@@ -32,17 +32,19 @@ class _UnavailableClient:
     def get_downstream(self, urn: str, depth: int, column: str | None = None) -> LineageResult:
         raise RuntimeError("graph client is not configured")
 
-    def paths_between(self, a: str, b: str) -> list[LineagePath]:
+    def paths_between(self, a: str, b: str, source_column: str | None = None, target_column: str | None = None) -> list[LineagePath]:
         raise RuntimeError("graph client is not configured")
 
 
 def build_graph_client() -> GraphClient:
-    """Integration seam for the MCP session bridge added by the live setup wave."""
-    return _UnavailableClient()
+    """Build the live, read-only DataHub MCP client used by ``sidq check``."""
+    return MCPGraphClient(StdioMCPToolCaller())
 
 
-def build_live_source_client() -> LiveSourceClient:
-    return _UnavailableClient()
+def build_live_source_client() -> LiveSourceClient | None:
+    # The showcase graph is metadata-only. Gate 0 is intentionally run only in
+    # the Postgres-backed scene, where its connection is supplied by that runner.
+    return None
 
 
 def changed_files(diff_range: str, *, cwd: str | Path = ".") -> list[str]:
@@ -57,10 +59,13 @@ def changed_files(diff_range: str, *, cwd: str | Path = ".") -> list[str]:
 
 
 def collect_evidence(
-    touched: Sequence[Any], graph: GraphClient, live_source: LiveSourceClient
+    touched: Sequence[Any], graph: GraphClient, live_source: LiveSourceClient | None
 ) -> list[Evidence]:
     evidence: list[Evidence] = []
-    for gate in (RealityGate(live_source), SchemaGate(), BlastRadiusGate()):
+    gates = [SchemaGate(), BlastRadiusGate()]
+    if live_source is not None:
+        gates.insert(0, RealityGate(live_source))
+    for gate in gates:
         evidence.extend(gate.collect(touched, graph))
     return evidence
 
@@ -74,12 +79,38 @@ def check(
     repo_root: str | Path = ".",
     commit_sha: str = "",
 ) -> Verdict:
-    resolved = Resolver(repo_root).resolve(files)
+    root, resolved_files = _resolver_root_and_files(files, repo_root)
+    resolved = Resolver(root).resolve(resolved_files)
+    owns_graph = graph is None
     graph = graph or build_graph_client()
-    live_source = live_source or build_live_source_client()
-    evidence = list(resolved.evidence)
-    evidence.extend(collect_evidence(resolved.touched_assets, graph, live_source))
-    return PolicyEngine(policy_path).decide(evidence, touched=resolved.touched_assets, commit_sha=commit_sha)
+    live_source = live_source if live_source is not None else build_live_source_client()
+    try:
+        evidence = list(resolved.evidence)
+        evidence.extend(collect_evidence(resolved.touched_assets, graph, live_source))
+        return PolicyEngine(policy_path).decide(evidence, touched=resolved.touched_assets, commit_sha=commit_sha)
+    finally:
+        if owns_graph:
+            close = getattr(graph, "close", None)
+            if callable(close):
+                close()
+
+
+def _resolver_root_and_files(files: Sequence[str], repo_root: str | Path) -> tuple[Path, list[str]]:
+    """Use the nearest dbt manifest when a check is invoked from repository root."""
+    root = Path(repo_root).resolve()
+    if Path(repo_root) != Path(".") or len(files) != 1:
+        return root, list(files)
+    candidate = (root / files[0]).resolve()
+    manifest_root = next(
+        (parent for parent in (candidate.parent, *candidate.parents) if (parent / "manifest.json").is_file()),
+        None,
+    )
+    if manifest_root is None or manifest_root == root:
+        return root, list(files)
+    try:
+        return manifest_root, [candidate.relative_to(manifest_root).as_posix()]
+    except ValueError:
+        return root, list(files)
 
 
 def _human(verdict: Verdict) -> str:
@@ -89,7 +120,7 @@ def _human(verdict: Verdict) -> str:
     line = "  ".join(header[index].ljust(widths[index]) for index in range(3))
     separator = "  ".join("-" * width for width in widths)
     body = ["  ".join(row[index].ljust(widths[index]) for index in range(3)) for row in rows]
-    return "\n".join([f"sidq: {verdict.decision}", line, separator, *body])
+    return "\n".join([f"Sidq: {verdict.decision}", line, separator, *body])
 
 
 def _parser() -> argparse.ArgumentParser:

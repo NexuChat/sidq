@@ -61,3 +61,18 @@ rules:
     severity: warn
     message: >-
       The touched asset has no owner: {subject}.
+  - id: lineage_rot
+    match:
+      evidence_kind: lineage_rot_missing
+    severity: warn
+    message: >-
+      The catalog claims a column lineage edge that the current SQL does not produce for {subject}.
+  - id: lineage_rot_extra
+    match:
+      evidence_kind: lineage_rot_extra
+    severity: warn
+    message: >-
+      The current SQL produces a column lineage edge the catalog does not know for {subject}.
+  # lineage_unverifiable deliberately has no policy rule. The policy engine
+  # retains unmatched evidence as informational and therefore cannot give it a
+  # blocking or warning severity.

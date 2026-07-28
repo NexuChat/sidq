@@ -198,7 +198,7 @@ read through the MCP client. Creation proof:
 CREATE THROWAWAY ASSET
 urn= urn:li:dataset:(urn:li:dataPlatform:postgres,sidq.recon.throwaway,DEV)
 emit_response= None
-datasetProperties= OrderedDict({'customProperties': {}, 'name': 'sidq MCP recon throwaway', 'description': 'Disposable asset for MCP write/read proof', 'tags': []})
+datasetProperties= OrderedDict({'customProperties': {}, 'name': 'Sidq MCP recon throwaway', 'description': 'Disposable asset for MCP write/read proof', 'tags': []})
 ```
 
 MCP `add_tags` write output, using the datapack's real PII tag:
@@ -223,7 +223,7 @@ MCP READ get_entities
 {
   "isError": false,
   "urn": "urn:li:dataset:(urn:li:dataPlatform:postgres,sidq.recon.throwaway,DEV)",
-  "name": "sidq MCP recon throwaway",
+  "name": "Sidq MCP recon throwaway",
   "tags": {
     "tags": [
       {

@@ -1,0 +1,24 @@
+-- Changed dbt model: cust_email was removed from the projection.
+select
+    account_mgr_id,
+    address_line1,
+    address_line2,
+    address_line3,
+    country_id,
+    credit_limit,
+    cust_first_name,
+    cust_last_name,
+    customer_class,
+    customer_id,
+    customer_since,
+    dob,
+    mailshot,
+    nls_language,
+    nls_territory,
+    partner_mailshot,
+    phone_number,
+    region_id,
+    suggestions,
+    town_city,
+    zipcode
+from b2fd91.order_entry_db.order_entry.customers

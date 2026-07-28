@@ -10,6 +10,28 @@ docker **on our machine**. A GitHub Action on GitHub's runners cannot reach it, 
 standing up the full quickstart inside a free runner (six containers, several GB) is slow
 and fragile. If we discover this late, the hero surface has no home.
 
+## Surface 0 — the landing page (added 2026-07-28 after the compliance audit)
+
+**Problem found:** `https://sidq.mlki.app` is live, but it serves the **DataHub UI** —
+the sponsor's own product, not ours. A judge clicking our "working project link" lands on a
+DataHub login screen. That does not satisfy the requirement in spirit and it burns the
+strongest thirty seconds we will ever get with a judge.
+
+**Resolution:** a single static page at the root of that hostname:
+
+- two lines on what Sidq is
+- **one real verdict**, rendered from the canonical verdict JSON the engine already emits
+  (not a mock, not a screenshot)
+- three links: the sealed PRs · the live DataHub, with the demo credentials stated plainly ·
+  the repo
+
+DataHub moves to a path or a second hostname. This page is fed by an artifact we already
+produce, so it costs close to nothing.
+
+**Hard boundary:** this is a landing page, not the "verdict panel" web app that
+the project design contract deliberately dropped. If it starts acquiring routes, state, or a build
+step, it has failed. One file.
+
 ## The decision — three surfaces, no tunnel, no hosting
 
 ### 1. Real sealed PR threads (the primary judge artifact)

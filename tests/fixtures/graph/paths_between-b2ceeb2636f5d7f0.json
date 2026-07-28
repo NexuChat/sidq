@@ -1,0 +1,12 @@
+[
+  {
+    "granularity": "table",
+    "urns": [
+      "urn:li:query:b2fd91.view_urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Asnowflake%2Corder_entry_db.analytics.order_details_replica%2CPROD%29",
+      "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:dbt,b2fd91.ORDER_ENTRY_DB.analytics.order_details,PROD),cust_email)",
+      "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:dbt,b2fd91.order_entry_db.order_entry.customers,PROD),cust_email)",
+      "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:snowflake,b2fd91.order_entry_db.analytics.order_details,PROD),cust_email)",
+      "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:snowflake,b2fd91.order_entry_db.analytics.order_details_replica,PROD),cust_email)"
+    ]
+  }
+]

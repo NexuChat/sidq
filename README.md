@@ -1,4 +1,4 @@
-# sidq — with Sidq receipts
+# Sidq — with Sidq receipts
 
 > Everyone taught AI to write SQL. We taught it **when to refuse** — and we leave proof.
 
@@ -7,7 +7,7 @@ it blocks unsafe changes, proves the verdict with evidence from the metadata gra
 an attested **Sidq receipt** back to the catalog — a receipt that is actually *consumed*
 downstream, not decorative write-back.
 
-Circuit breakers stop bad pipeline **runs**. sidq stops bad pipeline **changes**.
+Circuit breakers stop bad pipeline **runs**. Sidq stops bad pipeline **changes**.
 
 **Status: pre-build.** The idea is locked (the project design contract), the research is complete
 (`research/`), the code has not been written yet.

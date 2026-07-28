@@ -1,0 +1,9 @@
+[
+  {
+    "granularity": "table",
+    "urns": [
+      "urn:li:chart:(looker,b2fd91.dashboard_elements.221)",
+      "urn:li:dataset:(urn:li:dataPlatform:looker,b2fd91.order-entry.explore.order_details,PROD)"
+    ]
+  }
+]

@@ -1,0 +1,11 @@
+[
+  {
+    "granularity": "table",
+    "urns": [
+      "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:dbt,b2fd91.ORDER_ENTRY_DB.analytics.order_details,PROD),cust_email)",
+      "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:dbt,b2fd91.order_entry_db.order_entry.customers,PROD),cust_email)",
+      "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:powerbi,b2fd91.datahub_order_entries.Geographic_Measures,PROD),CUST_EMAIL)",
+      "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:snowflake,b2fd91.order_entry_db.analytics.order_details,PROD),cust_email)"
+    ]
+  }
+]

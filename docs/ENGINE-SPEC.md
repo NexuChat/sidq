@@ -117,6 +117,19 @@ class Gate(Protocol):
 Gates never raise on graph errors: a failed lookup becomes `Evidence(kind="graph_unavailable")`,
 which the default policy treats as **block** (fail closed — a gate that fails open is not a gate).
 
+**Verified MCP call contract (2026-07-28 — `docs/MCP-CONTRACT.md`, real server, not docs).**
+Several signatures we had guessed were wrong and are now corrected: `search` rejects
+`entity_type`; `get_entities` takes `urns` (plural), not `urn`; `list_schema_fields` takes
+`urn`, not `dataset_urn`. For the blast gate specifically:
+
+- **Column-level lineage is switched on by passing `column: "<fieldPath>"`** alongside the
+  ordinary lineage arguments. `get_lineage_paths_between` takes `source_column` /
+  `target_column`.
+- `lineageColumns` sits on each `downstreams.searchResults[]` item — **not** inside its
+  `entity`.
+- `metadata.queryType == "column-level-lineage"` is the **reliable** signal for the
+  `granularity` field. Derive it from that, never from whether a column happened to be passed.
+
 ## 5. Policy engine (`policy/engine.py`) — the product
 
 `policy.yaml` is a **restricted matcher, never `eval`**:

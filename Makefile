@@ -4,16 +4,16 @@ DEMO_INGEST_IMAGE := acryldata/datahub-ingestion:v1.5.0.6
 .PHONY: demo-up demo-ingest demo-break demo-restore demo-down
 
 demo-up:
-	$(DEMO_COMPOSE) up -d --wait
+	$(DEMO_COMPOSE) up -d --wait postgres
 
 demo-ingest:
-	docker run --rm --network datahub_network -e DATAHUB_TELEMETRY_ENABLED=false -v "$(CURDIR)/demo/ingest.dhub.yaml:/ingest.dhub.yaml:ro" $(DEMO_INGEST_IMAGE) ingest run -c /ingest.dhub.yaml --no-spinner --no-progress
+	docker run --rm --network datahub_network -e DATAHUB_TELEMETRY_ENABLED=false -v "$(CURDIR)/demo/ingest.dhub.yaml:/recipe.yml:ro" $(DEMO_INGEST_IMAGE) ingest -c /recipe.yml
 
 demo-break:
-	$(DEMO_COMPOSE) exec -T postgres psql -v ON_ERROR_STOP=1 -U sidq -d warehouse -c 'ALTER TABLE raw.customers RENAME COLUMN email TO email_address;'
+	$(DEMO_COMPOSE) exec -T postgres psql -v ON_ERROR_STOP=1 -U sidq -d warehouse -c "DO \$$\$$ BEGIN IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'raw' AND table_name = 'customers' AND column_name = 'email') THEN ALTER TABLE raw.customers RENAME COLUMN email TO email_address; END IF; END \$$\$$;"
 
 demo-restore:
-	$(DEMO_COMPOSE) exec -T postgres psql -v ON_ERROR_STOP=1 -U sidq -d warehouse -c 'ALTER TABLE raw.customers RENAME COLUMN email_address TO email;'
+	$(DEMO_COMPOSE) exec -T postgres psql -v ON_ERROR_STOP=1 -U sidq -d warehouse -c "DO \$$\$$ BEGIN IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'raw' AND table_name = 'customers' AND column_name = 'email_address') THEN ALTER TABLE raw.customers RENAME COLUMN email_address TO email; END IF; END \$$\$$;"
 
 demo-down:
 	$(DEMO_COMPOSE) down --volumes --remove-orphans

@@ -1,0 +1,32 @@
+{
+  "columns": {
+    "urn:li:chart:(looker,b2fd91.dashboard_elements.221)": [],
+    "urn:li:chart:(looker,b2fd91.dashboard_elements.222)": [],
+    "urn:li:chart:(looker,b2fd91.dashboard_elements.223)": [],
+    "urn:li:chart:(looker,b2fd91.dashboard_elements.224)": [],
+    "urn:li:dashboard:(looker,b2fd91.dashboards.53)": []
+  },
+  "entity_types": {
+    "urn:li:chart:(looker,b2fd91.dashboard_elements.221)": "CHART",
+    "urn:li:chart:(looker,b2fd91.dashboard_elements.222)": "CHART",
+    "urn:li:chart:(looker,b2fd91.dashboard_elements.223)": "CHART",
+    "urn:li:chart:(looker,b2fd91.dashboard_elements.224)": "CHART",
+    "urn:li:dashboard:(looker,b2fd91.dashboards.53)": "DASHBOARD"
+  },
+  "granularity": "table",
+  "paths": [],
+  "tags": {
+    "urn:li:chart:(looker,b2fd91.dashboard_elements.221)": [],
+    "urn:li:chart:(looker,b2fd91.dashboard_elements.222)": [],
+    "urn:li:chart:(looker,b2fd91.dashboard_elements.223)": [],
+    "urn:li:chart:(looker,b2fd91.dashboard_elements.224)": [],
+    "urn:li:dashboard:(looker,b2fd91.dashboards.53)": []
+  },
+  "urns": [
+    "urn:li:chart:(looker,b2fd91.dashboard_elements.221)",
+    "urn:li:chart:(looker,b2fd91.dashboard_elements.222)",
+    "urn:li:chart:(looker,b2fd91.dashboard_elements.223)",
+    "urn:li:chart:(looker,b2fd91.dashboard_elements.224)",
+    "urn:li:dashboard:(looker,b2fd91.dashboards.53)"
+  ]
+}

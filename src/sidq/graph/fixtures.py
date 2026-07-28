@@ -54,8 +54,13 @@ class RecordingGraphClient:
     def get_downstream(self, urn: str, depth: int, column: str | None = None) -> LineageResult:
         return self._record("get_downstream", self._client.get_downstream(urn, depth, column), urn, depth, column=column)
 
-    def paths_between(self, a: str, b: str) -> list[GraphPath]:
-        return self._record("paths_between", self._client.paths_between(a, b), a, b)
+    def paths_between(
+        self, a: str, b: str, source_column: str | None = None, target_column: str | None = None
+    ) -> list[GraphPath]:
+        return self._record(
+            "paths_between", self._client.paths_between(a, b, source_column, target_column),
+            a, b, source_column=source_column, target_column=target_column,
+        )
 
 
 class ReplayGraphClient:
@@ -85,8 +90,17 @@ class ReplayGraphClient:
     def get_downstream(self, urn: str, depth: int, column: str | None = None) -> LineageResult:
         return _lineage(self._read("get_downstream", urn, depth, column=column))
 
-    def paths_between(self, a: str, b: str) -> list[GraphPath]:
-        raw = self._read("paths_between", a, b)
+    def paths_between(
+        self, a: str, b: str, source_column: str | None = None, target_column: str | None = None
+    ) -> list[GraphPath]:
+        try:
+            raw = self._read("paths_between", a, b, source_column=source_column, target_column=target_column)
+        except GraphFixtureError:
+            if source_column is not None or target_column is not None:
+                raise
+            # Compatibility with recordings made before column path parameters
+            # were added to the narrow graph contract.
+            raw = self._read("paths_between", a, b)
         return [_path(item) for item in raw]
 
 
@@ -113,5 +127,7 @@ def _lineage(raw: dict[str, Any]) -> LineageResult:
         urns=tuple(raw.get("urns", ())),
         entity_types=entity_types if isinstance(entity_types, dict) else tuple(entity_types),
         paths=tuple(_path(item) for item in raw.get("paths", ())),
+        columns={key: tuple(value) for key, value in raw.get("columns", {}).items()},
+        tags={key: tuple(value) for key, value in raw.get("tags", {}).items()},
         granularity=str(raw.get("granularity", "table")),
     )

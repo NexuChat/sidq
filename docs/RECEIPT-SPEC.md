@@ -85,6 +85,6 @@ receipt is decorative and criterion #1 is only half won.
 - The receipt is written **after** the verdict, never as part of computing it. No feedback loops.
 - A `BLOCK` verdict writes a receipt too. Recording a refusal is the whole thesis — writing
   only on success would be vanity.
-- sidq holds write permission for the `sidq.*` namespace and its own tags **only**.
+- Sidq holds write permission for the `sidq.*` namespace and its own tags **only**.
   Say so in the README; a gate that can rewrite arbitrary metadata is a liability, and
   judges will notice the restraint.

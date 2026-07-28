@@ -1,4 +1,4 @@
-# Reproducing the local sidq/DataHub environment
+# Reproducing the local Sidq/DataHub environment
 
 This is the exact sequence for recreating the environment reconnoitred on
 2026-07-28. Run it from a fresh checkout of this repository. The quickstart and
@@ -215,7 +215,7 @@ The controlled drift/restore cycle is:
 
 ```bash
 make demo-break
-# Run sidq here: live PostgreSQL has email_address while DataHub has email.
+# Run Sidq here: live PostgreSQL has email_address while DataHub has email.
 make demo-restore
 ```
 

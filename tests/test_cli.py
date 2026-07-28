@@ -15,7 +15,7 @@ def test_check_exit_codes(monkeypatch, decision: str, code: int, capsys) -> None
     monkeypatch.setattr(cli, "check", lambda *args, **kwargs: _verdict(decision))
 
     assert cli.main(["check", "--file", "model.sql"]) == code
-    assert f"sidq: {decision}" in capsys.readouterr().out
+    assert f"Sidq: {decision}" in capsys.readouterr().out
 
 
 def test_json_uses_canonical_artifact(monkeypatch, capsysbinary) -> None:

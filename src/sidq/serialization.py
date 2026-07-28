@@ -1,4 +1,4 @@
-"""Canonical, byte-stable JSON serialization for sidq artifacts."""
+"""Canonical, byte-stable JSON serialization for Sidq artifacts."""
 
 from __future__ import annotations
 
