@@ -1,76 +1,79 @@
-# sidq — The Verification Gate for AI‑Generated Data Code
+# sidq — the refusal capability for the agent era
 
-> Everyone taught AI to write SQL. We taught it when to refuse — and how to repair.
+> Aligned to the project design contract (2026-07-28). Build details live in `docs/ENGINE-SPEC.md`.
+> On any conflict, the project design contract wins.
 
-> Circuit breakers stop bad pipeline **runs**. sidq stops bad pipeline
-> **changes** — before they merge. (Explicit differentiation from the existing
-> runtime circuit-breaker pattern in the DataHub/Airflow ecosystem.)
+Everyone taught AI to write SQL. We taught it **when to refuse** — and we leave proof.
 
 **Hackathon:** Build with DataHub — The Agent Hackathon (deadline Aug 10, 2026 · 5PM ET)
-**Category:** Metadata‑Aware Code Generation & Development
-**License:** Apache‑2.0 (hackathon requirement — NOT MIT)
+**License:** Apache-2.0 at repo root (hard requirement)
+**Required component:** DataHub + `mcp-server-datahub` — and we ship an MCP server of our own.
 
-## The gap (verified by market research 2026‑07‑23)
-DataHub MCP already does context‑aware SQL generation; Vanna 2.0 / Wren AI / dbt
-Copilot all generate. **Nobody gates.** No tool in the landscape blocks failing
-generated code from being proposed, and none writes verification receipts back
-to the metadata graph. sidq is the missing half of the category.
+## The gap
 
-## What it does (one flow)
+DataHub MCP already does context-aware SQL generation; Vanna, Wren AI and dbt Copilot all
+generate. **Nobody gates.** No tool blocks a failing generated change before it merges, and
+none writes a verification receipt back to the metadata graph that a later agent reads.
+
+## The flow
+
 ```
-proposed data code (SQL / dbt model / pipeline)  ← from ANY source:
-      │                                            human, Copilot, Vanna, any agent…
-      ▼
-[1] SCHEMA GATE      — every table/column/type exists in the live graph (via DataHub MCP)
-[2] BLAST‑RADIUS GATE — lineage impact: which downstream assets/dashboards break?
-                        (turns DataHub's manual impact view into an automated CI gate)
-[3] GOVERNANCE GATE  — PII tags, ownership, deprecation, access policies enforced
-[4] QUALITY GATE     — existing assertions/tests on touched assets still hold
+git diff (SQL / dbt)
       │
-      ├─ any gate fails → [4.5] HEAL — propose the SMALLEST verified fix from the
-      │                   exact diagnostics (bounded, ≤2 attempts, re-gated fully);
-      │                   still failing → verdict: BLOCKED + diagnostics
-      │                   (never "proposed anyway")
-      ▼ all pass (original or healed)
-[5] RECEIPT          — verification receipt written BACK to DataHub as metadata
-                        on the asset/PR (judging criterion: "contribute back to the graph")
+[R]  RESOLVER        changed file → dataset URN + touched fields
+      │              (dbt manifest → explicit map → naming convention)
       ▼
-PR‑ready output + human‑readable verdict
+[0]  REALITY GATE    graph schema  ⟷  live source schema
+      │              disagree? → STALE_CONTEXT: "the catalog itself is lying"
+[1]  SCHEMA GATE     referenced tables/columns/types exist in the graph
+[2]  BLAST GATE      lineage impact: which downstream assets and dashboards break?
+[3]  GOVERNANCE GATE PII tags, ownership, deprecation, access policy
+[4]  ASSERTION GATE  does the change remove a field an existing assertion depends on?
+      │
+      ▼  gates emit EVIDENCE only — never verdicts
+[P]  POLICY ENGINE   policy.yaml → PASS / WARN / BLOCK, per named rule, with evidence links
+      │
+[S]  SIDQ RECEIPT    attested, queryable, written back onto the affected assets
 ```
 
-## Packaging — three surfaces, one engine
-1. **GitHub Action / PR‑bot** (the hero surface): a real PR receives an automatic
-   comment — verdict, blast‑radius graph, receipt link. Judges can imagine
-   installing it tomorrow; this is the "real-world usefulness" knockout.
-2. **CLI** — `sidq check file.sql` for local/CI use.
-3. **Verdict panel** — tiny dark editorial web view (house style).
+## Three surfaces, one engine
 
-## Why it wins on the judging rubric
+1. **MCP server (ours)** — `check_change(diff|sql)` and `get_verification_status(urn)`.
+   Any coding agent asks permission *before* proposing data code; any analytics agent
+   checks an asset's last verdict *before* querying it. This is what makes the receipt
+   consumed by a third party rather than by ourselves.
+2. **CLI** — `sidq check --diff HEAD~1..HEAD`. The engine's interface; every other
+   surface consumes its JSON.
+3. **GitHub PR bot** — a deterministic comment: verdict, the rule that fired, blast radius,
+   receipt link. Judges can picture installing it tomorrow.
+
+## Rubric mapping
+
 | Criterion | Our answer |
 |---|---|
-| Use of DataHub | reads schemas+lineage+governance+assertions AND writes receipts back |
-| Technical execution | deterministic gates end‑to‑end, demo on real quickstart data |
-| Originality | inverts the category: verification-first + verified-repair, source-agnostic; explicitly complementary to runtime circuit breakers (pre-merge vs post-deploy) |
-| Real‑world usefulness | it's a CI gate — every data platform team's daily pain |
-| Submission quality | proven playbook (Build Week pipeline: video/cards/README) |
-| Bonus | upstream contribution: a DataHub Skill or docs PR for the gate pattern |
+| Depth of DataHub use **incl. write-back** | reads schema + lineage + governance + assertions; writes an attested receipt that a *different* agent reads back through our MCP tool |
+| Technical execution | deterministic end-to-end on the judges' own quickstart; fixture-backed tests; byte-identical verdicts for identical inputs |
+| Originality | inverts the category — verification-first, source-agnostic; and Gate 0 catches the catalog lying about live reality at PR time, with no daemon |
+| Real-world usefulness | a CI gate plus an agent guardrail — the daily pain of every data platform team |
+| Submission quality | public demo repo with real sealed PRs judges can read without installing anything |
+| Bonus | upstream `datahub-verify` skill |
+
+## Why we are not our neighbours
+
+| Neighbour | Why we are not it |
+|---|---|
+| dbt tests / SQL linters | syntax or runtime; zero knowledge of the graph |
+| Airflow circuit breakers | stop bad **runs** after deploy; we stop bad **changes** before merge |
+| Monte Carlo / Bigeye | post-hoc observability for humans, as a separate product; we are a decision inside the PR, written into the graph |
+| DataHub Metadata Tests | Cloud-only, and its rules are metadata-internal; we are OSS and we compare against **live reality** |
+| Datafold / Recce | the closest real competitor — column-level impact in PRs. We differ: OSS and DataHub-native, governance/PII policy rather than data-diff, an attested receipt in the catalog, and an MCP surface for agents |
 
 ## Stack (boring on purpose)
-- **DataHub quickstart** via docker compose (local, self‑contained demo data)
-- **mcp-server-datahub** (official) — the required component ✓
-- Agent: Python 3.12 + the official MCP client; LLM only for intent/explanation,
-  ZERO model calls inside the gates (deterministic — our signature)
-- CLI + tiny web verdict panel (dark editorial style, Kufi — house style)
-- `examples/` folder: passing + blocked cases with receipts (rules recommend it)
 
-## Honest disclosures (rules require)
-- Built during the submission period; incorporates the author's pre‑existing
-  orchestration experience; any reused snippets disclosed in README.
-- AI coding assistants used (allowed explicitly by the rules).
+DataHub OSS quickstart via docker · `mcp-server-datahub` (official) · Python 3.12 +
+sqlglot + the MCP client · **zero LLM calls inside gate logic** — the signature constraint.
 
-## Timeline
-- Jul 24–25: env up (quickstart + MCP), gate 1 walking skeleton
-- Jul 26–31: gates 2–4 + receipts write‑back
-- Aug 1–4: verdict panel + examples/ + hardening
-- Aug 5–8: README, video (<3 min), description
-- **Aug 9: submit (one full safety day)**
+## Disclosures (rules require)
+
+Built during the submission period. Any incorporated pre-existing snippet is disclosed in
+the README. AI coding assistants were used — explicitly permitted by the rules.
