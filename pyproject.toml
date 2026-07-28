@@ -6,6 +6,7 @@ requires-python = ">=3.12"
 license = { text = "Apache-2.0" }
 dependencies = [
     "sqlglot",  # SQL parsing for the schema gate — deterministic, no LLM
+    "pyyaml",   # restricted policy and asset-map loading
     "mcp",      # official MCP client, talks to mcp-server-datahub
 ]
 
