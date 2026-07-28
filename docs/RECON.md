@@ -16,6 +16,19 @@ live graph already contains the datapack's generated `b2fd91` ecommerce graph ac
 Postgres, Snowflake, dbt, S3, Looker, Tableau, and Power BI. This is not the classic
 single-platform sample metadata.
 
+The CLI's local load record independently confirms the completed load:
+
+```text
+$ sed -n '1,120p' ~/.datahub/datapack-loads/showcase-ecommerce.json
+{
+  "pack_name": "showcase-ecommerce",
+  "run_id": "datapack-showcase-ecommerce-1785267206656",
+  "loaded_at": "2026-07-28T19:33:30.730443+00:00",
+  "pack_url": "https://raw.githubusercontent.com/datahub-project/static-assets/main/datapacks/showcase-ecommerce/index.json",
+  "pack_sha256": null
+}
+```
+
 Observed GraphQL `search` output (the command queried `DATASET`, `DASHBOARD`, and
 `CHART`, with `query: "*"` and `count: 500`):
 
@@ -45,7 +58,7 @@ CHART: total=12, returned=12, platforms={'(n/a)': 12}
 ```
 
 The locally installed CLI is `acryl-datahub 1.6.0.16`. Its experimental datapack
-subcommand currently has a packaging defect even for `--help`:
+group help has a packaging defect (the specific `load --help` command still works):
 
 ```text
 FileNotFoundError: [Errno 2] No such file or directory:
