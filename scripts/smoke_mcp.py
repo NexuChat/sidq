@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Smoke-test the live DataHub MCP server over stdio.
 
 This script deliberately uses only MCP tools for the three catalog operations:
@@ -11,14 +10,13 @@ import argparse
 import asyncio
 import json
 import os
-from pathlib import Path
 import shutil
 import sys
-from typing import Any
+from pathlib import Path
+from typing import Any, TextIO
 
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
-
 
 DEFAULT_QUERY = "b2fd91.order_entry_db.order_entry.customers"
 
@@ -65,7 +63,9 @@ def server_command(explicit: str | None) -> str:
 def decode_result(tool_name: str, result: Any) -> Any:
     if result.isError:
         messages = [
-            item.text for item in result.content if getattr(item, "type", None) == "text"
+            item.text
+            for item in result.content
+            if getattr(item, "type", None) == "text"
         ]
         raise RuntimeError(f"{tool_name} failed: {'; '.join(messages)}")
     if result.structuredContent and "result" in result.structuredContent:
@@ -108,7 +108,7 @@ def lineage_summary(lineage: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-async def smoke(args: argparse.Namespace) -> None:
+async def smoke(args: argparse.Namespace, server_stderr: TextIO) -> None:
     environment = dict(os.environ)
     environment.update(
         DATAHUB_GMS_URL=args.gms_url,
@@ -121,74 +121,68 @@ async def smoke(args: argparse.Namespace) -> None:
         env=environment,
     )
 
-    with open(os.devnull, "w", encoding="utf-8") as server_stderr:
-        async with stdio_client(parameters, errlog=server_stderr) as (read, write):
-            async with ClientSession(read, write) as session:
-                initialized = await session.initialize()
-                print(
-                    "Connected:",
-                    f"server={initialized.serverInfo.name}",
-                    f"version={initialized.serverInfo.version}",
-                    f"gms={args.gms_url}",
-                )
+    async with (
+        stdio_client(parameters, errlog=server_stderr) as (read, write),
+        ClientSession(read, write) as session,
+    ):
+        initialized = await session.initialize()
+        print(
+            "Connected:",
+            f"server={initialized.serverInfo.name}",
+            f"version={initialized.serverInfo.version}",
+            f"gms={args.gms_url}",
+        )
 
-                search = decode_result(
-                    "search",
-                    await session.call_tool(
-                        "search", {"query": args.query, "num_results": 5}
-                    ),
-                )
-                datasets = [
-                    hit
-                    for hit in search.get("searchResults", [])
-                    if (hit.get("entity") or {}).get("urn", "").startswith(
-                        "urn:li:dataset:"
-                    )
-                ]
-                if not datasets:
-                    raise RuntimeError(
-                        f"search returned no dataset for query {args.query!r}"
-                    )
-                selected = datasets[0]["entity"]
-                urn = selected["urn"]
-                print_json(
-                    "MCP search",
-                    {
-                        "query": args.query,
-                        "total": search.get("total"),
-                        "selected": selected,
-                    },
-                )
+        search = decode_result(
+            "search",
+            await session.call_tool("search", {"query": args.query, "num_results": 5}),
+        )
+        datasets = [
+            hit
+            for hit in search.get("searchResults", [])
+            if (hit.get("entity") or {}).get("urn", "").startswith("urn:li:dataset:")
+        ]
+        if not datasets:
+            raise RuntimeError(f"search returned no dataset for query {args.query!r}")
+        selected = datasets[0]["entity"]
+        urn = selected["urn"]
+        print_json(
+            "MCP search",
+            {
+                "query": args.query,
+                "total": search.get("total"),
+                "selected": selected,
+            },
+        )
 
-                schema = decode_result(
-                    "list_schema_fields",
-                    await session.call_tool(
-                        "list_schema_fields", {"urn": urn, "limit": 100}
-                    ),
-                )
-                print_json("MCP list_schema_fields", schema)
+        schema = decode_result(
+            "list_schema_fields",
+            await session.call_tool("list_schema_fields", {"urn": urn, "limit": 100}),
+        )
+        print_json("MCP list_schema_fields", schema)
 
-                lineage = decode_result(
-                    "get_lineage",
-                    await session.call_tool(
-                        "get_lineage",
-                        {
-                            "urn": urn,
-                            "column": args.column,
-                            "upstream": False,
-                            "max_hops": 3,
-                            "max_results": 30,
-                        },
-                    ),
-                )
-                print_json(
-                    f"MCP get_lineage column={args.column}",
-                    lineage_summary(lineage),
-                )
+        lineage = decode_result(
+            "get_lineage",
+            await session.call_tool(
+                "get_lineage",
+                {
+                    "urn": urn,
+                    "column": args.column,
+                    "upstream": False,
+                    "max_hops": 3,
+                    "max_results": 30,
+                },
+            ),
+        )
+        print_json(
+            f"MCP get_lineage column={args.column}",
+            lineage_summary(lineage),
+        )
 
 
 def main() -> None:
-    asyncio.run(smoke(parse_args()))
+    with open(os.devnull, "w", encoding="utf-8") as server_stderr:
+        asyncio.run(smoke(parse_args(), server_stderr))
 
 
 if __name__ == "__main__":
