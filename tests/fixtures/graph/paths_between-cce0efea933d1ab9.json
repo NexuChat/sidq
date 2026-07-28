@@ -1,0 +1,9 @@
+[
+  {
+    "granularity": "column",
+    "urns": [
+      "urn:li:dataset:(urn:li:dataPlatform:postgres,analytics.orders,PROD)",
+      "urn:li:dataset:(urn:li:dataPlatform:postgres,bi.orders_dashboard,PROD)"
+    ]
+  }
+]

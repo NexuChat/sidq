@@ -1,0 +1,8 @@
+{
+  "entity_types": {
+    "urn:li:dataset:(urn:li:dataPlatform:postgres,bi.orders_dashboard,PROD)": "dashboard"
+  },
+  "granularity": "table",
+  "paths": [],
+  "urns": ["urn:li:dataset:(urn:li:dataPlatform:postgres,bi.orders_dashboard,PROD)"]
+}

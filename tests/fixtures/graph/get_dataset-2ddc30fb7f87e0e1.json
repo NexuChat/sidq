@@ -1,0 +1,10 @@
+{
+  "deprecated": false,
+  "fields": [
+    {"native_type": "integer", "nullable": false, "path": "customer_id"}
+  ],
+  "owners": [],
+  "tags": [],
+  "terms": [],
+  "urn": "urn:li:dataset:(urn:li:dataPlatform:postgres,raw.customers,PROD)"
+}

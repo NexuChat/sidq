@@ -1,0 +1,8 @@
+{
+  "deprecated": false,
+  "fields": [],
+  "owners": ["urn:li:corpuser:finance"],
+  "tags": ["urn:li:tag:critical"],
+  "terms": [],
+  "urn": "urn:li:dataset:(urn:li:dataPlatform:postgres,bi.orders_dashboard,PROD)"
+}

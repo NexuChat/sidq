@@ -1,0 +1,12 @@
+{
+  "deprecated": false,
+  "fields": [
+    {"native_type": "integer", "nullable": false, "path": "id"},
+    {"native_type": "numeric", "nullable": true, "path": "total"},
+    {"native_type": "text", "nullable": true, "path": "old_status"}
+  ],
+  "owners": ["urn:li:corpuser:analytics"],
+  "tags": [],
+  "terms": [],
+  "urn": "urn:li:dataset:(urn:li:dataPlatform:postgres,analytics.orders,PROD)"
+}
