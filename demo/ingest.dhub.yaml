@@ -1,7 +1,7 @@
 source:
   type: postgres
   config:
-    host_port: localhost:55432
+    host_port: sidq-demo-postgres:5432
     database: warehouse
     username: sidq
     password: sidq
@@ -22,4 +22,4 @@ source:
 sink:
   type: datahub-rest
   config:
-    server: http://localhost:8080
+    server: http://datahub-gms-quickstart:8080
