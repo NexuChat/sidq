@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterable, Mapping, Sequence
+from typing import Any
 
 import yaml
 
@@ -57,7 +58,9 @@ def dataset_urn(platform: str, relation_name: str, environment: str = "PROD") ->
 
 
 def _urn_platform_and_environment(urn: str) -> tuple[str, str] | None:
-    match = re.fullmatch(r"urn:li:dataset:\(urn:li:dataPlatform:([^,]+),.+,([^,)]+)\)", urn)
+    match = re.fullmatch(
+        r"urn:li:dataset:\(urn:li:dataPlatform:([^,]+),.+,([^,)]+)\)", urn
+    )
     return (match.group(1), match.group(2)) if match else None
 
 
@@ -79,23 +82,35 @@ def _read_yaml_mapping(path: Path) -> Mapping[str, Any]:
     return raw if isinstance(raw, Mapping) else {}
 
 
-def _assets_config(root: Path, assets_path: Path | None) -> tuple[dict[str, str], NamingConvention | None]:
+def _assets_config(
+    root: Path, assets_path: Path | None
+) -> tuple[dict[str, str], NamingConvention | None]:
     path = assets_path or root / ".sidq" / "assets.yml"
     document = _read_yaml_mapping(path)
     source_map = document.get("assets", document.get("path_to_urn", {}))
     if not source_map:
-        source_map = {key: value for key, value in document.items() if isinstance(value, str)}
-    explicit = {
-        _normalise_path(key, root): value
-        for key, value in source_map.items()
-        if isinstance(key, str) and isinstance(value, str)
-    } if isinstance(source_map, Mapping) else {}
+        source_map = {
+            key: value for key, value in document.items() if isinstance(value, str)
+        }
+    explicit = (
+        {
+            _normalise_path(key, root): value
+            for key, value in source_map.items()
+            if isinstance(key, str) and isinstance(value, str)
+        }
+        if isinstance(source_map, Mapping)
+        else {}
+    )
     naming_raw = document.get("naming_convention", document.get("naming"))
-    if not isinstance(naming_raw, Mapping) or not isinstance(naming_raw.get("platform"), str):
+    if not isinstance(naming_raw, Mapping) or not isinstance(
+        naming_raw.get("platform"), str
+    ):
         return explicit, None
     allowed = {"platform", "environment", "path_pattern", "relation_template"}
     try:
-        return explicit, NamingConvention(**{key: value for key, value in naming_raw.items() if key in allowed})
+        return explicit, NamingConvention(
+            **{key: value for key, value in naming_raw.items() if key in allowed}
+        )
     except TypeError:
         return explicit, None
 
@@ -107,14 +122,20 @@ def _manifest_candidates(root: Path, manifest_path: Path | None) -> tuple[Path, 
     return tuple(candidate for candidate in candidates if candidate.is_file())
 
 
-def _manifest_index(root: Path, manifest_path: Path | None) -> dict[str, tuple[str, str]]:
+def _manifest_index(
+    root: Path, manifest_path: Path | None
+) -> dict[str, tuple[str, str]]:
     for candidate in _manifest_candidates(root, manifest_path):
         try:
             document = json.loads(candidate.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             continue
         metadata = document.get("metadata", {}) if isinstance(document, Mapping) else {}
-        platform = metadata.get("adapter_type", "dbt") if isinstance(metadata, Mapping) else "dbt"
+        platform = (
+            metadata.get("adapter_type", "dbt")
+            if isinstance(metadata, Mapping)
+            else "dbt"
+        )
         nodes = document.get("nodes", {}) if isinstance(document, Mapping) else {}
         if not isinstance(nodes, Mapping):
             continue
@@ -144,7 +165,9 @@ def _manifest_index(root: Path, manifest_path: Path | None) -> dict[str, tuple[s
     return {}
 
 
-def _sql_parts(sql: str, default_urn: str, convention: NamingConvention | None) -> tuple[tuple[str, ...], tuple[FieldRef, ...]]:
+def _sql_parts(
+    sql: str, default_urn: str, convention: NamingConvention | None
+) -> tuple[tuple[str, ...], tuple[FieldRef, ...]]:
     """Extract output aliases and referenced table columns with sqlglot."""
     import sqlglot
     from sqlglot import exp
@@ -181,7 +204,9 @@ def _sql_parts(sql: str, default_urn: str, convention: NamingConvention | None) 
         for column in expression.find_all(exp.Column)
         if column.name and column.name != "*"
     }
-    return aliases, tuple(sorted(references, key=lambda ref: (ref.dataset_urn, ref.field_path)))
+    return aliases, tuple(
+        sorted(references, key=lambda ref: (ref.dataset_urn, ref.field_path))
+    )
 
 
 class Resolver:
@@ -195,12 +220,20 @@ class Resolver:
     ) -> None:
         self.repo_root = Path(repo_root).resolve()
         self.manifest_path = (
-            (self.repo_root / manifest_path if not Path(manifest_path).is_absolute() else Path(manifest_path))
+            (
+                self.repo_root / manifest_path
+                if not Path(manifest_path).is_absolute()
+                else Path(manifest_path)
+            )
             if manifest_path is not None
             else None
         )
         self.assets_path = (
-            (self.repo_root / assets_path if not Path(assets_path).is_absolute() else Path(assets_path))
+            (
+                self.repo_root / assets_path
+                if not Path(assets_path).is_absolute()
+                else Path(assets_path)
+            )
             if assets_path is not None
             else None
         )
@@ -208,11 +241,15 @@ class Resolver:
 
     def resolve(self, changed_files: Sequence[str | Path]) -> ResolutionResult:
         manifest = _manifest_index(self.repo_root, self.manifest_path)
-        explicit, configured_convention = _assets_config(self.repo_root, self.assets_path)
+        explicit, configured_convention = _assets_config(
+            self.repo_root, self.assets_path
+        )
         convention = self.naming_convention or configured_convention
         assets: list[TouchedAsset] = []
         evidence: list[Evidence] = []
-        for changed_file in sorted({_normalise_path(item, self.repo_root) for item in changed_files}):
+        for changed_file in sorted(
+            {_normalise_path(item, self.repo_root) for item in changed_files}
+        ):
             resolved = manifest.get(changed_file)
             if resolved is None and changed_file in explicit:
                 resolved = (explicit[changed_file], "explicit_map")
@@ -221,7 +258,11 @@ class Resolver:
                 if urn is not None:
                     resolved = (urn, "naming_convention")
             if resolved is None:
-                evidence.append(Evidence("unresolved_asset", changed_file, {"source_path": changed_file}))
+                evidence.append(
+                    Evidence(
+                        "unresolved_asset", changed_file, {"source_path": changed_file}
+                    )
+                )
                 continue
             urn, strategy = resolved
             added_fields: tuple[str, ...] = ()
@@ -229,13 +270,19 @@ class Resolver:
             file_path = self.repo_root / changed_file
             if changed_file.lower().endswith(".sql"):
                 try:
-                    added_fields, referenced_fields = _sql_parts(file_path.read_text(encoding="utf-8"), urn, convention)
-                except Exception as error:  # parsing and filesystem failures are evidence, never a crash
+                    added_fields, referenced_fields = _sql_parts(
+                        file_path.read_text(encoding="utf-8"), urn, convention
+                    )
+                except Exception as error:  # noqa: BLE001
+                    # Parsing and filesystem failures are evidence, never a crash.
                     evidence.append(
                         Evidence(
                             "unparseable_sql",
                             urn,
-                            {"source_path": changed_file, "error": type(error).__name__},
+                            {
+                                "source_path": changed_file,
+                                "error": type(error).__name__,
+                            },
                         )
                     )
             assets.append(

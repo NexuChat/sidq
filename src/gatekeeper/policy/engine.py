@@ -4,16 +4,18 @@ from __future__ import annotations
 
 import hashlib
 import string
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Literal, Mapping, Sequence
+from typing import Any, Literal
 
 import yaml
 
 from sidq.models import Evidence, Finding, TouchedAsset, Verdict
 
-
-_OPERATORS = frozenset({"eq", "ne", "gt", "gte", "lt", "lte", "in", "contains", "empty", "not_empty"})
+_OPERATORS = frozenset(
+    {"eq", "ne", "gt", "gte", "lt", "lte", "in", "contains", "empty", "not_empty"}
+)
 _VALUELESS_OPERATORS = frozenset({"empty", "not_empty"})
 _SEVERITIES = frozenset({"block", "warn"})
 
@@ -69,7 +71,11 @@ def _require_mapping(value: Any, location: str) -> Mapping[str, Any]:
 def _validate_field(field: Any, location: str) -> str:
     if not isinstance(field, str):
         raise PolicyConfigError(f"{location}.field must be a string")
-    if field in {"subject", "graph_links"} or field.startswith("detail.") and len(field) > len("detail."):
+    if (
+        field in {"subject", "graph_links"}
+        or field.startswith("detail.")
+        and len(field) > len("detail.")
+    ):
         return field
     raise PolicyConfigError(f"{location}.field is unknown: {field!r}")
 
@@ -98,15 +104,25 @@ def _parse_condition(raw: Any, settings: Mapping[str, Any], location: str) -> Co
         return Condition(field=field, op=op)
     if not has_value:
         raise PolicyConfigError(f"{location}.value is required for {op}")
-    return Condition(field=field, op=op, value=_resolve_setting(condition["value"], settings, location))
+    return Condition(
+        field=field,
+        op=op,
+        value=_resolve_setting(condition["value"], settings, location),
+    )
 
 
 def _validate_message(message: Any, location: str) -> str:
     if not isinstance(message, str):
         raise PolicyConfigError(f"{location}.message must be a string")
     for _, field_name, _, _ in string.Formatter().parse(message):
-        if field_name and field_name != "subject" and not field_name.startswith("detail."):
-            raise PolicyConfigError(f"{location}.message uses unknown field: {field_name!r}")
+        if (
+            field_name
+            and field_name != "subject"
+            and not field_name.startswith("detail.")
+        ):
+            raise PolicyConfigError(
+                f"{location}.message uses unknown field: {field_name!r}"
+            )
     return message
 
 
@@ -143,7 +159,9 @@ def load_policy(path: str | Path | None = None) -> Policy:
             raise PolicyConfigError(f"{location}.match has unsupported keys")
         evidence_kind = match.get("evidence_kind")
         if not isinstance(evidence_kind, str) or not evidence_kind:
-            raise PolicyConfigError(f"{location}.match.evidence_kind must be a non-empty string")
+            raise PolicyConfigError(
+                f"{location}.match.evidence_kind must be a non-empty string"
+            )
         severity = rule.get("severity")
         if severity not in _SEVERITIES:
             raise PolicyConfigError(f"{location}.severity must be block or warn")
@@ -161,11 +179,25 @@ def load_policy(path: str | Path | None = None) -> Policy:
                 severity=severity,
                 reason_code=reason_code,
                 message=_validate_message(rule.get("message"), location),
-                where=tuple(_parse_condition(item, settings, f"{location}.match.where[{item_index}]") for item_index, item in enumerate(where_raw)),
-                where_any=tuple(_parse_condition(item, settings, f"{location}.match.where_any[{item_index}]") for item_index, item in enumerate(where_any_raw)),
+                where=tuple(
+                    _parse_condition(
+                        item, settings, f"{location}.match.where[{item_index}]"
+                    )
+                    for item_index, item in enumerate(where_raw)
+                ),
+                where_any=tuple(
+                    _parse_condition(
+                        item, settings, f"{location}.match.where_any[{item_index}]"
+                    )
+                    for item_index, item in enumerate(where_any_raw)
+                ),
             )
         )
-    return Policy(settings=dict(settings), rules=tuple(rules), policy_hash=hashlib.sha256(raw_bytes).hexdigest())
+    return Policy(
+        settings=dict(settings),
+        rules=tuple(rules),
+        policy_hash=hashlib.sha256(raw_bytes).hexdigest(),
+    )
 
 
 def _field_value(evidence: Evidence, field: str) -> Any:
@@ -186,16 +218,26 @@ def _matches_condition(evidence: Evidence, condition: Condition) -> bool:
     right = condition.value
     try:
         match condition.op:
-            case "eq": return left == right
-            case "ne": return left != right
-            case "gt": return left > right
-            case "gte": return left >= right
-            case "lt": return left < right
-            case "lte": return left <= right
-            case "in": return left in right
-            case "contains": return right in left
-            case "empty": return left is None or len(left) == 0
-            case "not_empty": return left is not None and len(left) > 0
+            case "eq":
+                return left == right
+            case "ne":
+                return left != right
+            case "gt":
+                return left > right
+            case "gte":
+                return left >= right
+            case "lt":
+                return left < right
+            case "lte":
+                return left <= right
+            case "in":
+                return left in right
+            case "contains":
+                return right in left
+            case "empty":
+                return left is None or len(left) == 0
+            case "not_empty":
+                return left is not None and len(left) > 0
     except (TypeError, KeyError):
         return False
     raise AssertionError(f"validated operator was not implemented: {condition.op}")
@@ -205,20 +247,31 @@ def _matches_rule(evidence: Evidence, rule: Rule) -> bool:
     return (
         evidence.kind == rule.evidence_kind
         and all(_matches_condition(evidence, condition) for condition in rule.where)
-        and (not rule.where_any or any(_matches_condition(evidence, condition) for condition in rule.where_any))
+        and (
+            not rule.where_any
+            or any(
+                _matches_condition(evidence, condition) for condition in rule.where_any
+            )
+        )
     )
 
 
 def _render(rule: Rule, evidence: Evidence) -> str:
     try:
-        return rule.message.format(subject=evidence.subject, detail=_DetailView(evidence.detail))
+        return rule.message.format(
+            subject=evidence.subject, detail=_DetailView(evidence.detail)
+        )
     except (AttributeError, KeyError, IndexError):
         return rule.message
 
 
 class PolicyEngine:
     def __init__(self, policy: Policy | str | Path | None = None) -> None:
-        self.policy = load_policy(policy) if policy is None or isinstance(policy, (str, Path)) else policy
+        self.policy = (
+            load_policy(policy)
+            if policy is None or isinstance(policy, (str, Path))
+            else policy
+        )
 
     def decide(
         self,
@@ -239,7 +292,9 @@ class PolicyEngine:
                     continue
                 found_match = True
                 matched_rule_ids.add((evidence_index, rule_index))
-                findings.append(Finding(rule.id, rule.severity, _render(rule, item), (item,)))
+                findings.append(
+                    Finding(rule.id, rule.severity, _render(rule, item), (item,))
+                )
                 if rule.severity == "block":
                     has_block = True
                     if reason_code is None and rule.reason_code is not None:
@@ -247,7 +302,14 @@ class PolicyEngine:
                 else:
                     has_warn = True
             if not found_match:
-                findings.append(Finding("informational", "info", f"No policy rule matched evidence kind {item.kind}.", (item,)))
+                findings.append(
+                    Finding(
+                        "informational",
+                        "info",
+                        f"No policy rule matched evidence kind {item.kind}.",
+                        (item,),
+                    )
+                )
         decision = "BLOCK" if has_block else "WARN" if has_warn else "PASS"
         return Verdict(
             decision=decision,
