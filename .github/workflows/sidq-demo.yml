@@ -1,0 +1,45 @@
+name: Sidq demo
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: write
+  checks: write
+
+concurrency:
+  group: sidq-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  verdict:
+    name: Sidq fixture verdict
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # pull_request_target supplies a write-capable token. Keep the executable
+      # action and policy on the trusted base SHA; PR-controlled files are only
+      # parsed as data from the isolated checkout below.
+      - name: Check out trusted Sidq action
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+
+      - name: Check out pull request files as data
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: .sidq-pr
+          persist-credentials: false
+
+      - name: Run Sidq against recorded graph fixtures
+        uses: ./
+        with:
+          token: ${{ github.token }}
+          mode: fixture
+          repo-root: .sidq-pr

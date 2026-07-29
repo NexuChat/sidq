@@ -1,0 +1,69 @@
+name: Sidq PR verdict
+description: Run Sidq against pull-request changes and publish one provenance-honest decision
+author: Sidq
+
+branding:
+  icon: shield
+  color: purple
+
+inputs:
+  token:
+    description: GitHub token used for PR files, the sticky comment, and the check run
+    required: true
+  mode:
+    description: Graph provenance mode; either live or fixture
+    required: false
+    default: live
+  fixture-dir:
+    description: Recorded graph fixture directory; defaults to the fixtures shipped with Sidq
+    required: false
+    default: ""
+  policy:
+    description: Policy path relative to repo-root; uses Sidq's default policy when empty
+    required: false
+    default: ""
+  repo-root:
+    description: Checkout to inspect, relative to GITHUB_WORKSPACE
+    required: false
+    default: "."
+  datahub-mcp-command:
+    description: Path to the official mcp-server-datahub executable in live mode
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Install and run Sidq
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.token }}
+        SIDQ_ACTION_PATH: ${{ github.action_path }}
+        SIDQ_DATAHUB_MCP_COMMAND: ${{ inputs.datahub-mcp-command }}
+        SIDQ_FIXTURE_DIR: ${{ inputs.fixture-dir }}
+        SIDQ_MODE: ${{ inputs.mode }}
+        SIDQ_POLICY: ${{ inputs.policy }}
+        SIDQ_REPO_ROOT: ${{ inputs.repo-root }}
+      run: |
+        set -euo pipefail
+        sidq_venv="${RUNNER_TEMP}/sidq-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+        python3 -m venv "${sidq_venv}"
+        "${sidq_venv}/bin/python" -m pip install \
+          --disable-pip-version-check \
+          "${SIDQ_ACTION_PATH}"
+        if [[ "${SIDQ_MODE}" == "live" && -z "${SIDQ_DATAHUB_MCP_COMMAND}" ]]; then
+          "${sidq_venv}/bin/python" -m pip install \
+            --disable-pip-version-check \
+            "mcp-server-datahub==0.6.0"
+        fi
+
+        set +e
+        "${sidq_venv}/bin/python" -m sidq.bot.action
+        sidq_status=$?
+        set -e
+
+        if [[ "${sidq_status}" -eq 1 ]]; then
+          echo "::warning title=Sidq policy verdict::WARN — see the sticky PR comment"
+          exit 0
+        fi
+        exit "${sidq_status}"
