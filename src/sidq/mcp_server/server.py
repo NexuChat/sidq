@@ -23,6 +23,8 @@ from mcp_types import CallToolResult, TextContent, ToolAnnotations
 from pydantic import BaseModel, ConfigDict, Field
 
 from sidq import cli
+from sidq.claims.models import Claim
+from sidq.claims.reconcile import ConstraintReconciler, ConstraintSource
 from sidq.gates.lineage_rot import LineageRotGate
 from sidq.gates.reality import RealityGate
 from sidq.graph.client import (
@@ -45,10 +47,12 @@ CHECK_CHANGE_DESCRIPTION = (
 )
 VERIFY_CONTEXT_DESCRIPTION = (
     "Call this before trusting catalog metadata for an asset or using that asset in "
-    "a query. It checks the catalog against the live schema and the model SQL against "
-    "stored column lineage when those checks are available. truthful is true only "
-    "when every check was completed without a finding; unavailable checks are listed "
-    "in unverifiable, so absence of evidence is never presented as proof."
+    "a query. It checks the catalog against the live schema, the model SQL against "
+    "stored column lineage, and catalog constraint claims against the constraints "
+    "the live source actually enforces, whenever those checks are available. "
+    "truthful is true only when every check was completed without a finding; "
+    "unavailable checks are listed in unverifiable, so absence of evidence is never "
+    "presented as proof."
 )
 SEARCH_VERIFIED_DESCRIPTION = (
     "Call this when choosing catalog assets for analysis or code generation. It "
@@ -108,9 +112,15 @@ class VerdictResult(_Model):
 
 
 class UnverifiableResult(_Model):
-    check: Literal["schema_drift", "lineage_rot"]
+    check: Literal["schema_drift", "lineage_rot", "constraint_reconciliation"]
     reason: str
     subject: str | None = None
+
+
+# Reconciliation records that must never turn a truthful verdict untruthful.
+_CONSTRAINT_INFORMATIONAL = frozenset(
+    {"constraint_confirmed", "constraint_missing_in_catalog"}
+)
 
 
 class VerifyContextResult(_Model):
@@ -476,6 +486,12 @@ class SidqService:
                         },
                     )
 
+            constraint_findings, constraint_unverifiable = self._constraint_evidence(
+                urn, dataset
+            )
+            findings.extend(constraint_findings)
+            unverifiable.extend(constraint_unverifiable)
+
         truthful = error is None and not findings and not unverifiable
         result: dict[str, Any] = {
             "urn": urn,
@@ -587,6 +603,61 @@ class SidqService:
                 "unverified": unverified,
             }
         )
+
+    def _constraint_evidence(
+        self, urn: str, dataset: DatasetInfo | None
+    ) -> tuple[list[Evidence], list[dict[str, str]]]:
+        """Reconcile catalog constraint claims against live source enforcement.
+
+        The catalog projection is deliberately narrow: only ``nullable=false``
+        becomes a claim, because that is the one constraint assertion the graph
+        seam carries.  Keys and foreign keys are not projected and are therefore
+        never reported as reconciled either way.
+        """
+        source = self.live_source
+        if not isinstance(source, ConstraintSource):
+            return [], [
+                {
+                    "check": "constraint_reconciliation",
+                    "reason": "live source does not expose constraint introspection",
+                }
+            ]
+        claims = _catalog_constraint_claims(dataset)
+        try:
+            records = ConstraintReconciler(source).reconcile(urn, claims)
+        except Exception as reconcile_error:  # noqa: BLE001
+            return [], [
+                {
+                    "check": "constraint_reconciliation",
+                    "reason": (
+                        "live constraint introspection failed: "
+                        f"{type(reconcile_error).__name__}"
+                    ),
+                    "subject": urn,
+                }
+            ]
+        findings: list[Evidence] = []
+        unverifiable: list[dict[str, str]] = []
+        for record in records:
+            if record.kind in _CONSTRAINT_INFORMATIONAL:
+                # constraint_confirmed is affirmative verification, and
+                # constraint_missing_in_catalog says the source enforces more than
+                # the catalog claims.  Neither is the catalog lying, and the graph
+                # seam cannot even express CHECK, FK, or UNIQUE, so counting the
+                # latter as a truth finding would mark every ordinary table
+                # untruthful and destroy the signal.
+                continue
+            if record.kind == "constraint_unverifiable":
+                unverifiable.append(
+                    {
+                        "check": "constraint_reconciliation",
+                        "reason": str(record.detail.get("reason", "not decidable")),
+                        "subject": record.subject,
+                    }
+                )
+            else:
+                findings.append(record)
+        return findings, unverifiable
 
     def _lineage_evidence(self, entry: _ManifestEntry) -> list[Evidence]:
         resolved = Resolver(entry.project_root).resolve([entry.source_path])
@@ -865,6 +936,27 @@ def _error_result(
 
 def _content_sha(value: str) -> str:
     return f"sha256:{hashlib.sha256(value.encode('utf-8')).hexdigest()}"
+
+
+def _catalog_constraint_claims(dataset: DatasetInfo | None) -> tuple[Claim, ...]:
+    """Project the graph seam's one constraint assertion into claim vocabulary.
+
+    ``DatasetInfo`` carries ``nullable`` and nothing else about enforcement, so
+    only ``not_null`` is projected.  Silence here means "the catalog made no
+    claim we can read", never "the catalog agrees with the source".
+    """
+    if dataset is None:
+        return ()
+    return tuple(
+        Claim(
+            "not_null",
+            field.path,
+            source_sentence="DataHub schemaMetadata.nullable=false",
+            confidence=1.0,
+        )
+        for field in dataset.fields
+        if field.nullable is False
+    )
 
 
 def _utc(value: datetime) -> datetime:

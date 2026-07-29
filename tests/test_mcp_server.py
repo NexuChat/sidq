@@ -13,6 +13,7 @@ from mcp import Client, ClientSession
 from sidq import cli
 from sidq.graph.client import DatasetInfo, LineageResult, SchemaField
 from sidq.graph.fixtures import ReplayGraphClient
+from sidq.graph.live_source import LiveConstraint
 from sidq.mcp_server import SidqService, VerificationStore, create_server
 from sidq.policy.engine import default_policy_path
 from sidq.serialization import canonical_json
@@ -881,3 +882,141 @@ def test_search_verified_with_no_search_capability_is_graph_unavailable() -> Non
 
     assert result["error"]["code"] == "GRAPH_UNAVAILABLE"
     assert result["verified"] == []
+
+
+# ---------------------------------------------------------------------------
+# 7. Constraint reconciliation inside verify_context.
+# ---------------------------------------------------------------------------
+
+
+class _ConstraintSource:
+    """A live source that reports exactly the constraints it is given."""
+
+    def __init__(self, dataset: DatasetInfo | None, *constraints: LiveConstraint):
+        self.dataset = dataset
+        self.constraints = constraints
+
+    def get_dataset(self, urn: str) -> DatasetInfo | None:
+        return self.dataset
+
+    def get_constraints(self, urn: str) -> tuple[LiveConstraint, ...]:
+        return self.constraints
+
+
+class _SchemaOnlyGraph:
+    """A graph whose only interesting aspect is the schema of one dataset."""
+
+    def __init__(self, *fields: SchemaField) -> None:
+        self.dataset = DatasetInfo(CUSTOMERS, fields)
+
+    def get_dataset(self, urn: str) -> DatasetInfo | None:
+        return self.dataset if urn == CUSTOMERS else None
+
+    def get_downstream(self, urn: str, depth: int, column: str | None = None):
+        return None
+
+    def paths_between(self, source: str, target: str, column: str | None = None):
+        return None
+
+
+def _not_null(column: str) -> LiveConstraint:
+    return LiveConstraint(
+        f"{column}_not_null", "not_null", (column,), f"{column} NOT NULL"
+    )
+
+
+def test_catalog_not_null_claim_the_source_does_not_enforce_is_a_finding() -> None:
+    """The headline Gate 0 case: the catalog claims more than the source enforces."""
+    graph = _SchemaOnlyGraph(
+        SchemaField("cust_id", "int", False),
+        SchemaField("shipped_at", "timestamp", False),
+    )
+    source = _ConstraintSource(graph.dataset, _not_null("cust_id"))
+    service = SidqService(graph, live_source=source, clock=lambda: FIXED_NOW)
+
+    findings, unverifiable = service._constraint_evidence(CUSTOMERS, graph.dataset)
+
+    kinds = {item.kind for item in findings}
+    assert kinds == {"constraint_contradicts_catalog"}
+    assert findings[0].subject.endswith("#shipped_at")
+    assert unverifiable == []
+
+
+def test_a_confirmed_constraint_is_not_reported_as_a_finding() -> None:
+    graph = _SchemaOnlyGraph(SchemaField("cust_id", "int", False))
+    source = _ConstraintSource(graph.dataset, _not_null("cust_id"))
+    service = SidqService(graph, live_source=source, clock=lambda: FIXED_NOW)
+
+    findings, unverifiable = service._constraint_evidence(CUSTOMERS, graph.dataset)
+
+    assert findings == []
+    assert unverifiable == []
+
+
+def test_source_enforcing_more_than_the_catalog_claims_is_not_a_truth_finding() -> None:
+    """A CHECK the graph seam cannot express must not mark the asset untruthful."""
+    graph = _SchemaOnlyGraph(SchemaField("cust_id", "int", False))
+    source = _ConstraintSource(
+        graph.dataset,
+        _not_null("cust_id"),
+        LiveConstraint(
+            "total_positive", "check", ("order_total",), "CHECK (order_total >= 0)"
+        ),
+    )
+    service = SidqService(graph, live_source=source, clock=lambda: FIXED_NOW)
+
+    findings, unverifiable = service._constraint_evidence(CUSTOMERS, graph.dataset)
+
+    assert findings == []
+    assert unverifiable == []
+
+
+def test_a_live_source_without_constraint_introspection_is_unverifiable() -> None:
+    """MatchingLiveSource has get_dataset but no get_constraints."""
+    graph = _SchemaOnlyGraph(SchemaField("cust_id", "int", False))
+
+    class NoIntrospection:
+        def get_dataset(self, urn: str) -> DatasetInfo | None:
+            return graph.dataset
+
+    service = SidqService(graph, live_source=NoIntrospection(), clock=lambda: FIXED_NOW)
+
+    findings, unverifiable = service._constraint_evidence(CUSTOMERS, graph.dataset)
+
+    assert findings == []
+    assert [item["check"] for item in unverifiable] == ["constraint_reconciliation"]
+
+
+def test_failing_constraint_introspection_is_unverifiable_never_a_silent_pass() -> None:
+    graph = _SchemaOnlyGraph(SchemaField("cust_id", "int", False))
+
+    class ExplodingSource:
+        def get_dataset(self, urn: str) -> DatasetInfo | None:
+            return graph.dataset
+
+        def get_constraints(self, urn: str) -> tuple[LiveConstraint, ...]:
+            raise RuntimeError("connection reset")
+
+    service = SidqService(graph, live_source=ExplodingSource(), clock=lambda: FIXED_NOW)
+
+    findings, unverifiable = service._constraint_evidence(CUSTOMERS, graph.dataset)
+
+    assert findings == []
+    assert unverifiable[0]["check"] == "constraint_reconciliation"
+    assert "RuntimeError" in unverifiable[0]["reason"]
+
+
+def test_verify_context_surfaces_a_constraint_contradiction_over_mcp() -> None:
+    """The finding must reach a real MCP caller, not just the service method."""
+    graph = _SchemaOnlyGraph(
+        SchemaField("cust_id", "int", False),
+        SchemaField("shipped_at", "timestamp", False),
+    )
+    source = _ConstraintSource(graph.dataset, _not_null("cust_id"))
+    service = SidqService(graph, live_source=source, clock=lambda: FIXED_NOW)
+
+    payload = _assert_canonical(_call(service, "verify_context", {"urn": CUSTOMERS}))
+
+    assert payload["truthful"] is False
+    kinds = {item["kind"] for item in payload["findings"]}
+    assert "constraint_contradicts_catalog" in kinds
