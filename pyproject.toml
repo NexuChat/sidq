@@ -15,6 +15,7 @@ dev = ["pytest", "ruff"]
 
 [project.scripts]
 sidq = "sidq.cli:main"
+sidq-mcp = "sidq.mcp_server:main"
 
 [build-system]
 requires = ["setuptools>=68"]
