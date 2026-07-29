@@ -1,0 +1,9 @@
+[
+  {
+    "granularity": "table",
+    "urns": [
+      "urn:li:chart:(looker,sidq_demo.customer_360_lifecycle)",
+      "urn:li:dashboard:(looker,sidq_demo.executive_metrics)"
+    ]
+  }
+]

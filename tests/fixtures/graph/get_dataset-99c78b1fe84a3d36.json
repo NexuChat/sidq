@@ -1,0 +1,32 @@
+{
+  "deprecated": false,
+  "field_descriptions": {},
+  "fields": [
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "customer_id"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "monthly_amount"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "plan_name"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "subscription_status"
+    }
+  ],
+  "owners": [
+    "urn:li:corpgroup:source-systems"
+  ],
+  "tags": [],
+  "terms": [],
+  "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,staging.stg_subscriptions,PROD)"
+}

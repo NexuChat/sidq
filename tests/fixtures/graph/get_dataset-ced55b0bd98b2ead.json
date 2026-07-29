@@ -1,0 +1,39 @@
+{
+  "deprecated": false,
+  "field_descriptions": {},
+  "fields": [
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "customer_country"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "customer_created_at"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "customer_email"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "customer_id"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "customer_name"
+    }
+  ],
+  "owners": [
+    "urn:li:corpgroup:source-systems"
+  ],
+  "tags": [
+    "urn:li:tag:PII"
+  ],
+  "terms": [],
+  "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,staging.stg_customers,PROD)"
+}

@@ -1,0 +1,43 @@
+{
+  "deprecated": false,
+  "field_descriptions": {
+    "item_id": "Immutable line item key.",
+    "order_id": "Parent order key.",
+    "quantity": "Positive number of units purchased.",
+    "sku": "Product stock keeping unit captured at sale time.",
+    "unit_price": "Non-negative unit sale price at checkout."
+  },
+  "fields": [
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "item_id"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "order_id"
+    },
+    {
+      "native_type": "integer",
+      "nullable": true,
+      "path": "quantity"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "sku"
+    },
+    {
+      "native_type": "numeric(10, 2)",
+      "nullable": true,
+      "path": "unit_price"
+    }
+  ],
+  "owners": [
+    "urn:li:corpgroup:commerce-data-platform"
+  ],
+  "tags": [],
+  "terms": [],
+  "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.staging.stg_order_items,PROD)"
+}

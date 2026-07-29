@@ -1,0 +1,129 @@
+{
+  "deprecated": false,
+  "field_descriptions": {
+    "carrier": "Delivery carrier.",
+    "customer_country": "Customer registration country.",
+    "customer_email": "PII customer email propagated from stg_customers for order operations.",
+    "customer_id": "Customer who placed the order.",
+    "customer_name": "PII customer name propagated from stg_customers.",
+    "delivered_at": "UTC delivery timestamp.",
+    "item_gross_revenue": "Sum of extended item prices.",
+    "item_quantity": "Total units on the order.",
+    "net_revenue": "Gross order total minus refund amount.",
+    "order_id": "Unique checkout order identifier.",
+    "order_status": "Current order lifecycle state.",
+    "order_total": "Gross order value before refunds.",
+    "ordered_at": "UTC checkout timestamp.",
+    "payment_amount": "Amount submitted to the processor.",
+    "payment_id": "Payment record associated with the order.",
+    "payment_provider": "Processor payment rail.",
+    "payment_status": "Current processor status.",
+    "refund_amount": "Total refund amount applied to the order.",
+    "shipment_status": "Current fulfilment state."
+  },
+  "fields": [
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "carrier"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "customer_country"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "customer_email"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "customer_id"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "customer_name"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "delivered_at"
+    },
+    {
+      "native_type": "numeric(14, 2)",
+      "nullable": true,
+      "path": "item_gross_revenue"
+    },
+    {
+      "native_type": "bigint",
+      "nullable": true,
+      "path": "item_quantity"
+    },
+    {
+      "native_type": "numeric(12, 2)",
+      "nullable": true,
+      "path": "net_revenue"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "order_id"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "order_status"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "order_total"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "ordered_at"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "payment_amount"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "payment_id"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "payment_provider"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "payment_status"
+    },
+    {
+      "native_type": "numeric(12, 2)",
+      "nullable": true,
+      "path": "refund_amount"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "shipment_status"
+    }
+  ],
+  "owners": [
+    "urn:li:corpgroup:commerce-analytics"
+  ],
+  "tags": [
+    "urn:li:tag:PII"
+  ],
+  "terms": [],
+  "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.intermediate.int_order_enriched,PROD)"
+}

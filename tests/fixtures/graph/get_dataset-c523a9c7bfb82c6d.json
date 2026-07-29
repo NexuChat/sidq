@@ -1,0 +1,49 @@
+{
+  "deprecated": false,
+  "field_descriptions": {
+    "order_id": "Order identifier receiving the refund.",
+    "payment_id": "Payment identifier receiving the refund.",
+    "refund_amount": "Positive refund amount.",
+    "refund_id": "Immutable refund primary key.",
+    "refund_reason": "Coded business reason for the refund.",
+    "refunded_at": "UTC timestamp when the refund was issued."
+  },
+  "fields": [
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "order_id"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "payment_id"
+    },
+    {
+      "native_type": "numeric(12, 2)",
+      "nullable": true,
+      "path": "refund_amount"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "refund_id"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "refund_reason"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "refunded_at"
+    }
+  ],
+  "owners": [
+    "urn:li:corpgroup:commerce-data-platform"
+  ],
+  "tags": [],
+  "terms": [],
+  "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.staging.stg_refunds,PROD)"
+}

@@ -1,0 +1,61 @@
+{
+  "deprecated": false,
+  "field_descriptions": {
+    "customer_id": "Customer who opened the ticket.",
+    "opened_at": "UTC timestamp when the ticket was created.",
+    "order_id": "Related order when the request concerns a purchase.",
+    "resolved_at": "UTC resolution timestamp when the ticket is closed.",
+    "subject": "Short support request subject.",
+    "ticket_id": "Immutable support ticket primary key.",
+    "ticket_priority": "Triage priority assigned by support.",
+    "ticket_status": "Current support workflow state."
+  },
+  "fields": [
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "customer_id"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "opened_at"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "order_id"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "resolved_at"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "subject"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "ticket_id"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "ticket_priority"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "ticket_status"
+    }
+  ],
+  "owners": [
+    "urn:li:corpgroup:commerce-data-platform"
+  ],
+  "tags": [],
+  "terms": [],
+  "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.staging.stg_support_tickets,PROD)"
+}

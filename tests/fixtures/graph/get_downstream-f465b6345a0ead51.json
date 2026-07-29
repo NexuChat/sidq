@@ -1,0 +1,21 @@
+{
+  "columns": {
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.analytics.order_funnel,PROD)": [
+      "payment_status"
+    ]
+  },
+  "entity_types": {
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.analytics.order_funnel,PROD)": "DATASET"
+  },
+  "granularity": "column",
+  "metadata": {
+    "queryType": "column-level-lineage"
+  },
+  "paths": [],
+  "tags": {
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.analytics.order_funnel,PROD)": []
+  },
+  "urns": [
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.analytics.order_funnel,PROD)"
+  ]
+}

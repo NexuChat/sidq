@@ -1,0 +1,45 @@
+{
+  "deprecated": false,
+  "field_descriptions": {
+    "customer_country": "Customer country code captured at registration.",
+    "customer_created_at": "Account creation timestamp in UTC.",
+    "customer_email": "PII email address, expected to be unique per customer.",
+    "customer_id": "Immutable customer key; each value appears exactly once.",
+    "customer_name": "PII customer full name from the application profile."
+  },
+  "fields": [
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "customer_country"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "customer_created_at"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "customer_email"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "customer_id"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "customer_name"
+    }
+  ],
+  "owners": [
+    "urn:li:corpgroup:commerce-data-platform"
+  ],
+  "tags": [
+    "urn:li:tag:PII"
+  ],
+  "terms": [],
+  "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.staging.stg_customers,PROD)"
+}

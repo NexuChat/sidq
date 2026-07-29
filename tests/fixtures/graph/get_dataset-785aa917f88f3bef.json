@@ -1,0 +1,111 @@
+{
+  "deprecated": false,
+  "field_descriptions": {
+    "current_plan_name": "Current or most recent subscription plan.",
+    "customer_country": "Customer registration country.",
+    "customer_created_at": "UTC account creation timestamp.",
+    "customer_email": "PII customer email from raw.customers, retained for approved lifecycle activation.",
+    "customer_id": "Unique customer identifier.",
+    "customer_name": "PII customer name from raw.customers, retained for customer-success workflows.",
+    "first_order_at": "UTC timestamp of the first order.",
+    "last_order_at": "UTC timestamp of the most recent order.",
+    "last_session_at": "UTC timestamp of the latest identified session.",
+    "lifetime_order_count": "Count of orders placed across the customer lifetime.",
+    "lifetime_order_value": "Gross lifetime order value before refunds.",
+    "monthly_amount": "Monthly recurring subscription amount.",
+    "session_count": "Count of identified web sessions.",
+    "subscription_status": "Current subscription lifecycle state.",
+    "support_ticket_count": "Total support tickets opened by the customer.",
+    "unresolved_ticket_count": "Support tickets not in resolved status."
+  },
+  "fields": [
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "current_plan_name"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "customer_country"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "customer_created_at"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "customer_email"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "customer_id"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "customer_name"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "first_order_at"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "last_order_at"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "last_session_at"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "lifetime_order_count"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "lifetime_order_value"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "monthly_amount"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "session_count"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "subscription_status"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "support_ticket_count"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "unresolved_ticket_count"
+    }
+  ],
+  "owners": [
+    "urn:li:corpgroup:analytics-engineering"
+  ],
+  "tags": [
+    "urn:li:tag:PII"
+  ],
+  "terms": [],
+  "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.analytics.customer_360,PROD)"
+}

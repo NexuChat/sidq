@@ -1,0 +1,61 @@
+{
+  "deprecated": false,
+  "field_descriptions": {
+    "category_id": "Parent merchandising category key.",
+    "is_active": "Whether the product remains sellable.",
+    "launched_at": "UTC product launch timestamp.",
+    "list_price": "Positive advertised unit price, never below unit_cost.",
+    "product_id": "Immutable product key.",
+    "product_name": "Customer-facing product name.",
+    "sku": "Unique stock keeping unit used by order items.",
+    "unit_cost": "Non-negative internal unit cost."
+  },
+  "fields": [
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "category_id"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "is_active"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "launched_at"
+    },
+    {
+      "native_type": "numeric(10, 2)",
+      "nullable": true,
+      "path": "list_price"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "product_id"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "product_name"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "sku"
+    },
+    {
+      "native_type": "numeric(10, 2)",
+      "nullable": true,
+      "path": "unit_cost"
+    }
+  ],
+  "owners": [
+    "urn:li:corpgroup:commerce-data-platform"
+  ],
+  "tags": [],
+  "terms": [],
+  "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.staging.stg_products,PROD)"
+}

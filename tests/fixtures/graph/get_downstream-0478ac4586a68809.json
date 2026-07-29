@@ -1,0 +1,55 @@
+{
+  "columns": {
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.analytics.customer_360,PROD)": [
+      "customer_email"
+    ],
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.analytics.order_funnel,PROD)": [
+      "customer_email"
+    ],
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.intermediate.int_customer_lifetime,PROD)": [
+      "customer_email"
+    ],
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.intermediate.int_order_enriched,PROD)": [
+      "customer_email"
+    ],
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.intermediate.int_payment_reconciliation,PROD)": [
+      "customer_email"
+    ]
+  },
+  "entity_types": {
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.analytics.customer_360,PROD)": "DATASET",
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.analytics.order_funnel,PROD)": "DATASET",
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.intermediate.int_customer_lifetime,PROD)": "DATASET",
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.intermediate.int_order_enriched,PROD)": "DATASET",
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.intermediate.int_payment_reconciliation,PROD)": "DATASET"
+  },
+  "granularity": "column",
+  "metadata": {
+    "queryType": "column-level-lineage"
+  },
+  "paths": [],
+  "tags": {
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.analytics.customer_360,PROD)": [
+      "urn:li:tag:PII"
+    ],
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.analytics.order_funnel,PROD)": [
+      "urn:li:tag:PII"
+    ],
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.intermediate.int_customer_lifetime,PROD)": [
+      "urn:li:tag:PII"
+    ],
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.intermediate.int_order_enriched,PROD)": [
+      "urn:li:tag:PII"
+    ],
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.intermediate.int_payment_reconciliation,PROD)": [
+      "urn:li:tag:PII"
+    ]
+  },
+  "urns": [
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.analytics.customer_360,PROD)",
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.analytics.order_funnel,PROD)",
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.intermediate.int_customer_lifetime,PROD)",
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.intermediate.int_order_enriched,PROD)",
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.intermediate.int_payment_reconciliation,PROD)"
+  ]
+}

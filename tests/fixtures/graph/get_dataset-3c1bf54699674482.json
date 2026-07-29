@@ -1,0 +1,69 @@
+{
+  "deprecated": false,
+  "field_descriptions": {
+    "anonymous_id": "Browser-scoped anonymous visitor identifier.",
+    "converted_order_id": "Order attributed to the session when conversion occurred.",
+    "customer_id": "Customer identifier when the session is authenticated.",
+    "device_type": "Device family inferred at collection time.",
+    "ip_address": "PII network address collected for fraud and security review.",
+    "landing_channel": "First-touch acquisition channel.",
+    "session_ended_at": "UTC timestamp when the session ended.",
+    "session_id": "Immutable session primary key.",
+    "session_started_at": "UTC timestamp when the session started."
+  },
+  "fields": [
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "anonymous_id"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "converted_order_id"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "customer_id"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "device_type"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "ip_address"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "landing_channel"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "session_ended_at"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "session_id"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "session_started_at"
+    }
+  ],
+  "owners": [
+    "urn:li:corpgroup:commerce-data-platform"
+  ],
+  "tags": [
+    "urn:li:tag:PII"
+  ],
+  "terms": [],
+  "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.staging.stg_web_sessions,PROD)"
+}

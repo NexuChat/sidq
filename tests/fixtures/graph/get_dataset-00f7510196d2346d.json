@@ -1,0 +1,43 @@
+{
+  "deprecated": false,
+  "field_descriptions": {
+    "customer_id": "Customer who placed the order; must resolve to stg_customers.",
+    "order_id": "Immutable order primary key.",
+    "order_status": "Current order lifecycle state.",
+    "order_total": "Gross order amount in transaction currency; source constraint prevents negative totals.",
+    "ordered_at": "UTC timestamp when checkout was submitted."
+  },
+  "fields": [
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "customer_id"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "order_id"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "order_status"
+    },
+    {
+      "native_type": "numeric(12, 2)",
+      "nullable": true,
+      "path": "order_total"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "ordered_at"
+    }
+  ],
+  "owners": [
+    "urn:li:corpgroup:commerce-data-platform"
+  ],
+  "tags": [],
+  "terms": [],
+  "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.staging.stg_orders,PROD)"
+}

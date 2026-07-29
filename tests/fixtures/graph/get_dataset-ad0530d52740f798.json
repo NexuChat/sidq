@@ -1,0 +1,11 @@
+{
+  "deprecated": false,
+  "field_descriptions": {},
+  "fields": [],
+  "owners": [
+    "urn:li:corpgroup:business-intelligence"
+  ],
+  "tags": [],
+  "terms": [],
+  "urn": "urn:li:chart:(looker,sidq_demo.revenue_daily_trend)"
+}

@@ -1,0 +1,11 @@
+[
+  {
+    "granularity": "table",
+    "urns": [
+      "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.staging.stg_payments,PROD)",
+      "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.analytics.revenue_daily,PROD)",
+      "urn:li:chart:(looker,sidq_demo.revenue_daily_trend)",
+      "urn:li:dashboard:(looker,sidq_demo.executive_metrics)"
+    ]
+  }
+]

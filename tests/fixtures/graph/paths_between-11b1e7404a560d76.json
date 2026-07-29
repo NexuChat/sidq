@@ -1,0 +1,9 @@
+[
+  {
+    "granularity": "column",
+    "urns": [
+      "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.analytics.customer_360,PROD),customer_name)",
+      "urn:li:schemaField:(urn:li:chart:(looker,sidq_demo.customer_360_lifecycle),customer_name)"
+    ]
+  }
+]

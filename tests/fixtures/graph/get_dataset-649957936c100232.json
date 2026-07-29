@@ -1,0 +1,61 @@
+{
+  "deprecated": false,
+  "field_descriptions": {
+    "customer_country": "Customer registration country.",
+    "gross_revenue": "Sum of gross order totals before refunds.",
+    "net_revenue": "Gross revenue less refunds.",
+    "order_count": "Count of orders in the reporting group.",
+    "paid_order_count": "Count of orders with succeeded payment status.",
+    "payment_provider": "Payment rail used for the orders.",
+    "refunded_revenue": "Sum of refunds issued against grouped orders.",
+    "revenue_date": "Calendar date of checkout activity in UTC."
+  },
+  "fields": [
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "customer_country"
+    },
+    {
+      "native_type": "numeric(14, 2)",
+      "nullable": true,
+      "path": "gross_revenue"
+    },
+    {
+      "native_type": "numeric(14, 2)",
+      "nullable": true,
+      "path": "net_revenue"
+    },
+    {
+      "native_type": "bigint",
+      "nullable": true,
+      "path": "order_count"
+    },
+    {
+      "native_type": "bigint",
+      "nullable": true,
+      "path": "paid_order_count"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "payment_provider"
+    },
+    {
+      "native_type": "numeric(14, 2)",
+      "nullable": true,
+      "path": "refunded_revenue"
+    },
+    {
+      "native_type": "date",
+      "nullable": true,
+      "path": "revenue_date"
+    }
+  ],
+  "owners": [
+    "urn:li:corpgroup:analytics-engineering"
+  ],
+  "tags": [],
+  "terms": [],
+  "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.analytics.revenue_daily,PROD)"
+}

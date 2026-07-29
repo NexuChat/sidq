@@ -1,0 +1,33 @@
+{
+  "columns": {
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.analytics.revenue_daily,PROD)": [
+      "payment_provider"
+    ],
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.intermediate.int_order_enriched,PROD)": [
+      "payment_provider"
+    ],
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.intermediate.int_payment_reconciliation,PROD)": [
+      "payment_provider"
+    ]
+  },
+  "entity_types": {
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.analytics.revenue_daily,PROD)": "DATASET",
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.intermediate.int_order_enriched,PROD)": "DATASET",
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.intermediate.int_payment_reconciliation,PROD)": "DATASET"
+  },
+  "granularity": "column",
+  "metadata": {
+    "queryType": "column-level-lineage"
+  },
+  "paths": [],
+  "tags": {
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.analytics.revenue_daily,PROD)": [],
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.intermediate.int_order_enriched,PROD)": [],
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.intermediate.int_payment_reconciliation,PROD)": []
+  },
+  "urns": [
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.analytics.revenue_daily,PROD)",
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.intermediate.int_order_enriched,PROD)",
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.intermediate.int_payment_reconciliation,PROD)"
+  ]
+}

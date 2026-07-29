@@ -1,0 +1,87 @@
+{
+  "deprecated": false,
+  "field_descriptions": {
+    "carrier": "Parcel carrier responsible for the shipment.",
+    "delivered_at": "UTC delivery timestamp, never earlier than shipped_at.",
+    "order_id": "Unique parent order key for the shipment.",
+    "recipient_phone": "PII phone number supplied for delivery updates.",
+    "shipment_id": "Immutable shipment primary key.",
+    "shipment_status": "Fulfilment lifecycle status.",
+    "shipped_at": "UTC carrier handoff timestamp when known.",
+    "shipping_address_line1": "PII primary delivery street address.",
+    "shipping_address_line2": "PII secondary delivery address detail when supplied.",
+    "shipping_city": "Delivery city.",
+    "shipping_country": "Delivery country code.",
+    "tracking_number": "Unique carrier tracking number."
+  },
+  "fields": [
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "carrier"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "delivered_at"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "order_id"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "recipient_phone"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "shipment_id"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "shipment_status"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "shipped_at"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "shipping_address_line1"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "shipping_address_line2"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "shipping_city"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "shipping_country"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "tracking_number"
+    }
+  ],
+  "owners": [
+    "urn:li:corpgroup:commerce-data-platform"
+  ],
+  "tags": [
+    "urn:li:tag:PII"
+  ],
+  "terms": [],
+  "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.staging.stg_shipments,PROD)"
+}

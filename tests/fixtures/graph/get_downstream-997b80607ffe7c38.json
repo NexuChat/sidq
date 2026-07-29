@@ -1,0 +1,27 @@
+{
+  "columns": {
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.intermediate.int_order_enriched,PROD)": [
+      "payment_id"
+    ],
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.intermediate.int_payment_reconciliation,PROD)": [
+      "payment_id"
+    ]
+  },
+  "entity_types": {
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.intermediate.int_order_enriched,PROD)": "DATASET",
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.intermediate.int_payment_reconciliation,PROD)": "DATASET"
+  },
+  "granularity": "column",
+  "metadata": {
+    "queryType": "column-level-lineage"
+  },
+  "paths": [],
+  "tags": {
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.intermediate.int_order_enriched,PROD)": [],
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.intermediate.int_payment_reconciliation,PROD)": []
+  },
+  "urns": [
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.intermediate.int_order_enriched,PROD)",
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.intermediate.int_payment_reconciliation,PROD)"
+  ]
+}

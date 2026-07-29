@@ -1,0 +1,11 @@
+{
+  "columns": {},
+  "entity_types": {},
+  "granularity": "table",
+  "metadata": {
+    "queryType": "table-lineage"
+  },
+  "paths": [],
+  "tags": {},
+  "urns": []
+}

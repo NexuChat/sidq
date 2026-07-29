@@ -1,0 +1,27 @@
+{
+  "deprecated": false,
+  "field_descriptions": {},
+  "fields": [
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "customer_id"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "last_session_at"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "session_count"
+    }
+  ],
+  "owners": [
+    "urn:li:corpgroup:source-systems"
+  ],
+  "tags": [],
+  "terms": [],
+  "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,staging.stg_web_sessions,PROD)"
+}

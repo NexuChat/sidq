@@ -1,0 +1,27 @@
+{
+  "columns": {
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.analytics.customer_360,PROD)": [
+      "customer_created_at"
+    ],
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.intermediate.int_customer_lifetime,PROD)": [
+      "customer_created_at"
+    ]
+  },
+  "entity_types": {
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.analytics.customer_360,PROD)": "DATASET",
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.intermediate.int_customer_lifetime,PROD)": "DATASET"
+  },
+  "granularity": "column",
+  "metadata": {
+    "queryType": "column-level-lineage"
+  },
+  "paths": [],
+  "tags": {
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.analytics.customer_360,PROD)": [],
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.intermediate.int_customer_lifetime,PROD)": []
+  },
+  "urns": [
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.analytics.customer_360,PROD)",
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.intermediate.int_customer_lifetime,PROD)"
+  ]
+}

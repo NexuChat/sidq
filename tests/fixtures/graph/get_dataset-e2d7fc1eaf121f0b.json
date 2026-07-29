@@ -1,0 +1,99 @@
+{
+  "deprecated": false,
+  "field_descriptions": {
+    "customer_email": "PII customer email available only for payment operations.",
+    "customer_id": "Customer billed by the payment.",
+    "order_id": "Associated checkout order identifier.",
+    "order_total": "Gross source order total.",
+    "paid_at": "UTC capture timestamp for successful payments.",
+    "payment_amount": "Amount submitted to the processor.",
+    "payment_created_at": "UTC payment record creation time.",
+    "payment_id": "Unique payment identifier.",
+    "payment_provider": "Processor payment rail.",
+    "payment_status": "Processor lifecycle status.",
+    "provider_transaction_id": "Unique payment processor transaction identifier.",
+    "reconciliation_status": "Checkable reconciliation classification.",
+    "refunded_amount": "Refunds aggregated against the payment.",
+    "settled_amount": "Payment amount net of issued refunds."
+  },
+  "fields": [
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "customer_email"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "customer_id"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "order_id"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "order_total"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "paid_at"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "payment_amount"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "payment_created_at"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "payment_id"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "payment_provider"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "payment_status"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "provider_transaction_id"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "reconciliation_status"
+    },
+    {
+      "native_type": "numeric(12, 2)",
+      "nullable": true,
+      "path": "refunded_amount"
+    },
+    {
+      "native_type": "numeric(12, 2)",
+      "nullable": true,
+      "path": "settled_amount"
+    }
+  ],
+  "owners": [
+    "urn:li:corpgroup:commerce-analytics"
+  ],
+  "tags": [
+    "urn:li:tag:PII"
+  ],
+  "terms": [],
+  "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.intermediate.int_payment_reconciliation,PROD)"
+}

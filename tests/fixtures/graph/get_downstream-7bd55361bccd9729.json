@@ -1,0 +1,23 @@
+{
+  "columns": {
+    "urn:li:dashboard:(looker,sidq_demo.executive_metrics)": [],
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.analytics.customer_360,PROD)": []
+  },
+  "entity_types": {
+    "urn:li:dashboard:(looker,sidq_demo.executive_metrics)": "DASHBOARD",
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.analytics.customer_360,PROD)": "DATASET"
+  },
+  "granularity": "table",
+  "metadata": {
+    "queryType": "table-lineage"
+  },
+  "paths": [],
+  "tags": {
+    "urn:li:dashboard:(looker,sidq_demo.executive_metrics)": [],
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.analytics.customer_360,PROD)": []
+  },
+  "urns": [
+    "urn:li:dashboard:(looker,sidq_demo.executive_metrics)",
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.analytics.customer_360,PROD)"
+  ]
+}

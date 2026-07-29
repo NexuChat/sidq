@@ -1,0 +1,32 @@
+{
+  "deprecated": false,
+  "field_descriptions": {},
+  "fields": [
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "carrier"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "delivered_at"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "order_id"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "shipment_status"
+    }
+  ],
+  "owners": [
+    "urn:li:corpgroup:source-systems"
+  ],
+  "tags": [],
+  "terms": [],
+  "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,staging.stg_shipments,PROD)"
+}

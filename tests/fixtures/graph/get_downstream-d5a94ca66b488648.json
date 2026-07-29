@@ -1,0 +1,31 @@
+{
+  "columns": {
+    "urn:li:dashboard:(looker,sidq_demo.executive_metrics)": [],
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.analytics.order_funnel,PROD)": [],
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.analytics.revenue_daily,PROD)": [],
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.intermediate.int_order_enriched,PROD)": []
+  },
+  "entity_types": {
+    "urn:li:dashboard:(looker,sidq_demo.executive_metrics)": "DASHBOARD",
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.analytics.order_funnel,PROD)": "DATASET",
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.analytics.revenue_daily,PROD)": "DATASET",
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.intermediate.int_order_enriched,PROD)": "DATASET"
+  },
+  "granularity": "table",
+  "metadata": {
+    "queryType": "table-lineage"
+  },
+  "paths": [],
+  "tags": {
+    "urn:li:dashboard:(looker,sidq_demo.executive_metrics)": [],
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.analytics.order_funnel,PROD)": [],
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.analytics.revenue_daily,PROD)": [],
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.intermediate.int_order_enriched,PROD)": []
+  },
+  "urns": [
+    "urn:li:dashboard:(looker,sidq_demo.executive_metrics)",
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.analytics.order_funnel,PROD)",
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.analytics.revenue_daily,PROD)",
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.intermediate.int_order_enriched,PROD)"
+  ]
+}

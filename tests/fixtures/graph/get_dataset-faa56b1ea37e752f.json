@@ -1,0 +1,87 @@
+{
+  "deprecated": false,
+  "field_descriptions": {
+    "customer_country": "Customer registration country.",
+    "customer_email": "PII email from raw.customers exposed for approved order recovery workflows.",
+    "customer_id": "Customer who placed the order.",
+    "funnel_stage": "Derived operational funnel classification.",
+    "net_revenue": "Gross order total less refunds.",
+    "order_id": "Unique checkout order identifier.",
+    "order_status": "Current raw order lifecycle state.",
+    "order_total": "Gross order total before refunds.",
+    "ordered_at": "UTC checkout timestamp.",
+    "payment_status": "Current processor payment status.",
+    "refund_amount": "Total refund amount issued for the order.",
+    "shipment_status": "Current fulfilment shipment status."
+  },
+  "fields": [
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "customer_country"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "customer_email"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "customer_id"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "funnel_stage"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "net_revenue"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "order_id"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "order_status"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "order_total"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "ordered_at"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "payment_status"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "refund_amount"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "shipment_status"
+    }
+  ],
+  "owners": [
+    "urn:li:corpgroup:analytics-engineering"
+  ],
+  "tags": [
+    "urn:li:tag:PII"
+  ],
+  "terms": [],
+  "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.analytics.order_funnel,PROD)"
+}

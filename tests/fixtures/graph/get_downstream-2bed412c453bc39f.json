@@ -1,0 +1,31 @@
+{
+  "columns": {
+    "urn:li:chart:(looker,sidq_demo.customer_360_lifecycle)": [
+      "customer_email"
+    ],
+    "urn:li:dashboard:(looker,sidq_demo.executive_metrics)": [
+      "customer_email"
+    ]
+  },
+  "entity_types": {
+    "urn:li:chart:(looker,sidq_demo.customer_360_lifecycle)": "CHART",
+    "urn:li:dashboard:(looker,sidq_demo.executive_metrics)": "DASHBOARD"
+  },
+  "granularity": "column",
+  "metadata": {
+    "queryType": "column-level-lineage"
+  },
+  "paths": [],
+  "tags": {
+    "urn:li:chart:(looker,sidq_demo.customer_360_lifecycle)": [
+      "urn:li:tag:PII"
+    ],
+    "urn:li:dashboard:(looker,sidq_demo.executive_metrics)": [
+      "urn:li:tag:PII"
+    ]
+  },
+  "urns": [
+    "urn:li:chart:(looker,sidq_demo.customer_360_lifecycle)",
+    "urn:li:dashboard:(looker,sidq_demo.executive_metrics)"
+  ]
+}

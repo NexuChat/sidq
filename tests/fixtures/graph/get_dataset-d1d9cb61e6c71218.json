@@ -1,0 +1,49 @@
+{
+  "deprecated": false,
+  "field_descriptions": {
+    "category_code": "Unique merchandising category code.",
+    "category_id": "Immutable category key.",
+    "category_name": "Human-readable category name.",
+    "created_at": "UTC timestamp when the taxonomy entry was created.",
+    "department": "Merchandising department that owns the category.",
+    "is_active": "Whether the category is currently available for sale."
+  },
+  "fields": [
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "category_code"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "category_id"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "category_name"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "created_at"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "department"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "is_active"
+    }
+  ],
+  "owners": [
+    "urn:li:corpgroup:commerce-data-platform"
+  ],
+  "tags": [],
+  "terms": [],
+  "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.staging.stg_categories,PROD)"
+}

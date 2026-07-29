@@ -1,0 +1,14 @@
+{
+  "deprecated": false,
+  "field_descriptions": {},
+  "fields": [],
+  "owners": [
+    "urn:li:corpgroup:business-intelligence"
+  ],
+  "tags": [
+    "urn:li:tag:PII",
+    "urn:li:tag:critical"
+  ],
+  "terms": [],
+  "urn": "urn:li:chart:(looker,sidq_demo.customer_360_lifecycle)"
+}

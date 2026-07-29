@@ -1,0 +1,55 @@
+{
+  "deprecated": false,
+  "field_descriptions": {
+    "cancelled_at": "UTC cancellation timestamp when the plan was cancelled.",
+    "customer_id": "Customer who owns the plan.",
+    "monthly_amount": "Positive monthly recurring amount.",
+    "plan_name": "Commercial subscription tier.",
+    "started_at": "UTC subscription start timestamp.",
+    "subscription_id": "Immutable subscription key.",
+    "subscription_status": "Current renewal lifecycle state."
+  },
+  "fields": [
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "cancelled_at"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "customer_id"
+    },
+    {
+      "native_type": "numeric(10, 2)",
+      "nullable": true,
+      "path": "monthly_amount"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "plan_name"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "started_at"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "subscription_id"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "subscription_status"
+    }
+  ],
+  "owners": [
+    "urn:li:corpgroup:commerce-data-platform"
+  ],
+  "tags": [],
+  "terms": [],
+  "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.staging.stg_subscriptions,PROD)"
+}

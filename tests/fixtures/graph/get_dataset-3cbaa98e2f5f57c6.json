@@ -1,0 +1,37 @@
+{
+  "deprecated": false,
+  "field_descriptions": {},
+  "fields": [
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "category_id"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "list_price"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "product_id"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "product_name"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "sku"
+    }
+  ],
+  "owners": [
+    "urn:li:corpgroup:source-systems"
+  ],
+  "tags": [],
+  "terms": [],
+  "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,staging.stg_products,PROD)"
+}

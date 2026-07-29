@@ -1,0 +1,57 @@
+{
+  "deprecated": false,
+  "field_descriptions": {},
+  "fields": [
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "customer_id"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "first_order_at"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "last_order_at"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "lifetime_order_count"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "lifetime_order_value"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "order_id"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "order_status"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "order_total"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "ordered_at"
+    }
+  ],
+  "owners": [
+    "urn:li:corpgroup:source-systems"
+  ],
+  "tags": [],
+  "terms": [],
+  "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,staging.stg_orders,PROD)"
+}

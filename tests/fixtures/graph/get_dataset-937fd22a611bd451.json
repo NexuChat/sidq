@@ -1,0 +1,67 @@
+{
+  "deprecated": false,
+  "field_descriptions": {
+    "category_name": "Product category name.",
+    "department": "Merchandising department.",
+    "gross_item_revenue": "Extended order-item revenue for the SKU.",
+    "items_in_orders": "Number of order-item records for the SKU.",
+    "list_price": "Current advertised product price.",
+    "product_id": "Unique product identifier.",
+    "product_name": "Customer-facing product name.",
+    "sku": "Unique stock keeping unit.",
+    "units_sold": "Total quantity sold for the SKU."
+  },
+  "fields": [
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "category_name"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "department"
+    },
+    {
+      "native_type": "numeric(14, 2)",
+      "nullable": true,
+      "path": "gross_item_revenue"
+    },
+    {
+      "native_type": "bigint",
+      "nullable": true,
+      "path": "items_in_orders"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "list_price"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "product_id"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "product_name"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "sku"
+    },
+    {
+      "native_type": "bigint",
+      "nullable": true,
+      "path": "units_sold"
+    }
+  ],
+  "owners": [
+    "urn:li:corpgroup:analytics-engineering"
+  ],
+  "tags": [],
+  "terms": [],
+  "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.analytics.product_performance,PROD)"
+}

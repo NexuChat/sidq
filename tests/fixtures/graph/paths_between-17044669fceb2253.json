@@ -1,0 +1,9 @@
+[
+  {
+    "granularity": "table",
+    "urns": [
+      "urn:li:chart:(looker,sidq_demo.revenue_daily_trend)",
+      "urn:li:dashboard:(looker,sidq_demo.executive_metrics)"
+    ]
+  }
+]

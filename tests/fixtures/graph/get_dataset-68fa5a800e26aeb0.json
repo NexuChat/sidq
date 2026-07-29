@@ -1,0 +1,47 @@
+{
+  "deprecated": false,
+  "field_descriptions": {},
+  "fields": [
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "item_gross_revenue"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "item_id"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "item_quantity"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "order_id"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "quantity"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "sku"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "unit_price"
+    }
+  ],
+  "owners": [
+    "urn:li:corpgroup:source-systems"
+  ],
+  "tags": [],
+  "terms": [],
+  "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,staging.stg_order_items,PROD)"
+}

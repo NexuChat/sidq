@@ -1,0 +1,105 @@
+{
+  "deprecated": false,
+  "field_descriptions": {
+    "billing_address_line1": "PII primary billing street address.",
+    "billing_address_line2": "PII secondary billing address detail when supplied.",
+    "billing_city": "Billing city.",
+    "billing_country": "Billing country code.",
+    "billing_email": "PII billing email submitted to the payment provider.",
+    "billing_phone": "PII billing phone number.",
+    "customer_id": "Customer billed for the payment.",
+    "order_id": "Order settled by this payment.",
+    "paid_at": "UTC time at which a successful payment was captured.",
+    "payment_amount": "Non-negative payment amount.",
+    "payment_created_at": "UTC time the processor payment record was created.",
+    "payment_id": "Immutable payment primary key.",
+    "payment_provider": "Payment rail used for authorization.",
+    "payment_status": "Processor lifecycle status; succeeded records have a paid_at timestamp.",
+    "provider_transaction_id": "Unique processor transaction identifier."
+  },
+  "fields": [
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "billing_address_line1"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "billing_address_line2"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "billing_city"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "billing_country"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "billing_email"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "billing_phone"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "customer_id"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "order_id"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "paid_at"
+    },
+    {
+      "native_type": "numeric(12, 2)",
+      "nullable": true,
+      "path": "payment_amount"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "payment_created_at"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "payment_id"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "payment_provider"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "payment_status"
+    },
+    {
+      "native_type": "text",
+      "nullable": true,
+      "path": "provider_transaction_id"
+    }
+  ],
+  "owners": [
+    "urn:li:corpgroup:commerce-data-platform"
+  ],
+  "tags": [
+    "urn:li:tag:PII"
+  ],
+  "terms": [],
+  "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.staging.stg_payments,PROD)"
+}
