@@ -13,11 +13,23 @@ htmlcov/
 
 # local model-training outputs
 data/lora/adapter/
+data/lora/adapter-v1/
+data/lora/v2/
 data/lora/checkpoints/
 data/lora/merged/
 data/lora/*.log
 data/lora/*.pid
 data/lora/progress.json
+
+# large mining intermediates and benchmark data (not shipped)
+data/benchmark/
+data/claims/raw-*/
+data/claims/mine.log
+data/claims/repos-to-clone.jsonl
+data/claims/refilter-v6-report.json
+data/claims/schema-corpora/
+data/claims/eval-v*.jsonl
+data/claims/train-v*.jsonl
 
 # local env / secrets
 .env
