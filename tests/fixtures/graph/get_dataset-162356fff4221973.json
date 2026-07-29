@@ -1,0 +1,42 @@
+{
+  "deprecated": false,
+  "field_descriptions": {
+    "Average Discount %": "AVERAGE('ORDER_DETAILS'[discount_percent])",
+    "Revenue by Category": "CALCULATE([Total Revenue], VALUES('ORDER_DETAILS'[category_name]))",
+    "Top Selling Products": "CALCULATE(SUM('ORDER_DETAILS'[quantity]), VALUES('ORDER_DETAILS'[product_name]))",
+    "Total Discount Amount": "SUM('ORDER_DETAILS'[discount_amount])"
+  },
+  "fields": [
+    {
+      "native_type": "measure",
+      "nullable": false,
+      "path": "Average Discount %"
+    },
+    {
+      "native_type": "measure",
+      "nullable": false,
+      "path": "Revenue by Category"
+    },
+    {
+      "native_type": "measure",
+      "nullable": false,
+      "path": "Top Selling Products"
+    },
+    {
+      "native_type": "measure",
+      "nullable": false,
+      "path": "Total Discount Amount"
+    },
+    {
+      "native_type": "String",
+      "nullable": false,
+      "path": "Value"
+    }
+  ],
+  "owners": [],
+  "tags": [],
+  "terms": [
+    "urn:li:glossaryTerm:b2fd91.1598cf93-c199-43a1-8833-fce96faa9a1a"
+  ],
+  "urn": "urn:li:dataset:(urn:li:dataPlatform:powerbi,b2fd91.datahub_order_entries.Product_Perfromance_Measures,PROD)"
+}

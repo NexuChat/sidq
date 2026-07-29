@@ -14,13 +14,16 @@ Never edit `verdict.json` to make this pass — fix the engine.
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
 import pytest
 
+from scripts import regenerate_example_01
 from sidq import cli
 from sidq.graph.fixtures import ReplayGraphClient
+from sidq.policy.engine import default_policy_path
 from sidq.serialization import canonical_json
 
 ROOT = Path(__file__).parents[1]
@@ -87,26 +90,52 @@ def test_the_published_verdict_json_is_still_a_block() -> None:
     ]
 
 
-def test_the_blocked_example_still_blocks_offline(tmp_path: Path) -> None:
-    """ENGINE-SPEC §7: bad change ⇒ BLOCK.
+def test_the_blocked_example_still_blocks_with_the_same_rule_ids(
+    tmp_path: Path,
+) -> None:
+    """ENGINE-SPEC §7: bad change ⇒ BLOCK with the exact published rule ids.
 
-    Scoped to what the committed replay set can prove. `critical_downstream`
-    fired in the published verdict off `cross_team_owners`, which requires a
-    `get_dataset` read on each downstream asset; the fixture set has the
-    lineage (11 downstream urns for `cust_email`) but not those twelve
-    downstream entities, so ownership cannot be reproduced offline. That is a
-    fixture-coverage limit, not an engine regression: the engine is verified
-    below to request exactly the right reads.
+    Fully offline. The twelve downstream consumers this radius reaches were
+    recorded by `scripts/record_missing_graph_fixtures.py`, so the ownership
+    behind `critical_downstream` is now reproducible from the committed snapshot
+    instead of requiring the live graph.
     """
+    published = _published()
     sql = (BLOCKED / "customers.sql").read_text(encoding="utf-8")
     model, project_root = _project(tmp_path, sql)
 
     result = _decide(model, project_root)
 
-    assert result["decision"] == "BLOCK"
-    rule_ids = [finding["rule_id"] for finding in result["findings"]]
-    assert "pii_exposure" in rule_ids
-    assert "wide_blast_radius" in rule_ids
+    assert result["decision"] == published["decision"]
+    assert [finding["rule_id"] for finding in result["findings"]] == [
+        finding["rule_id"] for finding in published["findings"]
+    ]
+
+
+def test_the_cross_team_ownership_behind_the_block_is_reproduced(
+    tmp_path: Path,
+) -> None:
+    """`critical_downstream` blocks on ownership, so ownership must be real."""
+    published = _published()
+    published_owners = next(
+        evidence["detail"]["cross_team_owners"]
+        for finding in published["findings"]
+        if finding["rule_id"] == "critical_downstream"
+        for evidence in finding["evidence"]
+        if "cross_team_owners" in evidence["detail"]
+    )
+    sql = (BLOCKED / "customers.sql").read_text(encoding="utf-8")
+    model, project_root = _project(tmp_path, sql)
+
+    result = _decide(model, project_root)
+
+    owners = next(
+        evidence["detail"]["cross_team_owners"]
+        for finding in result["findings"]
+        for evidence in finding["evidence"]
+        if evidence["kind"] == "blast_radius"
+    )
+    assert owners == published_owners
 
 
 def test_the_column_lineage_behind_the_block_is_still_proven(tmp_path: Path) -> None:
@@ -129,15 +158,16 @@ def test_the_column_lineage_behind_the_block_is_still_proven(tmp_path: Path) -> 
     assert detail["dashboards"], "the PII path must still reach a dashboard"
 
 
-def test_downstream_assets_that_could_not_be_read_are_recorded_not_silent(
-    tmp_path: Path,
-) -> None:
-    """An unread downstream asset must stay auditable in the verdict.
+def test_the_flagship_radius_is_now_read_completely(tmp_path: Path) -> None:
+    """No consumer in this radius may be silently unread.
 
     `critical_assets` and `cross_team_owners` are the fields `critical_downstream`
-    blocks on. When a downstream `get_dataset` fails, the gate keeps the proven
-    lineage but must name what it could not read, so a partially-read radius can
-    never be mistaken for a clean one.
+    blocks on, so a failed downstream read can quietly weaken a blocking verdict.
+    The gate records every such failure in `unreadable_assets`; this asserts the
+    flagship snapshot is complete, so the published BLOCK rests on a fully read
+    radius rather than on a partial one that happened to look clean.
+    The report-don't-hide mechanism itself is covered against an injected failing
+    graph in `tests/test_gates_blast.py`.
     """
     sql = (BLOCKED / "customers.sql").read_text(encoding="utf-8")
     model, project_root = _project(tmp_path, sql)
@@ -150,38 +180,56 @@ def test_downstream_assets_that_could_not_be_read_are_recorded_not_silent(
         for evidence in finding["evidence"]
         if evidence["kind"] == "blast_radius"
     )
-    assert "unreadable_assets" in detail
-    # This replay set is knowingly missing the downstream entities, so the field
-    # must be populated here rather than quietly absent.
-    assert detail["unreadable_assets"]
-    assert detail["cross_team_owners"] == [], (
-        "ownership is unproven when downstream reads failed; it must not be invented"
+    assert detail["unreadable_assets"] == []
+    assert detail["cross_team_owners"], (
+        "a completely read radius must expose the cross-team ownership it found"
     )
 
 
-@pytest.mark.xfail(
-    reason=(
-        "Known drift: the published examples/01 verdict.json and the README "
-        "reproduction command cite policy_hash d35a651…, but default_policy.yaml "
-        "gained the constraint-reconciliation rules and now hashes to 2883c62b…. "
-        "The decision and rule ids are unaffected (the new rules only match "
-        "constraint_* evidence), so the fix is to regenerate the published "
-        "artifacts against the live graph — an owner-facing change to the "
-        "flagship judge artifact, not a silent test edit."
-    ),
-    strict=True,
-)
-def test_the_published_policy_hash_still_matches_the_shipped_policy(
-    tmp_path: Path,
-) -> None:
-    """A stale policy_hash makes the published reproduction command a lie."""
+def test_the_published_policy_hash_matches_the_shipped_policy() -> None:
+    """A stale policy_hash makes the README's reproduction command a lie."""
     published = _published()
-    sql = (BLOCKED / "customers.sql").read_text(encoding="utf-8")
-    model, project_root = _project(tmp_path, sql)
 
-    result = _decide(model, project_root)
+    assert (
+        published["policy_hash"]
+        == hashlib.sha256(default_policy_path().read_bytes()).hexdigest()
+    )
 
-    assert result["policy_hash"] == published["policy_hash"]
+
+def test_the_committed_verdict_matches_a_fresh_engine_run() -> None:
+    """The flagship artifact is generated, not curated; drift must break the build.
+
+    This file drifted once already: the policy gained rules, its hash changed,
+    and the published verdict kept citing the old one, so the reproduction
+    command a judge would run no longer matched. Regenerating is now a script and
+    this is its guard.
+    """
+    assert regenerate_example_01.rendered() == (BLOCKED / "verdict.json").read_text(
+        encoding="utf-8"
+    ), "examples/01 verdict.json is stale; rerun scripts/regenerate_example_01.py"
+
+
+def test_the_committed_pr_comment_matches_a_fresh_render() -> None:
+    """`pr-comment.md` is rendered output too; hand-editing it is how it drifted."""
+    assert regenerate_example_01.comment() == (BLOCKED / "pr-comment.md").read_text(
+        encoding="utf-8"
+    ), "examples/01 pr-comment.md is stale; rerun scripts/regenerate_example_01.py"
+
+
+@pytest.mark.parametrize(
+    "artifact",
+    ["README.md", "docs/PR-BOT.md", "examples/01-blocked-pii-dashboard/pr-comment.md"],
+)
+def test_every_artifact_publishing_the_hash_publishes_the_current_one(
+    artifact: str,
+) -> None:
+    """Three files quote the reproduction command; all three must agree."""
+    published_hash = _published()["policy_hash"]
+    text = (ROOT / artifact).read_text(encoding="utf-8")
+
+    assert f"policy_hash={published_hash}" in text, (
+        f"{artifact} does not publish the current policy_hash"
+    )
 
 
 def test_a_change_that_touches_no_flagged_column_does_not_block(

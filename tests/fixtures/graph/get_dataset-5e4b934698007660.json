@@ -1,0 +1,42 @@
+{
+  "deprecated": false,
+  "field_descriptions": {
+    "Current Year Revenue": "[Total Revenue]",
+    "MoM Revenue Growth": "\nVAR CurrentMonth = [Total Revenue]\nVAR PreviousMonth1 = CALCULATE([Total Revenue], DATEADD('ORDER_DETAILS'[order_date], -1, MONTH))\nRETURN DIVIDE(CurrentMonth - PreviousMonth, PreviousMonth1, 0)",
+    "Previous Year Revenue": "CALCULATE([Total Revenue], SAMEPERIODLASTYEAR('ORDER_DETAILS'[order_date]))",
+    "Revenue by Month": "CALCULATE([Total Revenue], DATESMTD('ORDER_DETAILS'[order_date]))"
+  },
+  "fields": [
+    {
+      "native_type": "measure",
+      "nullable": false,
+      "path": "Current Year Revenue"
+    },
+    {
+      "native_type": "measure",
+      "nullable": false,
+      "path": "MoM Revenue Growth"
+    },
+    {
+      "native_type": "measure",
+      "nullable": false,
+      "path": "Previous Year Revenue"
+    },
+    {
+      "native_type": "measure",
+      "nullable": false,
+      "path": "Revenue by Month"
+    },
+    {
+      "native_type": "String",
+      "nullable": false,
+      "path": "Value"
+    }
+  ],
+  "owners": [],
+  "tags": [],
+  "terms": [
+    "urn:li:glossaryTerm:b2fd91.1598cf93-c199-43a1-8833-fce96faa9a1a"
+  ],
+  "urn": "urn:li:dataset:(urn:li:dataPlatform:powerbi,b2fd91.datahub_order_entries.Time_Inteligence_Measures,PROD)"
+}

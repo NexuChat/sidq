@@ -1,0 +1,24 @@
+{
+  "deprecated": false,
+  "field_descriptions": {
+    "Customer LTV": "\nAVERAGEX(\n    VALUES('ORDER_DETAILS'[customer_id]),\n    CALCULATE(SUM('ORDER_DETAILS'[order_total]))\n)"
+  },
+  "fields": [
+    {
+      "native_type": "measure",
+      "nullable": false,
+      "path": "Customer LTV"
+    },
+    {
+      "native_type": "String",
+      "nullable": false,
+      "path": "Value"
+    }
+  ],
+  "owners": [],
+  "tags": [],
+  "terms": [
+    "urn:li:glossaryTerm:b2fd91.1598cf93-c199-43a1-8833-fce96faa9a1a"
+  ],
+  "urn": "urn:li:dataset:(urn:li:dataPlatform:powerbi,b2fd91.datahub_order_entries.Customer_Analytics_Measures,PROD)"
+}

@@ -1,0 +1,296 @@
+{
+  "deprecated": false,
+  "fields": [
+    {
+      "native_type": "VARCHAR(16777216)",
+      "nullable": true,
+      "path": "billing_address_line1"
+    },
+    {
+      "native_type": "VARCHAR(16777216)",
+      "nullable": true,
+      "path": "billing_address_line2"
+    },
+    {
+      "native_type": "VARCHAR(16777216)",
+      "nullable": true,
+      "path": "billing_country"
+    },
+    {
+      "native_type": "VARCHAR(16777216)",
+      "nullable": true,
+      "path": "billing_region"
+    },
+    {
+      "native_type": "VARCHAR(16777216)",
+      "nullable": true,
+      "path": "billing_town_city"
+    },
+    {
+      "native_type": "NUMBER(38,0)",
+      "nullable": true,
+      "path": "billing_zipcode"
+    },
+    {
+      "native_type": "NUMBER(38,0)",
+      "nullable": true,
+      "path": "category_id"
+    },
+    {
+      "native_type": "VARCHAR(16777216)",
+      "nullable": true,
+      "path": "category_name"
+    },
+    {
+      "native_type": "VARCHAR(16777216)",
+      "nullable": true,
+      "path": "condition"
+    },
+    {
+      "native_type": "FLOAT",
+      "nullable": true,
+      "path": "cost_of_delivery"
+    },
+    {
+      "native_type": "VARCHAR(16777216)",
+      "nullable": true,
+      "path": "cust_email"
+    },
+    {
+      "native_type": "VARCHAR(16777216)",
+      "nullable": true,
+      "path": "cust_first_name"
+    },
+    {
+      "native_type": "VARCHAR(16777216)",
+      "nullable": true,
+      "path": "cust_last_name"
+    },
+    {
+      "native_type": "VARCHAR(16777216)",
+      "nullable": true,
+      "path": "customer_class"
+    },
+    {
+      "native_type": "NUMBER(38,0)",
+      "nullable": true,
+      "path": "customer_id"
+    },
+    {
+      "native_type": "VARCHAR(11)",
+      "nullable": true,
+      "path": "delivery_status"
+    },
+    {
+      "native_type": "VARCHAR(16777216)",
+      "nullable": true,
+      "path": "delivery_type"
+    },
+    {
+      "native_type": "FLOAT",
+      "nullable": true,
+      "path": "discount_amount"
+    },
+    {
+      "native_type": "FLOAT",
+      "nullable": true,
+      "path": "discount_percent"
+    },
+    {
+      "native_type": "VARCHAR(16777216)",
+      "nullable": true,
+      "path": "dispatch_date"
+    },
+    {
+      "native_type": "VARCHAR(16777216)",
+      "nullable": true,
+      "path": "estimated_delivery"
+    },
+    {
+      "native_type": "VARCHAR(16777216)",
+      "nullable": true,
+      "path": "gift_wrap"
+    },
+    {
+      "native_type": "NUMBER(38,0)",
+      "nullable": true,
+      "path": "line_item_id"
+    },
+    {
+      "native_type": "FLOAT",
+      "nullable": true,
+      "path": "line_total"
+    },
+    {
+      "native_type": "FLOAT",
+      "nullable": true,
+      "path": "list_price"
+    },
+    {
+      "native_type": "VARCHAR(16777216)",
+      "nullable": true,
+      "path": "order_date"
+    },
+    {
+      "native_type": "NUMBER(38,0)",
+      "nullable": true,
+      "path": "order_id"
+    },
+    {
+      "native_type": "VARCHAR(16777216)",
+      "nullable": true,
+      "path": "order_mode"
+    },
+    {
+      "native_type": "NUMBER(38,0)",
+      "nullable": true,
+      "path": "order_status"
+    },
+    {
+      "native_type": "FLOAT",
+      "nullable": true,
+      "path": "order_total"
+    },
+    {
+      "native_type": "VARCHAR(16777216)",
+      "nullable": true,
+      "path": "payment_method_code"
+    },
+    {
+      "native_type": "VARCHAR(16777216)",
+      "nullable": true,
+      "path": "phone_number"
+    },
+    {
+      "native_type": "VARCHAR(16777216)",
+      "nullable": true,
+      "path": "product_description"
+    },
+    {
+      "native_type": "NUMBER(38,0)",
+      "nullable": true,
+      "path": "product_id"
+    },
+    {
+      "native_type": "VARCHAR(16777216)",
+      "nullable": true,
+      "path": "product_name"
+    },
+    {
+      "native_type": "VARCHAR(16777216)",
+      "nullable": true,
+      "path": "product_status"
+    },
+    {
+      "native_type": "VARCHAR(16777216)",
+      "nullable": true,
+      "path": "promotion_description"
+    },
+    {
+      "native_type": "NUMBER(38,0)",
+      "nullable": true,
+      "path": "promotion_id"
+    },
+    {
+      "native_type": "VARCHAR(16777216)",
+      "nullable": true,
+      "path": "promotion_name"
+    },
+    {
+      "native_type": "NUMBER(38,0)",
+      "nullable": true,
+      "path": "quantity"
+    },
+    {
+      "native_type": "NUMBER(38,0)",
+      "nullable": true,
+      "path": "quantity_on_hand"
+    },
+    {
+      "native_type": "VARCHAR(16777216)",
+      "nullable": true,
+      "path": "return_date"
+    },
+    {
+      "native_type": "VARCHAR(12)",
+      "nullable": true,
+      "path": "return_status"
+    },
+    {
+      "native_type": "VARCHAR(16777216)",
+      "nullable": true,
+      "path": "shipping_address_line1"
+    },
+    {
+      "native_type": "VARCHAR(16777216)",
+      "nullable": true,
+      "path": "shipping_address_line2"
+    },
+    {
+      "native_type": "VARCHAR(16777216)",
+      "nullable": true,
+      "path": "shipping_country"
+    },
+    {
+      "native_type": "VARCHAR(16777216)",
+      "nullable": true,
+      "path": "shipping_region"
+    },
+    {
+      "native_type": "VARCHAR(16777216)",
+      "nullable": true,
+      "path": "shipping_town_city"
+    },
+    {
+      "native_type": "NUMBER(38,0)",
+      "nullable": true,
+      "path": "shipping_zipcode"
+    },
+    {
+      "native_type": "VARCHAR(11)",
+      "nullable": true,
+      "path": "stock_status"
+    },
+    {
+      "native_type": "FLOAT",
+      "nullable": true,
+      "path": "unit_price"
+    },
+    {
+      "native_type": "TIMESTAMP_LTZ",
+      "nullable": true,
+      "path": "updated_at"
+    },
+    {
+      "native_type": "VARCHAR(16777216)",
+      "nullable": true,
+      "path": "wait_till_complete_yn"
+    },
+    {
+      "native_type": "NUMBER(38,0)",
+      "nullable": true,
+      "path": "warehouse_id"
+    },
+    {
+      "native_type": "VARCHAR(16777216)",
+      "nullable": true,
+      "path": "warehouse_name"
+    }
+  ],
+  "owners": [
+    "urn:li:corpGroup:b2fd91.1e0398a3-113f-475e-b6fc-32ab72a634d2",
+    "urn:li:corpuser:b2fd91.brock1@example.com",
+    "urn:li:corpuser:b2fd91.jonny1@example.com"
+  ],
+  "tags": [
+    "urn:li:tag:b2fd91.__default_high_queries",
+    "urn:li:tag:b2fd91.__default_large_table"
+  ],
+  "terms": [
+    "urn:li:glossaryTerm:b2fd91.1598cf93-c199-43a1-8833-fce96faa9a1a",
+    "urn:li:glossaryTerm:b2fd91.26e268c3-3688-4281-949e-8c1aa2600c02",
+    "urn:li:glossaryTerm:b2fd91.42266719-3cab-42b8-a8d2-49d782876dbc",
+    "urn:li:glossaryTerm:b2fd91.e7106c45-b307-4eb6-9c8c-e7fff15f095a"
+  ],
+  "urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,b2fd91.order_entry_db.analytics.order_details,PROD)"
+}

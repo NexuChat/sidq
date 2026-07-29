@@ -1,0 +1,301 @@
+{
+  "deprecated": false,
+  "fields": [
+    {
+      "native_type": "string",
+      "nullable": false,
+      "path": "billing_address_line1"
+    },
+    {
+      "native_type": "string",
+      "nullable": false,
+      "path": "billing_address_line2"
+    },
+    {
+      "native_type": "string",
+      "nullable": false,
+      "path": "billing_country"
+    },
+    {
+      "native_type": "string",
+      "nullable": false,
+      "path": "billing_region"
+    },
+    {
+      "native_type": "string",
+      "nullable": false,
+      "path": "billing_town_city"
+    },
+    {
+      "native_type": "number",
+      "nullable": false,
+      "path": "billing_zipcode"
+    },
+    {
+      "native_type": "number",
+      "nullable": false,
+      "path": "category_id"
+    },
+    {
+      "native_type": "string",
+      "nullable": false,
+      "path": "category_name"
+    },
+    {
+      "native_type": "string",
+      "nullable": false,
+      "path": "condition"
+    },
+    {
+      "native_type": "number",
+      "nullable": false,
+      "path": "cost_of_delivery"
+    },
+    {
+      "native_type": "count",
+      "nullable": false,
+      "path": "count"
+    },
+    {
+      "native_type": "string",
+      "nullable": false,
+      "path": "cust_email"
+    },
+    {
+      "native_type": "string",
+      "nullable": false,
+      "path": "cust_first_name"
+    },
+    {
+      "native_type": "string",
+      "nullable": false,
+      "path": "cust_last_name"
+    },
+    {
+      "native_type": "string",
+      "nullable": false,
+      "path": "customer_class"
+    },
+    {
+      "native_type": "number",
+      "nullable": false,
+      "path": "customer_id"
+    },
+    {
+      "native_type": "string",
+      "nullable": false,
+      "path": "delivery_status"
+    },
+    {
+      "native_type": "string",
+      "nullable": false,
+      "path": "delivery_type"
+    },
+    {
+      "native_type": "number",
+      "nullable": false,
+      "path": "discount_amount"
+    },
+    {
+      "native_type": "number",
+      "nullable": false,
+      "path": "discount_percent"
+    },
+    {
+      "native_type": "string",
+      "nullable": false,
+      "path": "dispatch_date"
+    },
+    {
+      "native_type": "string",
+      "nullable": false,
+      "path": "estimated_delivery"
+    },
+    {
+      "native_type": "string",
+      "nullable": false,
+      "path": "gift_wrap"
+    },
+    {
+      "native_type": "number",
+      "nullable": false,
+      "path": "line_item_id"
+    },
+    {
+      "native_type": "number",
+      "nullable": false,
+      "path": "line_total"
+    },
+    {
+      "native_type": "number",
+      "nullable": false,
+      "path": "list_price"
+    },
+    {
+      "native_type": "string",
+      "nullable": false,
+      "path": "order_date"
+    },
+    {
+      "native_type": "date_time",
+      "nullable": false,
+      "path": "order_date_timestamp"
+    },
+    {
+      "native_type": "number",
+      "nullable": false,
+      "path": "order_id"
+    },
+    {
+      "native_type": "string",
+      "nullable": false,
+      "path": "order_mode"
+    },
+    {
+      "native_type": "number",
+      "nullable": false,
+      "path": "order_status"
+    },
+    {
+      "native_type": "number",
+      "nullable": false,
+      "path": "order_total"
+    },
+    {
+      "native_type": "string",
+      "nullable": false,
+      "path": "payment_method_code"
+    },
+    {
+      "native_type": "string",
+      "nullable": false,
+      "path": "phone_number"
+    },
+    {
+      "native_type": "string",
+      "nullable": false,
+      "path": "product_description"
+    },
+    {
+      "native_type": "number",
+      "nullable": false,
+      "path": "product_id"
+    },
+    {
+      "native_type": "string",
+      "nullable": false,
+      "path": "product_name"
+    },
+    {
+      "native_type": "string",
+      "nullable": false,
+      "path": "product_status"
+    },
+    {
+      "native_type": "string",
+      "nullable": false,
+      "path": "promotion_description"
+    },
+    {
+      "native_type": "number",
+      "nullable": false,
+      "path": "promotion_id"
+    },
+    {
+      "native_type": "string",
+      "nullable": false,
+      "path": "promotion_name"
+    },
+    {
+      "native_type": "number",
+      "nullable": false,
+      "path": "quantity"
+    },
+    {
+      "native_type": "number",
+      "nullable": false,
+      "path": "quantity_on_hand"
+    },
+    {
+      "native_type": "string",
+      "nullable": false,
+      "path": "return_date"
+    },
+    {
+      "native_type": "string",
+      "nullable": false,
+      "path": "return_status"
+    },
+    {
+      "native_type": "string",
+      "nullable": false,
+      "path": "shipping_address_line1"
+    },
+    {
+      "native_type": "string",
+      "nullable": false,
+      "path": "shipping_address_line2"
+    },
+    {
+      "native_type": "string",
+      "nullable": false,
+      "path": "shipping_country"
+    },
+    {
+      "native_type": "string",
+      "nullable": false,
+      "path": "shipping_region"
+    },
+    {
+      "native_type": "string",
+      "nullable": false,
+      "path": "shipping_town_city"
+    },
+    {
+      "native_type": "number",
+      "nullable": false,
+      "path": "shipping_zipcode"
+    },
+    {
+      "native_type": "string",
+      "nullable": false,
+      "path": "stock_status"
+    },
+    {
+      "native_type": "number",
+      "nullable": false,
+      "path": "unit_price"
+    },
+    {
+      "native_type": "time",
+      "nullable": false,
+      "path": "updated"
+    },
+    {
+      "native_type": "string",
+      "nullable": false,
+      "path": "wait_till_complete_yn"
+    },
+    {
+      "native_type": "number",
+      "nullable": false,
+      "path": "warehouse_id"
+    },
+    {
+      "native_type": "string",
+      "nullable": false,
+      "path": "warehouse_name"
+    }
+  ],
+  "owners": [
+    "urn:li:corpGroup:b2fd91.ORG_DATA_PLATFORM",
+    "urn:li:corpuser:b2fd91.EMP006",
+    "urn:li:corpuser:b2fd91.alex@example.com",
+    "urn:li:corpuser:b2fd91.marty@example.com"
+  ],
+  "tags": [],
+  "terms": [
+    "urn:li:glossaryTerm:b2fd91.1598cf93-c199-43a1-8833-fce96faa9a1a"
+  ],
+  "urn": "urn:li:dataset:(urn:li:dataPlatform:looker,b2fd91.order-entry-looker.view.order_details,PROD)"
+}
