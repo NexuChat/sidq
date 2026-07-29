@@ -1,12 +1,26 @@
 from __future__ import annotations
 
+import asyncio
+import json
+import sys
+from concurrent.futures import Future
 from datetime import UTC, datetime, timedelta
+from typing import Self
+
+import anyio
+import mcp
+import mcp.client.stdio
+import pytest
 
 from sidq.models import Evidence, Finding, Verdict
 from sidq.receipt.bootstrap import PROPERTY_DEFINITIONS, ensure_sidq_properties
 from sidq.receipt.build import build_receipt
 from sidq.receipt.read import get_verification_status
-from sidq.receipt.write import write_receipt
+from sidq.receipt.write import (
+    StdioMCPReceiptToolCaller,
+    _document_reference,
+    write_receipt,
+)
 
 URN = "urn:li:dataset:(urn:li:dataPlatform:postgres,sidq.receipt.test,DEV)"
 
@@ -183,3 +197,138 @@ def test_bootstrap_is_idempotent_with_a_graph_double() -> None:
 
     assert len(first["created"]) == len(PROPERTY_DEFINITIONS) + 2
     assert not second["created"]
+
+
+def test_write_receipt_propagates_write_rejection_without_claiming_success() -> None:
+    receipt = build_receipt(
+        URN, _verdict(), checked_at=datetime(2026, 8, 2, tzinfo=UTC)
+    )
+    calls: list[str] = []
+
+    def rejected(name: str, arguments: object) -> object:
+        calls.append(name)
+        raise PermissionError("mutation disabled")
+
+    with pytest.raises(PermissionError, match="mutation disabled"):
+        write_receipt(receipt, rejected)
+
+    assert calls == ["save_document"]
+    assert _document_reference({"urn": 42}) == ""
+    assert _document_reference("not-a-response") == ""
+
+
+class _ImmediateThread:
+    def __init__(self, *, target, **kwargs) -> None:
+        self.target = target
+        self.joined = False
+
+    def start(self) -> None:
+        self.target()
+
+    def join(self, timeout: float) -> None:
+        self.joined = True
+
+
+class _ImmediateQueue:
+    def put(self, item: object) -> None:
+        if isinstance(item, tuple):
+            item[2].set_result({"ok": True})
+
+
+def test_receipt_stdio_caller_returns_tool_result_and_closes(monkeypatch) -> None:
+    caller = StdioMCPReceiptToolCaller()
+    caller._requests = _ImmediateQueue()  # type: ignore[assignment]
+    monkeypatch.setattr("sidq.receipt.write.threading.Thread", _ImmediateThread)
+    monkeypatch.setattr(caller, "_run", lambda: caller._startup.set_result(None))
+
+    assert caller("add_tags", {}) == {"ok": True}
+    thread = caller._thread
+    assert thread is not None
+    caller.close()
+    assert thread.joined is True
+    assert caller._thread is None
+
+
+def test_receipt_stdio_startup_timeout_is_relayed(monkeypatch) -> None:
+    caller = StdioMCPReceiptToolCaller()
+
+    class _AnyIO:
+        @staticmethod
+        def run(function) -> None:
+            raise TimeoutError("MCP startup timed out")
+
+    monkeypatch.setitem(sys.modules, "anyio", _AnyIO)
+    caller._run()
+
+    with pytest.raises(TimeoutError, match="startup timed out"):
+        caller._startup.result()
+
+
+class _AsyncContext:
+    def __init__(self, value: object) -> None:
+        self.value = value
+
+    async def __aenter__(self) -> object:
+        return self.value
+
+    async def __aexit__(self, *args: object) -> None:
+        return None
+
+
+class _MCPResponse:
+    def __init__(self, text: str, *, is_error: bool = False) -> None:
+        self.content = [type("Text", (), {"type": "text", "text": text})()]
+        self.is_error = is_error
+        self.structured_content = None
+
+
+@pytest.mark.parametrize(
+    ("response", "exception"),
+    [
+        (_MCPResponse("write rejected", is_error=True), RuntimeError),
+        (_MCPResponse("not-json"), json.JSONDecodeError),
+    ],
+)
+def test_receipt_stdio_caller_rejects_malformed_or_error_mcp_responses(
+    monkeypatch, response: _MCPResponse, exception: type[Exception]
+) -> None:
+    caller = StdioMCPReceiptToolCaller()
+    result: Future[object] = Future()
+    requests = [("add_tags", {}, result), None]
+
+    async def next_request(function):
+        return requests.pop(0)
+
+    class _Session:
+        def __init__(self, read: object, write: object) -> None:
+            pass
+
+        async def initialize(self) -> None:
+            pass
+
+        async def call_tool(
+            self, name: str, arguments: dict[str, object]
+        ) -> _MCPResponse:
+            return response
+
+        async def __aenter__(self) -> Self:
+            return self
+
+        async def __aexit__(self, *args: object) -> None:
+            return None
+
+    monkeypatch.setattr(anyio.to_thread, "run_sync", next_request)
+    monkeypatch.setattr(mcp, "ClientSession", _Session)
+    monkeypatch.setattr(
+        mcp.client.stdio,
+        "stdio_client",
+        lambda parameters: _AsyncContext((object(), object())),
+    )
+    monkeypatch.setattr(
+        mcp.client.stdio, "StdioServerParameters", lambda **kwargs: kwargs
+    )
+
+    asyncio.run(caller._serve())
+
+    with pytest.raises(exception):
+        result.result()

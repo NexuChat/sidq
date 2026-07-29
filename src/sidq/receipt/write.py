@@ -6,7 +6,7 @@ import json
 import os
 import queue
 import threading
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from concurrent.futures import Future
 from dataclasses import replace
 from typing import Any
@@ -97,11 +97,7 @@ class StdioMCPReceiptToolCaller:
                     if is_error is None:
                         is_error = getattr(response, "isError", False)
                     if is_error:
-                        messages = [
-                            item.text
-                            for item in response.content
-                            if getattr(item, "type", "") == "text"
-                        ]
+                        messages = _text_messages(response.content)
                         raise RuntimeError(f"MCP {name} failed: {' '.join(messages)}")
                     structured = getattr(response, "structured_content", None)
                     if structured is None:
@@ -110,11 +106,7 @@ class StdioMCPReceiptToolCaller:
                         result.set_result(structured)
                     else:
                         text = next(
-                            (
-                                item.text
-                                for item in response.content
-                                if getattr(item, "type", "") == "text"
-                            ),
+                            (text for text in _text_messages(response.content)),
                             "{}",
                         )
                         result.set_result(json.loads(text))
@@ -126,6 +118,16 @@ class StdioMCPReceiptToolCaller:
             self._requests.put(None)
             self._thread.join(timeout=5)
         self._thread = None
+
+
+def _text_messages(contents: Sequence[object]) -> list[str]:
+    """Return text payloads while safely ignoring non-text MCP content blocks."""
+    return [
+        text
+        for item in contents
+        if getattr(item, "type", "") == "text"
+        if isinstance(text := getattr(item, "text", None), str)
+    ]
 
 
 def write_receipt(receipt: Receipt, tool_caller: ToolCaller) -> dict[str, Any]:
