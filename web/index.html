@@ -1,0 +1,757 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Sidq is a DataHub-native gate that asks whether the metadata graph is telling the truth before an agent trusts it.">
+    <meta name="theme-color" content="#0a0a09">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%230a0a09'/%3E%3Cpath d='M12 20h40L12 44h40' fill='none' stroke='%23ff503d' stroke-width='8'/%3E%3C/svg%3E">
+    <title>Sidq — Is the graph lying?</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --ink: #0a0a09;
+        --ink-raised: #11110f;
+        --paper: #f1eee7;
+        --paper-dim: #a7a39a;
+        --rule: #34332f;
+        --signal: #ff503d;
+        --signal-soft: #ff8a79;
+        --acid: #d9ff57;
+        --display: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+        --mono: "IBM Plex Mono", "Azeret Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        min-width: 320px;
+        margin: 0;
+        overflow-x: hidden;
+        background:
+          radial-gradient(circle at 84% 12%, rgba(255, 80, 61, 0.08), transparent 26rem),
+          linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+          var(--ink);
+        background-size: auto, 100% 4px, auto;
+        color: var(--paper);
+        font-family: var(--mono);
+        font-size: 16px;
+        line-height: 1.5;
+      }
+
+      body::before {
+        position: fixed;
+        z-index: 20;
+        inset: 0;
+        border: 1px solid rgba(241, 238, 231, 0.12);
+        content: "";
+        pointer-events: none;
+      }
+
+      a {
+        color: inherit;
+      }
+
+      a:focus-visible,
+      button:focus-visible {
+        outline: 2px solid var(--acid);
+        outline-offset: 5px;
+      }
+
+      .shell {
+        width: min(100% - 40px, 1480px);
+        margin-inline: auto;
+      }
+
+      .masthead {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        align-items: center;
+        min-height: 88px;
+        border-bottom: 1px solid var(--rule);
+      }
+
+      .wordmark {
+        display: inline-flex;
+        gap: 14px;
+        align-items: baseline;
+        text-decoration: none;
+      }
+
+      .wordmark strong {
+        font-family: var(--display);
+        font-size: 2rem;
+        font-weight: 700;
+        letter-spacing: -0.07em;
+      }
+
+      .wordmark span,
+      .edition,
+      .eyebrow,
+      .kicker,
+      .trace-type,
+      .field-label {
+        color: var(--paper-dim);
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+
+      .wordmark span {
+        color: var(--acid);
+      }
+
+      main {
+        display: block;
+      }
+
+      .hero {
+        min-height: min(850px, calc(100vh - 88px));
+        padding: clamp(64px, 10vw, 150px) 0 clamp(72px, 11vw, 170px);
+      }
+
+      .hero-grid {
+        display: grid;
+        grid-template-columns: minmax(130px, 0.24fr) minmax(0, 1.76fr);
+        gap: 24px;
+      }
+
+      .eyebrow {
+        padding-top: 0.8em;
+      }
+
+      h1 {
+        max-width: 1230px;
+        margin: 0;
+        font-family: var(--display);
+        font-size: clamp(3.45rem, 8.65vw, 9rem);
+        font-weight: 400;
+        letter-spacing: -0.062em;
+        line-height: 0.88;
+      }
+
+      h1 span {
+        display: block;
+      }
+
+      h1 .question {
+        margin-top: 0.18em;
+        color: var(--signal);
+        font-style: italic;
+      }
+
+      .hero-note {
+        display: grid;
+        grid-template-columns: minmax(130px, 0.24fr) minmax(0, 1.76fr);
+        gap: 24px;
+        margin-top: clamp(64px, 10vw, 140px);
+      }
+
+      .hero-note p {
+        max-width: 690px;
+        margin: 0;
+        color: var(--paper-dim);
+        font-size: clamp(0.78rem, 1vw, 0.95rem);
+      }
+
+      .hero-note strong {
+        color: var(--paper);
+      }
+
+      .verdict {
+        position: relative;
+        padding: clamp(72px, 9vw, 130px) 0;
+        border-top: 1px solid var(--rule);
+        border-bottom: 1px solid var(--rule);
+        background: linear-gradient(115deg, rgba(255, 80, 61, 0.085), transparent 46%);
+      }
+
+      .verdict::before {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        width: clamp(7px, 0.75vw, 13px);
+        background: var(--signal);
+        content: "";
+      }
+
+      .verdict-head {
+        display: grid;
+        grid-template-columns: minmax(260px, 0.85fr) minmax(300px, 1.15fr);
+        gap: clamp(48px, 8vw, 120px);
+        align-items: end;
+      }
+
+      .kicker {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        color: var(--signal-soft);
+      }
+
+      .kicker::before {
+        width: 36px;
+        height: 1px;
+        background: var(--signal);
+        content: "";
+      }
+
+      .decision {
+        margin: 12px 0 -0.09em;
+        color: var(--signal);
+        font-family: var(--display);
+        font-size: clamp(5.7rem, 15vw, 13rem);
+        font-style: italic;
+        font-weight: 700;
+        letter-spacing: -0.09em;
+        line-height: 0.72;
+      }
+
+      .finding {
+        display: grid;
+        grid-template-columns: 130px 1fr;
+        gap: 18px;
+        padding: 20px 0;
+        border-top: 1px solid var(--rule);
+      }
+
+      .finding:last-child {
+        border-bottom: 1px solid var(--rule);
+      }
+
+      .finding p {
+        margin: 0;
+        overflow-wrap: anywhere;
+      }
+
+      .finding .value {
+        font-family: var(--display);
+        font-size: clamp(1.2rem, 2vw, 1.7rem);
+        line-height: 1.2;
+      }
+
+      .finding .rule-name {
+        color: var(--acid);
+        font-family: var(--mono);
+        font-size: 0.93rem;
+      }
+
+      .trace {
+        margin-top: clamp(90px, 12vw, 170px);
+      }
+
+      .trace-heading {
+        display: grid;
+        grid-template-columns: minmax(130px, 0.24fr) minmax(0, 1.76fr);
+        gap: 24px;
+        margin-bottom: 34px;
+      }
+
+      .trace-heading h2 {
+        max-width: 800px;
+        margin: 0;
+        font-family: var(--display);
+        font-size: clamp(2.5rem, 5.2vw, 5.5rem);
+        font-weight: 400;
+        letter-spacing: -0.055em;
+        line-height: 0.97;
+      }
+
+      .trace-list {
+        display: grid;
+        margin: 0;
+        padding: 0;
+        border-top: 1px solid var(--paper-dim);
+        list-style: none;
+      }
+
+      .trace-item {
+        display: grid;
+        grid-template-columns: 76px minmax(110px, 0.36fr) minmax(0, 1.64fr) 38px;
+        gap: 18px;
+        align-items: center;
+        min-height: 102px;
+        padding: 18px 0;
+        border-bottom: 1px solid var(--rule);
+      }
+
+      .trace-index {
+        color: var(--signal-soft);
+      }
+
+      .trace-type {
+        color: var(--paper-dim);
+      }
+
+      .trace-asset {
+        min-width: 0;
+        overflow-wrap: anywhere;
+        font-size: clamp(0.76rem, 1.1vw, 0.95rem);
+      }
+
+      .trace-asset strong {
+        display: block;
+        margin-bottom: 3px;
+        color: var(--paper);
+        font-family: var(--display);
+        font-size: clamp(1.15rem, 2vw, 1.65rem);
+        font-weight: 400;
+        line-height: 1.15;
+      }
+
+      .trace-arrow {
+        color: var(--signal);
+        font-size: 1.5rem;
+        text-align: right;
+      }
+
+      .trace-item:last-child {
+        border-bottom-color: var(--signal);
+      }
+
+      .trace-item.branch-start {
+        margin-top: 22px;
+        border-top: 1px solid var(--signal-soft);
+      }
+
+      .trace-item:last-child .trace-arrow {
+        color: transparent;
+      }
+
+      .provenance {
+        display: flex;
+        justify-content: space-between;
+        gap: 24px;
+        margin-top: 18px;
+        color: var(--paper-dim);
+        font-size: 0.68rem;
+        letter-spacing: 0.06em;
+      }
+
+      .provenance code {
+        color: var(--paper);
+        font-family: inherit;
+      }
+
+      .reproduce {
+        padding: clamp(90px, 14vw, 190px) 0;
+      }
+
+      .reproduce-grid {
+        display: grid;
+        grid-template-columns: minmax(220px, 0.72fr) minmax(0, 1.28fr);
+        gap: clamp(50px, 10vw, 150px);
+      }
+
+      .reproduce h2 {
+        max-width: 570px;
+        margin: 14px 0 0;
+        font-family: var(--display);
+        font-size: clamp(3rem, 6.5vw, 7rem);
+        font-weight: 400;
+        letter-spacing: -0.06em;
+        line-height: 0.9;
+      }
+
+      .command {
+        align-self: end;
+        border-top: 1px solid var(--paper);
+        border-bottom: 1px solid var(--paper);
+      }
+
+      .command-row {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 24px;
+        align-items: center;
+        min-height: 112px;
+      }
+
+      .command code {
+        overflow-wrap: anywhere;
+        color: var(--acid);
+        font-family: var(--mono);
+        font-size: clamp(0.8rem, 1.25vw, 1rem);
+      }
+
+      .copy {
+        padding: 11px 0 11px 22px;
+        border: 0;
+        border-left: 1px solid var(--rule);
+        border-radius: 0;
+        background: transparent;
+        color: var(--paper);
+        cursor: pointer;
+        font: 700 0.67rem/1 var(--mono);
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      .copy:hover {
+        color: var(--acid);
+      }
+
+      .command p {
+        margin: 18px 0 0;
+        color: var(--paper-dim);
+        font-size: 0.75rem;
+      }
+
+      .links {
+        border-top: 1px solid var(--rule);
+      }
+
+      .link-row {
+        display: grid;
+        grid-template-columns: 70px 0.7fr 1.3fr 30px;
+        gap: 22px;
+        align-items: center;
+        min-height: 150px;
+        border-bottom: 1px solid var(--rule);
+        text-decoration: none;
+        transition: color 160ms ease, padding 160ms ease;
+      }
+
+      .link-row:hover {
+        padding: 0 14px;
+        color: var(--acid);
+      }
+
+      .link-number {
+        color: var(--paper-dim);
+        font-size: 0.72rem;
+      }
+
+      .link-title {
+        font-family: var(--display);
+        font-size: clamp(1.7rem, 3.3vw, 3.6rem);
+        letter-spacing: -0.045em;
+      }
+
+      .link-detail {
+        color: var(--paper-dim);
+        font-size: clamp(0.7rem, 1vw, 0.85rem);
+      }
+
+      .link-row:hover .link-detail {
+        color: var(--paper);
+      }
+
+      .credentials {
+        color: var(--signal-soft);
+      }
+
+      .link-arrow {
+        font-size: 1.4rem;
+      }
+
+      footer {
+        display: flex;
+        justify-content: space-between;
+        gap: 30px;
+        padding: 46px 0 70px;
+        color: var(--paper-dim);
+        font-size: 0.68rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      @media (max-width: 780px) {
+        .shell {
+          width: min(100% - 28px, 1480px);
+        }
+
+        .masthead {
+          min-height: 72px;
+        }
+
+        .edition {
+          max-width: 130px;
+          text-align: right;
+        }
+
+        .hero {
+          min-height: auto;
+        }
+
+        .hero-grid,
+        .hero-note,
+        .trace-heading,
+        .verdict-head,
+        .reproduce-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .eyebrow {
+          padding-top: 0;
+        }
+
+        h1 {
+          font-size: clamp(3.1rem, 16vw, 6rem);
+        }
+
+        .hero-note {
+          gap: 12px;
+        }
+
+        .verdict-head {
+          align-items: start;
+        }
+
+        .decision {
+          font-size: clamp(5.4rem, 27vw, 9rem);
+        }
+
+        .finding {
+          grid-template-columns: 96px 1fr;
+        }
+
+        .trace-heading {
+          gap: 12px;
+        }
+
+        .trace-item {
+          grid-template-columns: 40px minmax(0, 1fr) 22px;
+          gap: 12px;
+          min-height: 112px;
+        }
+
+        .trace-type {
+          display: none;
+        }
+
+        .provenance,
+        footer {
+          flex-direction: column;
+        }
+
+        .reproduce-grid {
+          gap: 55px;
+        }
+
+        .link-row {
+          grid-template-columns: 40px minmax(0, 1fr) 22px;
+          gap: 12px;
+          min-height: 130px;
+        }
+
+        .link-detail {
+          grid-column: 2 / -1;
+          padding-bottom: 22px;
+        }
+
+        .link-arrow {
+          grid-column: 3;
+          grid-row: 1;
+        }
+      }
+
+      @media (prefers-reduced-motion: no-preference) {
+        .hero h1 span,
+        .hero-note {
+          animation: arrive 720ms both cubic-bezier(0.2, 0.7, 0.2, 1);
+        }
+
+        .hero h1 span:nth-child(2) {
+          animation-delay: 90ms;
+        }
+
+        .hero-note {
+          animation-delay: 180ms;
+        }
+
+        @keyframes arrive {
+          from {
+            opacity: 0;
+            transform: translateY(24px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="masthead shell">
+      <a class="wordmark" href="#top" aria-label="Sidq صدق — back to top">
+        <strong>Sidq</strong>
+        <span>صدق</span>
+      </a>
+      <div class="edition">Data-graph verification / 2026</div>
+    </header>
+
+    <main id="top">
+      <section class="hero shell" aria-labelledby="thesis">
+        <div class="hero-grid">
+          <div class="eyebrow">00 / Thesis</div>
+          <h1 id="thesis">
+            <span>Everyone builds agents that read the graph and trust it blindly.</span>
+            <span class="question">Sidq asks whether the graph is lying.</span>
+          </h1>
+        </div>
+        <div class="hero-note">
+          <div class="field-label">Before merge</div>
+          <p><strong>A deterministic gate for data-code changes.</strong> Sidq resolves a diff into the live DataHub graph, follows its consequences, and refuses unsafe changes with evidence—not prose.</p>
+        </div>
+      </section>
+
+      <section class="verdict" aria-labelledby="verdict-title">
+        <div class="shell">
+          <div class="verdict-head">
+            <div>
+              <div class="kicker">Real engine output</div>
+              <h2 class="decision" id="verdict-title">BLOCK</h2>
+            </div>
+            <div>
+              <div class="finding">
+                <div class="field-label">Rule</div>
+                <p class="rule-name">pii_exposure</p>
+              </div>
+              <div class="finding">
+                <div class="field-label">Change</div>
+                <p class="value">Remove <code>cust_email</code> from <code>order_entry.customers</code></p>
+              </div>
+              <div class="finding">
+                <div class="field-label">Why</div>
+                <p class="value">PII exposure is not permitted. The field is tagged <code>PII_Data</code> and reaches a live Looker dashboard.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="trace">
+            <div class="trace-heading">
+              <div class="eyebrow">Evidence / 07 nodes</div>
+              <h2>Column lineage names the dashboard it can break.</h2>
+            </div>
+            <ol class="trace-list" aria-label="Column-level lineage evidence to the Looker dashboard">
+              <li class="trace-item">
+                <span class="trace-index">01</span>
+                <span class="trace-type">Column source</span>
+                <span class="trace-asset"><strong>dbt · order details</strong>ORDER_ENTRY_DB.analytics.order_details / cust_email</span>
+                <span class="trace-arrow" aria-hidden="true">↓</span>
+              </li>
+              <li class="trace-item">
+                <span class="trace-index">02</span>
+                <span class="trace-type">Changed subject</span>
+                <span class="trace-asset"><strong>dbt · customers</strong>order_entry_db.order_entry.customers / cust_email</span>
+                <span class="trace-arrow" aria-hidden="true">↓</span>
+              </li>
+              <li class="trace-item">
+                <span class="trace-index">03</span>
+                <span class="trace-type">Column path</span>
+                <span class="trace-asset"><strong>Looker · view</strong>order-entry-looker.view.order_details / cust_email</span>
+                <span class="trace-arrow" aria-hidden="true">↓</span>
+              </li>
+              <li class="trace-item">
+                <span class="trace-index">04</span>
+                <span class="trace-type">Column path</span>
+                <span class="trace-asset"><strong>Looker · explore</strong>order-entry.explore.order_details / order_details.cust_email</span>
+                <span class="trace-arrow" aria-hidden="true">↓</span>
+              </li>
+              <li class="trace-item">
+                <span class="trace-index">05</span>
+                <span class="trace-type">Column target</span>
+                <span class="trace-asset"><strong>Snowflake · order details</strong>order_entry_db.analytics.order_details / cust_email</span>
+                <span class="trace-arrow" aria-hidden="true">—</span>
+              </li>
+              <li class="trace-item branch-start">
+                <span class="trace-index">06</span>
+                <span class="trace-type">Dashboard edge</span>
+                <span class="trace-asset"><strong>Looker · chart</strong>dashboard_elements.221 → order_details explore (node 04)</span>
+                <span class="trace-arrow" aria-hidden="true">↓</span>
+              </li>
+              <li class="trace-item">
+                <span class="trace-index">07</span>
+                <span class="trace-type">Dashboard</span>
+                <span class="trace-asset"><strong>Looker · dashboard</strong>dashboard_elements.221 → dashboards.53</span>
+                <span class="trace-arrow" aria-hidden="true">—</span>
+              </li>
+            </ol>
+            <div class="provenance">
+              <span>Source: <code>examples/01-blocked-pii-dashboard/verdict.json</code></span>
+              <span>Commit: <code>d3f3bd2f4fe31837867592162ccea08859be6947</code></span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="reproduce shell" aria-labelledby="reproduce-title">
+        <div class="reproduce-grid">
+          <div>
+            <div class="eyebrow">01 / Reproduce</div>
+            <h2 id="reproduce-title">Do not take our word for it.</h2>
+          </div>
+          <div class="command">
+            <div class="command-row">
+              <code id="command-text">make demo-up &amp;&amp; make demo-ingest &amp;&amp; make gate-demo</code>
+              <button class="copy" type="button" data-copy="make demo-up &amp;&amp; make demo-ingest &amp;&amp; make gate-demo" aria-describedby="copy-status">Copy</button>
+            </div>
+            <p id="copy-status" aria-live="polite">One command. A local graph. The same deterministic verdict.</p>
+          </div>
+        </div>
+      </section>
+
+      <nav class="links shell" aria-label="Project links">
+        <a class="link-row" href="https://github.com/NexuChat/sidq">
+          <span class="link-number">01</span>
+          <span class="link-title">GitHub repository</span>
+          <span class="link-detail">Read the engine, policy, and evidence contract.</span>
+          <span class="link-arrow" aria-hidden="true">↗</span>
+        </a>
+        <a class="link-row" href="https://datahub.mlki.app">
+          <span class="link-number">02</span>
+          <span class="link-title">Live DataHub</span>
+          <span class="link-detail credentials">Demo login — username: <strong>datahub</strong> · password: <strong>datahub</strong></span>
+          <span class="link-arrow" aria-hidden="true">↗</span>
+        </a>
+        <a class="link-row" href="https://github.com/NexuChat/sidq/tree/main/examples">
+          <span class="link-number">03</span>
+          <span class="link-title">Evidence examples</span>
+          <span class="link-detail">Inspect the canonical JSON verdict and receipt-consumption proof.</span>
+          <span class="link-arrow" aria-hidden="true">↗</span>
+        </a>
+      </nav>
+    </main>
+
+    <footer class="shell">
+      <span>Sidq / DataHub-native pre-merge truth gate</span>
+      <span>Evidence before confidence.</span>
+    </footer>
+
+    <script>
+      const copyButton = document.querySelector("[data-copy]");
+      const copyStatus = document.querySelector("#copy-status");
+
+      copyButton.addEventListener("click", async () => {
+        const command = copyButton.dataset.copy;
+        try {
+          await navigator.clipboard.writeText(command);
+        } catch {
+          const range = document.createRange();
+          range.selectNodeContents(document.querySelector("#command-text"));
+          const selection = window.getSelection();
+          selection.removeAllRanges();
+          selection.addRange(range);
+          document.execCommand("copy");
+          selection.removeAllRanges();
+        }
+        copyButton.textContent = "Copied";
+        copyStatus.textContent = "Copied. Run it from the repository root.";
+        window.setTimeout(() => {
+          copyButton.textContent = "Copy";
+          copyStatus.textContent = "One command. A local graph. The same deterministic verdict.";
+        }, 2400);
+      });
+    </script>
+  </body>
+</html>

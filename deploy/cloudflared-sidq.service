@@ -1,5 +1,5 @@
 [Unit]
-Description=Cloudflare Tunnel for the sidq DataHub demo
+Description=Cloudflare Tunnel for Sidq
 Wants=network-online.target
 After=network-online.target
 StartLimitIntervalSec=0
@@ -9,7 +9,7 @@ Type=simple
 User=dev
 Group=dev
 UMask=0077
-ExecStart=/home/dev/bin/cloudflared --no-autoupdate tunnel run --token-file /etc/cloudflared/sidq-demo.token
+ExecStart=/home/dev/bin/cloudflared --no-autoupdate tunnel run --token-file /etc/cloudflared/sidq.token
 Restart=always
 RestartSec=5s
 NoNewPrivileges=true
