@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
+from sidq.gates.base import Gate
 from sidq.gates.blast import BlastRadiusGate
 from sidq.gates.reality import RealityGate
 from sidq.gates.schema import SchemaGate
@@ -81,7 +82,7 @@ def collect_evidence(
     touched: Sequence[Any], graph: GraphClient, live_source: LiveSourceClient | None
 ) -> list[Evidence]:
     evidence: list[Evidence] = []
-    gates = [SchemaGate(), BlastRadiusGate()]
+    gates: list[Gate] = [SchemaGate(), BlastRadiusGate()]
     if live_source is not None:
         gates.insert(0, RealityGate(live_source))
     for gate in gates:

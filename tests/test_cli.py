@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import json
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
 
 from sidq import cli
+from sidq.graph.client import LineageResult
 from sidq.models import Evidence, Verdict
 
 
@@ -36,6 +40,26 @@ def test_explain_known_and_unknown_rules(capsys) -> None:
     assert cli.main(["explain", "not_a_rule"]) == 2
 
 
+def test_module_and_console_entry_points_match() -> None:
+    command = ["explain", "unknown_field"]
+    console = subprocess.run(
+        [Path(sys.executable).with_name("sidq"), *command],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    module = subprocess.run(
+        [sys.executable, "-m", "sidq", *command],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert module.returncode == console.returncode
+    assert module.stdout == console.stdout
+    assert module.stderr == console.stderr
+
+
 def test_evidence_is_enriched_with_a_dataset_deep_link() -> None:
     evidence = Evidence(
         "unknown_field",
@@ -59,3 +83,74 @@ def test_commit_sha_resolves_the_right_hand_ref_without_running_git(
     ref.write_text("a" * 40 + "\n", encoding="utf-8")
 
     assert cli.commit_sha_for_ref("base..reviewed", repo_root=tmp_path) == "a" * 40
+
+
+class _NoImpactGraph:
+    def get_dataset(self, urn: str):
+        return None
+
+    def get_downstream(
+        self, urn: str, depth: int, column: str | None = None
+    ) -> LineageResult:
+        return LineageResult()
+
+    def close(self) -> None:
+        pass
+
+
+class _UnavailableGraph(_NoImpactGraph):
+    def get_downstream(
+        self, urn: str, depth: int, column: str | None = None
+    ) -> LineageResult:
+        raise TimeoutError("DataHub timed out")
+
+
+def _manifest_for(tmp_path: Path, source_path: str) -> None:
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text(
+        json.dumps(
+            {
+                "metadata": {"adapter_type": "postgres"},
+                "nodes": {
+                    "model.demo.orders": {
+                        "original_file_path": source_path,
+                        "relation_name": "warehouse.analytics.orders",
+                        "columns": {},
+                    }
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
+@pytest.mark.parametrize(
+    ("path", "sql", "graph", "rule_id"),
+    [
+        ("notes/renamed.txt", None, _NoImpactGraph(), "unresolved_asset"),
+        ("models/orders.sql", "SELECT FROM", _NoImpactGraph(), "unparseable_sql"),
+        ("models/orders.sql", "SELECT 1", _UnavailableGraph(), "graph_unavailable"),
+    ],
+)
+def test_cli_refuses_uncertifiable_changes_with_block_exit_code(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+    path: str,
+    sql: str | None,
+    graph: _NoImpactGraph,
+    rule_id: str,
+) -> None:
+    file_path = tmp_path / path
+    file_path.parent.mkdir(parents=True)
+    file_path.write_text(sql or "renamed content", encoding="utf-8")
+    if sql is not None:
+        _manifest_for(tmp_path, path)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(cli, "commit_sha_for_ref", lambda *args, **kwargs: "a" * 40)
+    monkeypatch.setattr(cli, "build_graph_client", lambda: graph)
+
+    assert cli.main(["check", "--file", path]) == 2
+    output = capsys.readouterr().out
+    assert "Sidq: BLOCK" in output
+    assert rule_id in output

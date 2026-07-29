@@ -2,6 +2,32 @@ version: 1
 settings:
   wide_blast_radius_threshold: 5
 rules:
+  # These are refusals to certify, not findings that the proposed change is unsafe.
+  # A merge gate cannot pass a change that it could not inspect.
+  - id: unresolved_asset
+    match:
+      evidence_kind: unresolved_asset
+    severity: block
+    reason_code: UNVERIFIABLE_CHANGE
+    message: >-
+      Sidq could not inspect {subject} because it could not map the changed file to an asset.
+      This is a refusal to certify the change, not a claim that the change is unsafe.
+  - id: unparseable_sql
+    match:
+      evidence_kind: unparseable_sql
+    severity: block
+    reason_code: UNVERIFIABLE_CHANGE
+    message: >-
+      Sidq could not inspect the SQL for {subject}.
+      This is a refusal to certify the change, not a claim that the change is unsafe.
+  - id: graph_unavailable
+    match:
+      evidence_kind: graph_unavailable
+    severity: block
+    reason_code: UNVERIFIABLE_CHANGE
+    message: >-
+      Sidq could not inspect the required graph data for {subject}.
+      This is a refusal to certify the change, not a claim that the change is unsafe.
   - id: catalog_reality_mismatch
     match:
       evidence_kind: catalog_reality_mismatch
@@ -16,6 +42,20 @@ rules:
     severity: block
     message: >-
       Referenced field is not present in the catalog: {subject}.
+  - id: unknown_dataset
+    match:
+      evidence_kind: unknown_dataset
+    severity: block
+    reason_code: UNVERIFIABLE_CHANGE
+    message: >-
+      Sidq could not inspect the referenced dataset {subject} because it is absent from the catalog.
+      This is a refusal to certify the change, not a claim that the change is unsafe.
+  - id: type_mismatch
+    match:
+      evidence_kind: type_mismatch
+    severity: block
+    message: >-
+      The referenced field type for {subject} is incompatible with the catalog type.
   - id: pii_exposure
     match:
       evidence_kind: pii_exposure
@@ -73,6 +113,20 @@ rules:
     severity: warn
     message: >-
       Documentation no longer matches the post-change schema for {subject}.
+  - id: doc_claim_violated
+    match:
+      evidence_kind: doc_claim_violated
+    severity: warn
+    message: >-
+      Documentation claim was contradicted by the live source for {subject}.
+  - id: doc_claim_unverifiable
+    match:
+      evidence_kind: doc_claim_unverifiable
+    severity: block
+    reason_code: UNVERIFIABLE_CHANGE
+    message: >-
+      Sidq could not inspect the live documentation claim for {subject}.
+      This is a refusal to certify the change, not a claim that the change is unsafe.
   - id: lineage_rot
     match:
       evidence_kind: lineage_rot_missing
@@ -115,8 +169,14 @@ rules:
     severity: warn
     message: >-
       A deprecated catalog asset still feeds a live chart or dashboard: {subject}.
-  # unowned_consumed deliberately has no policy rule. It is retained as
-  # informational catalog-health evidence and never changes a PR verdict.
-  # lineage_unverifiable deliberately has no policy rule. The policy engine
-  # retains unmatched evidence as informational and therefore cannot give it a
-  # blocking or warning severity.
+  # The following deliberately have no policy rule and are retained as info:
+  # - unowned_consumed: catalog health for a non-change-scoped asset.
+  # - lineage_unverifiable: catalog-health lineage observation, not a failure to
+  #   inspect the requested change.
+  # - deprecated_upstream_of_live_unverifiable,
+  #   doc_references_missing_column_unverifiable,
+  #   lineage_field_missing_unverifiable, orphan_lineage_unverifiable,
+  #   pii_leak_untagged_unverifiable, and unowned_consumed_unverifiable: the
+  #   complete-catalog audit could not assess unrelated catalog-health checks.
+  # - doc_claim_holds: affirmative verification evidence, which must not change
+  #   a passing decision.
