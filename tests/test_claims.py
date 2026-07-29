@@ -115,7 +115,9 @@ def test_model_extractor_uses_a_schema_and_preserves_the_source_sentence(
         }
 
     monkeypatch.setattr(ModelExtractor, "_request", fake_request)
-    claim = ModelExtractor("test-model").extract("Status is active or inactive.", "status", {})
+    claim = ModelExtractor("test-model").extract(
+        "Status is active or inactive.", "status", {}
+    )
 
     assert claim == Claim(
         "accepted_values",
