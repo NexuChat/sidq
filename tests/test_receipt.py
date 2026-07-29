@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 import sys
 from concurrent.futures import Future
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Self
 
 import anyio
@@ -13,6 +15,7 @@ import mcp.client.stdio
 import pytest
 
 from sidq.models import Evidence, Finding, Verdict
+from sidq.policy.engine import PolicyEngine
 from sidq.receipt.bootstrap import PROPERTY_DEFINITIONS, ensure_sidq_properties
 from sidq.receipt.build import build_receipt
 from sidq.receipt.read import get_verification_status
@@ -332,3 +335,25 @@ def test_receipt_stdio_caller_rejects_malformed_or_error_mcp_responses(
 
     with pytest.raises(exception):
         result.result()
+
+
+def test_a_stale_transcript_hash_must_be_labelled_historical() -> None:
+    """`examples/02` publishes a dated live run whose policy_hash drifts.
+
+    The scripts compute the hash from the shipped policy, so every policy edit
+    makes the recorded transcript stale. Rewriting a recorded live run to match
+    today's code would destroy what it proves, so the transcript stays verbatim —
+    but it must never read as current. If it is stale, the README has to say so.
+    """
+    readme = (
+        Path(__file__).parents[1] / "examples" / "02-receipt-consumed" / "README.md"
+    )
+    text = readme.read_text(encoding="utf-8")
+    transcript_hashes = set(re.findall(r'"policy_hash": "([0-9a-f]{64})"', text))
+    current = PolicyEngine().decide((), commit_sha="receipt-proof-commit").policy_hash
+
+    if transcript_hashes and transcript_hashes != {current}:
+        assert "historical" in text.lower(), (
+            "the transcript policy_hash no longer matches the shipped policy, so "
+            "the README must label it historical instead of implying it is current"
+        )
