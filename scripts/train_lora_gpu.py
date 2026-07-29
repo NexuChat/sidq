@@ -25,6 +25,12 @@ def main() -> None:
     parser.add_argument("--max-length", type=int, default=512)
     parser.add_argument("--save-steps", type=int, default=25)
     parser.add_argument("--cuda-memory-fraction", type=float, default=0.16)
+    parser.add_argument(
+        "--train-file",
+        type=base.Path,
+        default=base.ROOT / "data/claims/train.jsonl",
+        help="JSONL training corpus; use an immutable v2 copy for a fresh run",
+    )
     args = parser.parse_args()
     if args.epochs not in {1.0, 2.0, 3.0}:
         parser.error("--epochs must be 1, 2, or 3")
@@ -51,7 +57,7 @@ def main() -> None:
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     base.LORA_ROOT.mkdir(parents=True, exist_ok=True)
-    examples = base.read_examples(base.ROOT / "data/claims/train.jsonl")
+    examples = base.read_examples(args.train_file)
     proof = base._prompt_proof(examples[0])
     base.PROMPT_PROOF_PATH.write_text(
         json.dumps(proof, indent=2, sort_keys=True) + "\n",
@@ -125,8 +131,7 @@ def main() -> None:
     # pickle pyarrow's dynamic MonthDayNano class in mixed CUDA environments.
     # Subsequent Dataset.map calls still derive their cache keys from this
     # stable source fingerprint.
-    train_path = base.ROOT / "data/claims/train.jsonl"
-    source_fingerprint = hashlib.sha256(train_path.read_bytes()).hexdigest()
+    source_fingerprint = hashlib.sha256(args.train_file.read_bytes()).hexdigest()
     dataset = Dataset(
         InMemoryTable.from_pydict(
             {

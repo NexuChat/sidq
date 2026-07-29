@@ -1,42 +1,5 @@
 {
-  "$id": "https://sidq.dev/schemas/dbt-documentation-claim-record-1.0.0.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "additionalProperties": false,
-  "allOf": [
-    {
-      "else": {
-        "properties": {
-          "target": {
-            "properties": {
-              "claim": {
-                "type": "null"
-              }
-            }
-          }
-        }
-      },
-      "if": {
-        "properties": {
-          "class": {
-            "const": "positive"
-          }
-        }
-      },
-      "then": {
-        "properties": {
-          "target": {
-            "properties": {
-              "claim": {
-                "not": {
-                  "type": "null"
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  ],
   "properties": {
     "class": {
       "enum": [
@@ -45,173 +8,46 @@
         "hard_negative"
       ]
     },
-    "frequency": {
-      "description": "Occurrences of the exact sentence before the global cap of three.",
-      "minimum": 1,
-      "type": "integer"
-    },
     "input": {
-      "additionalProperties": false,
-      "properties": {
-        "column_name": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "schema_context": {
-          "type": "string"
-        },
-        "sentence": {
-          "minLength": 8,
-          "type": "string"
-        },
-        "table_name": {
-          "minLength": 1,
-          "type": "string"
-        }
-      },
-      "required": [
-        "sentence",
-        "column_name",
-        "table_name",
-        "schema_context"
-      ],
       "type": "object"
     },
     "source": {
-      "additionalProperties": false,
-      "properties": {
-        "commit": {
-          "pattern": "^[0-9a-f]{40}$",
-          "type": "string"
-        },
-        "licence": {
-          "enum": [
-            "0BSD",
-            "Apache-2.0",
-            "BSD-2-Clause",
-            "BSD-3-Clause",
-            "CC0-1.0",
-            "MIT",
-            "Unlicense"
-          ]
-        },
-        "path": {
-          "minLength": 1,
-          "type": "string"
-        },
-        "repo": {
-          "pattern": "^[^/]+/[^/]+$",
-          "type": "string"
-        }
-      },
-      "required": [
-        "repo",
-        "path",
-        "commit",
-        "licence"
-      ],
       "type": "object"
     },
+    "source_document": {
+      "type": "string"
+    },
+    "source_kind": {
+      "enum": [
+        "dbt",
+        "schemastore",
+        "fhir_r5",
+        "github_clone"
+      ]
+    },
+    "source_release": {
+      "enum": [
+        "raw-v3",
+        "schema-corpora",
+        "raw-v4",
+        "raw-v5",
+        "raw-v6"
+      ]
+    },
     "target": {
-      "additionalProperties": false,
-      "properties": {
-        "claim": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "additionalProperties": false,
-              "properties": {
-                "column": {
-                  "minLength": 1,
-                  "type": "string"
-                },
-                "type": {
-                  "enum": [
-                    "not_null",
-                    "unique"
-                  ]
-                }
-              },
-              "required": [
-                "type",
-                "column"
-              ],
-              "type": "object"
-            },
-            {
-              "additionalProperties": false,
-              "properties": {
-                "column": {
-                  "minLength": 1,
-                  "type": "string"
-                },
-                "type": {
-                  "const": "accepted_values"
-                },
-                "values": {
-                  "items": {
-                    "type": [
-                      "string",
-                      "number",
-                      "boolean"
-                    ]
-                  },
-                  "minItems": 1,
-                  "type": "array"
-                }
-              },
-              "required": [
-                "type",
-                "column",
-                "values"
-              ],
-              "type": "object"
-            },
-            {
-              "additionalProperties": false,
-              "properties": {
-                "column": {
-                  "minLength": 1,
-                  "type": "string"
-                },
-                "expr": {
-                  "minLength": 1,
-                  "type": "string"
-                },
-                "type": {
-                  "enum": [
-                    "relationships",
-                    "expression"
-                  ]
-                }
-              },
-              "required": [
-                "type",
-                "column",
-                "expr"
-              ],
-              "type": "object"
-            }
-          ]
-        }
-      },
-      "required": [
-        "claim"
-      ],
       "type": "object"
     }
   },
   "required": [
     "class",
-    "frequency",
     "input",
+    "target",
     "source",
-    "target"
+    "source_kind",
+    "source_document",
+    "source_release",
+    "split"
   ],
-  "title": "Sidq dbt documentation claim record",
+  "title": "Sidq constraint-pair record v6",
   "type": "object"
 }

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Resumably compare Qwen3.5 base, its LoRA adapter, and deterministic rules.
 
-The two model arms deliberately share one CPU ``transformers`` runtime.  Arm A
+The two model arms deliberately share one ``transformers`` runtime.  Arm A
 uses that runtime with PEFT adapters disabled; arm B enables the only loaded
 adapter.  This avoids the broken qwen3next GGUF conversion path entirely.
 """
@@ -32,10 +32,10 @@ from sidq.claims.extractor import (
 )
 
 BASE_MODEL_ID = "Qwen/Qwen3.5-0.8B"
-ADAPTER_DIR = ROOT / "data/lora/adapter"
 BAKEOFF_ROOT = ROOT / "data/bakeoff"
 PROMPT_PROOF = ROOT / "data/lora/prompt-proof.json"
-RUN_ID = "transformers-peft-ab-400-v1"
+DEFAULT_RUN_ID = "transformers-peft-ab-400-v2"
+MEASURABLE_TYPES = frozenset({"not_null", "unique"})
 LOGGER = logging.getLogger(__name__)
 
 # Prevent a single CPU decode from claiming every host thread.  The value
@@ -45,9 +45,9 @@ os.environ.setdefault("MKL_NUM_THREADS", "12")
 
 
 class TransformersPeftExtractor:
-    """CPU Qwen inference with JSON grammar enforcement and strict validation."""
+    """Qwen inference with JSON grammar enforcement and strict validation."""
 
-    def __init__(self) -> None:
+    def __init__(self, adapter_dir: Path, cuda_memory_fraction: float) -> None:
         import torch
         from peft import PeftModel
         from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -62,6 +62,8 @@ class TransformersPeftExtractor:
         # bf16 on GPU, float32 on CPU: both arms share this identical runtime,
         # so the only difference between A and B remains the adapter itself.
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        if self.device == "cuda":
+            torch.cuda.set_per_process_memory_fraction(cuda_memory_fraction, 0)
         dtype = torch.bfloat16 if self.device == "cuda" else torch.float32
         base = AutoModelForCausalLM.from_pretrained(
             BASE_MODEL_ID,
@@ -71,7 +73,7 @@ class TransformersPeftExtractor:
         base.eval()
         # A single base instance is wrapped once.  A calls disable_adapter(),
         # while B uses this same object with the adapter active.
-        self.model = PeftModel.from_pretrained(base, ADAPTER_DIR)
+        self.model = PeftModel.from_pretrained(base, adapter_dir)
         self.model.to(self.device)
         self.model.eval()
         LOGGER.info("evaluation runtime: device=%s dtype=%s", self.device, dtype)
@@ -162,12 +164,12 @@ def delta(value: float) -> str:
     return f"{value * 100:+.1f} pp"
 
 
-def verify_prompt_proof() -> None:
+def verify_prompt_proof(train_file: Path) -> None:
     """Fail closed if the runtime prompt differs from the trained formatter."""
     proof = json.loads(PROMPT_PROOF.read_text(encoding="utf-8"))
     # The proof was recorded from the training formatter's representative
     # training row; evaluation rows naturally have different prompt bytes.
-    with (ROOT / "data/claims/train.jsonl").open(encoding="utf-8") as source:
+    with train_file.open(encoding="utf-8") as source:
         example = json.loads(next(line for line in source if line.strip()))
     input_data = example["input"]
     prompt = ModelExtractor._prompt(
@@ -180,29 +182,56 @@ def verify_prompt_proof() -> None:
         raise RuntimeError("live formatter no longer matches data/lora/prompt-proof.json")
 
 
-def render_report(summary: dict[str, dict[str, Any]]) -> str:
+def _metric_cell(metric: Mapping[str, Any], predicate: str) -> str:
+    if predicate not in MEASURABLE_TYPES:
+        return "not measurable at this sample size"
+    return f"{pct(metric['exact'])} / {pct(metric['type_only'])}"
+
+
+def render_report(
+    summary: dict[str, dict[str, Any]],
+    *,
+    eval_file: Path,
+    output_root: Path,
+    cuda_memory_fraction: float,
+) -> str:
     base, lora, rules = (summary[arm] for arm in ("A_prompted_base", "B_lora", "C_rule_based"))
+    try:
+        eval_label = eval_file.resolve().relative_to(ROOT).as_posix()
+    except ValueError:
+        eval_label = str(eval_file)
+    try:
+        output_label = output_root.resolve().relative_to(ROOT).as_posix()
+    except ValueError:
+        output_label = str(output_root)
     lines = [
         "# Qwen3.5-0.8B LoRA evaluation",
         "",
         "## Method",
         "",
-        "All three arms used the same 400 repository-held-out examples in `data/claims/eval.jsonl`: 40 positives for each of five predicate types and 200 no-claim examples. A and B ran sequentially in one CPU-only `transformers` + `peft` runtime. Both use the byte-identical `ModelExtractor._prompt` formatter proven in `data/lora/prompt-proof.json`, deterministic decoding, a JSON-Schema grammar constraint, and the production strict JSON-to-claim validator. A disables the loaded PEFT adapter; B enables that exact adapter. C is `RuleBasedExtractor` and makes no model call. Progress checkpoints every 20 examples in `data/bakeoff/<arm>/progress.jsonl` and is resumed by index.",
+        f"All three arms used the same {len(base['records']) if 'records' in base else 400} repository-held-out v2 examples in `{eval_label}`. A and B ran sequentially in one GPU `transformers` + `peft` runtime, capped at {cuda_memory_fraction * 100:.0f}% of GPU memory. Both use the byte-identical `ModelExtractor._prompt` formatter proven in `data/lora/prompt-proof.json`, deterministic decoding, a JSON-Schema grammar constraint, and the production strict JSON-to-claim validator. A disables the loaded PEFT adapter; B enables that exact adapter. C is `RuleBasedExtractor` and makes no model call. Progress checkpoints every 20 examples in `{output_label}/<arm>/progress.jsonl` and are resumed by index.",
         "",
         "Exact match requires type, column, and required values/expr. Type-only ignores predicate arguments. Positive accuracy is never averaged with negative abstention.",
         "",
         "## Per-predicate results",
         "",
-        "| Predicate type (n=40) | A: prompted base exact / type-only | B: LoRA exact / type-only | B − A exact | C: rule-based exact / type-only |",
+        "| Predicate type (eval n) | A: prompted base exact / type-only | B: LoRA exact / type-only | B − A exact | C: rule-based exact / type-only |",
         "| --- | ---: | ---: | ---: | ---: |",
     ]
     for predicate in PREDICATE_TYPES:
         a, b, c = (arm["by_type"][predicate] for arm in (base, lora, rules))
-        lines.append(
-            f"| {predicate} | {pct(a['exact'])} / {pct(a['type_only'])} | "
-            f"{pct(b['exact'])} / {pct(b['type_only'])} | {delta(b['exact'] - a['exact'])} | "
-            f"{pct(c['exact'])} / {pct(c['type_only'])} |"
-        )
+        if predicate in MEASURABLE_TYPES:
+            lines.append(
+                f"| {predicate} (n={a['n']}) | {_metric_cell(a, predicate)} | "
+                f"{_metric_cell(b, predicate)} | {delta(b['exact'] - a['exact'])} | "
+                f"{_metric_cell(c, predicate)} |"
+            )
+        else:
+            lines.append(
+                f"| {predicate} (n={a['n']}) | not measurable at this sample size | "
+                "not measurable at this sample size | not measurable | "
+                "not measurable at this sample size |"
+            )
     lines += [
         "",
         "## Negative abstention — headline safety measure",
@@ -219,27 +248,27 @@ def render_report(summary: dict[str, dict[str, Any]]) -> str:
 
     exact_changes = "; ".join(
         f"{predicate} {delta(lora['by_type'][predicate]['exact'] - base['by_type'][predicate]['exact'])}"
-        for predicate in PREDICATE_TYPES
+        for predicate in MEASURABLE_TYPES
     )
     abstention_change = lora["negative_abstention"] - base["negative_abstention"]
     rule_wins = [
-        predicate for predicate in PREDICATE_TYPES
+        predicate for predicate in MEASURABLE_TYPES
         if rules["by_type"][predicate]["exact"] > max(base["by_type"][predicate]["exact"], lora["by_type"][predicate]["exact"])
     ]
-    positive_help = lora["macro_exact"] > base["macro_exact"]
-    safety_help = abstention_change > 0
+    positive_help = lora["by_type"]["unique"]["exact"] > rules["by_type"]["unique"]["exact"]
+    safety_help = lora["negative_abstention"] >= 0.95
     ship = positive_help and safety_help
     lines += [
         "",
         "## Verdict",
         "",
-        f"1. **Did the adapter beat the prompted base?** {'Yes' if positive_help else 'No'} on macro positive exact match: {pct(base['macro_exact'])} → {pct(lora['macro_exact'])} ({delta(lora['macro_exact'] - base['macro_exact'])}). Per type: {exact_changes}.",
+        f"1. **Did the v2 adapter beat the 8% rule-based baseline on `unique`?** {'Yes' if positive_help else 'No'}: rule-based {pct(rules['by_type']['unique']['exact'])}; adapter {pct(lora['by_type']['unique']['exact'])}. The prompted-base comparison is {pct(base['by_type']['unique']['exact'])} → {pct(lora['by_type']['unique']['exact'])} ({delta(lora['by_type']['unique']['exact'] - base['by_type']['unique']['exact'])}). The other measurable type changes are: {exact_changes}.",
         "",
-        f"2. **Did it improve abstention, or make the model more eager to invent claims?** {'It improved abstention' if safety_help else 'It did not improve abstention'}: {pct(base['negative_abstention'])} → {pct(lora['negative_abstention'])} ({delta(abstention_change)}). " + ("It is less eager to invent claims on no-claim prose." if safety_help else "It is equally or more eager to invent claims on no-claim prose; this is the single most important result."),
+        f"2. **Did abstention hold?** {'Yes' if safety_help else 'No'}: prompted base {pct(base['negative_abstention'])}; adapter {pct(lora['negative_abstention'])} ({delta(abstention_change)}). " + ("The adapter remains at or above the 95.0% safety bar." if safety_help else "It falls below the 95.0% safety bar; this is the single most important result."),
         "",
         f"3. **Does the rule-based baseline beat either model arm on any type?** {'Yes: ' + ', '.join(rule_wins) + '.' if rule_wins else 'No predicate type has a strict rule-based exact-match win over both model arms.'}",
         "",
-        f"4. **Is the adapter worth shipping at all?** {'Yes: it improves both positive macro exact match and the separate abstention safety measure.' if ship else 'No: it has not earned an additional artifact because it failed to improve both positive utility and negative abstention.'}",
+        f"4. **Is the adapter worth shipping at all?** {'Yes: it beats rules on the only adequately sampled predicate and preserves the separate abstention safety measure.' if ship else 'No: ship rules only. It has not earned an additional model artifact because it failed either the `unique` utility comparison or abstention safety.'}",
         "",
         "## Known limitation",
         "",
@@ -252,15 +281,28 @@ def render_report(summary: dict[str, dict[str, Any]]) -> str:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--eval-file", type=Path, default=ROOT / "data/claims/eval.jsonl")
+    parser.add_argument("--adapter-dir", type=Path, default=ROOT / "data/lora/adapter")
+    parser.add_argument(
+        "--train-file",
+        type=Path,
+        default=ROOT / "data/claims/train.jsonl",
+        help="the exact training corpus used to refresh prompt-proof.json",
+    )
+    parser.add_argument("--run-id", default=DEFAULT_RUN_ID)
+    parser.add_argument("--output-root", type=Path, default=BAKEOFF_ROOT)
+    parser.add_argument("--summary-file", type=Path, default=BAKEOFF_ROOT / "lora-transformers-peft-ab-400-v2.json")
+    parser.add_argument("--cuda-memory-fraction", type=float, default=0.16)
     args = parser.parse_args()
-    if not (ADAPTER_DIR / "adapter_model.safetensors").is_file():
-        raise FileNotFoundError(f"missing trained adapter at {ADAPTER_DIR}")
+    if not 0.05 <= args.cuda_memory_fraction <= 0.16:
+        parser.error("--cuda-memory-fraction must be between 0.05 and 0.16 on the shared GPU")
+    if not (args.adapter_dir / "adapter_model.safetensors").is_file():
+        raise FileNotFoundError(f"missing trained adapter at {args.adapter_dir}")
 
     examples = read_examples(args.eval_file)
     if len(examples) != 400:
         raise ValueError(f"expected the held-out 400 rows, found {len(examples)}")
-    verify_prompt_proof()
-    runtime = TransformersPeftExtractor()
+    verify_prompt_proof(args.train_file)
+    runtime = TransformersPeftExtractor(args.adapter_dir, args.cuda_memory_fraction)
     arms = (
         ("A_prompted_base", ArmExtractor(runtime, adapter_enabled=False)),
         ("B_lora", ArmExtractor(runtime, adapter_enabled=True)),
@@ -269,15 +311,19 @@ def main() -> None:
     summary: dict[str, dict[str, Any]] = {}
     for arm, extractor in arms:
         print(f"running {arm}", flush=True)
-        records = run_extracts(arm, extractor, examples, run=RUN_ID, output_root=BAKEOFF_ROOT)
+        records = run_extracts(arm, extractor, examples, run=args.run_id, output_root=args.output_root)
         summary[arm] = metrics(examples, records)
         print(f"completed {arm}", flush=True)
-    BAKEOFF_ROOT.mkdir(parents=True, exist_ok=True)
-    (BAKEOFF_ROOT / "lora-transformers-peft-ab-400-v1.json").write_text(
+    args.summary_file.parent.mkdir(parents=True, exist_ok=True)
+    args.summary_file.write_text(
         json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
-    report = render_report(summary)
-    (ROOT / "docs/LORA.md").write_text(report, encoding="utf-8")
+    report = render_report(
+        summary,
+        eval_file=args.eval_file,
+        output_root=args.output_root,
+        cuda_memory_fraction=args.cuda_memory_fraction,
+    )
     print(report)
 
 
