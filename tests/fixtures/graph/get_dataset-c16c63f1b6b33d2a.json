@@ -1,0 +1,298 @@
+{
+  "deprecated": false,
+  "fields": [
+    {
+      "native_type": "String",
+      "nullable": false,
+      "path": "BILLING_ADDRESS_LINE1"
+    },
+    {
+      "native_type": "String",
+      "nullable": false,
+      "path": "BILLING_ADDRESS_LINE2"
+    },
+    {
+      "native_type": "String",
+      "nullable": false,
+      "path": "BILLING_COUNTRY"
+    },
+    {
+      "native_type": "String",
+      "nullable": false,
+      "path": "BILLING_REGION"
+    },
+    {
+      "native_type": "String",
+      "nullable": false,
+      "path": "BILLING_TOWN_CITY"
+    },
+    {
+      "native_type": "Double",
+      "nullable": false,
+      "path": "BILLING_ZIPCODE"
+    },
+    {
+      "native_type": "Double",
+      "nullable": false,
+      "path": "CATEGORY_ID"
+    },
+    {
+      "native_type": "String",
+      "nullable": false,
+      "path": "CATEGORY_NAME"
+    },
+    {
+      "native_type": "String",
+      "nullable": false,
+      "path": "CONDITION"
+    },
+    {
+      "native_type": "Double",
+      "nullable": false,
+      "path": "COST_OF_DELIVERY"
+    },
+    {
+      "native_type": "String",
+      "nullable": false,
+      "path": "CUSTOMER_CLASS"
+    },
+    {
+      "native_type": "Double",
+      "nullable": false,
+      "path": "CUSTOMER_ID"
+    },
+    {
+      "native_type": "String",
+      "nullable": false,
+      "path": "CUST_EMAIL"
+    },
+    {
+      "native_type": "String",
+      "nullable": false,
+      "path": "CUST_FIRST_NAME"
+    },
+    {
+      "native_type": "String",
+      "nullable": false,
+      "path": "CUST_LAST_NAME"
+    },
+    {
+      "native_type": "String",
+      "nullable": false,
+      "path": "DELIVERY_STATUS"
+    },
+    {
+      "native_type": "String",
+      "nullable": false,
+      "path": "DELIVERY_TYPE"
+    },
+    {
+      "native_type": "Double",
+      "nullable": false,
+      "path": "DISCOUNT_AMOUNT"
+    },
+    {
+      "native_type": "Double",
+      "nullable": false,
+      "path": "DISCOUNT_PERCENT"
+    },
+    {
+      "native_type": "String",
+      "nullable": false,
+      "path": "DISPATCH_DATE"
+    },
+    {
+      "native_type": "String",
+      "nullable": false,
+      "path": "ESTIMATED_DELIVERY"
+    },
+    {
+      "native_type": "String",
+      "nullable": false,
+      "path": "GIFT_WRAP"
+    },
+    {
+      "native_type": "Double",
+      "nullable": false,
+      "path": "LINE_ITEM_ID"
+    },
+    {
+      "native_type": "Double",
+      "nullable": false,
+      "path": "LINE_TOTAL"
+    },
+    {
+      "native_type": "Double",
+      "nullable": false,
+      "path": "LIST_PRICE"
+    },
+    {
+      "native_type": "String",
+      "nullable": false,
+      "path": "ORDER_DATE"
+    },
+    {
+      "native_type": "Double",
+      "nullable": false,
+      "path": "ORDER_ID"
+    },
+    {
+      "native_type": "String",
+      "nullable": false,
+      "path": "ORDER_MODE"
+    },
+    {
+      "native_type": "Double",
+      "nullable": false,
+      "path": "ORDER_STATUS"
+    },
+    {
+      "native_type": "Double",
+      "nullable": false,
+      "path": "ORDER_TOTAL"
+    },
+    {
+      "native_type": "String",
+      "nullable": false,
+      "path": "Order Size Category"
+    },
+    {
+      "native_type": "String",
+      "nullable": false,
+      "path": "PAYMENT_METHOD_CODE"
+    },
+    {
+      "native_type": "String",
+      "nullable": false,
+      "path": "PHONE_NUMBER"
+    },
+    {
+      "native_type": "String",
+      "nullable": false,
+      "path": "PRODUCT_DESCRIPTION"
+    },
+    {
+      "native_type": "Double",
+      "nullable": false,
+      "path": "PRODUCT_ID"
+    },
+    {
+      "native_type": "String",
+      "nullable": false,
+      "path": "PRODUCT_NAME"
+    },
+    {
+      "native_type": "String",
+      "nullable": false,
+      "path": "PRODUCT_STATUS"
+    },
+    {
+      "native_type": "String",
+      "nullable": false,
+      "path": "PROMOTION_DESCRIPTION"
+    },
+    {
+      "native_type": "Double",
+      "nullable": false,
+      "path": "PROMOTION_ID"
+    },
+    {
+      "native_type": "String",
+      "nullable": false,
+      "path": "PROMOTION_NAME"
+    },
+    {
+      "native_type": "Double",
+      "nullable": false,
+      "path": "QUANTITY"
+    },
+    {
+      "native_type": "Double",
+      "nullable": false,
+      "path": "QUANTITY_ON_HAND"
+    },
+    {
+      "native_type": "String",
+      "nullable": false,
+      "path": "Quarter"
+    },
+    {
+      "native_type": "String",
+      "nullable": false,
+      "path": "RETURN_DATE"
+    },
+    {
+      "native_type": "String",
+      "nullable": false,
+      "path": "RETURN_STATUS"
+    },
+    {
+      "native_type": "String",
+      "nullable": false,
+      "path": "SHIPPING_ADDRESS_LINE1"
+    },
+    {
+      "native_type": "String",
+      "nullable": false,
+      "path": "SHIPPING_ADDRESS_LINE2"
+    },
+    {
+      "native_type": "String",
+      "nullable": false,
+      "path": "SHIPPING_COUNTRY"
+    },
+    {
+      "native_type": "String",
+      "nullable": false,
+      "path": "SHIPPING_REGION"
+    },
+    {
+      "native_type": "String",
+      "nullable": false,
+      "path": "SHIPPING_TOWN_CITY"
+    },
+    {
+      "native_type": "Double",
+      "nullable": false,
+      "path": "SHIPPING_ZIPCODE"
+    },
+    {
+      "native_type": "String",
+      "nullable": false,
+      "path": "STOCK_STATUS"
+    },
+    {
+      "native_type": "Double",
+      "nullable": false,
+      "path": "UNIT_PRICE"
+    },
+    {
+      "native_type": "DateTime",
+      "nullable": false,
+      "path": "UPDATED_AT"
+    },
+    {
+      "native_type": "String",
+      "nullable": false,
+      "path": "WAIT_TILL_COMPLETE_YN"
+    },
+    {
+      "native_type": "Double",
+      "nullable": false,
+      "path": "WAREHOUSE_ID"
+    },
+    {
+      "native_type": "String",
+      "nullable": false,
+      "path": "WAREHOUSE_NAME"
+    }
+  ],
+  "owners": [
+    "urn:li:corpuser:b2fd91.kirk@example.com"
+  ],
+  "tags": [],
+  "terms": [
+    "urn:li:glossaryTerm:b2fd91.1598cf93-c199-43a1-8833-fce96faa9a1a"
+  ],
+  "urn": "urn:li:dataset:(urn:li:dataPlatform:powerbi,b2fd91.datahub_order_entries.ORDER_DETAILS,PROD)"
+}

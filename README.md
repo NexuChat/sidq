@@ -190,7 +190,7 @@ Only the deterministic policy findings in this section affect the merge decision
 
 ---
 
-Reproducibility: <code>policy_hash=d35a65154fbbbffc9636d6dd9d9ad73c49eb59b05b3506c8bafdf45b0fb7f1cc</code> · <code>commit_sha=d3f3bd2f4fe31837867592162ccea08859be6947</code> · run <code>sidq check --diff d3f3bd2f4fe31837867592162ccea08859be6947^..d3f3bd2f4fe31837867592162ccea08859be6947 --json</code>
+Reproducibility: <code>policy_hash=baa612f729a56ff7497718cc3cf77cd9142967cb4ec0e075c2b3495eeb2f2927</code> · <code>commit_sha=d3f3bd2f4fe31837867592162ccea08859be6947</code> · run <code>sidq check --diff d3f3bd2f4fe31837867592162ccea08859be6947^..d3f3bd2f4fe31837867592162ccea08859be6947 --json</code>
 ## Why Sidq is not its neighbours
 
 Impact analysis already exists. The *decision* does not, and nothing checks whether the catalog itself is telling the truth.

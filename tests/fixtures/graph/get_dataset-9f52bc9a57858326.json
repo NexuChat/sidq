@@ -1,0 +1,36 @@
+{
+  "deprecated": false,
+  "field_descriptions": {
+    "Domestic Sales": "CALCULATE([Total Revenue], 'ORDER_DETAILS'[shipping_country] = \"United States\")",
+    "International Sales": "[Total Revenue] - [Domestic Sales]",
+    "Revenue by Country": "CALCULATE([Total Revenue], VALUES('ORDER_DETAILS'[shipping_country]))"
+  },
+  "fields": [
+    {
+      "native_type": "measure",
+      "nullable": false,
+      "path": "Domestic Sales"
+    },
+    {
+      "native_type": "measure",
+      "nullable": false,
+      "path": "International Sales"
+    },
+    {
+      "native_type": "measure",
+      "nullable": false,
+      "path": "Revenue by Country"
+    },
+    {
+      "native_type": "String",
+      "nullable": false,
+      "path": "Value"
+    }
+  ],
+  "owners": [],
+  "tags": [],
+  "terms": [
+    "urn:li:glossaryTerm:b2fd91.1598cf93-c199-43a1-8833-fce96faa9a1a"
+  ],
+  "urn": "urn:li:dataset:(urn:li:dataPlatform:powerbi,b2fd91.datahub_order_entries.Geographic_Measures,PROD)"
+}

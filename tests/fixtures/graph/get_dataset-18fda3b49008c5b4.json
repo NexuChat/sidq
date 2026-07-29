@@ -1,0 +1,84 @@
+{
+  "deprecated": false,
+  "field_descriptions": {
+    "Average Order Value": "DIVIDE([Total Revenue], [Total Orders], 0)",
+    "Fulfillment Rate": "DIVIDE(\n    CALCULATE([Total Orders], 'ORDER_DETAILS'[delivery_status] <> \"Not Shipped\"),\n    [Total Orders], \n    0\n)",
+    "New Customers": "\nCALCULATE(\n    DISTINCTCOUNT('ORDER_DETAILS'[customer_id]),\n    FILTER(\n        'ORDER_DETAILS',\n        'ORDER_DETAILS'[order_date] = \n        CALCULATE(\n            MIN('ORDER_DETAILS'[order_date]),\n            ALLEXCEPT('ORDER_DETAILS', 'ORDER_DETAILS'[customer_id])\n        )\n    )\n)",
+    "PY Revenue": "CALCULATE([Total Revenue], SAMEPERIODLASTYEAR('ORDER_DETAILS'[order_date]))",
+    "Revenue Per Customer": "DIVIDE([Total Revenue], [Total Customers], 0)",
+    "Total Customers": "DISTINCTCOUNT('ORDER_DETAILS'[customer_id])",
+    "Total Orders": "DISTINCTCOUNT('ORDER_DETAILS'[order_id])",
+    "Total Products Sold": "SUM('ORDER_DETAILS'[quantity])",
+    "Total Revenue": "SUMX('ORDER_DETAILS', 'ORDER_DETAILS'[order_total])",
+    "YTD Revenue": "CALCULATE([Total Revenue], DATESYTD('ORDER_DETAILS'[order_date]))",
+    "YoY Growth": "DIVIDE([YTD Revenue] - [PY Revenue], [PY Revenue], 0)"
+  },
+  "fields": [
+    {
+      "native_type": "measure",
+      "nullable": false,
+      "path": "Average Order Value"
+    },
+    {
+      "native_type": "measure",
+      "nullable": false,
+      "path": "Fulfillment Rate"
+    },
+    {
+      "native_type": "measure",
+      "nullable": false,
+      "path": "New Customers"
+    },
+    {
+      "native_type": "measure",
+      "nullable": false,
+      "path": "PY Revenue"
+    },
+    {
+      "native_type": "measure",
+      "nullable": false,
+      "path": "Revenue Per Customer"
+    },
+    {
+      "native_type": "measure",
+      "nullable": false,
+      "path": "Total Customers"
+    },
+    {
+      "native_type": "measure",
+      "nullable": false,
+      "path": "Total Orders"
+    },
+    {
+      "native_type": "measure",
+      "nullable": false,
+      "path": "Total Products Sold"
+    },
+    {
+      "native_type": "measure",
+      "nullable": false,
+      "path": "Total Revenue"
+    },
+    {
+      "native_type": "String",
+      "nullable": false,
+      "path": "Value"
+    },
+    {
+      "native_type": "measure",
+      "nullable": false,
+      "path": "YTD Revenue"
+    },
+    {
+      "native_type": "measure",
+      "nullable": false,
+      "path": "YoY Growth"
+    }
+  ],
+  "owners": [],
+  "tags": [],
+  "terms": [
+    "urn:li:glossaryTerm:b2fd91.1598cf93-c199-43a1-8833-fce96faa9a1a"
+  ],
+  "urn": "urn:li:dataset:(urn:li:dataPlatform:powerbi,b2fd91.datahub_order_entries.Essential_KPI_Measures,PROD)"
+}

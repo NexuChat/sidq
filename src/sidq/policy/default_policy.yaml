@@ -79,6 +79,18 @@ rules:
     severity: block
     message: >-
       This change has critical or cross-team downstream consumers for {subject}.
+  - id: partial_blast_radius
+    match:
+      evidence_kind: blast_radius
+      where_any:
+        - field: detail.unreadable_assets
+          op: not_empty
+    severity: warn
+    message: >-
+      Downstream governance could not be fully read for {subject}, so ownership
+      and criticality evidence is incomplete. The lineage itself is proven; the
+      blocking rules that depend on ownership could not be evaluated on every
+      consumer.
   - id: wide_blast_radius
     match:
       evidence_kind: blast_radius
@@ -188,3 +200,11 @@ rules:
   #   a passing decision.
   # - constraint_missing_in_catalog and constraint_unparseable: informational
   #   catalog-health observations. The latter is deliberately an abstention.
+  #
+  # partial_blast_radius is a warn, not a block, and the choice is deliberate.
+  # A downstream get_dataset can fail for an ordinary reason — chart and dashboard
+  # consumers are not datasets in every graph — so blocking on it would refuse to
+  # certify almost every change with BI downstream. The lineage is still proven;
+  # what is incomplete is the ownership enrichment the blocking rules read. So it
+  # warns, consistent with the rule that advisory evidence never turns PASS into
+  # BLOCK, and the gate records exactly which consumers went unread.
