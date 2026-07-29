@@ -56,9 +56,7 @@ def _changed_column(asset: TouchedAsset) -> str | None:
     return fields[0] if len(fields) == 1 else None
 
 
-def _with_bi_consumers(
-    graph: GraphClient, result: LineageResult
-) -> LineageResult:
+def _with_bi_consumers(graph: GraphClient, result: LineageResult) -> LineageResult:
     """Charts and dashboards are entity-level hops after field-level lineage ends."""
     extra_urns: list[str] = []
     extra_types: dict[str, str] = {}

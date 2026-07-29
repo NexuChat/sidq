@@ -80,6 +80,10 @@ class GraphClient(Protocol):
 type ToolCaller = Callable[[str, Mapping[str, Any]], Any]
 
 
+class GraphResponseError(RuntimeError):
+    """An MCP tool returned a payload that cannot prove the requested result."""
+
+
 class MCPGraphClient:
     """Translate official DataHub MCP tools into the stable :class:`GraphClient` API.
 
@@ -187,12 +191,18 @@ class MCPGraphClient:
         target_column: str | None = None,
     ) -> list[Path]:
         raw = self._get_lineage_paths_between(a, b, source_column, target_column)
-        metadata = _mapping(_mapping(raw).get("metadata"))
+        document = _required_mapping(raw, "get_lineage_paths_between response")
+        paths = document.get("paths")
+        if not isinstance(paths, list):
+            raise GraphResponseError(
+                "get_lineage_paths_between response is missing a paths list"
+            )
+        metadata = _mapping(document.get("metadata"))
         default_granularity = (
             "column" if metadata.get("pathType") == "column-level" else "table"
         )
         return _downstream_paths(
-            _parse_paths(raw, default_granularity=default_granularity),
+            _parse_paths({"paths": paths}, default_granularity=default_granularity),
             a,
             b,
             source_column=source_column,
@@ -316,6 +326,12 @@ def _tool_response_payload(response: Any, *, name: str = "tool") -> Any:
 
 def _mapping(value: Any) -> Mapping[str, Any]:
     return value if isinstance(value, Mapping) else {}
+
+
+def _required_mapping(value: Any, name: str) -> Mapping[str, Any]:
+    if not isinstance(value, Mapping):
+        raise GraphResponseError(f"{name} must be an object")
+    return value
 
 
 def _items(value: Any) -> list[Mapping[str, Any]]:
@@ -458,9 +474,16 @@ def _deprecated(value: Mapping[str, Any]) -> bool:
 
 
 def _parse_lineage(value: Any, *, requested_column: str | None) -> LineageResult:
-    document = _mapping(value)
-    downstreams = _mapping(document.get("downstreams"))
-    items = _items(downstreams.get("searchResults", ()))
+    document = _required_mapping(value, "get_lineage response")
+    downstreams = document.get("downstreams")
+    if not isinstance(downstreams, Mapping):
+        raise GraphResponseError("get_lineage response is missing a downstreams object")
+    search_results = downstreams.get("searchResults")
+    if not isinstance(search_results, list):
+        raise GraphResponseError(
+            "get_lineage response is missing a downstreams.searchResults list"
+        )
+    items = _items(search_results)
     urns: list[str] = []
     entity_types: dict[str, str] = {}
     tags: dict[str, tuple[str, ...]] = {}
@@ -512,9 +535,7 @@ def _parse_paths(
         raw_nodes = item.get("urns", item.get("path", item.get("nodes", ())))
         urns = (
             tuple(
-                node
-                if isinstance(node, str)
-                else _path_node_urn(_mapping(node))
+                node if isinstance(node, str) else _path_node_urn(_mapping(node))
                 for node in raw_nodes
             )
             if isinstance(raw_nodes, list)

@@ -127,6 +127,12 @@ rules:
     message: >-
       Sidq could not inspect the live documentation claim for {subject}.
       This is a refusal to certify the change, not a claim that the change is unsafe.
+  - id: constraint_contradicts_catalog
+    match:
+      evidence_kind: constraint_contradicts_catalog
+    severity: warn
+    message: >-
+      The catalog constraint claim disagrees with the live database for {subject}.
   - id: lineage_rot
     match:
       evidence_kind: lineage_rot_missing
@@ -180,3 +186,5 @@ rules:
   #   complete-catalog audit could not assess unrelated catalog-health checks.
   # - doc_claim_holds: affirmative verification evidence, which must not change
   #   a passing decision.
+  # - constraint_missing_in_catalog and constraint_unparseable: informational
+  #   catalog-health observations. The latter is deliberately an abstention.

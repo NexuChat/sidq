@@ -64,14 +64,15 @@ def _urn_platform_and_environment(urn: str) -> tuple[str, str] | None:
     return (match.group(1), match.group(2)) if match else None
 
 
-def _normalise_path(path: str | Path, root: Path) -> str:
+def _normalise_path(path: str | Path, root: Path) -> str | None:
     candidate = Path(path)
-    if candidate.is_absolute():
-        try:
-            candidate = candidate.relative_to(root)
-        except ValueError:
-            return candidate.as_posix()
-    return candidate.as_posix().lstrip("./")
+    resolved = (
+        candidate.resolve() if candidate.is_absolute() else (root / candidate).resolve()
+    )
+    try:
+        return resolved.relative_to(root).as_posix()
+    except ValueError:
+        return None
 
 
 def _read_yaml_mapping(path: Path) -> Mapping[str, Any]:
@@ -92,15 +93,14 @@ def _assets_config(
         source_map = {
             key: value for key, value in document.items() if isinstance(value, str)
         }
-    explicit = (
-        {
-            _normalise_path(key, root): value
-            for key, value in source_map.items()
-            if isinstance(key, str) and isinstance(value, str)
-        }
-        if isinstance(source_map, Mapping)
-        else {}
-    )
+    explicit: dict[str, str] = {}
+    if isinstance(source_map, Mapping):
+        for key, value in source_map.items():
+            if not isinstance(key, str) or not isinstance(value, str):
+                continue
+            normalised = _normalise_path(key, root)
+            if normalised is not None:
+                explicit[normalised] = value
     naming_raw = document.get("naming_convention", document.get("naming"))
     if not isinstance(naming_raw, Mapping) or not isinstance(
         naming_raw.get("platform"), str
@@ -165,11 +165,9 @@ def _manifest_index(
                 if isinstance(columns, Mapping)
                 else ()
             )
-            indexed[_normalise_path(source_path, root)] = (
-                urn,
-                "dbt_manifest",
-                previous_fields,
-            )
+            normalised = _normalise_path(source_path, root)
+            if normalised is not None:
+                indexed[normalised] = (urn, "dbt_manifest", previous_fields)
         if indexed:
             return indexed
     return {}
@@ -193,27 +191,113 @@ def _sql_parts(
             }
         )
     )
-    table_urns: dict[str, str] = {}
     default_platform = _urn_platform_and_environment(default_urn)
-    for table in expression.find_all(exp.Table):
-        name = table.name
-        if not name:
-            continue
-        relation = ".".join(part for part in (table.catalog, table.db, name) if part)
-        if convention is not None:
-            urn = dataset_urn(convention.platform, relation, convention.environment)
-        elif default_platform is not None:
-            urn = dataset_urn(default_platform[0], relation, default_platform[1])
-        else:
-            urn = default_urn
-        table_urns[name] = urn
-        if table.alias:
-            table_urns[table.alias] = urn
-    references = {
-        FieldRef(table_urns.get(column.table, default_urn), column.name)
-        for column in expression.find_all(exp.Column)
-        if column.name and column.name != "*"
+    ctes = {
+        cte.alias_or_name: cte
+        for cte in expression.find_all(exp.CTE)
+        if cte.alias_or_name
     }
+    query_sources: dict[int, dict[str, str | dict[str, str | None]]] = {}
+    cte_projections: dict[str, dict[str, str | None]] = {}
+
+    def table_urn(table: Any) -> str:
+        relation = ".".join(
+            part for part in (table.catalog, table.db, table.name) if part
+        )
+        if convention is not None:
+            return dataset_urn(convention.platform, relation, convention.environment)
+        if default_platform is not None:
+            return dataset_urn(default_platform[0], relation, default_platform[1])
+        return default_urn
+
+    def source_urn(source: str | dict[str, str | None], field: str) -> str | None:
+        return source if isinstance(source, str) else source.get(field)
+
+    def projection_urn(
+        expression: Any, sources: dict[str, str | dict[str, str | None]]
+    ) -> str | None:
+        columns = list(expression.find_all(exp.Column))
+        urns: set[str] = set()
+        for column in columns:
+            if not column.name or column.name == "*":
+                continue
+            if column.table:
+                source = sources.get(column.table)
+                urn = source_urn(source, column.name) if source is not None else None
+                if urn is None:
+                    return None
+                urns.add(urn)
+                continue
+            candidates = {
+                urn
+                for source in sources.values()
+                if (urn := source_urn(source, column.name)) is not None
+            }
+            if len(candidates) != 1:
+                return None
+            urns.update(candidates)
+        return next(iter(urns)) if len(urns) == 1 else None
+
+    def projections(query: Any) -> dict[str, str | None]:
+        sources = query_source_map(query)
+        return {
+            projection.alias_or_name: projection_urn(projection, sources)
+            for projection in query.expressions
+            if projection.alias_or_name and projection.alias_or_name != "*"
+        }
+
+    def cte_projection(name: str) -> dict[str, str | None]:
+        if name not in cte_projections:
+            cte_projections[name] = projections(ctes[name].this)
+        return cte_projections[name]
+
+    def query_source_map(query: Any) -> dict[str, str | dict[str, str | None]]:
+        cached = query_sources.get(id(query))
+        if cached is not None:
+            return cached
+        sources: dict[str, str | dict[str, str | None]] = {}
+        query_sources[id(query)] = sources
+        from_ = query.args.get("from_")
+        joins = query.args.get("joins") or []
+        relations = [from_.this] if from_ is not None and from_.this is not None else []
+        relations.extend(join.this for join in joins if join.this is not None)
+        for relation_node in relations:
+            if isinstance(relation_node, exp.Table):
+                name = relation_node.name
+                if not name:
+                    continue
+                source = (
+                    cte_projection(name) if name in ctes else table_urn(relation_node)
+                )
+                sources[name] = source
+                if relation_node.alias:
+                    sources[relation_node.alias] = source
+            elif isinstance(relation_node, exp.Subquery) and relation_node.alias:
+                sources[relation_node.alias] = projections(relation_node.this)
+        return sources
+
+    for select in expression.find_all(exp.Select):
+        query_source_map(select)
+
+    references: set[FieldRef] = set()
+    for column in expression.find_all(exp.Column):
+        if not column.name or column.name == "*":
+            continue
+        urn = default_urn
+        if column.table:
+            parent = column.parent
+            while parent is not None and not isinstance(parent, exp.Select):
+                parent = parent.parent
+            sources = query_sources.get(id(parent), {}) if parent is not None else {}
+            source = sources.get(column.table)
+            if source is not None:
+                resolved_urn = source_urn(source, column.name)
+                if resolved_urn is None:
+                    raise ValueError(
+                        f"could not resolve {column.table}.{column.name} through a derived relation"
+                    )
+                urn = resolved_urn
+        references.add(FieldRef(urn, column.name))
     return aliases, tuple(
         sorted(references, key=lambda ref: (ref.dataset_urn, ref.field_path))
     )
@@ -257,9 +341,17 @@ class Resolver:
         convention = self.naming_convention or configured_convention
         assets: list[TouchedAsset] = []
         evidence: list[Evidence] = []
-        for changed_file in sorted(
-            {_normalise_path(item, self.repo_root) for item in changed_files}
-        ):
+        normalised_files: set[str] = set()
+        for item in changed_files:
+            changed_file = _normalise_path(item, self.repo_root)
+            if changed_file is None:
+                subject = Path(item).name
+                evidence.append(
+                    Evidence("unresolved_asset", subject, {"source_path": subject})
+                )
+            else:
+                normalised_files.add(changed_file)
+        for changed_file in sorted(normalised_files):
             resolved = manifest.get(changed_file)
             if resolved is None and changed_file in explicit:
                 resolved = (explicit[changed_file], "explicit_map", ())

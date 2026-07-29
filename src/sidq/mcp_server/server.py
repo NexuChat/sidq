@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 import os
 import re
+import secrets
 import shutil
 import subprocess
 import tempfile
@@ -132,6 +134,7 @@ class UnverifiedAssetResult(_Model):
     status: Literal["unverified", "stale", "unverifiable"]
     reason: str
     checked_at: str | None = None
+    integrity: Literal["unverified"] | None = None
 
 
 class SearchVerifiedResult(_Model):
@@ -173,6 +176,7 @@ class VerificationStore:
     def __init__(self, path: str | Path | None = None) -> None:
         self.path = Path(path).resolve() if path is not None else None
         self._records: dict[str, dict[str, Any]] = {}
+        self._secret: bytes | None = None
         self._loaded = False
         self._lock = threading.RLock()
 
@@ -191,7 +195,15 @@ class VerificationStore:
             self._records[urn] = canonical_data(dict(result))
             if self.path is not None:
                 self.path.parent.mkdir(parents=True, exist_ok=True)
-                payload = canonical_json({"records": self._records, "version": 1})
+                records = {
+                    record_urn: (
+                        canonical_data(record)
+                        if record.get("integrity") == "unverified"
+                        else self._signed_record(record)
+                    )
+                    for record_urn, record in self._records.items()
+                }
+                payload = canonical_json({"records": records, "version": 2})
                 descriptor, temporary = tempfile.mkstemp(
                     dir=self.path.parent, prefix=f".{self.path.name}.", suffix=".tmp"
                 )
@@ -204,6 +216,15 @@ class VerificationStore:
                     if os.path.exists(temporary):
                         os.unlink(temporary)
 
+    def remember(self, result: Mapping[str, Any]) -> None:
+        """Keep a fresh tool result available during this server process only."""
+        urn = result.get("urn")
+        if not isinstance(urn, str):
+            raise TypeError("verification result has no URN")
+        with self._lock:
+            self._load()
+            self._records[urn] = canonical_data(dict(result))
+
     def _load(self) -> None:
         if self._loaded:
             return
@@ -215,12 +236,80 @@ class VerificationStore:
         except (OSError, json.JSONDecodeError):
             return
         records = document.get("records") if isinstance(document, Mapping) else None
-        if isinstance(records, Mapping):
-            self._records = {
-                str(urn): canonical_data(record)
-                for urn, record in records.items()
-                if isinstance(record, Mapping)
-            }
+        if not isinstance(records, Mapping):
+            return
+        secret = self._read_secret()
+        self._records = {
+            str(urn): self._verified_record(record, secret)
+            for urn, record in records.items()
+            if isinstance(record, Mapping)
+        }
+
+    def _signed_record(self, record: Mapping[str, Any]) -> dict[str, Any]:
+        canonical = canonical_data(dict(record))
+        signature = hmac.new(
+            self._secret_for_writing(), canonical_json(canonical), hashlib.sha256
+        ).hexdigest()
+        return {**canonical, "hmac": signature}
+
+    def _verified_record(
+        self, record: Mapping[str, Any], secret: bytes | None
+    ) -> dict[str, Any]:
+        canonical = canonical_data(dict(record))
+        signature = canonical.pop("hmac", None)
+        if isinstance(signature, str) and secret is not None:
+            expected = hmac.new(
+                secret, canonical_json(canonical), hashlib.sha256
+            ).hexdigest()
+            if hmac.compare_digest(signature, expected):
+                return canonical
+        return {**canonical, "integrity": "unverified"}
+
+    def _read_secret(self) -> bytes | None:
+        if self.path is None:
+            return self._secret
+        secret_path = self._secret_path()
+        try:
+            secret = secret_path.read_bytes()
+        except OSError:
+            return None
+        return secret if secret else None
+
+    def _secret_for_writing(self) -> bytes:
+        if self._secret is not None:
+            return self._secret
+        if self.path is None:
+            self._secret = secrets.token_bytes(32)
+            return self._secret
+
+        existing = self._read_secret()
+        if existing is not None:
+            self._secret = existing
+            return existing
+
+        secret_path = self._secret_path()
+        secret_path.parent.mkdir(parents=True, exist_ok=True)
+        secret = secrets.token_bytes(32)
+        try:
+            descriptor = os.open(
+                secret_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600
+            )
+        except FileExistsError:
+            existing = self._read_secret()
+            if existing is None:
+                raise OSError("verification store secret could not be read")
+            self._secret = existing
+            return existing
+        try:
+            os.write(descriptor, secret)
+        finally:
+            os.close(descriptor)
+        self._secret = secret
+        return secret
+
+    def _secret_path(self) -> Path:
+        assert self.path is not None
+        return self.path.with_name(f".{self.path.name}.secret")
 
 
 class SidqService:
@@ -398,7 +487,7 @@ class SidqService:
         if error is not None:
             result["error"] = error
         canonical = canonical_data(result)
-        self.store.put(canonical)
+        self.store.remember(canonical)
         return canonical
 
     def search_verified(self, query: str, max_age_days: int) -> dict[str, Any]:
@@ -442,6 +531,17 @@ class SidqService:
                         "urn": urn,
                         "status": "unverified",
                         "reason": "never_checked",
+                    }
+                )
+                continue
+            if record.get("integrity") == "unverified":
+                unverified.append(
+                    {
+                        "urn": urn,
+                        "status": "unverifiable",
+                        "reason": "verification_integrity_unverified",
+                        "checked_at": str(record.get("checked_at", "")) or None,
+                        "integrity": "unverified",
                     }
                 )
                 continue
@@ -757,7 +857,9 @@ def _error_result(
 ) -> dict[str, Any]:
     result: dict[str, Any] = {"error": _error_info(code, message, details)}
     if verdict is not None:
-        result["verdict"] = canonical_data(verdict)
+        canonical_verdict = canonical_data(verdict)
+        result["decision"] = canonical_verdict["decision"]
+        result["verdict"] = canonical_verdict
     return canonical_data(result)
 
 
