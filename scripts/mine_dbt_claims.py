@@ -12,6 +12,7 @@ import argparse
 import collections
 import hashlib
 import io
+import itertools
 import json
 import os
 import re
@@ -129,6 +130,58 @@ def request_text(url: str) -> str:
         return response.read().decode("utf-8", errors="replace")
 
 
+def archive_licence(archive: zipfile.ZipFile) -> str | None:
+    """Identify an allowlisted licence from the archive at the pinned revision."""
+    for member in archive.infolist():
+        bits = member.filename.split("/", 1)
+        if len(bits) != 2 or "/" in bits[1]:
+            continue
+        if not bits[1].lower().startswith(("license", "copying", "unlicense")):
+            continue
+        text = archive.read(member).decode("utf-8", errors="replace").lower()
+        if "apache license" in text and "version 2.0" in text:
+            return "Apache-2.0"
+        if "permission is hereby granted, free of charge" in text and "software" in text:
+            return "MIT"
+        if "redistribution and use in source and binary forms" in text:
+            return "BSD-3-Clause" if "neither the name" in text else "BSD-2-Clause"
+        if "this is free and unencumbered software released into the public domain" in text:
+            return "Unlicense"
+        if "creative commons zero" in text or "cc0 1.0 universal" in text:
+            return "CC0-1.0"
+    return None
+
+
+def archive_fallback_info(repo: str) -> RepoInfo | None:
+    """Resolve a branch archive without consuming GitHub's API rate limit.
+
+    GitHub puts the exact resolved commit SHA in the archive comment.  Inspecting
+    its top-level licence also verifies the licence at that same revision.
+    """
+    for branch in ("main", "master", "develop", "trunk"):
+        try:
+            request = urllib.request.Request(
+                f"https://codeload.github.com/{repo}/zip/{branch}",
+                headers={"User-Agent": "sidq-dbt-claim-miner/1.0"},
+            )
+            with urllib.request.urlopen(request, timeout=120) as response:
+                archive = zipfile.ZipFile(io.BytesIO(response.read()))
+        except urllib.error.HTTPError as error:
+            if error.code == 404:
+                continue
+            raise
+        sha = archive.comment.decode("ascii", errors="ignore")
+        licence = archive_licence(archive)
+        if not re.fullmatch(r"[0-9a-f]{40}", sha):
+            raise KeyError("archive did not provide an exact commit SHA")
+        if licence not in ALLOWED_LICENSES:
+            print(f"skip {repo}: licence={licence or 'missing/ambiguous'}", file=sys.stderr)
+            return None
+        return RepoInfo(repo, sha, licence, branch)
+    print(f"skip {repo}: no main/master/develop/trunk archive", file=sys.stderr)
+    return None
+
+
 def fetch_repo_info(repo: str) -> RepoInfo | None:
     try:
         metadata = request_json(f"https://api.github.com/repos/{repo}")
@@ -142,20 +195,7 @@ def fetch_repo_info(repo: str) -> RepoInfo | None:
     except urllib.error.HTTPError as error:
         if error.code != 403:
             raise
-        # GitHub's public API is capped at 60 requests/hour without a token.
-        # The repository page presents the same SPDX badge and the commit page
-        # resolves HEAD to a full SHA, so this fallback remains auditable.
-        page = request_text(f"https://github.com/{repo}")
-        licence_match = re.search(r"\b(Apache-2\.0|MIT|BSD-2-Clause|BSD-3-Clause|0BSD|Unlicense|CC0-1\.0) license\b", page)
-        licence = licence_match.group(1) if licence_match else None
-        if licence not in ALLOWED_LICENSES:
-            print(f"skip {repo}: licence={licence or 'missing/ambiguous'}", file=sys.stderr)
-            return None
-        commit_page = request_text(f"https://github.com/{repo}/commit/HEAD")
-        sha_match = re.search(r"/commit/([0-9a-f]{40})", commit_page)
-        if not sha_match:
-            raise KeyError("could not resolve exact HEAD commit from GitHub page")
-        return RepoInfo(repo, sha_match.group(1), licence, "HEAD")
+        return archive_fallback_info(repo)
 
 
 def fetch_archive(info: RepoInfo) -> zipfile.ZipFile:
@@ -237,8 +277,8 @@ def map_test(name: str, config: dict[str, Any], column: str | None) -> tuple[dic
         if column and isinstance(to, str) and isinstance(field, str):
             return {"type": "relationships", "column": column, "expr": f"to={to};field={field}"}, None
         return None, "relationships_missing_to_or_field"
-    if short in {"expression_is_true", "expect_column_values_to_match_regex", "expect_column_values_to_not_match_regex"}:
-        expression = args.get("expression") or args.get("regex")
+    if short == "expression_is_true":
+        expression = args.get("expression")
         if column and isinstance(expression, str) and expression.strip():
             return {"type": "expression", "column": column, "expr": expression.strip()}, None
         return None, "expression_missing_literal"
@@ -247,6 +287,9 @@ def map_test(name: str, config: dict[str, Any], column: str | None) -> tuple[dic
 
 def context_for(model: dict[str, Any], column: dict[str, Any] | None) -> str:
     parts: list[str] = []
+    description = text_value(model.get("description"))
+    if description:
+        parts.append(f"table_description={description[:500]}")
     if isinstance(model.get("meta"), dict):
         materialized = model["meta"].get("materialized")
         if isinstance(materialized, str):
@@ -271,7 +314,19 @@ def mine_schema(doc: Any, info: RepoInfo, path: str, dropped: collections.Counte
         nodes = doc.get(section)
         if not isinstance(nodes, list):
             continue
-        for model in nodes:
+        resources: list[dict[str, Any]] = []
+        for node in nodes:
+            if not isinstance(node, dict):
+                continue
+            if section == "sources" and isinstance(node.get("tables"), list):
+                for table_node in node["tables"]:
+                    if isinstance(table_node, dict):
+                        resource = dict(table_node)
+                        resource.setdefault("description", node.get("description"))
+                        resources.append(resource)
+            else:
+                resources.append(node)
+        for model in resources:
             if not isinstance(model, dict) or not isinstance(model.get("name"), str):
                 continue
             table = model["name"]
@@ -284,15 +339,17 @@ def mine_schema(doc: Any, info: RepoInfo, path: str, dropped: collections.Counte
                     mapped_model.append(predicate)
                 else:
                     dropped[reason or "unknown"] += 1
-            if model_desc:
+            has_model_tests = bool(list(node_tests(model)))
+            if model_desc and not has_model_tests:
                 for sentence in sentences(model_desc):
                     base = base_record(sentence, table, None, model_context, info, path)
-                    if mapped_model:
-                        for predicate in mapped_model:
-                            records.append(base | {"target": {"claim": predicate}, "class": "positive"})
-                    else:
-                        label = "hard_negative" if HARD_NEGATIVE_RE.search(sentence) else "negative"
-                        records.append(base | {"target": {"claim": None}, "class": label})
+                    label = "hard_negative" if HARD_NEGATIVE_RE.search(sentence) else "negative"
+                    records.append(base | {"target": {"claim": None}, "class": label})
+            elif model_desc and mapped_model:
+                for sentence in sentences(model_desc):
+                    base = base_record(sentence, table, None, model_context, info, path)
+                    for predicate in mapped_model:
+                        records.append(base | {"target": {"claim": predicate}, "class": "positive"})
             columns = model.get("columns")
             if not isinstance(columns, list):
                 continue
@@ -304,12 +361,18 @@ def mine_schema(doc: Any, info: RepoInfo, path: str, dropped: collections.Counte
                     continue
                 name = column["name"]
                 mapped: list[dict[str, Any]] = []
-                for test_name, config in node_tests(column):
+                declared = list(node_tests(column))
+                for test_name, config in declared:
                     predicate, reason = map_test(test_name, config, name)
                     if predicate:
                         mapped.append(predicate)
                     else:
                         dropped[reason or "unknown"] += 1
+                # A documented, test-bearing field with only unsupported tests
+                # is omitted.  Treating it as a negative would teach the model
+                # to deny a check that the project actually executes.
+                if declared and not mapped:
+                    continue
                 for sentence in sentences(description):
                     base = base_record(sentence, table, name, context_for(model, column), info, path)
                     if mapped:
@@ -348,18 +411,17 @@ def choose_records(records: list[dict[str, Any]], limit: int) -> list[dict[str, 
         if key not in seen:
             seen.add(key)
             grouped[record["class"]].append(record)
-    desired = {"positive": limit * 50 // 100, "negative": limit * 35 // 100, "hard_negative": limit * 15 // 100}
+    shares = {"positive": 0.50, "negative": 0.35, "hard_negative": 0.15}
+    # Keep the negative classes real: if a source pool lacks a class, return a
+    # smaller dataset rather than filling the gap with a different class.
+    usable = min(len(grouped[label]) / share for label, share in shares.items())
+    total = min(limit, int(usable))
+    desired = {"positive": total * 50 // 100, "negative": total * 35 // 100, "hard_negative": total * 15 // 100}
+    desired["positive"] += total - sum(desired.values())
     selected: list[dict[str, Any]] = []
     for label, count in desired.items():
         items = sorted(grouped[label], key=lambda r: hashlib.sha256(stable_key(r).encode()).hexdigest())
         selected.extend(items[:count])
-    # If a rare natural class prevents the target size, use the remaining real
-    # examples of the other classes; never manufacture rows to meet a quota.
-    if len(selected) < limit:
-        selected_keys = {stable_key(r) for r in selected}
-        remainder = [r for items in grouped.values() for r in items if stable_key(r) not in selected_keys]
-        remainder.sort(key=lambda r: hashlib.sha256(stable_key(r).encode()).hexdigest())
-        selected.extend(remainder[: limit - len(selected)])
     return selected
 
 
@@ -367,17 +429,38 @@ def split_by_repository(records: list[dict[str, Any]], target_eval: int = 200) -
     by_repo: dict[str, list[dict[str, Any]]] = collections.defaultdict(list)
     for record in records:
         by_repo[record["source"]["repo"]].append(record)
-    repos = sorted(by_repo, key=lambda r: hashlib.sha256(("eval:" + r).encode()).hexdigest())
-    # Hold out several complete repositories.  We deliberately discard excess
-    # rows from those repositories rather than returning them to train: a row
-    # cap is not permission to mix a house style across splits.
-    eval_repos = repos[: min(5, len(repos))]
+    repos = sorted(by_repo)
+    quotas = {"positive": target_eval // 2, "negative": target_eval * 35 // 100, "hard_negative": target_eval * 15 // 100}
+    per_repo_counts = {repo: collections.Counter(record["class"] for record in values) for repo, values in by_repo.items()}
+    # Select 3--5 whole repos that can furnish a class-balanced ~200-row eval
+    # set while removing as few positive examples as possible from training.
+    # This keeps the split repository-disjoint without wasting the scarce class.
+    best: tuple[tuple[int, int, str], tuple[str, ...]] | None = None
+    for size in range(3, min(5, len(repos)) + 1):
+        for combo in itertools.combinations(repos, size):
+            counts = sum((per_repo_counts[repo] for repo in combo), collections.Counter())
+            if any(counts[label] < quota for label, quota in quotas.items()):
+                continue
+            score = (counts["positive"], sum(counts.values()), "|".join(combo))
+            if best is None or score < best[0]:
+                best = (score, combo)
+    if best:
+        eval_repos = list(best[1])
+    else:
+        # Honest degradation when the mined pool cannot support 200 balanced
+        # holdout rows; still hold out entire repositories.
+        eval_repos = repos[: min(3, len(repos))]
     held_out = set(eval_repos)
     evaluation_candidates = [r for r in records if r["source"]["repo"] in held_out]
-    evaluation_candidates.sort(key=lambda r: hashlib.sha256(stable_key(r).encode()).hexdigest())
-    evaluation = evaluation_candidates[:target_eval]
     train = [r for r in records if r["source"]["repo"] not in held_out]
-    return train, evaluation, eval_repos
+    return train, evaluation_candidates, eval_repos
+
+
+def build_splits(records: list[dict[str, Any]], limit: int) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[str]]:
+    train_candidates, eval_candidates, held_out = split_by_repository(records)
+    evaluation = choose_records(eval_candidates, min(200, limit))
+    train = choose_records(train_candidates, max(0, limit - len(evaluation)))
+    return train, evaluation, held_out
 
 
 def write_jsonl(path: Path, records: list[dict[str, Any]]) -> None:
@@ -395,7 +478,7 @@ def write_datasheet(records: list[dict[str, Any]], train: list[dict[str, Any]], 
         "",
         "## Collection",
         "",
-        "`scripts/mine_dbt_claims.py` queries GitHub repository metadata (or, after the public API rate limit, GitHub's displayed SPDX licence badge), rejects every repository whose licence is not in the permissive allowlist (MIT, Apache-2.0, BSD-2/3-Clause, 0BSD, Unlicense, CC0-1.0), resolves the default-branch head SHA, then downloads the public source archive at that SHA. It parses source `*.yml`/`*.yaml` dbt schema files with PyYAML; generated `target/` and installed `dbt_packages/` files are excluded. Every row preserves repository, source path, exact commit and GitHub-reported SPDX licence.",
+        "`scripts/mine_dbt_claims.py` discovers public dbt repositories through GitHub, admits only a permissive SPDX allowlist (MIT, Apache-2.0, BSD-2/3-Clause, 0BSD, Unlicense, CC0-1.0), and downloads a public default-branch archive. GitHub records the exact resolved commit SHA in that archive's ZIP comment; the miner inspects the top-level licence text from the same pinned archive before accepting it. It parses source `*.yml`/`*.yaml` dbt schema files with PyYAML; generated `target/` and installed `dbt_packages/` files are excluded. Every row preserves repository, source path, exact commit, and audited SPDX licence.",
         "",
         "A positive is a description sentence adjacent to a column/model test that maps exactly to the engine vocabulary. A negative is a documented field with no mapped adjacent test. A hard negative is the same, selected using an explicit cue list for operational/business-sounding prose (for example `source of truth`, `updated daily`, `important for`, or `used by`). No text or predicate is generated by this collector.",
         "",
@@ -458,8 +541,8 @@ def main() -> int:
         stats = json.loads(stats_path.read_text(encoding="utf-8"))
         dropped = collections.Counter(stats.get("dropped", {}))
         skipped = list(stats.get("skipped", []))
-        selected = choose_records(raw, args.limit)
-        train, evaluation, held_out = split_by_repository(selected)
+        train, evaluation, held_out = build_splits(raw, args.limit)
+        selected = train + evaluation
         write_jsonl(OUT / "train.jsonl", train)
         write_jsonl(OUT / "eval.jsonl", evaluation)
         write_datasheet(selected, train, evaluation, held_out, dropped, skipped)
@@ -483,7 +566,7 @@ def main() -> int:
                 mined = mine_repo(info, dropped)
                 print(f"mined {repo}: {len(mined)} candidate rows", file=sys.stderr)
                 raw.extend(mined)
-        except (urllib.error.URLError, urllib.error.HTTPError, KeyError, zipfile.BadZipFile) as error:
+        except (urllib.error.URLError, urllib.error.HTTPError, KeyError, ValueError, OSError, zipfile.BadZipFile) as error:
             print(f"skip {repo}: {error}", file=sys.stderr)
             skipped.append(repo)
         time.sleep(args.pause)
@@ -499,8 +582,8 @@ def main() -> int:
         stats_path.write_text(json.dumps(prior, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         print(json.dumps({"collected": len(raw), "dropped": dropped, "skipped": skipped}, default=dict, sort_keys=True))
         return 0
-    selected = choose_records(raw, args.limit)
-    train, evaluation, held_out = split_by_repository(selected)
+    train, evaluation, held_out = build_splits(raw, args.limit)
+    selected = train + evaluation
     write_jsonl(OUT / "train.jsonl", train)
     write_jsonl(OUT / "eval.jsonl", evaluation)
     write_datasheet(selected, train, evaluation, held_out, dropped, skipped)
