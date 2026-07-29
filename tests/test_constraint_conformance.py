@@ -5,12 +5,13 @@ from __future__ import annotations
 import json
 from dataclasses import asdict
 
+from scripts import measure_reconcile
+from scripts.measure_reconcile import CORPUS, URN
+from scripts.measure_reconcile import truthful_claim as _truthful_claim
 from sidq.claims.canonical import normalize_constraint
 from sidq.claims.models import Claim
 from sidq.claims.reconcile import ConstraintReconciler
 from sidq.graph.live_source import LiveConstraint
-
-URN = "urn:li:dataset:(urn:li:dataPlatform:postgres,warehouse.raw.orders,PROD)"
 
 
 class _MemorySource:
@@ -20,72 +21,6 @@ class _MemorySource:
     def get_constraints(self, urn: str) -> tuple[LiveConstraint, ...]:
         assert urn == URN
         return self.constraints
-
-
-CORPUS = (
-    LiveConstraint(
-        "orders_pkey",
-        "primary_key",
-        ("order_id", "line_no"),
-        "PRIMARY KEY (order_id, line_no)",
-    ),
-    LiveConstraint(
-        "orders_customer_placed_key",
-        "unique",
-        ("customer_id", "placed_on"),
-        "UNIQUE (customer_id, placed_on)",
-    ),
-    LiveConstraint(
-        "orders_dates_check",
-        "check",
-        ("end_date", "start_date"),
-        "CHECK (end_date IS NULL OR end_date >= start_date)",
-    ),
-    LiveConstraint(
-        "orders_total_check",
-        "check",
-        ("total", "subtotal", "tax"),
-        "CHECK (total = subtotal + tax)",
-    ),
-    LiveConstraint(
-        "orders_code_length", "check", ("code",), "CHECK (length(code) = 8)"
-    ),
-    LiveConstraint(
-        "orders_code_format", "check", ("code",), "CHECK (code ~ '^[A-Z]{8}$')"
-    ),
-    LiveConstraint(
-        "orders_status_check",
-        "check",
-        ("status",),
-        "CHECK (((status)::text = ANY (ARRAY['a'::text, 'b'::text])))",
-    ),
-    LiveConstraint(
-        "orders_booking_excl",
-        "exclude",
-        ("room_id", "booking_period"),
-        "EXCLUDE USING gist (room_id WITH =, booking_period WITH &&)",
-    ),
-    LiveConstraint(
-        "orders_future_contype",
-        "opaque",
-        ("tenant_id",),
-        "ENFORCE MAGIC (tenant_id) WITH (source = 'future')",
-    ),
-    LiveConstraint(
-        "idx_orders_slug",
-        "unique",
-        ("slug",),
-        "CREATE UNIQUE INDEX idx_orders_slug ON raw.orders USING btree (slug)",
-    ),
-    LiveConstraint(
-        "idx_orders_active_slug",
-        "unique",
-        ("active_slug",),
-        "CREATE UNIQUE INDEX idx_orders_active_slug ON raw.orders (active_slug) WHERE deleted_at IS NULL",
-        predicate="(deleted_at IS NULL)",
-        is_partial=True,
-    ),
-)
 
 
 def _claim(
@@ -103,17 +38,6 @@ def _claim(
         source_sentence="truthful in-memory catalog fixture",
         confidence=1.0,
     )
-
-
-def _truthful_claim(constraint: LiveConstraint) -> Claim:
-    if constraint.kind in {"primary_key", "unique"}:
-        return _claim("unique", ", ".join(constraint.columns))
-    if constraint.kind == "check":
-        expression = constraint.definition.removeprefix("CHECK (").removesuffix(")")
-        return _claim("expression", constraint.columns[0], expr=expression)
-    # Claim has no exclude or opaque vocabulary.  Keeping the raw statement as
-    # an expression is honest but intentionally asks the ladder to abstain.
-    return _claim("expression", constraint.columns[0], expr=constraint.definition)
 
 
 def _records(claims: tuple[Claim, ...] = ()):
@@ -220,3 +144,29 @@ def test_recognised_parameter_conflict_is_still_detected() -> None:
 
     assert [record.kind for record in records] == ["constraint_contradicts_catalog"]
     assert records[0].detail["tier"] == "T3"
+
+
+def test_published_coverage_document_matches_the_engine() -> None:
+    """`docs/RECONCILE-COVERAGE.md` is a claim; a stale claim is a false one.
+
+    RECONCILE-SPEC.md §6 publishes coverage and precision. If the ladder changes
+    and the document is not regenerated, the repository would be advertising a
+    number the engine no longer produces.
+    """
+    assert measure_reconcile.main.__module__ == "scripts.measure_reconcile"
+    rendered = measure_reconcile._render(measure_reconcile.measure())
+    committed = measure_reconcile.DOCUMENT.read_text(encoding="utf-8")
+
+    assert committed == rendered, (
+        "docs/RECONCILE-COVERAGE.md is stale; rerun scripts/measure_reconcile.py"
+    )
+
+
+def test_the_measured_corpus_is_the_conformance_corpus() -> None:
+    """One corpus, imported in both directions, so the two can never disagree."""
+    assert measure_reconcile.CORPUS is CORPUS
+    assert len(CORPUS) == measure_reconcile.measure()["enumerated"]
+
+
+def test_a_truthful_catalog_measures_zero_false_accusations() -> None:
+    assert measure_reconcile.measure()["false_accusations"] == 0
