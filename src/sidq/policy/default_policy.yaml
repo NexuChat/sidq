@@ -73,6 +73,38 @@ rules:
     severity: warn
     message: >-
       The current SQL produces a column lineage edge the catalog does not know for {subject}.
+  - id: lineage_field_missing
+    match:
+      evidence_kind: lineage_field_missing
+    severity: warn
+    message: >-
+      A stored lineage edge targets a schema field that the catalog does not list: {subject}.
+  - id: pii_leak_untagged
+    match:
+      evidence_kind: pii_leak_untagged
+    severity: warn
+    message: >-
+      A field-level PII tag is not preserved by the catalog lineage edge into {subject}.
+  - id: doc_references_missing_column
+    match:
+      evidence_kind: doc_references_missing_column
+    severity: warn
+    message: >-
+      Catalog documentation references a column absent from the listed schema: {subject}.
+  - id: orphan_lineage
+    match:
+      evidence_kind: orphan_lineage
+    severity: warn
+    message: >-
+      A catalog lineage edge references an entity that is absent from this catalog snapshot: {subject}.
+  - id: deprecated_upstream_of_live
+    match:
+      evidence_kind: deprecated_upstream_of_live
+    severity: warn
+    message: >-
+      A deprecated catalog asset still feeds a live chart or dashboard: {subject}.
+  # unowned_consumed deliberately has no policy rule. It is retained as
+  # informational catalog-health evidence and never changes a PR verdict.
   # lineage_unverifiable deliberately has no policy rule. The policy engine
   # retains unmatched evidence as informational and therefore cannot give it a
   # blocking or warning severity.
