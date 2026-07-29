@@ -11,6 +11,14 @@ dist/
 .coverage
 htmlcov/
 
+# local model-training outputs
+data/lora/adapter/
+data/lora/checkpoints/
+data/lora/merged/
+data/lora/*.log
+data/lora/*.pid
+data/lora/progress.json
+
 # local env / secrets
 .env
 .env.*

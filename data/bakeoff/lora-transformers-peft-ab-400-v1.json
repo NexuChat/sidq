@@ -1,0 +1,104 @@
+{
+  "A_prompted_base": {
+    "by_type": {
+      "accepted_values": {
+        "exact": 0.0,
+        "n": 40,
+        "type_only": 0.0
+      },
+      "expression": {
+        "exact": 0.0,
+        "n": 40,
+        "type_only": 0.0
+      },
+      "not_null": {
+        "exact": 0.0,
+        "n": 40,
+        "type_only": 0.0
+      },
+      "relationships": {
+        "exact": 0.0,
+        "n": 40,
+        "type_only": 0.0
+      },
+      "unique": {
+        "exact": 0.0,
+        "n": 40,
+        "type_only": 0.0
+      }
+    },
+    "macro_exact": 0.0,
+    "median_latency_seconds": 2.418785664252937,
+    "negative_abstention": 1.0,
+    "negative_hallucinations": 0,
+    "negative_n": 200
+  },
+  "B_lora": {
+    "by_type": {
+      "accepted_values": {
+        "exact": 0.025,
+        "n": 40,
+        "type_only": 0.3
+      },
+      "expression": {
+        "exact": 0.0,
+        "n": 40,
+        "type_only": 0.0
+      },
+      "not_null": {
+        "exact": 0.45,
+        "n": 40,
+        "type_only": 0.45
+      },
+      "relationships": {
+        "exact": 0.55,
+        "n": 40,
+        "type_only": 0.625
+      },
+      "unique": {
+        "exact": 0.525,
+        "n": 40,
+        "type_only": 0.525
+      }
+    },
+    "macro_exact": 0.31,
+    "median_latency_seconds": 1.9944633468985558,
+    "negative_abstention": 0.8,
+    "negative_hallucinations": 40,
+    "negative_n": 200
+  },
+  "C_rule_based": {
+    "by_type": {
+      "accepted_values": {
+        "exact": 0.0,
+        "n": 40,
+        "type_only": 0.0
+      },
+      "expression": {
+        "exact": 0.0,
+        "n": 40,
+        "type_only": 0.0
+      },
+      "not_null": {
+        "exact": 0.0,
+        "n": 40,
+        "type_only": 0.0
+      },
+      "relationships": {
+        "exact": 0.0,
+        "n": 40,
+        "type_only": 0.0
+      },
+      "unique": {
+        "exact": 0.0,
+        "n": 40,
+        "type_only": 0.0
+      }
+    },
+    "macro_exact": 0.0,
+    "median_latency_seconds": 4.512257874011993e-06,
+    "negative_abstention": 1.0,
+    "negative_hallucinations": 0,
+    "negative_n": 200
+  }
+}

@@ -11,7 +11,18 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest", "ruff"]
+dev = ["mypy", "pytest", "ruff", "types-PyYAML"]
+# Kept out of the default install: these packages and the model weights are
+# only required for the CPU LoRA experiment in scripts/train_lora.py.
+train = [
+    "accelerate>=1.0",
+    "datasets>=3.0",
+    "peft>=0.17",
+    "safetensors>=0.5",
+    "torch>=2.5",
+    "transformers>=5.0",
+    "trl>=0.20",
+]
 
 [project.scripts]
 sidq = "sidq.cli:main"
@@ -26,3 +37,24 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff.format]
+exclude = [
+    "data/claims/**",
+    "docs/**",
+    "examples/**",
+    "research/**",
+    "scripts/**",
+    "tests/test_published_artifact_granularity.py",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/test_published_artifact_granularity.py" = ["I001"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = false
+
+[[tool.mypy.overrides]]
+module = ["sidq.*"]
+disallow_untyped_defs = true

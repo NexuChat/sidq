@@ -1,0 +1,8 @@
+{
+  "bytes": 817,
+  "formatter": "scripts.train_lora.serve_prompt -> sidq.claims.extractor.ModelExtractor._prompt",
+  "model": "qwen3.5:0.8b",
+  "sha256": "49eda77d87d84d3d37e582dd2ba947eb995717de330528d1d093d9f416cc59b7",
+  "status": "byte-identical",
+  "training_suffix_is_target_json": true
+}
