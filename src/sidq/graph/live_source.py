@@ -28,7 +28,11 @@ class PostgresLiveSourceClient:
         if relation is None:
             return None
         schema, table = relation
-        connection = self._connection_or_factory() if callable(self._connection_or_factory) else self._connection_or_factory
+        connection = (
+            self._connection_or_factory()
+            if callable(self._connection_or_factory)
+            else self._connection_or_factory
+        )
         cursor = connection.cursor()
         try:
             cursor.execute(
@@ -47,13 +51,18 @@ class PostgresLiveSourceClient:
             return None
         return DatasetInfo(
             urn=urn,
-            fields=tuple(SchemaField(str(name), str(native_type), str(nullable).upper() == "YES") for name, native_type, nullable in rows),
+            fields=tuple(
+                SchemaField(str(name), str(native_type), str(nullable).upper() == "YES")
+                for name, native_type, nullable in rows
+            ),
         )
 
 
 def _relation_from_urn(urn: str) -> tuple[str, str] | None:
     """Extract the final ``schema.table`` components of a DataHub dataset URN."""
-    match = re.fullmatch(r"urn:li:dataset:\(urn:li:dataPlatform:[^,]+,([^,]+),[^)]+\)", urn)
+    match = re.fullmatch(
+        r"urn:li:dataset:\(urn:li:dataPlatform:[^,]+,([^,]+),[^)]+\)", urn
+    )
     if match is None:
         return None
     parts = [part.strip('`"[] ') for part in match.group(1).split(".") if part]
