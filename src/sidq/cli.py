@@ -3,16 +3,26 @@
 from __future__ import annotations
 
 import argparse
+import re
 import subprocess
 import sys
 from collections.abc import Sequence
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 from sidq.gates.blast import BlastRadiusGate
 from sidq.gates.reality import RealityGate
 from sidq.gates.schema import SchemaGate
-from sidq.graph.client import DatasetInfo, GraphClient, LineagePath, LineageResult, MCPGraphClient, StdioMCPToolCaller
+from sidq.graph.client import (
+    DatasetInfo,
+    GraphClient,
+    LineagePath,
+    LineageResult,
+    MCPGraphClient,
+    StdioMCPToolCaller,
+)
 from sidq.graph.live_source import LiveSourceClient
 from sidq.models import Evidence, Verdict
 from sidq.policy.engine import PolicyEngine, load_policy
@@ -29,10 +39,18 @@ class _UnavailableClient:
     def find_dataset(self, name_or_urn: str) -> str | None:
         raise RuntimeError("graph client is not configured")
 
-    def get_downstream(self, urn: str, depth: int, column: str | None = None) -> LineageResult:
+    def get_downstream(
+        self, urn: str, depth: int, column: str | None = None
+    ) -> LineageResult:
         raise RuntimeError("graph client is not configured")
 
-    def paths_between(self, a: str, b: str, source_column: str | None = None, target_column: str | None = None) -> list[LineagePath]:
+    def paths_between(
+        self,
+        a: str,
+        b: str,
+        source_column: str | None = None,
+        target_column: str | None = None,
+    ) -> list[LineagePath]:
         raise RuntimeError("graph client is not configured")
 
 
@@ -87,7 +105,11 @@ def check(
     try:
         evidence = list(resolved.evidence)
         evidence.extend(collect_evidence(resolved.touched_assets, graph, live_source))
-        return PolicyEngine(policy_path).decide(evidence, touched=resolved.touched_assets, commit_sha=commit_sha)
+        return PolicyEngine(policy_path).decide(
+            _with_graph_links(evidence),
+            touched=resolved.touched_assets,
+            commit_sha=commit_sha or commit_sha_for_ref("HEAD", repo_root=root),
+        )
     finally:
         if owns_graph:
             close = getattr(graph, "close", None)
@@ -95,14 +117,20 @@ def check(
                 close()
 
 
-def _resolver_root_and_files(files: Sequence[str], repo_root: str | Path) -> tuple[Path, list[str]]:
+def _resolver_root_and_files(
+    files: Sequence[str], repo_root: str | Path
+) -> tuple[Path, list[str]]:
     """Use the nearest dbt manifest when a check is invoked from repository root."""
     root = Path(repo_root).resolve()
     if Path(repo_root) != Path(".") or len(files) != 1:
         return root, list(files)
     candidate = (root / files[0]).resolve()
     manifest_root = next(
-        (parent for parent in (candidate.parent, *candidate.parents) if (parent / "manifest.json").is_file()),
+        (
+            parent
+            for parent in (candidate.parent, *candidate.parents)
+            if (parent / "manifest.json").is_file()
+        ),
         None,
     )
     if manifest_root is None or manifest_root == root:
@@ -113,13 +141,100 @@ def _resolver_root_and_files(files: Sequence[str], repo_root: str | Path) -> tup
         return root, list(files)
 
 
+def _with_graph_links(evidence: Sequence[Evidence]) -> list[Evidence]:
+    """Attach a directly usable DataHub UI link to every emitted evidence item."""
+    return [
+        item
+        if item.graph_links
+        else replace(
+            item,
+            graph_links=(
+                f"http://localhost:9002/dataset/{quote(item.subject.partition('#')[0], safe='')}",
+            ),
+        )
+        for item in evidence
+    ]
+
+
+def commit_sha_for_ref(ref: str, *, repo_root: str | Path = ".") -> str:
+    """Resolve the checked ref from Git metadata without shelling out to Git.
+
+    The CLI already uses Git to enumerate a requested diff; this small reader avoids
+    another command solely to populate the reproducibility field.  It understands
+    loose and packed refs and deliberately returns an empty value when no full SHA
+    can be proved from local metadata.
+    """
+    target = ref.strip()
+    if "..." in target:
+        target = target.rsplit("...", 1)[1]
+    elif ".." in target:
+        target = target.rsplit("..", 1)[1]
+    target = target or "HEAD"
+    git_dir = _git_dir(Path(repo_root).resolve())
+    if git_dir is None:
+        return ""
+    if target == "HEAD":
+        try:
+            target = (git_dir / "HEAD").read_text(encoding="utf-8").strip()
+        except OSError:
+            return ""
+        if target.startswith("ref: "):
+            target = target.removeprefix("ref: ").strip()
+    if re.fullmatch(r"[0-9a-fA-F]{40,64}", target):
+        return target.lower()
+    candidates = [target]
+    if not target.startswith("refs/"):
+        candidates.extend((f"refs/heads/{target}", f"refs/remotes/{target}"))
+    for candidate in candidates:
+        try:
+            sha = (git_dir / candidate).read_text(encoding="utf-8").strip()
+        except OSError:
+            continue
+        if re.fullmatch(r"[0-9a-fA-F]{40,64}", sha):
+            return sha.lower()
+    try:
+        packed_refs = (git_dir / "packed-refs").read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return ""
+    for line in packed_refs:
+        parts = line.split()
+        if (
+            len(parts) == 2
+            and parts[1] in candidates
+            and re.fullmatch(r"[0-9a-fA-F]{40,64}", parts[0])
+        ):
+            return parts[0].lower()
+    return ""
+
+
+def _git_dir(root: Path) -> Path | None:
+    candidate = root / ".git"
+    if candidate.is_dir():
+        return candidate
+    if not candidate.is_file():
+        return None
+    try:
+        pointer = candidate.read_text(encoding="utf-8").strip()
+    except OSError:
+        return None
+    if not pointer.startswith("gitdir: "):
+        return None
+    location = Path(pointer.removeprefix("gitdir: ").strip())
+    return location if location.is_absolute() else (root / location).resolve()
+
+
 def _human(verdict: Verdict) -> str:
-    rows = [(finding.severity.upper(), finding.rule_id, finding.message) for finding in verdict.findings]
+    rows = [
+        (finding.severity.upper(), finding.rule_id, finding.message)
+        for finding in verdict.findings
+    ]
     header = ("SEVERITY", "RULE", "MESSAGE")
     widths = [max(len(row[index]) for row in [header, *rows]) for index in range(3)]
     line = "  ".join(header[index].ljust(widths[index]) for index in range(3))
     separator = "  ".join("-" * width for width in widths)
-    body = ["  ".join(row[index].ljust(widths[index]) for index in range(3)) for row in rows]
+    body = [
+        "  ".join(row[index].ljust(widths[index]) for index in range(3)) for row in rows
+    ]
     return "\n".join([f"Sidq: {verdict.decision}", line, separator, *body])
 
 
@@ -141,7 +256,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     arguments = _parser().parse_args(argv)
     if arguments.command == "explain":
         policy = load_policy()
-        rule = next((item for item in policy.rules if item.id == arguments.rule_id), None)
+        rule = next(
+            (item for item in policy.rules if item.id == arguments.rule_id), None
+        )
         if rule is None:
             print(f"Unknown rule: {arguments.rule_id}", file=sys.stderr)
             return 2
@@ -149,7 +266,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
     try:
         files = [arguments.file] if arguments.file else changed_files(arguments.diff)
-        verdict = check(files, policy_path=arguments.policy)
+        ref = arguments.diff if arguments.diff else "HEAD"
+        commit_sha = commit_sha_for_ref(ref)
+        if not commit_sha:
+            raise OSError(f"could not resolve a full commit SHA for {ref!r}")
+        verdict = check(files, policy_path=arguments.policy, commit_sha=commit_sha)
     except (OSError, subprocess.CalledProcessError) as error:
         print(f"sidq: {error}", file=sys.stderr)
         return 2
