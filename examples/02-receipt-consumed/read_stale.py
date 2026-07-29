@@ -16,7 +16,11 @@ from sidq.receipt import StdioMCPReceiptToolCaller, get_verification_status
 
 
 def main() -> None:
-    graph = DataHubGraph(DatahubClientConfig(server="http://localhost:8080"))
+    graph = DataHubGraph(
+        DatahubClientConfig(
+            server=os.environ.get("SIDQ_DATAHUB_UI_URL", "http://localhost:8080")
+        )
+    )
     schema = graph.get_aspect(URN, SchemaMetadataClass)
     assert schema is not None and schema.lastModified is not None
     schema_modified_at = schema.lastModified.time

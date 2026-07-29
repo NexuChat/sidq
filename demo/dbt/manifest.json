@@ -15,6 +15,18 @@
         "partner_mailshot": {}, "phone_number": {}, "region_id": {}, "suggestions": {},
         "town_city": {}, "zipcode": {}
       }
+    },
+    "model.sidq_demo.raw_customers": {
+      "original_file_path": "models/raw/customers.sql",
+      "relation_name": "sidq-demo.warehouse.raw.customers",
+      "config": {"meta": {"environment": "PROD"}},
+      "meta": {
+        "dataset_urn": "urn:li:dataset:(urn:li:dataPlatform:postgres,sidq-demo.warehouse.raw.customers,PROD)"
+      },
+      "columns": {
+        "customer_id": {}, "email": {}, "full_name": {}, "country": {},
+        "created_at": {}
+      }
     }
   }
 }

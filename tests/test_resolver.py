@@ -19,6 +19,7 @@ def test_dbt_manifest_is_the_first_resolution_strategy(tmp_path) -> None:
                     "model.demo.orders": {
                         "original_file_path": "models/analytics/orders.sql",
                         "relation_name": '"warehouse"."analytics"."orders"',
+                        "columns": {"customer_id": {}, "total": {}},
                     }
                 },
             }
@@ -33,6 +34,8 @@ def test_dbt_manifest_is_the_first_resolution_strategy(tmp_path) -> None:
     asset = result.touched_assets[0]
     assert asset.resolution_strategy == "dbt_manifest"
     assert asset.urn == "urn:li:dataset:(urn:li:dataPlatform:postgres,warehouse.analytics.orders,PROD)"
+    assert asset.added_fields == ()
+    assert asset.removed_fields == ()
     assert {reference.field_path for reference in asset.referenced_fields} == {"customer_id", "total"}
 
 

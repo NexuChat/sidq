@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import subprocess
 import sys
@@ -143,13 +144,16 @@ def _resolver_root_and_files(
 
 def _with_graph_links(evidence: Sequence[Evidence]) -> list[Evidence]:
     """Attach a directly usable DataHub UI link to every emitted evidence item."""
+    datahub_ui_url = os.environ.get(
+        "SIDQ_DATAHUB_UI_URL", "http://localhost:9002"
+    ).rstrip("/")
     return [
         item
         if item.graph_links
         else replace(
             item,
             graph_links=(
-                f"http://localhost:9002/dataset/{quote(item.subject.partition('#')[0], safe='')}",
+                f"{datahub_ui_url}/dataset/{quote(item.subject.partition('#')[0], safe='')}",
             ),
         )
         for item in evidence

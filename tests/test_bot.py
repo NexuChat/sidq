@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -68,7 +69,17 @@ def test_real_block_comment_is_deterministic_and_decision_first() -> None:
         "<code>critical_downstream</code>\n"
     )
     assert "**Why:** PII exposure is not permitted" in first
-    assert "http://localhost:9002/dataset/" in first
+    # Host-agnostic: assert every graph link the verdict carries is actually rendered,
+    # rather than pinning one hostname. Published artifacts point at the public DataHub
+    # (SIDQ_DATAHUB_UI_URL); local runs default to localhost. Both must render links.
+    rendered_links = {
+        link
+        for finding in verdict.findings
+        for evidence in finding.evidence
+        for link in evidence.graph_links
+    }
+    assert rendered_links, "the example verdict must carry graph links"
+    assert all(link in first for link in rendered_links)
     assert "Column-level impact path:" in first
     assert "order_entry_db.order_entry.customers.cust_email" in first
     assert "Looker dashboard · dashboards.53" in first
@@ -235,10 +246,18 @@ def test_check_conclusion_is_derived_from_exit_code(
     assert "recorded graph fixtures" in body["output"]["summary"]
 
 
-def test_fixture_engine_runs_against_recorded_graph() -> None:
+def test_fixture_engine_runs_against_recorded_graph(tmp_path: Path) -> None:
+    repo_root = tmp_path / "dbt"
+    shutil.copytree(ROOT / "demo" / "dbt", repo_root)
+    (repo_root / "models" / "order_entry" / "customers.sql").write_text(
+        (ROOT / "examples" / "01-blocked-pii-dashboard" / "customers.sql").read_text(
+            encoding="utf-8"
+        ),
+        encoding="utf-8",
+    )
     verdict = action.run_engine(
         ["models/order_entry/customers.sql"],
-        repo_root=ROOT / "demo" / "dbt",
+        repo_root=repo_root,
         commit_sha="a" * 40,
         mode="fixture",
         fixture_dir=FIXTURES,

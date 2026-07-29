@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from datetime import UTC, datetime
 
 from datahub.emitter.mcp import MetadataChangeProposalWrapper
@@ -18,7 +19,11 @@ from prepare_asset import URN
 
 
 def main() -> None:
-    graph = DataHubGraph(DatahubClientConfig(server="http://localhost:8080"))
+    graph = DataHubGraph(
+        DatahubClientConfig(
+            server=os.environ.get("SIDQ_DATAHUB_UI_URL", "http://localhost:8080")
+        )
+    )
     schema = graph.get_aspect(URN, SchemaMetadataClass)
     assert schema is not None
     schema.fields.append(

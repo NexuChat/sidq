@@ -1,4 +1,4 @@
--- Changed dbt model: cust_email was removed from the projection.
+-- Baseline mirror of the showcase customer model used by the sealed demo PRs.
 select
     account_mgr_id,
     address_line1,
@@ -6,6 +6,7 @@ select
     address_line3,
     country_id,
     credit_limit,
+    cust_email,
     cust_first_name,
     cust_last_name,
     customer_class,

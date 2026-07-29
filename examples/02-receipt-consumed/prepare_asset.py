@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+
 from datahub.emitter.mcp import MetadataChangeProposalWrapper
 from datahub.ingestion.graph.client import DataHubGraph
 from datahub.ingestion.graph.config import DatahubClientConfig
@@ -18,7 +20,11 @@ URN = "urn:li:dataset:(urn:li:dataPlatform:postgres,sidq.receipt.consumed,DEV)"
 
 
 def main() -> None:
-    graph = DataHubGraph(DatahubClientConfig(server="http://localhost:8080"))
+    graph = DataHubGraph(
+        DatahubClientConfig(
+            server=os.environ.get("SIDQ_DATAHUB_UI_URL", "http://localhost:8080")
+        )
+    )
     graph.emit_mcp(
         MetadataChangeProposalWrapper(
             entityUrn=URN,

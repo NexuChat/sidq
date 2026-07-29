@@ -61,6 +61,18 @@ rules:
     severity: warn
     message: >-
       The touched asset has no owner: {subject}.
+  - id: access_policy_conflict
+    match:
+      evidence_kind: access_policy_conflict
+    severity: warn
+    message: >-
+      Restricted data is routed to an unrestricted asset from {subject}.
+  - id: doc_rot
+    match:
+      evidence_kind: doc_rot
+    severity: warn
+    message: >-
+      Documentation no longer matches the post-change schema for {subject}.
   - id: lineage_rot
     match:
       evidence_kind: lineage_rot_missing

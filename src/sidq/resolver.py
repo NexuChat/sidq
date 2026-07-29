@@ -273,13 +273,20 @@ class Resolver:
             file_path = self.repo_root / changed_file
             if changed_file.lower().endswith(".sql"):
                 try:
-                    added_fields, referenced_fields = _sql_parts(
+                    projected_fields, referenced_fields = _sql_parts(
                         file_path.read_text(encoding="utf-8"), urn, convention
                     )
                     # ``--file`` evaluates the working tree against the checked-in
                     # dbt manifest: its column set is the pre-change contract.
                     if previous_fields:
-                        removed_fields = tuple(sorted(set(previous_fields) - set(added_fields)))
+                        added_fields = tuple(
+                            sorted(set(projected_fields) - set(previous_fields))
+                        )
+                        removed_fields = tuple(
+                            sorted(set(previous_fields) - set(projected_fields))
+                        )
+                    else:
+                        added_fields = projected_fields
                 except Exception as error:  # noqa: BLE001
                     # Parsing and filesystem failures are evidence, never a crash.
                     evidence.append(

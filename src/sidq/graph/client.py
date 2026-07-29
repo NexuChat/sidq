@@ -265,25 +265,7 @@ class StdioMCPToolCaller:
                 name, arguments, result = request
                 try:
                     response = await session.call_tool(name, dict(arguments))
-                    if response.isError:
-                        text = " ".join(
-                            item.text
-                            for item in response.content
-                            if getattr(item, "type", "") == "text"
-                        )
-                        raise RuntimeError(f"MCP {name} failed: {text}")
-                    if response.structuredContent is not None:
-                        result.set_result(response.structuredContent)
-                    else:
-                        text = next(
-                            (
-                                item.text
-                                for item in response.content
-                                if getattr(item, "type", "") == "text"
-                            ),
-                            "{}",
-                        )
-                        result.set_result(json.loads(text))
+                    result.set_result(_tool_response_payload(response, name=name))
                 except BaseException as error:  # noqa: BLE001 -- preserve caller-visible failures
                     result.set_exception(error)
 
@@ -298,6 +280,34 @@ class StdioMCPToolCaller:
             self._requests.put(None)
             self._thread.join(timeout=5)
         self._thread = None
+
+
+def _tool_response_payload(response: Any, *, name: str = "tool") -> Any:
+    """Read MCP 1.x camelCase and MCP 2.x snake_case tool results."""
+    is_error = getattr(response, "is_error", None)
+    if is_error is None:
+        is_error = getattr(response, "isError", False)
+    if is_error:
+        message = " ".join(
+            item.text
+            for item in response.content
+            if getattr(item, "type", "") == "text"
+        )
+        raise RuntimeError(f"MCP {name} failed: {message}")
+    structured = getattr(response, "structured_content", None)
+    if structured is None:
+        structured = getattr(response, "structuredContent", None)
+    if structured is not None:
+        return structured
+    text = next(
+        (
+            item.text
+            for item in response.content
+            if getattr(item, "type", "") == "text"
+        ),
+        "{}",
+    )
+    return json.loads(text)
 
 
 def _mapping(value: Any) -> Mapping[str, Any]:

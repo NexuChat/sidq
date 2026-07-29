@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from collections import Counter
 from dataclasses import asdict
 from pathlib import Path
@@ -34,7 +35,11 @@ class ScopedGraph:
 
 
 def main() -> None:
-    graph = DataHubGraph(DatahubClientConfig(server="http://localhost:8080"))
+    graph = DataHubGraph(
+        DatahubClientConfig(
+            server=os.environ.get("SIDQ_DATAHUB_UI_URL", "http://localhost:8080")
+        )
+    )
     complete = CatalogSnapshot.from_datahub(graph)
     entities = tuple(entity for entity in complete.entities if "b2fd91" in entity.urn)
     urns = {entity.urn for entity in entities}
