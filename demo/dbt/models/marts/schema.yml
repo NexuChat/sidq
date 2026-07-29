@@ -1,0 +1,66 @@
+version: 2
+
+models:
+  - name: customer_360
+    description: Consumer-facing customer profile with commerce, subscription, engagement, and support context.
+    columns:
+      - {name: customer_id, description: Unique customer identifier.}
+      - name: customer_email
+        description: PII customer email from raw.customers, retained for approved lifecycle activation.
+        meta: {pii: true}
+      - name: customer_name
+        description: PII customer name from raw.customers, retained for customer-success workflows.
+        meta: {pii: true}
+      - {name: customer_country, description: Customer registration country.}
+      - {name: customer_created_at, description: UTC account creation timestamp.}
+      - {name: lifetime_order_count, description: Count of orders placed across the customer lifetime.}
+      - {name: first_order_at, description: UTC timestamp of the first order.}
+      - {name: last_order_at, description: UTC timestamp of the most recent order.}
+      - {name: lifetime_order_value, description: Gross lifetime order value before refunds.}
+      - {name: current_plan_name, description: Current or most recent subscription plan.}
+      - {name: subscription_status, description: Current subscription lifecycle state.}
+      - {name: monthly_amount, description: Monthly recurring subscription amount.}
+      - {name: session_count, description: Count of identified web sessions.}
+      - {name: last_session_at, description: UTC timestamp of the latest identified session.}
+      - {name: support_ticket_count, description: Total support tickets opened by the customer.}
+      - {name: unresolved_ticket_count, description: Support tickets not in resolved status.}
+  - name: revenue_daily
+    description: Daily finance-facing revenue aggregate by customer country and payment provider.
+    columns:
+      - {name: revenue_date, description: Calendar date of checkout activity in UTC.}
+      - {name: customer_country, description: Customer registration country.}
+      - {name: payment_provider, description: Payment rail used for the orders.}
+      - {name: order_count, description: Count of orders in the reporting group.}
+      - {name: paid_order_count, description: Count of orders with succeeded payment status.}
+      - {name: gross_revenue, description: Sum of gross order totals before refunds.}
+      - {name: refunded_revenue, description: Sum of refunds issued against grouped orders.}
+      - {name: net_revenue, description: Gross revenue less refunds.}
+  - name: product_performance
+    description: Product and category performance model for merchandising, including products with no orders.
+    columns:
+      - {name: product_id, description: Unique product identifier.}
+      - {name: sku, description: Unique stock keeping unit.}
+      - {name: product_name, description: Customer-facing product name.}
+      - {name: category_name, description: Product category name.}
+      - {name: department, description: Merchandising department.}
+      - {name: list_price, description: Current advertised product price.}
+      - {name: items_in_orders, description: Number of order-item records for the SKU.}
+      - {name: units_sold, description: Total quantity sold for the SKU.}
+      - {name: gross_item_revenue, description: Extended order-item revenue for the SKU.}
+  - name: order_funnel
+    description: Order-grain funnel for operations. completed means a succeeded payment and delivered shipment.
+    columns:
+      - {name: order_id, description: Unique checkout order identifier.}
+      - {name: customer_id, description: Customer who placed the order.}
+      - name: customer_email
+        description: PII email from raw.customers exposed for approved order recovery workflows.
+        meta: {pii: true}
+      - {name: customer_country, description: Customer registration country.}
+      - {name: ordered_at, description: UTC checkout timestamp.}
+      - {name: order_status, description: Current raw order lifecycle state.}
+      - {name: payment_status, description: Current processor payment status.}
+      - {name: shipment_status, description: Current fulfilment shipment status.}
+      - {name: order_total, description: Gross order total before refunds.}
+      - {name: refund_amount, description: Total refund amount issued for the order.}
+      - {name: net_revenue, description: Gross order total less refunds.}
+      - {name: funnel_stage, description: Derived operational funnel classification.}

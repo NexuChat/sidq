@@ -1,0 +1,434 @@
+version: 2
+
+sources:
+  - name: raw
+    database: warehouse
+    schema: raw
+    description: Operational e-commerce tables loaded without analytical transformations.
+    tables:
+      - name: customers
+        description: Canonical customer identities; email and full name are PII.
+        columns:
+          - name: customer_id
+            description: Immutable application customer identifier.
+          - name: email
+            description: Customer email address used for lifecycle contact.
+            meta: {pii: true}
+          - name: full_name
+            description: Customer-provided full name.
+            meta: {pii: true}
+          - name: country
+            description: ISO-like customer market code.
+          - name: created_at
+            description: Timestamp at which the customer account was created.
+      - name: orders
+        description: Checkout orders, one row per order.
+      - name: order_items
+        description: Line items recorded at checkout.
+      - name: categories
+        description: Product taxonomy owned by merchandising.
+      - name: products
+        description: Sellable product catalog.
+      - name: payments
+        description: Payment processor attempts and billing details.
+        columns:
+          - name: billing_email
+            description: PII billing email submitted at payment.
+            meta: {pii: true}
+          - name: billing_phone
+            description: PII billing phone number.
+            meta: {pii: true}
+          - name: billing_address_line1
+            description: PII primary billing address.
+            meta: {pii: true}
+          - name: billing_address_line2
+            description: PII secondary billing address.
+            meta: {pii: true}
+      - name: shipments
+        description: Fulfilment shipment tracking records.
+        columns:
+          - name: recipient_phone
+            description: PII delivery contact number.
+            meta: {pii: true}
+          - name: shipping_address_line1
+            description: PII primary shipping address.
+            meta: {pii: true}
+          - name: shipping_address_line2
+            description: PII secondary shipping address.
+            meta: {pii: true}
+      - name: refunds
+        description: Refund events issued against payment records.
+      - name: subscriptions
+        description: Recurring subscription agreements.
+      - name: web_sessions
+        description: Authenticated web sessions and acquisition context.
+        columns:
+          - name: ip_address
+            description: PII network address collected with the session.
+            meta: {pii: true}
+      - name: support_tickets
+        description: Customer support cases.
+
+models:
+  - name: stg_customers
+    description: Clean customer identity staging relation. customer_id is unique and customer_email is a PII identifier.
+    columns:
+      - name: customer_id
+        description: Immutable customer key; each value appears exactly once.
+        tests: [not_null, unique]
+      - name: customer_email
+        description: PII email address, expected to be unique per customer.
+        meta: {pii: true}
+        tests: [not_null, unique]
+      - name: customer_name
+        description: PII customer full name from the application profile.
+        meta: {pii: true}
+        tests: [not_null]
+      - name: customer_country
+        description: Customer country code captured at registration.
+        tests:
+          - accepted_values:
+              values: ['AE', 'SA', 'EG', 'JO', 'KW', 'QA', 'BH', 'OM', 'LB']
+      - name: customer_created_at
+        description: Account creation timestamp in UTC.
+        tests: [not_null]
+  - name: stg_orders
+    description: One row per raw checkout order; totals are non-negative before revenue transformations.
+    columns:
+      - name: order_id
+        description: Immutable order primary key.
+        tests: [not_null, unique]
+      - name: customer_id
+        description: Customer who placed the order; must resolve to stg_customers.
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_customers')
+              field: customer_id
+      - name: order_total
+        description: Gross order amount in transaction currency; source constraint prevents negative totals.
+        tests: [not_null]
+      - name: order_status
+        description: Current order lifecycle state.
+        tests:
+          - accepted_values:
+              values: ['pending', 'paid', 'fulfilled', 'refunded']
+      - name: ordered_at
+        description: UTC timestamp when checkout was submitted.
+        tests: [not_null]
+  - name: stg_order_items
+    description: Checkout line items with quantities that must be positive in the source.
+    columns:
+      - name: item_id
+        description: Immutable line item key.
+        tests: [not_null, unique]
+      - name: order_id
+        description: Parent order key.
+        tests:
+          - relationships:
+              to: ref('stg_orders')
+              field: order_id
+      - name: sku
+        description: Product stock keeping unit captured at sale time.
+        tests: [not_null]
+      - name: quantity
+        description: Positive number of units purchased.
+        tests: [not_null]
+      - name: unit_price
+        description: Non-negative unit sale price at checkout.
+        tests: [not_null]
+  - name: stg_categories
+    description: Product taxonomy staging relation with a unique business category code.
+    columns:
+      - name: category_id
+        description: Immutable category key.
+        tests: [not_null, unique]
+      - name: category_code
+        description: Unique merchandising category code.
+        tests: [not_null, unique]
+      - name: category_name
+        description: Human-readable category name.
+        tests: [not_null]
+      - name: department
+        description: Merchandising department that owns the category.
+        tests: [not_null]
+      - name: is_active
+        description: Whether the category is currently available for sale.
+        tests: [not_null]
+      - name: created_at
+        description: UTC timestamp when the taxonomy entry was created.
+        tests: [not_null]
+  - name: stg_products
+    description: Sellable catalog products. list_price is at least unit_cost by source check constraint.
+    columns:
+      - name: product_id
+        description: Immutable product key.
+        tests: [not_null, unique]
+      - name: category_id
+        description: Parent merchandising category key.
+        tests:
+          - relationships:
+              to: ref('stg_categories')
+              field: category_id
+      - name: sku
+        description: Unique stock keeping unit used by order items.
+        tests: [not_null, unique]
+      - name: product_name
+        description: Customer-facing product name.
+        tests: [not_null]
+      - name: unit_cost
+        description: Non-negative internal unit cost.
+        tests: [not_null]
+      - name: list_price
+        description: Positive advertised unit price, never below unit_cost.
+        tests: [not_null]
+      - name: is_active
+        description: Whether the product remains sellable.
+        tests: [not_null]
+      - name: launched_at
+        description: UTC product launch timestamp.
+        tests: [not_null]
+  - name: stg_payments
+    description: One processor payment attempt per order and provider, including restricted billing PII.
+    columns:
+      - name: payment_id
+        description: Immutable payment primary key.
+        tests: [not_null, unique]
+      - name: order_id
+        description: Order settled by this payment.
+        tests:
+          - relationships:
+              to: ref('stg_orders')
+              field: order_id
+      - name: customer_id
+        description: Customer billed for the payment.
+        tests:
+          - relationships:
+              to: ref('stg_customers')
+              field: customer_id
+      - name: payment_provider
+        description: Payment rail used for authorization.
+        tests:
+          - accepted_values:
+              values: ['card', 'wallet', 'bank_transfer']
+      - name: provider_transaction_id
+        description: Unique processor transaction identifier.
+        tests: [not_null, unique]
+      - name: payment_status
+        description: Processor lifecycle status; succeeded records have a paid_at timestamp.
+        tests:
+          - accepted_values:
+              values: ['pending', 'succeeded', 'refunded']
+      - name: payment_amount
+        description: Non-negative payment amount.
+        tests: [not_null]
+      - name: billing_email
+        description: PII billing email submitted to the payment provider.
+        meta: {pii: true}
+        tests: [not_null]
+      - name: billing_phone
+        description: PII billing phone number.
+        meta: {pii: true}
+        tests: [not_null]
+      - name: billing_address_line1
+        description: PII primary billing street address.
+        meta: {pii: true}
+        tests: [not_null]
+      - name: billing_address_line2
+        description: PII secondary billing address detail when supplied.
+        meta: {pii: true}
+      - name: billing_city
+        description: Billing city.
+        tests: [not_null]
+      - name: billing_country
+        description: Billing country code.
+        tests: [not_null]
+      - name: paid_at
+        description: UTC time at which a successful payment was captured.
+      - name: payment_created_at
+        description: UTC time the processor payment record was created.
+        tests: [not_null]
+  - name: stg_shipments
+    description: Shipment status records. Delivered timestamps can only follow shipped timestamps in the raw constraint.
+    columns:
+      - name: shipment_id
+        description: Immutable shipment primary key.
+        tests: [not_null, unique]
+      - name: order_id
+        description: Unique parent order key for the shipment.
+        tests:
+          - not_null
+          - unique
+          - relationships:
+              to: ref('stg_orders')
+              field: order_id
+      - name: carrier
+        description: Parcel carrier responsible for the shipment.
+        tests:
+          - accepted_values:
+              values: ['DHL', 'Aramex', 'UPS']
+      - name: tracking_number
+        description: Unique carrier tracking number.
+        tests: [not_null, unique]
+      - name: shipment_status
+        description: Fulfilment lifecycle status.
+        tests:
+          - accepted_values:
+              values: ['label_created', 'in_transit', 'delivered']
+      - name: recipient_phone
+        description: PII phone number supplied for delivery updates.
+        meta: {pii: true}
+        tests: [not_null]
+      - name: shipping_address_line1
+        description: PII primary delivery street address.
+        meta: {pii: true}
+        tests: [not_null]
+      - name: shipping_address_line2
+        description: PII secondary delivery address detail when supplied.
+        meta: {pii: true}
+      - name: shipping_city
+        description: Delivery city.
+        tests: [not_null]
+      - name: shipping_country
+        description: Delivery country code.
+        tests: [not_null]
+      - name: shipped_at
+        description: UTC carrier handoff timestamp when known.
+      - name: delivered_at
+        description: UTC delivery timestamp, never earlier than shipped_at.
+  - name: stg_refunds
+    description: Refund issuance events. A payment and order pair can have only one source refund record.
+    columns:
+      - name: refund_id
+        description: Immutable refund primary key.
+        tests: [not_null, unique]
+      - name: payment_id
+        description: Payment identifier receiving the refund.
+        tests:
+          - relationships:
+              to: ref('stg_payments')
+              field: payment_id
+      - name: order_id
+        description: Order identifier receiving the refund.
+        tests:
+          - relationships:
+              to: ref('stg_orders')
+              field: order_id
+      - name: refund_reason
+        description: Coded business reason for the refund.
+        tests:
+          - accepted_values:
+              values: ['customer_request', 'damaged', 'fraud_review']
+      - name: refund_amount
+        description: Positive refund amount.
+        tests: [not_null]
+      - name: refunded_at
+        description: UTC timestamp when the refund was issued.
+        tests: [not_null]
+  - name: stg_subscriptions
+    description: Customer recurring-plan records. Cancellation cannot precede subscription start.
+    columns:
+      - name: subscription_id
+        description: Immutable subscription key.
+        tests: [not_null, unique]
+      - name: customer_id
+        description: Customer who owns the plan.
+        tests:
+          - relationships:
+              to: ref('stg_customers')
+              field: customer_id
+      - name: plan_name
+        description: Commercial subscription tier.
+        tests:
+          - accepted_values:
+              values: ['starter', 'plus', 'pro']
+      - name: subscription_status
+        description: Current renewal lifecycle state.
+        tests:
+          - accepted_values:
+              values: ['active', 'paused', 'cancelled']
+      - name: monthly_amount
+        description: Positive monthly recurring amount.
+        tests: [not_null]
+      - name: started_at
+        description: UTC subscription start timestamp.
+        tests: [not_null]
+      - name: cancelled_at
+        description: UTC cancellation timestamp when the plan was cancelled.
+  - name: stg_web_sessions
+    description: Identified customer sessions and acquisition touchpoints. Session end cannot precede start.
+    columns:
+      - name: session_id
+        description: Immutable session primary key.
+        tests: [not_null, unique]
+      - name: customer_id
+        description: Customer identifier when the session is authenticated.
+        tests:
+          - relationships:
+              to: ref('stg_customers')
+              field: customer_id
+      - name: anonymous_id
+        description: Browser-scoped anonymous visitor identifier.
+        tests: [not_null]
+      - name: session_started_at
+        description: UTC timestamp when the session started.
+        tests: [not_null]
+      - name: session_ended_at
+        description: UTC timestamp when the session ended.
+        tests: [not_null]
+      - name: landing_channel
+        description: First-touch acquisition channel.
+        tests:
+          - accepted_values:
+              values: ['organic', 'paid_search', 'email', 'social', 'direct']
+      - name: device_type
+        description: Device family inferred at collection time.
+        tests:
+          - accepted_values:
+              values: ['desktop', 'mobile', 'tablet']
+      - name: ip_address
+        description: PII network address collected for fraud and security review.
+        meta: {pii: true}
+        tests: [not_null]
+      - name: converted_order_id
+        description: Order attributed to the session when conversion occurred.
+        tests:
+          - relationships:
+              to: ref('stg_orders')
+              field: order_id
+  - name: stg_support_tickets
+    description: Customer service tickets. Resolved tickets have a resolution timestamp at or after opening.
+    columns:
+      - name: ticket_id
+        description: Immutable support ticket primary key.
+        tests: [not_null, unique]
+      - name: customer_id
+        description: Customer who opened the ticket.
+        tests:
+          - relationships:
+              to: ref('stg_customers')
+              field: customer_id
+      - name: order_id
+        description: Related order when the request concerns a purchase.
+        tests:
+          - relationships:
+              to: ref('stg_orders')
+              field: order_id
+      - name: ticket_status
+        description: Current support workflow state.
+        tests:
+          - accepted_values:
+              values: ['open', 'pending', 'resolved']
+      - name: ticket_priority
+        description: Triage priority assigned by support.
+        tests:
+          - accepted_values:
+              values: ['low', 'normal', 'high']
+      - name: subject
+        description: Short support request subject.
+        tests: [not_null]
+      - name: opened_at
+        description: UTC timestamp when the ticket was created.
+        tests: [not_null]
+      - name: resolved_at
+        description: UTC resolution timestamp when the ticket is closed.

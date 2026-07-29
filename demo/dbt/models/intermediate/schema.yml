@@ -1,0 +1,71 @@
+version: 2
+
+models:
+  - name: int_order_enriched
+    description: Order-grain commerce join used for revenue and operational funnel reporting.
+    columns:
+      - {name: order_id, description: Unique checkout order identifier.}
+      - {name: customer_id, description: Customer who placed the order.}
+      - name: customer_email
+        description: PII customer email propagated from stg_customers for order operations.
+        meta: {pii: true}
+      - name: customer_name
+        description: PII customer name propagated from stg_customers.
+        meta: {pii: true}
+      - {name: customer_country, description: Customer registration country.}
+      - {name: order_status, description: Current order lifecycle state.}
+      - {name: ordered_at, description: UTC checkout timestamp.}
+      - {name: order_total, description: Gross order value before refunds.}
+      - {name: item_quantity, description: Total units on the order.}
+      - {name: item_gross_revenue, description: Sum of extended item prices.}
+      - {name: payment_id, description: Payment record associated with the order.}
+      - {name: payment_provider, description: Processor payment rail.}
+      - {name: payment_status, description: Current processor status.}
+      - {name: payment_amount, description: Amount submitted to the processor.}
+      - {name: shipment_status, description: Current fulfilment state.}
+      - {name: carrier, description: Delivery carrier.}
+      - {name: delivered_at, description: UTC delivery timestamp.}
+      - {name: refund_amount, description: Total refund amount applied to the order.}
+      - {name: net_revenue, description: Gross order total minus refund amount.}
+  - name: int_customer_lifetime
+    description: Customer-grain retention and support metrics assembled from commerce, subscription, session, and ticket sources.
+    columns:
+      - {name: customer_id, description: Unique customer identifier.}
+      - name: customer_email
+        description: PII customer email retained for lifecycle activation.
+        meta: {pii: true}
+      - name: customer_name
+        description: PII customer name retained for customer-success workflows.
+        meta: {pii: true}
+      - {name: customer_country, description: Customer registration country.}
+      - {name: customer_created_at, description: UTC account creation timestamp.}
+      - {name: lifetime_order_count, description: Count of all orders placed by the customer.}
+      - {name: first_order_at, description: UTC timestamp of the first order.}
+      - {name: last_order_at, description: UTC timestamp of the latest order.}
+      - {name: lifetime_order_value, description: Gross lifetime order value.}
+      - {name: current_plan_name, description: Current or latest subscription plan.}
+      - {name: subscription_status, description: Current subscription lifecycle state.}
+      - {name: monthly_amount, description: Current monthly recurring amount.}
+      - {name: session_count, description: Count of identified web sessions.}
+      - {name: last_session_at, description: UTC timestamp of the latest identified session.}
+      - {name: support_ticket_count, description: Total support tickets opened.}
+      - {name: unresolved_ticket_count, description: Tickets not yet resolved.}
+  - name: int_payment_reconciliation
+    description: Payment-grain reconciliation relation. Successful payments whose amount equals order_total are reconciled.
+    columns:
+      - {name: payment_id, description: Unique payment identifier.}
+      - {name: order_id, description: Associated checkout order identifier.}
+      - {name: customer_id, description: Customer billed by the payment.}
+      - name: customer_email
+        description: PII customer email available only for payment operations.
+        meta: {pii: true}
+      - {name: provider_transaction_id, description: Unique payment processor transaction identifier.}
+      - {name: payment_provider, description: Processor payment rail.}
+      - {name: payment_status, description: Processor lifecycle status.}
+      - {name: payment_amount, description: Amount submitted to the processor.}
+      - {name: order_total, description: Gross source order total.}
+      - {name: refunded_amount, description: Refunds aggregated against the payment.}
+      - {name: settled_amount, description: Payment amount net of issued refunds.}
+      - {name: paid_at, description: UTC capture timestamp for successful payments.}
+      - {name: payment_created_at, description: UTC payment record creation time.}
+      - {name: reconciliation_status, description: Checkable reconciliation classification.}

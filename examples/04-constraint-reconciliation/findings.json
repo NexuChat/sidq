@@ -1,0 +1,696 @@
+{
+  "asset": "urn:li:dataset:(urn:li:dataPlatform:postgres,sidq-demo.warehouse.raw.orders,PROD)",
+  "catalog_claims": [
+    {
+      "column": "order_id",
+      "confidence": 1.0,
+      "expr": null,
+      "source_sentence": "DataHub schemaMetadata.nullable=false",
+      "status": "proposed",
+      "type": "not_null",
+      "values": null
+    },
+    {
+      "column": "order_id",
+      "confidence": 1.0,
+      "expr": null,
+      "source_sentence": "DataHub schemaMetadata.isPartOfKey=true",
+      "status": "proposed",
+      "type": "unique",
+      "values": null
+    },
+    {
+      "column": "customer_id",
+      "confidence": 1.0,
+      "expr": null,
+      "source_sentence": "DataHub schemaMetadata.nullable=false",
+      "status": "proposed",
+      "type": "not_null",
+      "values": null
+    },
+    {
+      "column": "order_total",
+      "confidence": 1.0,
+      "expr": null,
+      "source_sentence": "DataHub schemaMetadata.nullable=false",
+      "status": "proposed",
+      "type": "not_null",
+      "values": null
+    },
+    {
+      "column": "status",
+      "confidence": 1.0,
+      "expr": null,
+      "source_sentence": "DataHub schemaMetadata.nullable=false",
+      "status": "proposed",
+      "type": "not_null",
+      "values": null
+    },
+    {
+      "column": "ordered_at",
+      "confidence": 1.0,
+      "expr": null,
+      "source_sentence": "DataHub schemaMetadata.nullable=false",
+      "status": "proposed",
+      "type": "not_null",
+      "values": null
+    },
+    {
+      "column": "customer_id",
+      "confidence": 1.0,
+      "expr": "raw.customers.customer_id",
+      "source_sentence": "DataHub schemaMetadata.foreignKeys",
+      "status": "proposed",
+      "type": "relationships",
+      "values": null
+    }
+  ],
+  "findings": [
+    {
+      "detail": {
+        "canonical": "NOT customer_id IS NULL",
+        "catalog_claims": [
+          {
+            "column": "customer_id",
+            "confidence": 1.0,
+            "expr": null,
+            "source_sentence": "DataHub schemaMetadata.nullable=false",
+            "status": "proposed",
+            "type": "not_null",
+            "values": null
+          }
+        ],
+        "constraint_kind": "not_null",
+        "constraint_name": "customer_id_not_null",
+        "database_constraint": {
+          "canonical": "NOT customer_id IS NULL",
+          "columns": [
+            "customer_id"
+          ],
+          "fingerprint": "not_null:85ff84ee19380e48",
+          "is_partial": false,
+          "kind": "not_null",
+          "partial_predicate": null,
+          "shape": {
+            "column": "customer_id",
+            "columns": [
+              "customer_id"
+            ],
+            "function": null,
+            "lower": null,
+            "lower_inclusive": null,
+            "name": "not_null",
+            "operator": null,
+            "pattern": null,
+            "target_columns": [],
+            "target_table": null,
+            "upper": null,
+            "upper_inclusive": null,
+            "value": null,
+            "values": []
+          }
+        },
+        "fingerprint": "not_null:85ff84ee19380e48",
+        "raw_ddl": "customer_id NOT NULL",
+        "reason": "catalog_claim_matches_enforced_constraint",
+        "shape": {
+          "column": "customer_id",
+          "columns": [
+            "customer_id"
+          ],
+          "function": null,
+          "lower": null,
+          "lower_inclusive": null,
+          "name": "not_null",
+          "operator": null,
+          "pattern": null,
+          "target_columns": [],
+          "target_table": null,
+          "upper": null,
+          "upper_inclusive": null,
+          "value": null,
+          "values": []
+        },
+        "tier": "T0"
+      },
+      "graph_links": [],
+      "kind": "constraint_confirmed",
+      "subject": "urn:li:dataset:(urn:li:dataPlatform:postgres,sidq-demo.warehouse.raw.orders,PROD)#customer_id"
+    },
+    {
+      "detail": {
+        "canonical": "FOREIGN KEY (customer_id) REFERENCES raw.customers (customer_id)",
+        "catalog_claims": [
+          {
+            "column": "customer_id",
+            "confidence": 1.0,
+            "expr": "raw.customers.customer_id",
+            "source_sentence": "DataHub schemaMetadata.foreignKeys",
+            "status": "proposed",
+            "type": "relationships",
+            "values": null
+          }
+        ],
+        "constraint_kind": "foreign_key",
+        "constraint_name": "orders_customer_id_fkey",
+        "database_constraint": {
+          "canonical": "FOREIGN KEY (customer_id) REFERENCES raw.customers (customer_id)",
+          "columns": [
+            "customer_id"
+          ],
+          "fingerprint": "foreign_key:4dc2fb731afada51",
+          "is_partial": false,
+          "kind": "foreign_key",
+          "partial_predicate": null,
+          "shape": {
+            "column": null,
+            "columns": [
+              "customer_id"
+            ],
+            "function": null,
+            "lower": null,
+            "lower_inclusive": null,
+            "name": "foreign_key",
+            "operator": null,
+            "pattern": null,
+            "target_columns": [
+              "customer_id"
+            ],
+            "target_table": "raw.customers",
+            "upper": null,
+            "upper_inclusive": null,
+            "value": null,
+            "values": []
+          }
+        },
+        "fingerprint": "foreign_key:4dc2fb731afada51",
+        "raw_ddl": "FOREIGN KEY (customer_id) REFERENCES raw.customers(customer_id)",
+        "reason": "catalog_claim_matches_enforced_constraint",
+        "shape": {
+          "column": null,
+          "columns": [
+            "customer_id"
+          ],
+          "function": null,
+          "lower": null,
+          "lower_inclusive": null,
+          "name": "foreign_key",
+          "operator": null,
+          "pattern": null,
+          "target_columns": [
+            "customer_id"
+          ],
+          "target_table": "raw.customers",
+          "upper": null,
+          "upper_inclusive": null,
+          "value": null,
+          "values": []
+        },
+        "tier": "T0"
+      },
+      "graph_links": [],
+      "kind": "constraint_confirmed",
+      "subject": "urn:li:dataset:(urn:li:dataPlatform:postgres,sidq-demo.warehouse.raw.orders,PROD)#customer_id"
+    },
+    {
+      "detail": {
+        "canonical": "NOT order_id IS NULL",
+        "catalog_claims": [
+          {
+            "column": "order_id",
+            "confidence": 1.0,
+            "expr": null,
+            "source_sentence": "DataHub schemaMetadata.nullable=false",
+            "status": "proposed",
+            "type": "not_null",
+            "values": null
+          }
+        ],
+        "constraint_kind": "not_null",
+        "constraint_name": "order_id_not_null",
+        "database_constraint": {
+          "canonical": "NOT order_id IS NULL",
+          "columns": [
+            "order_id"
+          ],
+          "fingerprint": "not_null:e14343749baca439",
+          "is_partial": false,
+          "kind": "not_null",
+          "partial_predicate": null,
+          "shape": {
+            "column": "order_id",
+            "columns": [
+              "order_id"
+            ],
+            "function": null,
+            "lower": null,
+            "lower_inclusive": null,
+            "name": "not_null",
+            "operator": null,
+            "pattern": null,
+            "target_columns": [],
+            "target_table": null,
+            "upper": null,
+            "upper_inclusive": null,
+            "value": null,
+            "values": []
+          }
+        },
+        "fingerprint": "not_null:e14343749baca439",
+        "raw_ddl": "order_id NOT NULL",
+        "reason": "catalog_claim_matches_enforced_constraint",
+        "shape": {
+          "column": "order_id",
+          "columns": [
+            "order_id"
+          ],
+          "function": null,
+          "lower": null,
+          "lower_inclusive": null,
+          "name": "not_null",
+          "operator": null,
+          "pattern": null,
+          "target_columns": [],
+          "target_table": null,
+          "upper": null,
+          "upper_inclusive": null,
+          "value": null,
+          "values": []
+        },
+        "tier": "T0"
+      },
+      "graph_links": [],
+      "kind": "constraint_confirmed",
+      "subject": "urn:li:dataset:(urn:li:dataPlatform:postgres,sidq-demo.warehouse.raw.orders,PROD)#order_id"
+    },
+    {
+      "detail": {
+        "canonical": "PRIMARY KEY(order_id)",
+        "catalog_claims": [
+          {
+            "column": "order_id",
+            "confidence": 1.0,
+            "expr": null,
+            "source_sentence": "DataHub schemaMetadata.isPartOfKey=true",
+            "status": "proposed",
+            "type": "unique",
+            "values": null
+          }
+        ],
+        "constraint_kind": "primary_key",
+        "constraint_name": "orders_pkey",
+        "database_constraint": {
+          "canonical": "PRIMARY KEY(order_id)",
+          "columns": [
+            "order_id"
+          ],
+          "fingerprint": "primary_key:c748588594e6ab35",
+          "is_partial": false,
+          "kind": "primary_key",
+          "partial_predicate": null,
+          "shape": {
+            "column": null,
+            "columns": [
+              "order_id"
+            ],
+            "function": null,
+            "lower": null,
+            "lower_inclusive": null,
+            "name": "unique",
+            "operator": null,
+            "pattern": null,
+            "target_columns": [],
+            "target_table": null,
+            "upper": null,
+            "upper_inclusive": null,
+            "value": null,
+            "values": []
+          }
+        },
+        "fingerprint": "primary_key:c748588594e6ab35",
+        "raw_ddl": "PRIMARY KEY (order_id)",
+        "reason": "catalog_claim_matches_enforced_constraint",
+        "shape": {
+          "column": null,
+          "columns": [
+            "order_id"
+          ],
+          "function": null,
+          "lower": null,
+          "lower_inclusive": null,
+          "name": "unique",
+          "operator": null,
+          "pattern": null,
+          "target_columns": [],
+          "target_table": null,
+          "upper": null,
+          "upper_inclusive": null,
+          "value": null,
+          "values": []
+        },
+        "tier": "T0"
+      },
+      "graph_links": [],
+      "kind": "constraint_confirmed",
+      "subject": "urn:li:dataset:(urn:li:dataPlatform:postgres,sidq-demo.warehouse.raw.orders,PROD)#order_id"
+    },
+    {
+      "detail": {
+        "canonical": "NOT order_total IS NULL",
+        "catalog_claims": [
+          {
+            "column": "order_total",
+            "confidence": 1.0,
+            "expr": null,
+            "source_sentence": "DataHub schemaMetadata.nullable=false",
+            "status": "proposed",
+            "type": "not_null",
+            "values": null
+          }
+        ],
+        "constraint_kind": "not_null",
+        "constraint_name": "order_total_not_null",
+        "database_constraint": {
+          "canonical": "NOT order_total IS NULL",
+          "columns": [
+            "order_total"
+          ],
+          "fingerprint": "not_null:ee41b2bc3a50892c",
+          "is_partial": false,
+          "kind": "not_null",
+          "partial_predicate": null,
+          "shape": {
+            "column": "order_total",
+            "columns": [
+              "order_total"
+            ],
+            "function": null,
+            "lower": null,
+            "lower_inclusive": null,
+            "name": "not_null",
+            "operator": null,
+            "pattern": null,
+            "target_columns": [],
+            "target_table": null,
+            "upper": null,
+            "upper_inclusive": null,
+            "value": null,
+            "values": []
+          }
+        },
+        "fingerprint": "not_null:ee41b2bc3a50892c",
+        "raw_ddl": "order_total NOT NULL",
+        "reason": "catalog_claim_matches_enforced_constraint",
+        "shape": {
+          "column": "order_total",
+          "columns": [
+            "order_total"
+          ],
+          "function": null,
+          "lower": null,
+          "lower_inclusive": null,
+          "name": "not_null",
+          "operator": null,
+          "pattern": null,
+          "target_columns": [],
+          "target_table": null,
+          "upper": null,
+          "upper_inclusive": null,
+          "value": null,
+          "values": []
+        },
+        "tier": "T0"
+      },
+      "graph_links": [],
+      "kind": "constraint_confirmed",
+      "subject": "urn:li:dataset:(urn:li:dataPlatform:postgres,sidq-demo.warehouse.raw.orders,PROD)#order_total"
+    },
+    {
+      "detail": {
+        "canonical": "order_total >= 0",
+        "catalog_claims": [],
+        "constraint_kind": "check",
+        "constraint_name": "orders_order_total_check",
+        "database_constraint": {
+          "canonical": "order_total >= 0",
+          "columns": [
+            "order_total"
+          ],
+          "fingerprint": "check:d0d0a295fd6069b1",
+          "is_partial": false,
+          "kind": "check",
+          "partial_predicate": null,
+          "shape": {
+            "column": "order_total",
+            "columns": [],
+            "function": null,
+            "lower": null,
+            "lower_inclusive": null,
+            "name": "comparison",
+            "operator": ">=",
+            "pattern": null,
+            "target_columns": [],
+            "target_table": null,
+            "upper": null,
+            "upper_inclusive": null,
+            "value": "0",
+            "values": []
+          }
+        },
+        "fingerprint": "check:d0d0a295fd6069b1",
+        "raw_ddl": "CHECK (order_total >= 0::numeric)",
+        "reason": "no_catalog_counterpart_for_enforced_constraint",
+        "shape": {
+          "column": "order_total",
+          "columns": [],
+          "function": null,
+          "lower": null,
+          "lower_inclusive": null,
+          "name": "comparison",
+          "operator": ">=",
+          "pattern": null,
+          "target_columns": [],
+          "target_table": null,
+          "upper": null,
+          "upper_inclusive": null,
+          "value": "0",
+          "values": []
+        },
+        "tier": "catalog_silent"
+      },
+      "graph_links": [],
+      "kind": "constraint_missing_in_catalog",
+      "subject": "urn:li:dataset:(urn:li:dataPlatform:postgres,sidq-demo.warehouse.raw.orders,PROD)#order_total"
+    },
+    {
+      "detail": {
+        "canonical": "NOT ordered_at IS NULL",
+        "catalog_claims": [
+          {
+            "column": "ordered_at",
+            "confidence": 1.0,
+            "expr": null,
+            "source_sentence": "DataHub schemaMetadata.nullable=false",
+            "status": "proposed",
+            "type": "not_null",
+            "values": null
+          }
+        ],
+        "constraint_kind": "not_null",
+        "constraint_name": "ordered_at_not_null",
+        "database_constraint": {
+          "canonical": "NOT ordered_at IS NULL",
+          "columns": [
+            "ordered_at"
+          ],
+          "fingerprint": "not_null:7190db3c25464d38",
+          "is_partial": false,
+          "kind": "not_null",
+          "partial_predicate": null,
+          "shape": {
+            "column": "ordered_at",
+            "columns": [
+              "ordered_at"
+            ],
+            "function": null,
+            "lower": null,
+            "lower_inclusive": null,
+            "name": "not_null",
+            "operator": null,
+            "pattern": null,
+            "target_columns": [],
+            "target_table": null,
+            "upper": null,
+            "upper_inclusive": null,
+            "value": null,
+            "values": []
+          }
+        },
+        "fingerprint": "not_null:7190db3c25464d38",
+        "raw_ddl": "ordered_at NOT NULL",
+        "reason": "catalog_claim_matches_enforced_constraint",
+        "shape": {
+          "column": "ordered_at",
+          "columns": [
+            "ordered_at"
+          ],
+          "function": null,
+          "lower": null,
+          "lower_inclusive": null,
+          "name": "not_null",
+          "operator": null,
+          "pattern": null,
+          "target_columns": [],
+          "target_table": null,
+          "upper": null,
+          "upper_inclusive": null,
+          "value": null,
+          "values": []
+        },
+        "tier": "T0"
+      },
+      "graph_links": [],
+      "kind": "constraint_confirmed",
+      "subject": "urn:li:dataset:(urn:li:dataPlatform:postgres,sidq-demo.warehouse.raw.orders,PROD)#ordered_at"
+    },
+    {
+      "detail": {
+        "canonical": "NOT status IS NULL",
+        "catalog_claims": [
+          {
+            "column": "status",
+            "confidence": 1.0,
+            "expr": null,
+            "source_sentence": "DataHub schemaMetadata.nullable=false",
+            "status": "proposed",
+            "type": "not_null",
+            "values": null
+          }
+        ],
+        "constraint_kind": "not_null",
+        "constraint_name": "status_not_null",
+        "database_constraint": {
+          "canonical": "NOT status IS NULL",
+          "columns": [
+            "status"
+          ],
+          "fingerprint": "not_null:06a3d470ae372239",
+          "is_partial": false,
+          "kind": "not_null",
+          "partial_predicate": null,
+          "shape": {
+            "column": "status",
+            "columns": [
+              "status"
+            ],
+            "function": null,
+            "lower": null,
+            "lower_inclusive": null,
+            "name": "not_null",
+            "operator": null,
+            "pattern": null,
+            "target_columns": [],
+            "target_table": null,
+            "upper": null,
+            "upper_inclusive": null,
+            "value": null,
+            "values": []
+          }
+        },
+        "fingerprint": "not_null:06a3d470ae372239",
+        "raw_ddl": "status NOT NULL",
+        "reason": "catalog_claim_matches_enforced_constraint",
+        "shape": {
+          "column": "status",
+          "columns": [
+            "status"
+          ],
+          "function": null,
+          "lower": null,
+          "lower_inclusive": null,
+          "name": "not_null",
+          "operator": null,
+          "pattern": null,
+          "target_columns": [],
+          "target_table": null,
+          "upper": null,
+          "upper_inclusive": null,
+          "value": null,
+          "values": []
+        },
+        "tier": "T0"
+      },
+      "graph_links": [],
+      "kind": "constraint_confirmed",
+      "subject": "urn:li:dataset:(urn:li:dataPlatform:postgres,sidq-demo.warehouse.raw.orders,PROD)#status"
+    },
+    {
+      "detail": {
+        "canonical": "status IN ('fulfilled', 'paid', 'pending', 'refunded')",
+        "catalog_claims": [],
+        "constraint_kind": "check",
+        "constraint_name": "orders_status_check",
+        "database_constraint": {
+          "canonical": "status IN ('fulfilled', 'paid', 'pending', 'refunded')",
+          "columns": [
+            "status"
+          ],
+          "fingerprint": "check:7ec83ff136624199",
+          "is_partial": false,
+          "kind": "check",
+          "partial_predicate": null,
+          "shape": {
+            "column": "status",
+            "columns": [],
+            "function": null,
+            "lower": null,
+            "lower_inclusive": null,
+            "name": "accepted_values",
+            "operator": null,
+            "pattern": null,
+            "target_columns": [],
+            "target_table": null,
+            "upper": null,
+            "upper_inclusive": null,
+            "value": null,
+            "values": [
+              "fulfilled",
+              "paid",
+              "pending",
+              "refunded"
+            ]
+          }
+        },
+        "fingerprint": "check:7ec83ff136624199",
+        "raw_ddl": "CHECK (status = ANY (ARRAY['pending'::text, 'paid'::text, 'fulfilled'::text, 'refunded'::text]))",
+        "reason": "no_catalog_counterpart_for_enforced_constraint",
+        "shape": {
+          "column": "status",
+          "columns": [],
+          "function": null,
+          "lower": null,
+          "lower_inclusive": null,
+          "name": "accepted_values",
+          "operator": null,
+          "pattern": null,
+          "target_columns": [],
+          "target_table": null,
+          "upper": null,
+          "upper_inclusive": null,
+          "value": null,
+          "values": [
+            "fulfilled",
+            "paid",
+            "pending",
+            "refunded"
+          ]
+        },
+        "tier": "catalog_silent"
+      },
+      "graph_links": [],
+      "kind": "constraint_missing_in_catalog",
+      "subject": "urn:li:dataset:(urn:li:dataPlatform:postgres,sidq-demo.warehouse.raw.orders,PROD)#status"
+    }
+  ],
+  "read_only": true
+}
