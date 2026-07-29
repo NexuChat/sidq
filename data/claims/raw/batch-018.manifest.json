@@ -1,0 +1,89 @@
+{
+  "batch": 18,
+  "class_counts": {
+    "negative": 28,
+    "positive": 34
+  },
+  "dropped": {},
+  "per_type_counts": {
+    "none": 28,
+    "not_null": 24,
+    "relationships": 3,
+    "unique": 7
+  },
+  "repos": [
+    "dbt-labs/dbt-rpc",
+    "QuantikDataStudio/dbt",
+    "dbt-labs/dbt-Explorer-on-demand-course-platform",
+    "uforodavid/dbt_bootcamp",
+    "techindicium/banvic-dbt",
+    "jeffdcamp/dbtools-android",
+    "Open-DBT/open-dbt",
+    "mindsdb/dbt-mindsdb",
+    "rockset/dbt-rockset",
+    "mehd-io/dbt-duckdb-tutorial",
+    "datarootsio/prefect-dbt-flow",
+    "jeffdcamp/dbtools-room",
+    "ckovach/DBT",
+    "japila-books/dbt",
+    "RevoltBI/DBT-Hackathon-2024",
+    "dbt-msft/tsql-utils",
+    "tnightengale/dbt-activity-schema",
+    "memsql/dbt-singlestore",
+    "C00ldudeNoonan/simple-dbt-runner",
+    "hgrif/dbt_tutorial"
+  ],
+  "rows": 62,
+  "skipped": [
+    "QuantikDataStudio/dbt",
+    "dbt-labs/dbt-Explorer-on-demand-course-platform",
+    "uforodavid/dbt_bootcamp",
+    "techindicium/banvic-dbt",
+    "jeffdcamp/dbtools-android",
+    "mindsdb/dbt-mindsdb",
+    "rockset/dbt-rockset",
+    "mehd-io/dbt-duckdb-tutorial",
+    "jeffdcamp/dbtools-room",
+    "RevoltBI/DBT-Hackathon-2024",
+    "tnightengale/dbt-activity-schema",
+    "C00ldudeNoonan/simple-dbt-runner",
+    "hgrif/dbt_tutorial"
+  ],
+  "sources": {
+    "Open-DBT/open-dbt": {
+      "commit": "2d188452bc42e1cb8fbf82c9edbaa62290dfc604",
+      "licence": "MIT",
+      "notice": null
+    },
+    "ckovach/DBT": {
+      "commit": "82751b4b360f400f16cc6d91d4b26fdaf07102c4",
+      "licence": "MIT",
+      "notice": null
+    },
+    "datarootsio/prefect-dbt-flow": {
+      "commit": "4dbd1de51bf5cc32114fd517fcfa02879cdeba43",
+      "licence": "MIT",
+      "notice": null
+    },
+    "dbt-labs/dbt-rpc": {
+      "commit": "f92333105021cff1db02288c7767719cd69653ec",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "dbt-msft/tsql-utils": {
+      "commit": "0456db8330d37f00239607abf4b01fac464aaca9",
+      "licence": "MIT",
+      "notice": null
+    },
+    "japila-books/dbt": {
+      "commit": "5d16e2c5277f145aa0a817fd2f4cfd6faa94d56d",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "memsql/dbt-singlestore": {
+      "commit": "2e07496994a6e9f40b25d852bfbb32878bfc8ff6",
+      "licence": "Apache-2.0",
+      "notice": null
+    }
+  }
+}

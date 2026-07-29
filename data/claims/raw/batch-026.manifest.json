@@ -1,0 +1,62 @@
+{
+  "batch": 26,
+  "class_counts": {
+    "hard_negative": 16,
+    "negative": 433
+  },
+  "dropped": {},
+  "per_type_counts": {
+    "none": 449
+  },
+  "repos": [
+    "fivetran/twitter_ads_source",
+    "fivetran/dynamics_365_crm",
+    "fivetran/recurly_source",
+    "fivetran/qualtrics_source",
+    "fivetran/mailchimp_source",
+    "fivetran/twitter_ads",
+    "fivetran/asana",
+    "fivetran/google_play_source",
+    "fivetran/pendo",
+    "fivetran/twitter_organic_source",
+    "fivetran/salesforce_formula_utils",
+    "fivetran/quickbooks_source",
+    "fivetran/facebook_ads_source",
+    "fivetran/facebook_pages",
+    "fivetran/xero",
+    "fivetran/apple_search_ads",
+    "fivetran/asana_source",
+    "fivetran/pinterest_source",
+    "fivetran/lever",
+    "fivetran/facebook_ads_creative_history"
+  ],
+  "rows": 449,
+  "skipped": [
+    "fivetran/twitter_ads_source",
+    "fivetran/dynamics_365_crm",
+    "fivetran/recurly_source",
+    "fivetran/qualtrics_source",
+    "fivetran/mailchimp_source",
+    "fivetran/twitter_ads",
+    "fivetran/asana",
+    "fivetran/google_play_source",
+    "fivetran/pendo",
+    "fivetran/twitter_organic_source",
+    "fivetran/quickbooks_source",
+    "fivetran/facebook_ads_source",
+    "fivetran/facebook_pages",
+    "fivetran/xero",
+    "fivetran/apple_search_ads",
+    "fivetran/asana_source",
+    "fivetran/pinterest_source",
+    "fivetran/lever",
+    "fivetran/facebook_ads_creative_history"
+  ],
+  "sources": {
+    "fivetran/salesforce_formula_utils": {
+      "commit": "a517e3b0f92b3af31818e64955446380a6000998",
+      "licence": "Apache-2.0",
+      "notice": null
+    }
+  }
+}

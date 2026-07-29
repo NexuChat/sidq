@@ -1,0 +1,93 @@
+{
+  "batch": 34,
+  "class_counts": {
+    "hard_negative": 5,
+    "negative": 105,
+    "positive": 98
+  },
+  "dropped": {
+    "expression_missing_literal": 1,
+    "model_level_unique_or_not_null": 2,
+    "unmapped_test:dbt_expectations.expect_table_row_count_to_equal_other_table": 1,
+    "unmapped_test:dbt_utils.unique_combination_of_columns": 3
+  },
+  "per_type_counts": {
+    "accepted_values": 5,
+    "expression": 15,
+    "none": 110,
+    "not_null": 57,
+    "relationships": 4,
+    "unique": 17
+  },
+  "repos": [
+    "jyablonski/jyablonski_kimball_example",
+    "dre-at8865/podcast_analytics",
+    "kamalendubiswas-db/dbt-dss-demo",
+    "earnest-eg/earnest-transformations",
+    "kashyap0729/Airbnb-Analytics-with-DBT-Data-Build-Tool",
+    "esadeghi/bixi_dbt",
+    "levyvix/airbnb_rj",
+    "FavourEdet-Data/DAIRY_AGRICTECH",
+    "Lightstone1/real_estate_project",
+    "FelipeWendel/modern_data_stack",
+    "MatthewPBriones/DBTPractice",
+    "Gabriel-boop-deep/DESAFIO_ANALISTA",
+    "mcgrath-dylan/finops-dbt",
+    "galafis/dbt-data-warehouse-modeling",
+    "mcgrath-dylan/snowflake-finops-pro",
+    "getindata/tpc-h-data-pipelines-demo",
+    "MetricsDAO/onboarding_dbt",
+    "godatadriven/github-contributions",
+    "PeterNdiforchu/dbt-snowflake-airbnb-project",
+    "GreciaLH/northwind-dbt-snowflake"
+  ],
+  "rows": 208,
+  "skipped": [
+    "jyablonski/jyablonski_kimball_example",
+    "dre-at8865/podcast_analytics",
+    "kamalendubiswas-db/dbt-dss-demo",
+    "earnest-eg/earnest-transformations",
+    "kashyap0729/Airbnb-Analytics-with-DBT-Data-Build-Tool",
+    "esadeghi/bixi_dbt",
+    "levyvix/airbnb_rj",
+    "Lightstone1/real_estate_project",
+    "FelipeWendel/modern_data_stack",
+    "MatthewPBriones/DBTPractice",
+    "Gabriel-boop-deep/DESAFIO_ANALISTA",
+    "getindata/tpc-h-data-pipelines-demo",
+    "MetricsDAO/onboarding_dbt",
+    "GreciaLH/northwind-dbt-snowflake"
+  ],
+  "sources": {
+    "FavourEdet-Data/DAIRY_AGRICTECH": {
+      "commit": "59833134a3c038fb25384c3d626b420e75622a78",
+      "licence": "MIT",
+      "notice": null
+    },
+    "PeterNdiforchu/dbt-snowflake-airbnb-project": {
+      "commit": "df0106a1f6ed97407322f409c943041bc3917789",
+      "licence": "MIT",
+      "notice": null
+    },
+    "galafis/dbt-data-warehouse-modeling": {
+      "commit": "b6cdb80a1bd715471eb2f2f0115f8d221fd13af7",
+      "licence": "MIT",
+      "notice": null
+    },
+    "godatadriven/github-contributions": {
+      "commit": "74f774f205b7591d8bbc3734fd1efc6614ece975",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "mcgrath-dylan/finops-dbt": {
+      "commit": "7b2395c84b1d3cc3211dc9f22d7eca19fad0f7b8",
+      "licence": "Apache-2.0",
+      "notice": "finops-dbt — FinOps for Snowflake + dbt (Starter)\nCopyright (c) 2025 Dylan McGrath\n\nThis product includes software developed by Dylan McGrath.\nSeeds contain synthetic/sample data for demonstration only.\n\nThis distribution may include dependencies licensed by their respective authors.\nSee individual projects for license terms (e.g., dbt-utils, dbt-expectations)."
+    },
+    "mcgrath-dylan/snowflake-finops-pro": {
+      "commit": "fd93929929ff72c517d6c20bd9e2f329b2765b02",
+      "licence": "Apache-2.0",
+      "notice": null
+    }
+  }
+}

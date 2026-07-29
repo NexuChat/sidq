@@ -1,0 +1,165 @@
+{
+  "batch": 1,
+  "class_counts": {
+    "hard_negative": 633,
+    "negative": 8469,
+    "positive": 417
+  },
+  "dropped": {
+    "accepted_range_missing_literal_bounds": 2,
+    "expression_missing_literal": 35,
+    "unmapped_test:assert_equal": 21,
+    "unmapped_test:dbt_expectations.equal_expression": 6,
+    "unmapped_test:dbt_expectations.expect_column_distinct_count_to_equal_other_table": 4,
+    "unmapped_test:dbt_expectations.expect_column_pair_values_A_to_be_greater_than_B": 4,
+    "unmapped_test:dbt_expectations.expect_column_pair_values_to_be_equal": 2,
+    "unmapped_test:dbt_expectations.expect_column_pair_values_to_be_in_set": 2,
+    "unmapped_test:dbt_expectations.expect_compound_columns_to_be_unique": 14,
+    "unmapped_test:dbt_expectations.expect_grouped_row_values_to_have_recent_data": 8,
+    "unmapped_test:dbt_expectations.expect_multicolumn_sum_to_equal": 6,
+    "unmapped_test:dbt_expectations.expect_row_values_to_have_data_for_every_n_datepart": 12,
+    "unmapped_test:dbt_expectations.expect_select_column_values_to_be_unique_within_record": 2,
+    "unmapped_test:dbt_expectations.expect_table_aggregation_to_equal_other_table": 4,
+    "unmapped_test:dbt_expectations.expect_table_column_count_to_be_between": 6,
+    "unmapped_test:dbt_expectations.expect_table_column_count_to_equal": 2,
+    "unmapped_test:dbt_expectations.expect_table_column_count_to_equal_other_table": 2,
+    "unmapped_test:dbt_expectations.expect_table_columns_to_contain_set": 2,
+    "unmapped_test:dbt_expectations.expect_table_columns_to_match_ordered_list": 6,
+    "unmapped_test:dbt_expectations.expect_table_columns_to_match_set": 2,
+    "unmapped_test:dbt_expectations.expect_table_columns_to_not_contain_set": 2,
+    "unmapped_test:dbt_expectations.expect_table_row_count_to_be_between": 12,
+    "unmapped_test:dbt_expectations.expect_table_row_count_to_equal": 2,
+    "unmapped_test:dbt_expectations.expect_table_row_count_to_equal_other_table": 2,
+    "unmapped_test:dbt_expectations.expect_table_row_count_to_equal_other_table_times_factor": 6,
+    "unmapped_test:dbt_external_tables_integration_tests.tsql_equality": 3,
+    "unmapped_test:dbt_utils.equal_rowcount": 8,
+    "unmapped_test:dbt_utils.equality": 129,
+    "unmapped_test:dbt_utils.fewer_rows_than": 2,
+    "unmapped_test:dbt_utils.mutually_exclusive_ranges": 4,
+    "unmapped_test:dbt_utils.recency": 5,
+    "unmapped_test:dbt_utils.unique_combination_of_columns": 5,
+    "unmapped_test:expect_table_columns_to_match_set": 1,
+    "unmapped_test:is_empty": 27
+  },
+  "per_type_counts": {
+    "none": 9102,
+    "not_null": 307,
+    "relationships": 1,
+    "unique": 109
+  },
+  "repos": [
+    "dbt-labs/jaffle_shop",
+    "dbt-labs/dbt-utils",
+    "dbt-labs/dbt-audit-helper",
+    "dbt-labs/dbt-codegen",
+    "dbt-labs/dbt-project-evaluator",
+    "dbt-labs/dbt-external-tables",
+    "dbt-checkpoint/dbt-checkpoint",
+    "calogica/dbt-date",
+    "calogica/dbt-expectations",
+    "calogica/dbt-snowflake-monitoring",
+    "Metaplane/dbt-expectations",
+    "Datavault-UK/automate-dv",
+    "Data-Coves/dbt-coves",
+    "fivetran/dbt_fivetran_utils",
+    "fivetran/dbt_fivetran_log",
+    "fivetran/dbt_shopify",
+    "fivetran/dbt_stripe",
+    "fivetran/dbt_google_ads",
+    "fivetran/dbt_facebook_ads",
+    "fivetran/dbt_hubspot"
+  ],
+  "rows": 9519,
+  "skipped": [
+    "calogica/dbt-snowflake-monitoring",
+    "Data-Coves/dbt-coves",
+    "fivetran/dbt_fivetran_utils"
+  ],
+  "sources": {
+    "Datavault-UK/automate-dv": {
+      "commit": "0aa71153fbb233c630de07e3bb2a8ea3801880e1",
+      "licence": "Apache-2.0",
+      "notice": "AutomateDV (f.k.a dbtvault)\nCopyright 2019-2026 Business Thinking Ltd (Trading as Datavault).\n\nLicensed under the Apache License, Version 2.0 (the \"License\");\nyou may not use this file except in compliance with the License.\nYou may obtain a copy of the License at\n\n   http://www.apache.org/licenses/LICENSE-2.0\n\nUnless required by applicable law or agreed to in writing, software\ndistributed under the License is distributed on an \"AS IS\" BASIS,\nWITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\nSee the License for the specific language governing permissions and\nlimitations under the License."
+    },
+    "Metaplane/dbt-expectations": {
+      "commit": "991651f0afa725e32834d0ee51bb0c08f385e418",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "calogica/dbt-date": {
+      "commit": "b79aaaea0420453b8a298520027c10ca5a3c5466",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "calogica/dbt-expectations": {
+      "commit": "db3dc81dada4bf987a3beee375978421568a240a",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "dbt-checkpoint/dbt-checkpoint": {
+      "commit": "2537c7bd9d64af06ed3c1f023e995d081f205da6",
+      "licence": "MIT",
+      "notice": null
+    },
+    "dbt-labs/dbt-audit-helper": {
+      "commit": "71817f0a7fa3df9f63adb90db0cf28f7423f720b",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "dbt-labs/dbt-codegen": {
+      "commit": "978c366bd17cd515fbba4cc7c3f73b2ca3ff42a2",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "dbt-labs/dbt-external-tables": {
+      "commit": "72df97ed2019c73d7d29b306c765ad78e3d81127",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "dbt-labs/dbt-project-evaluator": {
+      "commit": "927abbd523b627f4f1595e2fb93ebf2244314bd6",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "dbt-labs/dbt-utils": {
+      "commit": "700764ce230b2fb775b5338b6bc77a72233ea34c",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "dbt-labs/jaffle_shop": {
+      "commit": "fd7bfacae4f497ff044a6a0275268676bf1b64c3",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "fivetran/dbt_facebook_ads": {
+      "commit": "27180ace3c72d43f14292cd79b6d3d1134a9a42b",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "fivetran/dbt_fivetran_log": {
+      "commit": "0da7ac69669322de4b4c9ea88b5a0071b60b23e7",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "fivetran/dbt_google_ads": {
+      "commit": "5f90a793a56a4d734d5365d35032de0a7969a767",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "fivetran/dbt_hubspot": {
+      "commit": "be3a903c24d804bdeea3629c0dda005fb114527f",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "fivetran/dbt_shopify": {
+      "commit": "c70853d0f271150a1a5ebbfa7f80f1b6aaaccd76",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "fivetran/dbt_stripe": {
+      "commit": "5159f928fcc54d1cf808550a8d343ef5a4999324",
+      "licence": "Apache-2.0",
+      "notice": null
+    }
+  }
+}

@@ -1,0 +1,112 @@
+{
+  "batch": 13,
+  "class_counts": {
+    "hard_negative": 25,
+    "negative": 454,
+    "positive": 27
+  },
+  "dropped": {
+    "model_level_unique_or_not_null": 3
+  },
+  "per_type_counts": {
+    "none": 479,
+    "not_null": 23,
+    "relationships": 1,
+    "unique": 3
+  },
+  "repos": [
+    "fivetran/dbt_xero",
+    "mazurowski-lab/duke-dbt-data",
+    "dbt-labs/dbt-jobs-as-code",
+    "nicor88/dbt-serverless",
+    "cloudera/dbt-hive",
+    "hashmapinc/dbt-demos",
+    "dpguthrie/snowflake-dbt-demo-project",
+    "snowplow/dbt-snowplow-unified",
+    "aws-samples/redshift-etl-automation-with-dbt",
+    "databricks-demos/dbt-databricks-c360",
+    "pgoslatara/dbt-beyond-the-basics",
+    "exasol/dbt-exasol",
+    "gnilrets/dbt-container-skeleton",
+    "dbt-labs/dbt-extractor",
+    "dpguthrie/dbt-sl-streamlit",
+    "darshilparmar/dbt-databuildtool--masterclass-netflix-project",
+    "henriblancke/dbt-formatter",
+    "aws-samples/dataops-platform-airflow-dbt",
+    "Alex-Teodosiu/dbt-blueprint",
+    "MarkPhamm/dbt-Fundamental"
+  ],
+  "rows": 506,
+  "skipped": [
+    "mazurowski-lab/duke-dbt-data",
+    "dpguthrie/snowflake-dbt-demo-project",
+    "snowplow/dbt-snowplow-unified",
+    "databricks-demos/dbt-databricks-c360",
+    "pgoslatara/dbt-beyond-the-basics",
+    "darshilparmar/dbt-databuildtool--masterclass-netflix-project",
+    "Alex-Teodosiu/dbt-blueprint",
+    "MarkPhamm/dbt-Fundamental"
+  ],
+  "sources": {
+    "aws-samples/dataops-platform-airflow-dbt": {
+      "commit": "371030812d8cd58b8729b0c77f255b03845fa0b3",
+      "licence": "MIT",
+      "notice": null
+    },
+    "aws-samples/redshift-etl-automation-with-dbt": {
+      "commit": "fe7025cc17c3a26fdb0aeccd1544f46322503931",
+      "licence": "MIT",
+      "notice": null
+    },
+    "cloudera/dbt-hive": {
+      "commit": "e7d1410402c9f32d2ccda732e73df555e3176f2d",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "dbt-labs/dbt-extractor": {
+      "commit": "322e4c59b2b7b5058f315fda27fa0a007f9088b2",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "dbt-labs/dbt-jobs-as-code": {
+      "commit": "3fba7868059a5b26cd8b7bc94946da0c324738b3",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "dpguthrie/dbt-sl-streamlit": {
+      "commit": "e83609e209909293eab5e58bc204bb3b57f51824",
+      "licence": "Unlicense",
+      "notice": null
+    },
+    "exasol/dbt-exasol": {
+      "commit": "06663a115eff61137884892c34e8baa262a5176d",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "fivetran/dbt_xero": {
+      "commit": "51d236fe63baa3804923b791fae5302f81889517",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "gnilrets/dbt-container-skeleton": {
+      "commit": "9bf0e85b12a2a678a5d7c6e3964cc6369862b22a",
+      "licence": "MIT",
+      "notice": null
+    },
+    "hashmapinc/dbt-demos": {
+      "commit": "1b6a0cce3af0f4d5a0204bb211fadb70cb874e31",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "henriblancke/dbt-formatter": {
+      "commit": "7da7dddb98732bf99d4b57b537fb6d9e7bcd53ca",
+      "licence": "MIT",
+      "notice": null
+    },
+    "nicor88/dbt-serverless": {
+      "commit": "b7f618326113405708e25f317fe43b0288034cf8",
+      "licence": "MIT",
+      "notice": null
+    }
+  }
+}

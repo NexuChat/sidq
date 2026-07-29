@@ -1,0 +1,102 @@
+{
+  "batch": 19,
+  "class_counts": {
+    "hard_negative": 211,
+    "negative": 10549,
+    "positive": 44
+  },
+  "dropped": {},
+  "per_type_counts": {
+    "none": 10760,
+    "not_null": 33,
+    "relationships": 3,
+    "unique": 8
+  },
+  "repos": [
+    "dbt-labs/dbt-adapter-tests",
+    "j-clemons/dbt-language-server",
+    "jaehyeon-kim/dbt-on-aws",
+    "Sapiens-Solutions-Co/DBT",
+    "palmetto/palm-dbt",
+    "jeremiahhansen/snowflake-helper-dbt",
+    "Linhares015/dbt_example",
+    "aro-91/dbt_enpal_assessment",
+    "Infused-Insight/fzf-dbt",
+    "dbt-cloud-managed-repositories/dbt-starter-project",
+    "MammothGrowth/dbt-cli-mcp",
+    "kvf77/DbTree",
+    "dbt-labs/jaffle-shop-template",
+    "fh-wedel/DBTI25",
+    "binste/dbt-ibis",
+    "jacob-mennell/snowflake-airflow-dbt",
+    "metaplane/dbt-coalesce-2021-codebase",
+    "z3z1ma/dbt-core-interface",
+    "dbt-labs/facebook-ads",
+    "airbytehq/airbyte-dbt-models"
+  ],
+  "rows": 10804,
+  "skipped": [
+    "dbt-labs/dbt-adapter-tests",
+    "jaehyeon-kim/dbt-on-aws",
+    "Sapiens-Solutions-Co/DBT",
+    "Linhares015/dbt_example",
+    "aro-91/dbt_enpal_assessment",
+    "Infused-Insight/fzf-dbt",
+    "dbt-cloud-managed-repositories/dbt-starter-project",
+    "kvf77/DbTree",
+    "dbt-labs/jaffle-shop-template",
+    "jacob-mennell/snowflake-airflow-dbt"
+  ],
+  "sources": {
+    "MammothGrowth/dbt-cli-mcp": {
+      "commit": "6283b0507a074347dbc08ad95cd335068ef7c65c",
+      "licence": "MIT",
+      "notice": null
+    },
+    "airbytehq/airbyte-dbt-models": {
+      "commit": "4b94f98c58aae5f5709bb009ae38d5e4f5374b00",
+      "licence": "MIT",
+      "notice": null
+    },
+    "binste/dbt-ibis": {
+      "commit": "2e4204296cbcac8f8af056ef6b22051fb09a0d77",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "dbt-labs/facebook-ads": {
+      "commit": "b69e7403d9d1ec3d1ccf95f26f91065dcf0875a1",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "fh-wedel/DBTI25": {
+      "commit": "c93891f2d922bfa7fc55dc9c1f4408acd739a090",
+      "licence": "MIT",
+      "notice": null
+    },
+    "j-clemons/dbt-language-server": {
+      "commit": "724b0f233dee65ad4676966fbf8b7b825d993966",
+      "licence": "MIT",
+      "notice": null
+    },
+    "jeremiahhansen/snowflake-helper-dbt": {
+      "commit": "008d0c8fc521018a7ff7b637c5fba7a4551f7a48",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "metaplane/dbt-coalesce-2021-codebase": {
+      "commit": "7c00777acb1eccdcb263adfb332e86e1d186a9eb",
+      "licence": "MIT",
+      "notice": null
+    },
+    "palmetto/palm-dbt": {
+      "commit": "27cf0be845d7fa4caaae614db9c00a44223efb66",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "z3z1ma/dbt-core-interface": {
+      "commit": "d6ddd8c12afc8257dd6fcab4b3fb188d99fe014c",
+      "licence": "MIT",
+      "notice": null
+    }
+  }
+}

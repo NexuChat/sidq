@@ -1,0 +1,67 @@
+{
+  "batch": 28,
+  "class_counts": {
+    "negative": 32
+  },
+  "dropped": {
+    "unmapped_test:assert_equal": 4
+  },
+  "per_type_counts": {
+    "none": 32
+  },
+  "repos": [
+    "dlt-hub/pipedrive",
+    "dlt-hub/asana",
+    "dlt-hub/dlt_zendesk_pipeline",
+    "dlt-hub/personio",
+    "dlt-hub/jira_pipeline",
+    "dlt-hub/shopify",
+    "dlt-hub/stripe_analytics",
+    "dlt-hub/workable",
+    "TheDamiofLagos/dbt_contract_gen",
+    "jpmmcneill/dbt_graph_theory",
+    "metaops-solutions/camunda",
+    "vladimir-vvalov/tbmacro",
+    "godatadriven/dbt_date",
+    "arnoN7/incr_stream",
+    "everpeace/dbt_models_metadata",
+    "Matts52/dbt_cortex_search_service",
+    "Matts52/dbt_ml_inline_preprocessing",
+    "Matts52/dbt_set_similarity",
+    "Matts52/sigma_data_models",
+    "Matts52/dbt_cortex_agent"
+  ],
+  "rows": 32,
+  "skipped": [
+    "dlt-hub/pipedrive",
+    "dlt-hub/asana",
+    "dlt-hub/dlt_zendesk_pipeline",
+    "dlt-hub/personio",
+    "dlt-hub/jira_pipeline",
+    "dlt-hub/shopify",
+    "dlt-hub/stripe_analytics",
+    "dlt-hub/workable",
+    "TheDamiofLagos/dbt_contract_gen",
+    "jpmmcneill/dbt_graph_theory",
+    "metaops-solutions/camunda",
+    "godatadriven/dbt_date",
+    "arnoN7/incr_stream",
+    "everpeace/dbt_models_metadata",
+    "Matts52/dbt_cortex_search_service",
+    "Matts52/dbt_ml_inline_preprocessing",
+    "Matts52/sigma_data_models",
+    "Matts52/dbt_cortex_agent"
+  ],
+  "sources": {
+    "Matts52/dbt_set_similarity": {
+      "commit": "3a5bbdd96476ca2eccf9cc517acb1e4f81643c50",
+      "licence": "MIT",
+      "notice": null
+    },
+    "vladimir-vvalov/tbmacro": {
+      "commit": "085a0607eaa6174a842f4c7e12297e379283b810",
+      "licence": "Apache-2.0",
+      "notice": null
+    }
+  }
+}

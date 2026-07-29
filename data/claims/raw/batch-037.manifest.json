@@ -1,0 +1,89 @@
+{
+  "batch": 37,
+  "class_counts": {
+    "hard_negative": 2,
+    "negative": 121,
+    "positive": 98
+  },
+  "dropped": {
+    "accepted_values_missing_literal_values": 1,
+    "expression_missing_literal": 4,
+    "unmapped_test:dbt_utils.equality": 25,
+    "unmapped_test:dbt_utils.unique_combination_of_columns": 1,
+    "unmapped_test:is_empty": 1,
+    "unmapped_test:is_not_empty_string": 1,
+    "unmapped_test:outlier_detection": 1,
+    "unmapped_test:value_in_range": 5
+  },
+  "per_type_counts": {
+    "accepted_values": 3,
+    "expression": 7,
+    "none": 123,
+    "not_null": 55,
+    "relationships": 5,
+    "unique": 28
+  },
+  "repos": [
+    "Zorba25/dblearn",
+    "localdebootcamp/dbt",
+    "localstack-samples/snowflake-smart-factory-app",
+    "luccappaz/AirbnbWithDBT",
+    "Luchassmed/dataEng_trafiktal",
+    "lvgalvao/dbtcore-bigquery",
+    "Mairondc21/dbt_az_usuarios",
+    "makerofmaps1/dbt-demo",
+    "MaterializeIncLabs/dbt-example",
+    "matt-winkler/dbt-fusion",
+    "mbtsvetkov/Alnz",
+    "mdakilahmed/loan_eligibility_dbt_postgres",
+    "michaelrollins23/seatgeek-analytics",
+    "Montreal-Analytics/poutineshop-public",
+    "mzazakeith/dbt_cap",
+    "nachan12/ecommerce-analytics-dbt",
+    "nagabharathnr/dbt_demo_proj",
+    "NicoleZevallos/walmart-dbt",
+    "nicor88/dbt-databricks-jaffle-shop",
+    "oysterhr/oyster_dbt_project_evaluator"
+  ],
+  "rows": 221,
+  "skipped": [
+    "Zorba25/dblearn",
+    "localdebootcamp/dbt",
+    "localstack-samples/snowflake-smart-factory-app",
+    "Luchassmed/dataEng_trafiktal",
+    "lvgalvao/dbtcore-bigquery",
+    "Mairondc21/dbt_az_usuarios",
+    "makerofmaps1/dbt-demo",
+    "matt-winkler/dbt-fusion",
+    "mbtsvetkov/Alnz",
+    "mdakilahmed/loan_eligibility_dbt_postgres",
+    "michaelrollins23/seatgeek-analytics",
+    "Montreal-Analytics/poutineshop-public",
+    "mzazakeith/dbt_cap",
+    "nachan12/ecommerce-analytics-dbt",
+    "nagabharathnr/dbt_demo_proj",
+    "NicoleZevallos/walmart-dbt"
+  ],
+  "sources": {
+    "MaterializeIncLabs/dbt-example": {
+      "commit": "78bea03bac96399c643f4658736cb5eec12e7f2f",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "luccappaz/AirbnbWithDBT": {
+      "commit": "9f7b701835ff330a75d6ca0297f4fcd2fa5e6338",
+      "licence": "MIT",
+      "notice": null
+    },
+    "nicor88/dbt-databricks-jaffle-shop": {
+      "commit": "3621e8e9abbb0ac00ecf6aed29a9dd4b1d01b88e",
+      "licence": "MIT",
+      "notice": null
+    },
+    "oysterhr/oyster_dbt_project_evaluator": {
+      "commit": "053953c99ff3cb50b62528beb4cad1af3efc2c4e",
+      "licence": "Apache-2.0",
+      "notice": null
+    }
+  }
+}

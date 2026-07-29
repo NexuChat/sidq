@@ -1,0 +1,122 @@
+{
+  "batch": 9,
+  "class_counts": {
+    "hard_negative": 115,
+    "negative": 1033,
+    "positive": 154
+  },
+  "dropped": {
+    "expression_missing_literal": 6,
+    "model_level_unique_or_not_null": 2,
+    "unmapped_test:custom_test": 2,
+    "unmapped_test:dbt_expectations.expect_table_columns_to_contain_set": 1,
+    "unmapped_test:dbt_utils.mutually_exclusive_ranges": 2,
+    "unmapped_test:dbt_utils.unique_combination_of_columns": 7
+  },
+  "per_type_counts": {
+    "accepted_values": 5,
+    "none": 1148,
+    "not_null": 86,
+    "relationships": 6,
+    "unique": 57
+  },
+  "repos": [
+    "researchmm/DBTNet",
+    "bitpicky/dbt-sugar",
+    "dbt-labs/dbt-autofix",
+    "slidoapp/dbt-superset-lineage",
+    "osdldbt/dbt5",
+    "InfuseAI/awesome-public-dbt-projects",
+    "dbt-labs/dbt-postgres",
+    "dbt-labs/jaffle_shop_duckdb",
+    "dbt-labs/hubcap",
+    "randypitcherii/dbt_workspace",
+    "PKU-DAIR/DBTune",
+    "lindsaymurphy4/course_advanced_dbt",
+    "yu-iskw/dbt-artifacts-parser",
+    "dbt-labs/segment",
+    "garystafford/dbt-redshift-demo",
+    "oracle/dbt-oracle",
+    "PedramNavid/dbtpal",
+    "fivetran/dbt_hubspot_source",
+    "Toloka/dbt-af",
+    "Accenture/DBTestCompare"
+  ],
+  "rows": 1302,
+  "skipped": [
+    "researchmm/DBTNet",
+    "osdldbt/dbt5",
+    "dbt-labs/jaffle_shop_duckdb",
+    "dbt-labs/hubcap",
+    "randypitcherii/dbt_workspace",
+    "lindsaymurphy4/course_advanced_dbt",
+    "PedramNavid/dbtpal"
+  ],
+  "sources": {
+    "Accenture/DBTestCompare": {
+      "commit": "de26c254b144e13a7b536c1256fe06e9bc31725c",
+      "licence": "MIT",
+      "notice": null
+    },
+    "InfuseAI/awesome-public-dbt-projects": {
+      "commit": "a048642b874917729781852c1b7115bc854bcd88",
+      "licence": "CC0-1.0",
+      "notice": null
+    },
+    "PKU-DAIR/DBTune": {
+      "commit": "5ad7058bc5ddb8fa93c7fc5c534ec7e2df867d57",
+      "licence": "MIT",
+      "notice": null
+    },
+    "Toloka/dbt-af": {
+      "commit": "ab888ffaad6e6a945b2690186a011f5d9fb412f0",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "bitpicky/dbt-sugar": {
+      "commit": "c0c9cf18f9adf122d36987c49dc1b8a03b61bfb6",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "dbt-labs/dbt-autofix": {
+      "commit": "216754b1d8f6f3721ab78ed9bf54abc7bf473f6f",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "dbt-labs/dbt-postgres": {
+      "commit": "4ceebd5939034123e77ad5b714d45545a7962d90",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "dbt-labs/segment": {
+      "commit": "195d6801a90efbbfbc22a466020de030e3786224",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "fivetran/dbt_hubspot_source": {
+      "commit": "bcc7781bd1bda02dd67d69a60fe7f4f5056534b2",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "garystafford/dbt-redshift-demo": {
+      "commit": "d3bc06e2282d6f6fdded675917e93936cd2c1de4",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "oracle/dbt-oracle": {
+      "commit": "16d6b27715cd8a86fc6376dd7a4626e3c6aedced",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "slidoapp/dbt-superset-lineage": {
+      "commit": "7e5cd202c1aaa916df5f52d6604eafaacd7dfd87",
+      "licence": "MIT",
+      "notice": null
+    },
+    "yu-iskw/dbt-artifacts-parser": {
+      "commit": "6a78f027904a10e5f06e53576b74ad1f58df5ecb",
+      "licence": "Apache-2.0",
+      "notice": null
+    }
+  }
+}

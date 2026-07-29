@@ -1,0 +1,104 @@
+{
+  "batch": 16,
+  "class_counts": {
+    "hard_negative": 93,
+    "negative": 2610,
+    "positive": 147
+  },
+  "dropped": {
+    "expression_missing_literal": 1,
+    "unmapped_test:dbt_utils.unique_combination_of_columns": 83
+  },
+  "per_type_counts": {
+    "none": 2703,
+    "not_null": 88,
+    "unique": 59
+  },
+  "repos": [
+    "fivetran/dbt_quickbooks_source",
+    "norton120/kimball_dbt",
+    "fivetran/dbt_google_ads_source",
+    "fivetran/dbt_netsuite_source",
+    "alfianlosari/MovieDBtvOS",
+    "PRQL/dbt-prql",
+    "google/fhir-dbt-analytics",
+    "dbt-labs/dbt-databricks-dwh-bootcamp",
+    "konosp/dbt-on-airflow",
+    "bastienboutonnet/vscode-dbt",
+    "patbuczynski/googleAds-dbt",
+    "aws-samples/aws-modernization-with-dbtlabs",
+    "aramayis1991/dbt_enpal_assessment",
+    "dche423/dbtest",
+    "dpisto/dbt-guide-starting-point",
+    "Dandandan/dbt-athena",
+    "sleekdata/oms_dbt_proj",
+    "malvik01/DBT-On-Databricks-Course",
+    "dbt-labs/ade-bench",
+    "airscholar/modern-data-eng-dbt-databricks-azure"
+  ],
+  "rows": 2850,
+  "skipped": [
+    "alfianlosari/MovieDBtvOS",
+    "dbt-labs/dbt-databricks-dwh-bootcamp",
+    "konosp/dbt-on-airflow",
+    "patbuczynski/googleAds-dbt",
+    "aramayis1991/dbt_enpal_assessment",
+    "dche423/dbtest",
+    "dpisto/dbt-guide-starting-point",
+    "sleekdata/oms_dbt_proj",
+    "malvik01/DBT-On-Databricks-Course",
+    "airscholar/modern-data-eng-dbt-databricks-azure"
+  ],
+  "sources": {
+    "Dandandan/dbt-athena": {
+      "commit": "65f370d166fcdfe1143b7f2e601bc3570a95d3c6",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "PRQL/dbt-prql": {
+      "commit": "c25aa14e7f99ed4a4378790b4a9b64302328f429",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "aws-samples/aws-modernization-with-dbtlabs": {
+      "commit": "52ab908891914c171e9c306c36d77a5928c2d79e",
+      "licence": "MIT",
+      "notice": null
+    },
+    "bastienboutonnet/vscode-dbt": {
+      "commit": "f9b9787b0b0856b449b9710ed351fa9f8e02b7f0",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "dbt-labs/ade-bench": {
+      "commit": "df1e9e29d41607bcb9fffd3cd943b425d720db3f",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "fivetran/dbt_google_ads_source": {
+      "commit": "1ed0ed7d5ac36d760035c3e7493f49aa8c808b7c",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "fivetran/dbt_netsuite_source": {
+      "commit": "b233689af981c4d45219753b1606037ea63c0994",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "fivetran/dbt_quickbooks_source": {
+      "commit": "a5c2c6a6259d7814439fb99f65e051c90b9e0f41",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "google/fhir-dbt-analytics": {
+      "commit": "80414cad9779ebe483f5feb4171fdc3b2464767b",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "norton120/kimball_dbt": {
+      "commit": "207db00da387b9ca168b204814b997614753a487",
+      "licence": "MIT",
+      "notice": null
+    }
+  }
+}

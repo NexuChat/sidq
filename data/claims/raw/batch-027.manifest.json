@@ -1,0 +1,57 @@
+{
+  "batch": 27,
+  "class_counts": {},
+  "dropped": {},
+  "per_type_counts": {},
+  "repos": [
+    "fivetran/jira_source",
+    "fivetran/facebook_pages_source",
+    "fivetran/zendesk_source",
+    "fivetran/facebook_ads",
+    "fivetran/shopify",
+    "fivetran/pardot",
+    "fivetran/amazon_ads_source",
+    "fivetran/amplitude_source",
+    "fivetran/google_play",
+    "fivetran/sap_source",
+    "mjirv/dbt_datamocktool",
+    "Datavault-UK/dbtvault",
+    "Datavault-UK/automate_dv",
+    "grafana/leaner_query",
+    "dlt-hub/ga4_event_export",
+    "dlt-hub/salesforce",
+    "dlt-hub/chess_pipeline",
+    "dlt-hub/freshdesk_pipeline",
+    "dlt-hub/hubspot",
+    "dlt-hub/github_events"
+  ],
+  "rows": 0,
+  "skipped": [
+    "fivetran/jira_source",
+    "fivetran/facebook_pages_source",
+    "fivetran/zendesk_source",
+    "fivetran/facebook_ads",
+    "fivetran/shopify",
+    "fivetran/pardot",
+    "fivetran/amazon_ads_source",
+    "fivetran/amplitude_source",
+    "fivetran/google_play",
+    "fivetran/sap_source",
+    "mjirv/dbt_datamocktool",
+    "Datavault-UK/automate_dv",
+    "grafana/leaner_query",
+    "dlt-hub/ga4_event_export",
+    "dlt-hub/salesforce",
+    "dlt-hub/chess_pipeline",
+    "dlt-hub/freshdesk_pipeline",
+    "dlt-hub/hubspot",
+    "dlt-hub/github_events"
+  ],
+  "sources": {
+    "Datavault-UK/dbtvault": {
+      "commit": "0aa71153fbb233c630de07e3bb2a8ea3801880e1",
+      "licence": "Apache-2.0",
+      "notice": "AutomateDV (f.k.a dbtvault)\nCopyright 2019-2026 Business Thinking Ltd (Trading as Datavault).\n\nLicensed under the Apache License, Version 2.0 (the \"License\");\nyou may not use this file except in compliance with the License.\nYou may obtain a copy of the License at\n\n   http://www.apache.org/licenses/LICENSE-2.0\n\nUnless required by applicable law or agreed to in writing, software\ndistributed under the License is distributed on an \"AS IS\" BASIS,\nWITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\nSee the License for the specific language governing permissions and\nlimitations under the License."
+    }
+  }
+}

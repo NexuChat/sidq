@@ -1,0 +1,106 @@
+{
+  "batch": 6,
+  "class_counts": {
+    "hard_negative": 42,
+    "negative": 520,
+    "positive": 78
+  },
+  "dropped": {
+    "expression_missing_literal": 2,
+    "unmapped_test:advanced_equality": 1
+  },
+  "per_type_counts": {
+    "accepted_values": 1,
+    "none": 562,
+    "not_null": 49,
+    "relationships": 1,
+    "unique": 27
+  },
+  "repos": [
+    "dbt-labs/jaffle-shop",
+    "Data-Engineer-Camp/dbt-dimensional-modelling",
+    "Tomme/dbt-athena",
+    "fivetran/dbt_ad_reporting",
+    "LinkedInLearning/data-engineering-with-data-build-tool-dbt-4458303",
+    "datnguye/dbterd",
+    "astronomer/airflow-dbt-demo",
+    "dbt-labs/dbt-python-hands-on-lab-snowpark",
+    "dbt-labs/jaffle-shop-classic",
+    "dbt-labs/dbt-starter-project",
+    "jeremyholtzman/jrtests-learn-dbt",
+    "paintstripper/DBTileButton",
+    "get-select/dbt-snowflake-monitoring",
+    "dbeatty10/dbt-mysql",
+    "nicholasyager/dbt-loom",
+    "dbt-labs/docs.getdbt.com",
+    "erika-e/dbt-tips",
+    "microsoft/dbt-fabric",
+    "htorun/dbtableprinter",
+    "bruno-szdl/dbt-ci-cd"
+  ],
+  "rows": 640,
+  "skipped": [
+    "dbt-labs/jaffle-shop",
+    "LinkedInLearning/data-engineering-with-data-build-tool-dbt-4458303",
+    "astronomer/airflow-dbt-demo",
+    "dbt-labs/dbt-python-hands-on-lab-snowpark",
+    "dbt-labs/dbt-starter-project",
+    "jeremyholtzman/jrtests-learn-dbt",
+    "paintstripper/DBTileButton",
+    "erika-e/dbt-tips",
+    "htorun/dbtableprinter",
+    "bruno-szdl/dbt-ci-cd"
+  ],
+  "sources": {
+    "Data-Engineer-Camp/dbt-dimensional-modelling": {
+      "commit": "f04d1876137e212e8c133ba75622aeec98bab225",
+      "licence": "MIT",
+      "notice": null
+    },
+    "Tomme/dbt-athena": {
+      "commit": "83f775643ab6e1edea605bc3f187ef28c2d20947",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "datnguye/dbterd": {
+      "commit": "193ddd77689b7f9b0035de6c25b6b2c789cf1b7b",
+      "licence": "MIT",
+      "notice": null
+    },
+    "dbeatty10/dbt-mysql": {
+      "commit": "09e076f7203ffe1486f3bf8394ec3bb9c5b38ddc",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "dbt-labs/docs.getdbt.com": {
+      "commit": "e32104295c42f57856bff948e23561dd5527eaea",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "dbt-labs/jaffle-shop-classic": {
+      "commit": "fd7bfacae4f497ff044a6a0275268676bf1b64c3",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "fivetran/dbt_ad_reporting": {
+      "commit": "c51b83428447fc2e08337399510bd07426f6f182",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "get-select/dbt-snowflake-monitoring": {
+      "commit": "ff52462722e6e7eb8063d85f6434fb13dc780055",
+      "licence": "MIT",
+      "notice": null
+    },
+    "microsoft/dbt-fabric": {
+      "commit": "0de219082282724a789b0d1b18509d39899da8e1",
+      "licence": "MIT",
+      "notice": null
+    },
+    "nicholasyager/dbt-loom": {
+      "commit": "4f9092090cda31c7c473997292824f6587007636",
+      "licence": "Unlicense",
+      "notice": null
+    }
+  }
+}

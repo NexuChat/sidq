@@ -1,0 +1,118 @@
+{
+  "batch": 8,
+  "class_counts": {
+    "hard_negative": 14,
+    "negative": 103,
+    "positive": 42
+  },
+  "dropped": {
+    "unmapped_test:dbt_datamocktool.unit_test": 4,
+    "unmapped_test:dbt_datamocktool.unit_test_incremental": 1
+  },
+  "per_type_counts": {
+    "expression": 2,
+    "none": 117,
+    "not_null": 23,
+    "relationships": 9,
+    "unique": 8
+  },
+  "repos": [
+    "microsoft/dbt-fabricspark",
+    "Josepdal/DBTeamV2",
+    "dbt-labs/dbt-project-maturity",
+    "kristeligt-dagblad/dbt_ml",
+    "PicnicSupermarket/dbt-score",
+    "microsoft/dbt-synapse",
+    "datacoves/dbt-coves",
+    "dbt-labs/terraform-provider-dbtcloud",
+    "ftupas/dbt-spotify-analytics",
+    "StarRocks/dbt-starrocks",
+    "dremio/dbt-dremio",
+    "dbt-labs/dbt-learn-jinja",
+    "dbt-labs/dbt-presto",
+    "mjirv/dbt-datamocktool",
+    "dbt-labs/dbt-learn-group-training",
+    "flexanalytics/dbt-business-intelligence",
+    "dbt-labs/dbt-event-logging",
+    "entechlog/dbt-snow-mask",
+    "dbt-labs/dbt-semantic-interfaces",
+    "kzzzr/dbt_clickhouse_lab"
+  ],
+  "rows": 159,
+  "skipped": [
+    "Josepdal/DBTeamV2",
+    "dbt-labs/dbt-project-maturity",
+    "dbt-labs/dbt-learn-jinja",
+    "dbt-labs/dbt-learn-group-training",
+    "flexanalytics/dbt-business-intelligence",
+    "entechlog/dbt-snow-mask",
+    "kzzzr/dbt_clickhouse_lab"
+  ],
+  "sources": {
+    "PicnicSupermarket/dbt-score": {
+      "commit": "30785dc3ed758a6b3b8e494812e4c16a4700dd04",
+      "licence": "MIT",
+      "notice": null
+    },
+    "StarRocks/dbt-starrocks": {
+      "commit": "604c26ae89464eeaada221c2ec139b7497075bf8",
+      "licence": "Apache-2.0",
+      "notice": "dbt-starrocks\nCopyright 2021-present StarRocks, Inc.\n\nThis product includes software developed at\nStarRocks, Inc. (https://www.starrocks.io/).\n\nLicensed under the Apache License, Version 2.0 (the \"License\");\nyou may not use this file except in compliance with the License.\nYou may obtain a copy of the License at\n\n    http://www.apache.org/licenses/LICENSE-2.0\n\nUnless required by applicable law or agreed to in writing, software\ndistributed under the License is distributed on an \"AS IS\" BASIS,\nWITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\nSee the License for the specific language governing permissions and\nlimitations under the License."
+    },
+    "datacoves/dbt-coves": {
+      "commit": "db1ce1dfc633d0bb26ebf258d024a906b131b8b6",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "dbt-labs/dbt-event-logging": {
+      "commit": "7b289a58cfe5a0219d0a291f5439aa7c639076f2",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "dbt-labs/dbt-presto": {
+      "commit": "684feee53dcfbd76a30acf7e3e83625cf334932e",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "dbt-labs/dbt-semantic-interfaces": {
+      "commit": "c2ba16a0c3367d68f5e14d3da1403858b66b6724",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "dbt-labs/terraform-provider-dbtcloud": {
+      "commit": "765cc5634133d1d6c58a9b7cebe673493392b23f",
+      "licence": "MIT",
+      "notice": null
+    },
+    "dremio/dbt-dremio": {
+      "commit": "3d7fb0e4160334d09bd896f7e3685518f263a7ec",
+      "licence": "Apache-2.0",
+      "notice": "Dremio\nCopyright 2022 Dremio Corporation\n\nThis project includes code originating from https://github.com/fabrice-etanchaud/dbt-dremio that was developed by Fabrice Etanchaud.\n\n--------------------------------------------------------------------------------\n\nThis project includes code from Ryan Murray with the following copyright notice:\n\n| Copyright (c) 2019 Ryan Murray."
+    },
+    "ftupas/dbt-spotify-analytics": {
+      "commit": "5cb4b49b81f276c32dcf0aeab58c2fed4e358d36",
+      "licence": "MIT",
+      "notice": null
+    },
+    "kristeligt-dagblad/dbt_ml": {
+      "commit": "d3502bb6ac37908255b38a5db20aaff5d034fced",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "microsoft/dbt-fabricspark": {
+      "commit": "809e8f65ea13481308611f52d610d8c2ee246798",
+      "licence": "MIT",
+      "notice": null
+    },
+    "microsoft/dbt-synapse": {
+      "commit": "bc3b5c874db3a3bb9a0ec4e92a5f49daa6f47e04",
+      "licence": "MIT",
+      "notice": null
+    },
+    "mjirv/dbt-datamocktool": {
+      "commit": "5a4c311edfb2e5a915950e8ecd00ea0bb2ac89cb",
+      "licence": "Apache-2.0",
+      "notice": null
+    }
+  }
+}

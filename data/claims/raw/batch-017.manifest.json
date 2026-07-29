@@ -1,0 +1,110 @@
+{
+  "batch": 17,
+  "class_counts": {
+    "hard_negative": 89,
+    "negative": 2032,
+    "positive": 99
+  },
+  "dropped": {
+    "unmapped_test:dbt_utils.unique_combination_of_columns": 15,
+    "unmapped_test:is_boolean": 1
+  },
+  "per_type_counts": {
+    "accepted_values": 5,
+    "none": 2121,
+    "not_null": 70,
+    "relationships": 2,
+    "unique": 22
+  },
+  "repos": [
+    "anshlambagit/Walmart_Airflow_DBT_Project",
+    "dbt-ethz/mola",
+    "thejasono/data-pipeline-airflow-api-postgres-dbt-powerbi",
+    "Astoriel/dbt-doctor",
+    "dbt-labs/python-snowpark-formula1",
+    "intellishore/dbt-erdiagram-generator",
+    "techvaquero/dbtpcdi",
+    "snowplow/dbt-snowplow-utils",
+    "srokicki/HybridDBT",
+    "Divergent-Insights/dbt-dataquality",
+    "dbt-labs/stripe",
+    "PaddyAlton/DBT-GA4",
+    "fivetran/dbt_facebook_ads_source",
+    "kestra-io/plugin-dbt",
+    "dbt-labs/dbt-cloud-snowflake-demo-template",
+    "Jeremynadalippon/dbt-ippon-training",
+    "Fszta/dbt-column-lineage",
+    "duneanalytics/dune-dbt-template",
+    "fivetran/dbt_salesforce_source",
+    "prerak-proof/dbtests"
+  ],
+  "rows": 2220,
+  "skipped": [
+    "anshlambagit/Walmart_Airflow_DBT_Project",
+    "dbt-ethz/mola",
+    "thejasono/data-pipeline-airflow-api-postgres-dbt-powerbi",
+    "dbt-labs/python-snowpark-formula1",
+    "snowplow/dbt-snowplow-utils",
+    "dbt-labs/dbt-cloud-snowflake-demo-template",
+    "Jeremynadalippon/dbt-ippon-training",
+    "duneanalytics/dune-dbt-template",
+    "prerak-proof/dbtests"
+  ],
+  "sources": {
+    "Astoriel/dbt-doctor": {
+      "commit": "ad5e740bf0a68868b610d7f81b7d8b2aa8840708",
+      "licence": "MIT",
+      "notice": null
+    },
+    "Divergent-Insights/dbt-dataquality": {
+      "commit": "389381625fca15933f086b1555fb57e262476383",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "Fszta/dbt-column-lineage": {
+      "commit": "49172bd031cdca076a01f0c2b8d15d551e96d6fb",
+      "licence": "MIT",
+      "notice": null
+    },
+    "PaddyAlton/DBT-GA4": {
+      "commit": "14e5ebca40807e9ef05d62cdab5b7a172875a2f7",
+      "licence": "MIT",
+      "notice": null
+    },
+    "dbt-labs/stripe": {
+      "commit": "ad3b1f9b471848b7921ffe05c049e2bf1e2d683b",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "fivetran/dbt_facebook_ads_source": {
+      "commit": "08485e2cddd9dbb1055a7975c5ec70a09fd24215",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "fivetran/dbt_salesforce_source": {
+      "commit": "6a060f9957d27d287fa5b55bc27ed0e92d1d96a4",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "intellishore/dbt-erdiagram-generator": {
+      "commit": "a8150cb192042ccf8c8c3fd2c60cefc71884e95d",
+      "licence": "MIT",
+      "notice": null
+    },
+    "kestra-io/plugin-dbt": {
+      "commit": "6ca9e67ddedf12cab1ca0193dff260f2bd0c560b",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "srokicki/HybridDBT": {
+      "commit": "ddfbe8b2a9a98fe9a8f4bab876614c7af5c002e1",
+      "licence": "MIT",
+      "notice": null
+    },
+    "techvaquero/dbtpcdi": {
+      "commit": "e2350022307fbdb14fade1346132e7b44412dbf5",
+      "licence": "Apache-2.0",
+      "notice": null
+    }
+  }
+}

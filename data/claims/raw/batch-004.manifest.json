@@ -1,0 +1,136 @@
+{
+  "batch": 4,
+  "class_counts": {
+    "hard_negative": 47,
+    "negative": 577,
+    "positive": 124
+  },
+  "dropped": {
+    "expression_missing_literal": 4,
+    "model_level_unique_or_not_null": 4,
+    "unmapped_test:dbt_expectations.expect_compound_columns_to_be_unique": 6,
+    "unmapped_test:dbt_expectations.expect_grouped_row_values_to_have_recent_data": 1,
+    "unmapped_test:dbt_expectations.expect_table_row_count_to_be_between": 2,
+    "unmapped_test:dbt_expectations.expect_table_row_count_to_be_between:": 296,
+    "unmapped_test:elementary.exposure_schema_validity": 2,
+    "unmapped_test:is_positive_amount": 8
+  },
+  "per_type_counts": {
+    "accepted_values": 1,
+    "none": 624,
+    "not_null": 78,
+    "relationships": 7,
+    "unique": 38
+  },
+  "repos": [
+    "jack-cook-repo/dbt-tutorial-course",
+    "dbt-labs/dbt-fusion",
+    "dbt-labs/dbt-mcp",
+    "dbt-labs/dbt-bigquery",
+    "duckdb/dbt-duckdb",
+    "databricks/dbt-databricks",
+    "0xnirmal/dbt",
+    "Snowflake-Labs/getting-started-with-dbt-on-snowflake",
+    "brooklyn-data/dbt_artifacts",
+    "Josepdal/DBTeamV1",
+    "ClickHouse/dbt-clickhouse",
+    "dbt-labs/dbt-athena",
+    "dbt-msft/dbt-sqlserver",
+    "uplimit/course-dbt",
+    "jazzband/django-dbtemplates",
+    "Velir/dbt-ga4",
+    "hangum/TadpoleForDBTools",
+    "edasque/DynamoDBtoCSV",
+    "elementary-data/dbt-data-reliability",
+    "fal-ai/dbt-fal"
+  ],
+  "rows": 748,
+  "skipped": [
+    "jack-cook-repo/dbt-tutorial-course",
+    "Josepdal/DBTeamV1",
+    "uplimit/course-dbt",
+    "hangum/TadpoleForDBTools"
+  ],
+  "sources": {
+    "0xnirmal/dbt": {
+      "commit": "80659ce7dc32ad3e1d050ec9990b363917ae7047",
+      "licence": "MIT",
+      "notice": null
+    },
+    "ClickHouse/dbt-clickhouse": {
+      "commit": "c4a40b2308452a6ee3a3974ead710eb71976b1be",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "Snowflake-Labs/getting-started-with-dbt-on-snowflake": {
+      "commit": "fb8047989181dbbaa8c088da4a91324a1e459c29",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "Velir/dbt-ga4": {
+      "commit": "f421312bf7a33bad82f4737059670de2dc25cd32",
+      "licence": "MIT",
+      "notice": null
+    },
+    "brooklyn-data/dbt_artifacts": {
+      "commit": "8ef32a4d0b015accf3f4107d27f32d13fbfe954f",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "databricks/dbt-databricks": {
+      "commit": "7989bbc647387cb710d5c5a960b976ddf4a30911",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "dbt-labs/dbt-athena": {
+      "commit": "ead6879b561b2637753f9d88b8309b16c2abc606",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "dbt-labs/dbt-bigquery": {
+      "commit": "0995665e490cdee9c408d26aac8e1c19fefaebe0",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "dbt-labs/dbt-fusion": {
+      "commit": "9977b6cbb1b761065536300037560d8e3c037011",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "dbt-labs/dbt-mcp": {
+      "commit": "a242b390d6b8b70a0190371423fa2ff89ee78c98",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "dbt-msft/dbt-sqlserver": {
+      "commit": "bcb3cddeea5c1b756d82f4312b7da504dd18e363",
+      "licence": "MIT",
+      "notice": null
+    },
+    "duckdb/dbt-duckdb": {
+      "commit": "f96b22c165cd7ea48687c5325f6e83f0bcdd003e",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "edasque/DynamoDBtoCSV": {
+      "commit": "3b8d00f9d56b14b27dcc33659e34d33a9e6d013e",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "elementary-data/dbt-data-reliability": {
+      "commit": "ccb0de3409756b7c3d2a08a6216be7ba548c18ab",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "fal-ai/dbt-fal": {
+      "commit": "cb816240028d9279077e789bd930a003208672a1",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "jazzband/django-dbtemplates": {
+      "commit": "eab2ce0a7edbbd593f37538be358e58a7b237af0",
+      "licence": "BSD-3-Clause",
+      "notice": null
+    }
+  }
+}

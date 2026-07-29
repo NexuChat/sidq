@@ -1,0 +1,92 @@
+{
+  "batch": 35,
+  "class_counts": {
+    "hard_negative": 4,
+    "negative": 213,
+    "positive": 164
+  },
+  "dropped": {
+    "expression_missing_literal": 1,
+    "unmapped_test:dq_tools.equal_rowcount_where_db": 4,
+    "unmapped_test:dq_tools.equality_where_db": 4,
+    "unmapped_test:dq_tools.expression_is_true_db": 21,
+    "unmapped_test:dq_tools.recency_db": 1,
+    "unmapped_test:dq_tools.unique_where_db": 1,
+    "unmapped_test:is_alphanumeric": 4
+  },
+  "per_type_counts": {
+    "accepted_values": 20,
+    "expression": 22,
+    "none": 217,
+    "not_null": 89,
+    "relationships": 9,
+    "unique": 24
+  },
+  "repos": [
+    "pikeche/philip_project",
+    "habeas81/dcs_data",
+    "poplifostacks/dbt-cloud-demo",
+    "heatcheck64/407_lab",
+    "PrathapAI/projbigquery",
+    "hendrik-spl/dogs-as-a-service-pipeline",
+    "prefeitura-rio/queries-rj-iplanrio",
+    "hendrywijaya98/nyc_taxi_trip",
+    "r0sate/covid_insights_pipeline",
+    "Hiflylabs/dbt_snowflake_artifacts",
+    "remisharoon/dbt-production-blueprint",
+    "hiroaki1208/trading-dbt",
+    "robsrot/weather_analytics",
+    "IEUX/localBike",
+    "rohithay/ecomm-analysis",
+    "ifyjakande/finflow-analytics-dbt",
+    "Sehajbirsingh/dbtlearn",
+    "IlyasI/data-pipeline-demo",
+    "shankarlohar/dbt-snowflake-data-pipeline",
+    "infinitelambda/dq-tools"
+  ],
+  "rows": 381,
+  "skipped": [
+    "pikeche/philip_project",
+    "habeas81/dcs_data",
+    "poplifostacks/dbt-cloud-demo",
+    "heatcheck64/407_lab",
+    "PrathapAI/projbigquery",
+    "hendrik-spl/dogs-as-a-service-pipeline",
+    "prefeitura-rio/queries-rj-iplanrio",
+    "hendrywijaya98/nyc_taxi_trip",
+    "r0sate/covid_insights_pipeline",
+    "hiroaki1208/trading-dbt",
+    "robsrot/weather_analytics",
+    "IEUX/localBike",
+    "ifyjakande/finflow-analytics-dbt",
+    "Sehajbirsingh/dbtlearn",
+    "shankarlohar/dbt-snowflake-data-pipeline"
+  ],
+  "sources": {
+    "Hiflylabs/dbt_snowflake_artifacts": {
+      "commit": "5783fda7d1f51f42ec6e019a6f85f6a36c2e0699",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "IlyasI/data-pipeline-demo": {
+      "commit": "ca7d3b7b27173235307a5377ac61dbea128767be",
+      "licence": "MIT",
+      "notice": null
+    },
+    "infinitelambda/dq-tools": {
+      "commit": "f3a01ec2fe646efa3a7d5d81e76c9231e938cb57",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "remisharoon/dbt-production-blueprint": {
+      "commit": "f0d124091e634c5001ba0fe470cbb895ba2eff81",
+      "licence": "MIT",
+      "notice": null
+    },
+    "rohithay/ecomm-analysis": {
+      "commit": "d463fd419ec56b02e0e4b141430b41502fdb4ce3",
+      "licence": "Apache-2.0",
+      "notice": null
+    }
+  }
+}

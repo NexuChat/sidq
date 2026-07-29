@@ -1,0 +1,66 @@
+{
+  "batch": 25,
+  "class_counts": {
+    "hard_negative": 18,
+    "negative": 277,
+    "positive": 14
+  },
+  "dropped": {
+    "unmapped_test:dbt_utils.unique_combination_of_columns": 8
+  },
+  "per_type_counts": {
+    "none": 295,
+    "not_null": 14
+  },
+  "repos": [
+    "fivetran/xero_source",
+    "fivetran/klaviyo_source",
+    "fivetran/aws_cloud_cost",
+    "fivetran/hubspot_source",
+    "fivetran/hubspot",
+    "fivetran/twilio",
+    "fivetran/amplitude",
+    "fivetran/salesforce_source",
+    "fivetran/microsoft_ads",
+    "fivetran/zuora_source",
+    "fivetran/github_source",
+    "fivetran/twitter_organic",
+    "fivetran/linkedin_pages_source",
+    "fivetran/snapchat_ads_source",
+    "fivetran/iterable",
+    "fivetran/snapchat_ads",
+    "fivetran/linkedin_source",
+    "fivetran/sage_intacct_source",
+    "fivetran/ad_reporting",
+    "fivetran/salesforce_marketing_cloud"
+  ],
+  "rows": 309,
+  "skipped": [
+    "fivetran/xero_source",
+    "fivetran/klaviyo_source",
+    "fivetran/aws_cloud_cost",
+    "fivetran/hubspot_source",
+    "fivetran/hubspot",
+    "fivetran/twilio",
+    "fivetran/amplitude",
+    "fivetran/salesforce_source",
+    "fivetran/microsoft_ads",
+    "fivetran/zuora_source",
+    "fivetran/github_source",
+    "fivetran/twitter_organic",
+    "fivetran/linkedin_pages_source",
+    "fivetran/snapchat_ads_source",
+    "fivetran/iterable",
+    "fivetran/snapchat_ads",
+    "fivetran/sage_intacct_source",
+    "fivetran/ad_reporting",
+    "fivetran/salesforce_marketing_cloud"
+  ],
+  "sources": {
+    "fivetran/linkedin_source": {
+      "commit": "b608cdd60666238631f6d8190f9ebf8c9c8465be",
+      "licence": "Apache-2.0",
+      "notice": null
+    }
+  }
+}

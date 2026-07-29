@@ -1,0 +1,113 @@
+{
+  "batch": 20,
+  "class_counts": {
+    "hard_negative": 3,
+    "negative": 438,
+    "positive": 81
+  },
+  "dropped": {
+    "model_level_unique_or_not_null": 297,
+    "relationships_missing_to_or_field": 160,
+    "unmapped_test:dbt_datamocktool.unit_test": 4,
+    "unmapped_test:dbt_utils.equality": 9,
+    "unmapped_test:dbt_utils.unique_combination_of_columns": 2,
+    "unmapped_test:not_empty": 69
+  },
+  "per_type_counts": {
+    "none": 441,
+    "not_null": 54,
+    "relationships": 1,
+    "unique": 26
+  },
+  "repos": [
+    "dagster-io/supercharged-dbt-docs",
+    "Rodrigo-Henrique21/data_pipeline_airflow_dbt",
+    "kzzzr/mybi-dbt-core",
+    "fal-ai/dbt-cloud-action",
+    "pipelinetoinsights/dbt-example",
+    "dbt-labs/dbt-database-adapter-scaffold",
+    "dbt-labs/attribution-playbook",
+    "shabbirk-db/streaming-dbt",
+    "dgarhdez/dbt-ie",
+    "selectdb/dbt-doris",
+    "pingcap/dbt-tidb",
+    "mjirv/dbt_product_analytics",
+    "dbt-labs/dbt-Mesh-on-demand-course-platform",
+    "arnoN7/dbt-incremental-stream",
+    "fivetran/dbt_social_media_reporting",
+    "mwojtyczka/databricks-dbt-factory",
+    "dbt-labs/dbt-sql-formatter",
+    "datafold/dbt-beers",
+    "dbt-labs/jaffle_shop_metrics",
+    "fivetran/dbt_jira_source"
+  ],
+  "rows": 522,
+  "skipped": [
+    "Rodrigo-Henrique21/data_pipeline_airflow_dbt",
+    "pipelinetoinsights/dbt-example",
+    "dbt-labs/attribution-playbook",
+    "shabbirk-db/streaming-dbt",
+    "dgarhdez/dbt-ie",
+    "selectdb/dbt-doris",
+    "dbt-labs/dbt-Mesh-on-demand-course-platform",
+    "dbt-labs/dbt-sql-formatter",
+    "datafold/dbt-beers"
+  ],
+  "sources": {
+    "arnoN7/dbt-incremental-stream": {
+      "commit": "d05f8416413f049617eafdd8568a98a4c06677e7",
+      "licence": "MIT",
+      "notice": null
+    },
+    "dagster-io/supercharged-dbt-docs": {
+      "commit": "dd725270d56bd34d25bd579c6f9085d8a23da28f",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "dbt-labs/dbt-database-adapter-scaffold": {
+      "commit": "128344489d53f2230cffb43cb55dce08378f770d",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "dbt-labs/jaffle_shop_metrics": {
+      "commit": "561936cc293d21a9d74428203a35e2e6bd9681ba",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "fal-ai/dbt-cloud-action": {
+      "commit": "59f51cd87f33499d0562c9b93626db272de48f10",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "fivetran/dbt_jira_source": {
+      "commit": "e60b0594af6946462676770125c2f310abf889de",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "fivetran/dbt_social_media_reporting": {
+      "commit": "95a16464241d2c4a3052567f3a6f1b3450137ade",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "kzzzr/mybi-dbt-core": {
+      "commit": "1bfb6b02352e676ccbf203f643a050c9c2da8dd6",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "mjirv/dbt_product_analytics": {
+      "commit": "bac0472e86428bbf4955bb18a4c106a7d1225275",
+      "licence": "MIT",
+      "notice": null
+    },
+    "mwojtyczka/databricks-dbt-factory": {
+      "commit": "6132439fb124483fcff670ab2ee6820b87e17bdf",
+      "licence": "MIT",
+      "notice": null
+    },
+    "pingcap/dbt-tidb": {
+      "commit": "2e5758e150536c91a80765d1284399563efafd07",
+      "licence": "Apache-2.0",
+      "notice": null
+    }
+  }
+}

@@ -1,0 +1,164 @@
+{
+  "batch": 7,
+  "class_counts": {
+    "hard_negative": 2,
+    "negative": 25,
+    "positive": 140
+  },
+  "dropped": {
+    "expression_missing_literal": 2,
+    "model_level_unique_or_not_null": 8,
+    "relationships_missing_to_or_field": 4,
+    "unmapped_test:dbt_constraints.foreign_key": 22,
+    "unmapped_test:dbt_constraints.primary_key": 34,
+    "unmapped_test:dbt_constraints.unique_key": 20,
+    "unmapped_test:dbt_expectations.equal_expression": 3,
+    "unmapped_test:dbt_expectations.expect_column_distinct_count_to_equal_other_table": 2,
+    "unmapped_test:dbt_expectations.expect_column_pair_values_A_to_be_greater_than_B": 2,
+    "unmapped_test:dbt_expectations.expect_column_pair_values_to_be_equal": 1,
+    "unmapped_test:dbt_expectations.expect_column_pair_values_to_be_in_set": 1,
+    "unmapped_test:dbt_expectations.expect_compound_columns_to_be_unique": 7,
+    "unmapped_test:dbt_expectations.expect_grouped_row_values_to_have_recent_data": 4,
+    "unmapped_test:dbt_expectations.expect_multicolumn_sum_to_equal": 4,
+    "unmapped_test:dbt_expectations.expect_row_values_to_have_data_for_every_n_datepart": 6,
+    "unmapped_test:dbt_expectations.expect_select_column_values_to_be_unique_within_record": 1,
+    "unmapped_test:dbt_expectations.expect_table_aggregation_to_equal_other_table": 2,
+    "unmapped_test:dbt_expectations.expect_table_column_count_to_be_between": 3,
+    "unmapped_test:dbt_expectations.expect_table_column_count_to_equal": 1,
+    "unmapped_test:dbt_expectations.expect_table_column_count_to_equal_other_table": 1,
+    "unmapped_test:dbt_expectations.expect_table_columns_to_contain_set": 1,
+    "unmapped_test:dbt_expectations.expect_table_columns_to_match_ordered_list": 3,
+    "unmapped_test:dbt_expectations.expect_table_columns_to_match_set": 1,
+    "unmapped_test:dbt_expectations.expect_table_columns_to_not_contain_set": 2,
+    "unmapped_test:dbt_expectations.expect_table_row_count_to_be_between": 6,
+    "unmapped_test:dbt_expectations.expect_table_row_count_to_equal": 1,
+    "unmapped_test:dbt_expectations.expect_table_row_count_to_equal_other_table": 1,
+    "unmapped_test:dbt_expectations.expect_table_row_count_to_equal_other_table_times_factor": 3,
+    "unmapped_test:dbt_utils.equality": 18,
+    "unmapped_test:dbt_utils.unique_combination_of_columns": 6,
+    "unmapped_test:re_data.assert_equal": 1,
+    "unmapped_test:re_data.assert_false": 1,
+    "unmapped_test:re_data.assert_greater_equal": 1,
+    "unmapped_test:re_data.assert_in_range": 1,
+    "unmapped_test:re_data.metric_equal_to": 1,
+    "unmapped_test:re_data.metric_expression_is_true": 2,
+    "unmapped_test:re_data.metric_in_range": 1
+  },
+  "per_type_counts": {
+    "none": 27,
+    "not_null": 76,
+    "relationships": 30,
+    "unique": 34
+  },
+  "repos": [
+    "gmyrianthous/dbt-airflow",
+    "mwhitaker/dbt-action",
+    "Snowflake-Labs/dbt_constraints",
+    "ScalefreeCOM/datavault4dbt",
+    "tomasfarias/airflow-dbt-python",
+    "techindicium/academy-dbt",
+    "slidoapp/dbt-coverage",
+    "dbt-labs/dbt-common",
+    "b-ned/dbt-colibri",
+    "metaplane/dbt-expectations",
+    "konosp/dbt-airflow-docker-compose",
+    "dbt-labs/dbt-server",
+    "data-mie/dbt-profiler",
+    "PacktPublishing/Data-engineering-with-dbt",
+    "Montreal-Analytics/dbt-snowflake-utils",
+    "dbt-labs/dbt-labs-experimental-features",
+    "re-data/dbt-re-data",
+    "nordquant/dbt-bootcamp-codespace",
+    "dbt-labs/dbt-completion.bash",
+    "pragunbhutani/dbt-llm-agent"
+  ],
+  "rows": 167,
+  "skipped": [
+    "gmyrianthous/dbt-airflow",
+    "techindicium/academy-dbt",
+    "dbt-labs/dbt-server",
+    "nordquant/dbt-bootcamp-codespace"
+  ],
+  "sources": {
+    "Montreal-Analytics/dbt-snowflake-utils": {
+      "commit": "0ac3d18222e1d0e28bf1de3ad3535135c43cc2ff",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "PacktPublishing/Data-engineering-with-dbt": {
+      "commit": "b3f26db7a948717aeb977e42aa037d7a37aa00d7",
+      "licence": "MIT",
+      "notice": null
+    },
+    "ScalefreeCOM/datavault4dbt": {
+      "commit": "fc3047b7182b2708230f3807f7f869e77115b378",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "Snowflake-Labs/dbt_constraints": {
+      "commit": "205b5cfdd51349ab3f4b6db7e8e6faf5224a8e14",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "b-ned/dbt-colibri": {
+      "commit": "0971b22bffda457a002b428bcda544e3951c38cb",
+      "licence": "MIT",
+      "notice": null
+    },
+    "data-mie/dbt-profiler": {
+      "commit": "1cc879230b8569c095f62148db0bda76a242d249",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "dbt-labs/dbt-common": {
+      "commit": "fccab625928bd2f3a1fa0125cba49e408a5aac79",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "dbt-labs/dbt-completion.bash": {
+      "commit": "c4dbc83fb7c3c50a3275b3ced33a29f02b40cad5",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "dbt-labs/dbt-labs-experimental-features": {
+      "commit": "a42bbfc53a3c3f9864484397cd5cf9989357eed3",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "konosp/dbt-airflow-docker-compose": {
+      "commit": "25f03315cd35228b3211fb46e28d763a997ca952",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "metaplane/dbt-expectations": {
+      "commit": "991651f0afa725e32834d0ee51bb0c08f385e418",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "mwhitaker/dbt-action": {
+      "commit": "551e39166fd477a76b5b4524d4119f2a4318554f",
+      "licence": "MIT",
+      "notice": null
+    },
+    "pragunbhutani/dbt-llm-agent": {
+      "commit": "d50675f5c97ff24a5f21d141596dd2de1fa73766",
+      "licence": "MIT",
+      "notice": null
+    },
+    "re-data/dbt-re-data": {
+      "commit": "c93f125b3f4350fac914cfd82c0db37a30c81ad0",
+      "licence": "MIT",
+      "notice": null
+    },
+    "slidoapp/dbt-coverage": {
+      "commit": "6b0087b4719e3f696afb515cf7b9491a1ebe95ab",
+      "licence": "MIT",
+      "notice": null
+    },
+    "tomasfarias/airflow-dbt-python": {
+      "commit": "26d795cda79620cc5c2ed8cb907c66c0d8f73184",
+      "licence": "MIT",
+      "notice": null
+    }
+  }
+}

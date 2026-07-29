@@ -1,0 +1,70 @@
+{
+  "batch": 29,
+  "class_counts": {
+    "negative": 72,
+    "positive": 71
+  },
+  "dropped": {
+    "expression_missing_literal": 153
+  },
+  "per_type_counts": {
+    "none": 72,
+    "not_null": 67,
+    "unique": 4
+  },
+  "repos": [
+    "Matts52/dbt_stat_test",
+    "Matts52/dbt_ml_eval",
+    "Matts52/dbt_orphan",
+    "jmangroup/data_profiler",
+    "henryupton/dbt_scd2_utils",
+    "Delphi-Data/natural_language",
+    "Velir/ga4",
+    "datnguye/dbt_translate",
+    "data-diving/dbt_diving",
+    "YukiTechnologies/yuki_snowflake_dbt_tags",
+    "sgoley/postgres_utils",
+    "splitgraph/ab2ft_stripe",
+    "AltimateAI/altimate_snowflake_query_tags",
+    "masthead-data/bq_reservations",
+    "AxelThevenot/dbt_assertions",
+    "AxelThevenot/dbt_star",
+    "jaysobel/dbt_cron_timestamps",
+    "calum-mcg/fuzzy_text",
+    "fullstorydev/dbt_fullstory",
+    "tuva-health/data_profiling"
+  ],
+  "rows": 143,
+  "skipped": [
+    "Matts52/dbt_stat_test",
+    "Matts52/dbt_ml_eval",
+    "Matts52/dbt_orphan",
+    "jmangroup/data_profiler",
+    "henryupton/dbt_scd2_utils",
+    "Delphi-Data/natural_language",
+    "Velir/ga4",
+    "datnguye/dbt_translate",
+    "YukiTechnologies/yuki_snowflake_dbt_tags",
+    "sgoley/postgres_utils",
+    "splitgraph/ab2ft_stripe",
+    "AltimateAI/altimate_snowflake_query_tags",
+    "masthead-data/bq_reservations",
+    "AxelThevenot/dbt_assertions",
+    "AxelThevenot/dbt_star",
+    "jaysobel/dbt_cron_timestamps",
+    "calum-mcg/fuzzy_text",
+    "tuva-health/data_profiling"
+  ],
+  "sources": {
+    "data-diving/dbt_diving": {
+      "commit": "5de2d814229587563ef7e4be9329c17b494ccf24",
+      "licence": "MIT",
+      "notice": null
+    },
+    "fullstorydev/dbt_fullstory": {
+      "commit": "476041cfe984a87d8714ad6ac378fb1a4036d181",
+      "licence": "Apache-2.0",
+      "notice": null
+    }
+  }
+}

@@ -1,0 +1,129 @@
+{
+  "batch": 2,
+  "class_counts": {
+    "hard_negative": 401,
+    "negative": 10128,
+    "positive": 352
+  },
+  "dropped": {},
+  "per_type_counts": {
+    "none": 10529,
+    "not_null": 283,
+    "unique": 69
+  },
+  "repos": [
+    "fivetran/dbt_zendesk",
+    "fivetran/dbt_salesforce",
+    "fivetran/dbt_linkedin_ads",
+    "fivetran/dbt_twitter_ads",
+    "fivetran/dbt_marketo",
+    "fivetran/dbt_pinterest",
+    "fivetran/dbt_tiktok_ads",
+    "fivetran/dbt_amplitude",
+    "fivetran/dbt_apple_store",
+    "fivetran/dbt_klaviyo",
+    "fivetran/dbt_intercom",
+    "fivetran/dbt_github",
+    "fivetran/dbt_netsuite",
+    "fivetran/dbt_greenhouse",
+    "fivetran/dbt_drift",
+    "fivetran/dbt_quickbooks",
+    "fivetran/dbt_qualtrics",
+    "fivetran/dbt_lever",
+    "fivetran/dbt_workday",
+    "fivetran/dbt_recharge"
+  ],
+  "rows": 10881,
+  "skipped": [
+    "fivetran/dbt_linkedin_ads",
+    "fivetran/dbt_twitter_ads",
+    "fivetran/dbt_drift"
+  ],
+  "sources": {
+    "fivetran/dbt_amplitude": {
+      "commit": "bc1c729920bf49439cdfbb88cd9abb6ce74e679e",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "fivetran/dbt_apple_store": {
+      "commit": "1637ff6206784fa5617d9530dacc9dc1d24a2459",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "fivetran/dbt_github": {
+      "commit": "e913743f666165c4b14fc7976f420e59873e9426",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "fivetran/dbt_greenhouse": {
+      "commit": "96b2814be124d3ed037c446f84b6d9c7426de207",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "fivetran/dbt_intercom": {
+      "commit": "067394cd42e7f9cdc52e6708dc91b6f820ba6074",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "fivetran/dbt_klaviyo": {
+      "commit": "9b5a32ecefb393dfb6ce84abc16de6ae3d65eb47",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "fivetran/dbt_lever": {
+      "commit": "60e3d364fe7065fdc52f705220da771d54ad8da3",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "fivetran/dbt_marketo": {
+      "commit": "d1c5853aa73195457713988d6d0b285bb6977b34",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "fivetran/dbt_netsuite": {
+      "commit": "986fb90aab6ea658bf15c532a094e4f9d8ada1be",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "fivetran/dbt_pinterest": {
+      "commit": "d3cfa7b113476962499ba5500e73be8398109645",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "fivetran/dbt_qualtrics": {
+      "commit": "bcce17989addd271498a33087a824da12c22bfb6",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "fivetran/dbt_quickbooks": {
+      "commit": "cf1867c4bd77d88931ff624d5e8cbd2f75c9843d",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "fivetran/dbt_recharge": {
+      "commit": "d50142fbefdd38bd8f5110bdf4731ac080b48fcb",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "fivetran/dbt_salesforce": {
+      "commit": "87e05378f2f5de92911624492f03137adfbfd138",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "fivetran/dbt_tiktok_ads": {
+      "commit": "a0f90ff582f3e12e9d51d76204c3d1a509561d7d",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "fivetran/dbt_workday": {
+      "commit": "bf2502275536213dfc11a6f6820c2bca5a25a46c",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "fivetran/dbt_zendesk": {
+      "commit": "d4a8aa378862c51f0c6136eb16f87bef8c34e908",
+      "licence": "Apache-2.0",
+      "notice": null
+    }
+  }
+}

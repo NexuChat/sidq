@@ -1,0 +1,101 @@
+{
+  "batch": 36,
+  "class_counts": {
+    "hard_negative": 70,
+    "negative": 1280,
+    "positive": 1248
+  },
+  "dropped": {
+    "range_expectation_missing_literal_bounds": 3,
+    "unmapped_expectation:dbt_expectations.expect_column_values_to_match_regex": 1,
+    "unmapped_test:boolean_column_matches_condition": 1,
+    "unmapped_test:date_column_order": 1,
+    "unmapped_test:dbt_expectations.expect_table_row_count_to_be_between": 47,
+    "unmapped_test:dbt_utils.equal_rowcount": 1,
+    "unmapped_test:dbt_utils.unique_combination_of_columns": 70,
+    "unmapped_test:is_positive": 1,
+    "unmapped_test:no_duplicate_combination": 1,
+    "unmapped_test:rating_in_range": 1,
+    "unmapped_test:valid_ticket_types": 1,
+    "unmapped_test:where_clause": 2
+  },
+  "per_type_counts": {
+    "accepted_values": 111,
+    "expression": 21,
+    "none": 1350,
+    "not_null": 932,
+    "relationships": 27,
+    "unique": 157
+  },
+  "repos": [
+    "shawshankrai/dbtlearn",
+    "Intoxinator/dbt-migrate-generic-tests",
+    "shemar100/dbt-sandbox",
+    "Inzhenerka/dbt-scooters",
+    "simran08udhani/DBT",
+    "iplotnikov-telemedicine/analytics",
+    "ssabenoit/ssa-case-study",
+    "Iv0D/data_pipeline_clubdb",
+    "sundar139/Pixar_Analytics",
+    "Jen-ogo/geo_dbt",
+    "sushil6666/dbt_morning",
+    "jharris126/preppin-data-dbt",
+    "thebottlerocket/medallion-architecture",
+    "JoshuaSmart-Olufemi/dbt-MRR-LTV-Analysis",
+    "timlillpoppb/BigQuerySandbox",
+    "jpgianfaldoni/dbt-databricks-test",
+    "tismol/dbt",
+    "kevstyers/dbt_bigquery",
+    "tuva-health/athenahealth_connector",
+    "kgeonhoe/dbt_mini_mart"
+  ],
+  "rows": 2598,
+  "skipped": [
+    "shawshankrai/dbtlearn",
+    "Intoxinator/dbt-migrate-generic-tests",
+    "shemar100/dbt-sandbox",
+    "Inzhenerka/dbt-scooters",
+    "iplotnikov-telemedicine/analytics",
+    "Iv0D/data_pipeline_clubdb",
+    "Jen-ogo/geo_dbt",
+    "jharris126/preppin-data-dbt",
+    "JoshuaSmart-Olufemi/dbt-MRR-LTV-Analysis",
+    "timlillpoppb/BigQuerySandbox",
+    "jpgianfaldoni/dbt-databricks-test",
+    "tismol/dbt",
+    "kevstyers/dbt_bigquery",
+    "kgeonhoe/dbt_mini_mart"
+  ],
+  "sources": {
+    "simran08udhani/DBT": {
+      "commit": "e4549a72beda653b154d1bad1d92722a6354f02d",
+      "licence": "MIT",
+      "notice": null
+    },
+    "ssabenoit/ssa-case-study": {
+      "commit": "c892b4abec645bfb270306d416efd96c2919794c",
+      "licence": "MIT",
+      "notice": null
+    },
+    "sundar139/Pixar_Analytics": {
+      "commit": "a4d6c8ef2462d1ddbc6af6b2253ec88aca5afd1c",
+      "licence": "MIT",
+      "notice": null
+    },
+    "sushil6666/dbt_morning": {
+      "commit": "c5ed1ccf915dce932b040e272d2217e23f2ee1ee",
+      "licence": "MIT",
+      "notice": null
+    },
+    "thebottlerocket/medallion-architecture": {
+      "commit": "9022f3c60625a57d65740d0ef3b15b0f53887ab1",
+      "licence": "MIT",
+      "notice": null
+    },
+    "tuva-health/athenahealth_connector": {
+      "commit": "b5ec2c692553c5be83109f54f22a50252d0fb434",
+      "licence": "Apache-2.0",
+      "notice": null
+    }
+  }
+}

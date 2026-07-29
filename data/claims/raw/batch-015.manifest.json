@@ -1,0 +1,107 @@
+{
+  "batch": 15,
+  "class_counts": {
+    "hard_negative": 73,
+    "negative": 1691,
+    "positive": 411
+  },
+  "dropped": {
+    "expression_missing_literal": 39,
+    "unmapped_test:dbt_constraints.foreign_key": 15,
+    "unmapped_test:dbt_constraints.primary_key": 13,
+    "unmapped_test:dbt_utils.not_empty_string": 5,
+    "unmapped_test:dbt_utils.unique_combination_of_columns": 18,
+    "unmapped_test:positive_values": 2
+  },
+  "per_type_counts": {
+    "accepted_values": 31,
+    "expression": 55,
+    "none": 1764,
+    "not_null": 297,
+    "relationships": 4,
+    "unique": 24
+  },
+  "repos": [
+    "leogodin217/dbt-fake",
+    "borjavb/dbt-iceberg-poc",
+    "Josepdal/DBTeamV3",
+    "fivetran/dbt_salesforce_formula_utils",
+    "dbt-labs/dbt-starburst-demo",
+    "godatadriven/dbt-date",
+    "astronautyates/AirflowSnowflakeDBTQuickstart",
+    "dbtrail/dbtrail",
+    "sfc-gh-dflippo/snowflake-dbt-demo",
+    "fivetran/dbt_jira",
+    "webermatias/course_advanced_dbt",
+    "nordquant/dbt-capstone-project",
+    "dbt-labs/jaffle-sl-template",
+    "data-mie/dbt-cloud-cli",
+    "fivetran/dbt_zendesk_source",
+    "stikkireddy/dbtunnel",
+    "amelinvladimir/dbt_course",
+    "kalekem/dbt_tutorial",
+    "firebolt-db/dbt-firebolt",
+    "tarasongood2/dbt"
+  ],
+  "rows": 2175,
+  "skipped": [
+    "leogodin217/dbt-fake",
+    "borjavb/dbt-iceberg-poc",
+    "Josepdal/DBTeamV3",
+    "dbt-labs/dbt-starburst-demo",
+    "astronautyates/AirflowSnowflakeDBTQuickstart",
+    "webermatias/course_advanced_dbt",
+    "nordquant/dbt-capstone-project",
+    "dbt-labs/jaffle-sl-template",
+    "amelinvladimir/dbt_course",
+    "kalekem/dbt_tutorial",
+    "tarasongood2/dbt"
+  ],
+  "sources": {
+    "data-mie/dbt-cloud-cli": {
+      "commit": "9fc4878179bf5ddaa322d166b379f73c1d991b67",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "dbtrail/dbtrail": {
+      "commit": "0c59b9c50f5e6946e04b70e6e43d993266ec2698",
+      "licence": "Apache-2.0",
+      "notice": "bintrail\nCopyright (c) 2025 Daniel Guzman Burgos\n\nThis product is licensed under the Apache License, Version 2.0 (see LICENSE).\n\nThis product statically links third-party software (DuckDB and ~90 other Go\nmodules, plus C/C++ libraries vendored inside libduckdb). Their copyright and\nlicense notices are retained in the THIRD-PARTY-NOTICES file distributed\nalongside this NOTICE. Regenerate it with `make notices`."
+    },
+    "firebolt-db/dbt-firebolt": {
+      "commit": "77ee66819134d228733efdf7af0843751beafa51",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "fivetran/dbt_jira": {
+      "commit": "6b7d33392a306ae41a54b9a111c5d9f14a83dcb5",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "fivetran/dbt_salesforce_formula_utils": {
+      "commit": "a517e3b0f92b3af31818e64955446380a6000998",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "fivetran/dbt_zendesk_source": {
+      "commit": "3aab72b7a0d97e1b6b1b7aa9c2898333fb002cd5",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "godatadriven/dbt-date": {
+      "commit": "eecb41ec7a87d2091168ca50d272b7e8f25102a6",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "sfc-gh-dflippo/snowflake-dbt-demo": {
+      "commit": "f9db05e235299610e53a0dd98982b89da590efd1",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "stikkireddy/dbtunnel": {
+      "commit": "4ee27be913a4ccc17609bfb986e008f33b5d2076",
+      "licence": "Apache-2.0",
+      "notice": null
+    }
+  }
+}

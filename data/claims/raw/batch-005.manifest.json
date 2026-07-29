@@ -1,0 +1,134 @@
+{
+  "batch": 5,
+  "class_counts": {
+    "hard_negative": 7,
+    "negative": 174,
+    "positive": 113
+  },
+  "dropped": {},
+  "per_type_counts": {
+    "none": 181,
+    "not_null": 71,
+    "relationships": 4,
+    "unique": 38
+  },
+  "repos": [
+    "gouline/dbt-metabase",
+    "dbt-labs/dbt-docs",
+    "z3z1ma/dbt-osmosis",
+    "lightdash/dbt2looker",
+    "dbt-labs/metricflow",
+    "WeihanLi/DbTool",
+    "dbt-labs/dbt-learn-gt-init",
+    "dbt-labs/dbt-init",
+    "AltimateAI/vscode-dbt-power-user",
+    "starburstdata/dbt-trino",
+    "gocardless/airflow-dbt",
+    "EqualExperts/dbt-unit-testing",
+    "dbt-labs/dbt-agent-skills",
+    "dbt-labs/dbt-jsonschema",
+    "aws-samples/dbt-glue",
+    "daedaleanai/dbt",
+    "dbt-labs/dbt_metrics",
+    "etcd-io/dbtester",
+    "dbt-labs/dbt-redshift",
+    "josephmachado/simple_dbt_project"
+  ],
+  "rows": 294,
+  "skipped": [
+    "dbt-labs/dbt-learn-gt-init",
+    "josephmachado/simple_dbt_project"
+  ],
+  "sources": {
+    "AltimateAI/vscode-dbt-power-user": {
+      "commit": "4022831a7450665a9ab721eb3b90a824311087e5",
+      "licence": "MIT",
+      "notice": null
+    },
+    "EqualExperts/dbt-unit-testing": {
+      "commit": "fbfd8967ddd9b6c919e2ba487e9f37f75950c4e0",
+      "licence": "MIT",
+      "notice": null
+    },
+    "WeihanLi/DbTool": {
+      "commit": "03966f418ed09097b39fadf30f196afec823ac48",
+      "licence": "MIT",
+      "notice": null
+    },
+    "aws-samples/dbt-glue": {
+      "commit": "8160886ca950c9ee392dff578eabf9f12c8fa375",
+      "licence": "Apache-2.0",
+      "notice": "Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved."
+    },
+    "daedaleanai/dbt": {
+      "commit": "8072fd78655655be0f5b3b5de78930183e0f616f",
+      "licence": "MIT",
+      "notice": null
+    },
+    "dbt-labs/dbt-agent-skills": {
+      "commit": "de682831d6736f9205c717c344d627abc21da255",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "dbt-labs/dbt-docs": {
+      "commit": "6a7610bce41bc941c012feff20c864a1b3756ebc",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "dbt-labs/dbt-init": {
+      "commit": "d0ae5beacd408639273b1db978110317e8f6c080",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "dbt-labs/dbt-jsonschema": {
+      "commit": "c3fbbab510dc1a80dac10b08b40eef476a7799bb",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "dbt-labs/dbt-redshift": {
+      "commit": "d1187f9b4de51c16f2c97f4dbde2cd07ecd66747",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "dbt-labs/dbt_metrics": {
+      "commit": "d59d3b0272125ad1b2d8d5bf2972920755cf64b3",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "dbt-labs/metricflow": {
+      "commit": "4e7c20abebec8baaeb7b134a5590ce8e25702e50",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "etcd-io/dbtester": {
+      "commit": "4c8e30b24d6d47793c6aaf65a59a6517990c45ab",
+      "licence": "Apache-2.0",
+      "notice": "CoreOS Project\nCopyright 2015 CoreOS, Inc\n\nThis product includes software developed at CoreOS, Inc.\n(http://www.coreos.com/)."
+    },
+    "gocardless/airflow-dbt": {
+      "commit": "1eddf5266d151f09cafba57e21d9d140a587b5f1",
+      "licence": "MIT",
+      "notice": null
+    },
+    "gouline/dbt-metabase": {
+      "commit": "7ed550331222b2b2a7d354bc1f00e2b940543070",
+      "licence": "MIT",
+      "notice": null
+    },
+    "lightdash/dbt2looker": {
+      "commit": "2dadff335fbc0f6e82be6945d4aea554705c5006",
+      "licence": "MIT",
+      "notice": null
+    },
+    "starburstdata/dbt-trino": {
+      "commit": "1fa56a71698c22cf911d38fee21e07fcba632f35",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "z3z1ma/dbt-osmosis": {
+      "commit": "3cc00a57fa4883050fd5cffeba7adee9d6d0d4d3",
+      "licence": "Apache-2.0",
+      "notice": null
+    }
+  }
+}

@@ -1,0 +1,89 @@
+{
+  "batch": 30,
+  "class_counts": {
+    "hard_negative": 34,
+    "negative": 700,
+    "positive": 64
+  },
+  "dropped": {
+    "model_level_unique_or_not_null": 4,
+    "unmapped_test:dbt_utils.unique_combination_of_columns": 6
+  },
+  "per_type_counts": {
+    "accepted_values": 8,
+    "none": 734,
+    "not_null": 52,
+    "unique": 4
+  },
+  "repos": [
+    "tuva-health/readmissions",
+    "tuva-health/cms_chronic_conditions",
+    "tuva-health/tuva",
+    "tuva-health/medicare_cclf_connector",
+    "tuva-health/medicare_claims_connector",
+    "tuva-health/the_tuva_project",
+    "tuva-health/terminology",
+    "tuva-health/chronic_conditions",
+    "tuva-health/claims_preprocessing",
+    "tuva-health/core",
+    "tuva-health/tuva_chronic_conditions",
+    "tuva-health/pmpm",
+    "TasmanAnalytics/tasman_dbt_package",
+    "TasmanAnalytics/tasman_dbt_mta",
+    "TasmanAnalytics/tasman_identity_graph",
+    "TasmanAnalytics/tasman_dbt_revenuecat",
+    "hightouchio/dbt_hightouch",
+    "tnightengale/dbt_meta_testing",
+    "tnightengale/dbt_activity_schema",
+    "windsor-ai/dbt_facebook_ads"
+  ],
+  "rows": 798,
+  "skipped": [
+    "tuva-health/tuva",
+    "tuva-health/the_tuva_project",
+    "tuva-health/terminology",
+    "tuva-health/claims_preprocessing",
+    "tuva-health/core",
+    "tuva-health/tuva_chronic_conditions",
+    "tuva-health/pmpm",
+    "TasmanAnalytics/tasman_dbt_package",
+    "TasmanAnalytics/tasman_dbt_mta",
+    "TasmanAnalytics/tasman_identity_graph",
+    "TasmanAnalytics/tasman_dbt_revenuecat",
+    "hightouchio/dbt_hightouch",
+    "tnightengale/dbt_meta_testing",
+    "tnightengale/dbt_activity_schema"
+  ],
+  "sources": {
+    "tuva-health/chronic_conditions": {
+      "commit": "e99283b9e5f5be58115cdfa4fc462b955a20eb38",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "tuva-health/cms_chronic_conditions": {
+      "commit": "e99283b9e5f5be58115cdfa4fc462b955a20eb38",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "tuva-health/medicare_cclf_connector": {
+      "commit": "603a258e3c649d6a4eb7d0835e8efc7d79371204",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "tuva-health/medicare_claims_connector": {
+      "commit": "603a258e3c649d6a4eb7d0835e8efc7d79371204",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "tuva-health/readmissions": {
+      "commit": "136a572dbb76c56b584a92c917b2fdd494124a22",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "windsor-ai/dbt_facebook_ads": {
+      "commit": "ca0a57d9846b4072977ddd7e2ce945f4f53bd743",
+      "licence": "MIT",
+      "notice": null
+    }
+  }
+}

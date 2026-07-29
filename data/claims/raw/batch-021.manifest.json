@@ -1,0 +1,77 @@
+{
+  "batch": 21,
+  "class_counts": {
+    "negative": 58,
+    "positive": 18
+  },
+  "dropped": {
+    "accepted_range_missing_literal_bounds": 2,
+    "unmapped_test:dbt_utils.equality": 54,
+    "unmapped_test:dbt_utils.unique_combination_of_columns": 4,
+    "unmapped_test:is_empty": 27
+  },
+  "per_type_counts": {
+    "none": 58,
+    "not_null": 8,
+    "unique": 10
+  },
+  "repos": [
+    "dbt-labs/dbt_external_tables",
+    "dbt-labs/codegen",
+    "dbt-labs/stitch_utils",
+    "dbt-labs/dbt_utils",
+    "dbt-labs/adwords",
+    "dbt-labs/logging",
+    "dbt-labs/spark_utils",
+    "dbt-labs/metrics",
+    "dbt-labs/audit_helper",
+    "dbt-labs/facebook_ads",
+    "dbt-labs/dbt_project_evaluator",
+    "gmdata-co/portable_google_sheets",
+    "1997mahadi/crypto_dlt_pipeline",
+    "1997mahadi/my_dbt_project",
+    "versent/dbt_versent_dimensional_automate",
+    "rudderlabs/rudder_id_resolution",
+    "rudderlabs/rudder_events_registry",
+    "rudderlabs/id_stitching",
+    "rudderlabs/rudder_sessionization",
+    "rudderlabs/rudder_customer_journey_analysis"
+  ],
+  "rows": 76,
+  "skipped": [
+    "dbt-labs/dbt_external_tables",
+    "dbt-labs/codegen",
+    "dbt-labs/stitch_utils",
+    "dbt-labs/dbt_utils",
+    "dbt-labs/logging",
+    "dbt-labs/spark_utils",
+    "dbt-labs/metrics",
+    "dbt-labs/audit_helper",
+    "dbt-labs/facebook_ads",
+    "gmdata-co/portable_google_sheets",
+    "1997mahadi/crypto_dlt_pipeline",
+    "1997mahadi/my_dbt_project",
+    "rudderlabs/rudder_id_resolution",
+    "rudderlabs/rudder_events_registry",
+    "rudderlabs/id_stitching",
+    "rudderlabs/rudder_sessionization",
+    "rudderlabs/rudder_customer_journey_analysis"
+  ],
+  "sources": {
+    "dbt-labs/adwords": {
+      "commit": "7a5d0ddea2e545e81a89e08a83eb789fa836287d",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "dbt-labs/dbt_project_evaluator": {
+      "commit": "927abbd523b627f4f1595e2fb93ebf2244314bd6",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "versent/dbt_versent_dimensional_automate": {
+      "commit": "ad22bd4e798a5917be0ebcecacb775454c2d3e22",
+      "licence": "Apache-2.0",
+      "notice": null
+    }
+  }
+}

@@ -1,0 +1,117 @@
+{
+  "batch": 3,
+  "class_counts": {
+    "hard_negative": 238,
+    "negative": 8721,
+    "positive": 186
+  },
+  "dropped": {
+    "expression_missing_literal": 4
+  },
+  "per_type_counts": {
+    "accepted_values": 1,
+    "none": 8959,
+    "not_null": 152,
+    "relationships": 3,
+    "unique": 30
+  },
+  "repos": [
+    "fivetran/dbt_mailchimp",
+    "fivetran/dbt_pardot",
+    "fivetran/dbt_twilio",
+    "fivetran/dbt_asana",
+    "fivetran/dbt_sap",
+    "fivetran/dbt_recurly",
+    "fivetran/dbt_zuora",
+    "fivetran/dbt_microsoft_ads",
+    "snowplow/dbt-snowplow-web",
+    "snowplow/dbt-snowplow-mobile",
+    "snowplow/dbt-snowplow-media-player",
+    "data-mie/dbt_artifacts",
+    "dbt-labs/dbt-core",
+    "xo/dbtpl",
+    "nordquant/dbt-student-repo",
+    "dbt-labs/dbt-adapters",
+    "dbt-labs/dbt-spark",
+    "dbt-labs/dbt-snowflake",
+    "Hiflylabs/awesome-dbt",
+    "nordquant/complete-dbt-bootcamp-zero-to-hero"
+  ],
+  "rows": 9145,
+  "skipped": [
+    "snowplow/dbt-snowplow-web",
+    "snowplow/dbt-snowplow-mobile",
+    "snowplow/dbt-snowplow-media-player",
+    "data-mie/dbt_artifacts",
+    "nordquant/dbt-student-repo",
+    "Hiflylabs/awesome-dbt",
+    "nordquant/complete-dbt-bootcamp-zero-to-hero"
+  ],
+  "sources": {
+    "dbt-labs/dbt-adapters": {
+      "commit": "860da89225e2ecf1bf47038f5ac40d4eaa4019a2",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "dbt-labs/dbt-core": {
+      "commit": "f4c63ccca244a2f28456deaef2d91ee539c99d3a",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "dbt-labs/dbt-snowflake": {
+      "commit": "986d31db890580f04d92a17feca6291c410b9629",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "dbt-labs/dbt-spark": {
+      "commit": "42700b5d0eee9b296942c22ae2aa33240177d082",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "fivetran/dbt_asana": {
+      "commit": "3a3ef622ddddbe0f43d155c55f3f0e69b7189b63",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "fivetran/dbt_mailchimp": {
+      "commit": "64c110c9715022c5b5af06335edef31a1990ba82",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "fivetran/dbt_microsoft_ads": {
+      "commit": "dbb98f9a99c4e6aac0de1e87a61792c9a3de5f75",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "fivetran/dbt_pardot": {
+      "commit": "8affaa8ba3e90e4c91b9dcbcc62b6752558089db",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "fivetran/dbt_recurly": {
+      "commit": "b8b545c7fe0e2078a6c946b20c0ed01d5905e332",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "fivetran/dbt_sap": {
+      "commit": "955dc9e6d90ef601e575ce4bb1f88785e6020924",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "fivetran/dbt_twilio": {
+      "commit": "a5b4b90ad0457b47bec86c7bbb3a6761215fa90e",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "fivetran/dbt_zuora": {
+      "commit": "9cb02445c70c1cbb0143b73d75b23a70e27163f2",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "xo/dbtpl": {
+      "commit": "a164ace287d86a70e2c1f0e7afd7b79fdbbd7dbb",
+      "licence": "MIT",
+      "notice": null
+    }
+  }
+}

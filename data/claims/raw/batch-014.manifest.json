@@ -1,0 +1,119 @@
+{
+  "batch": 14,
+  "class_counts": {
+    "hard_negative": 174,
+    "negative": 2521,
+    "positive": 38
+  },
+  "dropped": {
+    "expression_missing_literal": 4,
+    "unmapped_test:dbt_expectations.expect_compound_columns_to_be_unique": 2,
+    "unmapped_test:dbt_utils.is_email": 1
+  },
+  "per_type_counts": {
+    "accepted_values": 2,
+    "none": 2695,
+    "not_null": 27,
+    "relationships": 2,
+    "unique": 7
+  },
+  "repos": [
+    "VeerMuchandi/dbtest",
+    "dbt-labs/dbt-demo-data",
+    "kzzzr/mybi-dbt-showcase",
+    "bqbooster/dbt-bigquery-monitoring",
+    "Dashlane/dbt-invoke",
+    "get-select/dbt-snowflake-query-tags",
+    "ScalefreeCOM/turbovault4dbt",
+    "godatadriven/dbt-bouncer",
+    "sungchun12/airflow-dbt-cloud",
+    "stacktonic-com/stacktonic-dbt-example-project",
+    "motherduckdb/dbt-tutorial-template",
+    "datacoves/cookiecutter-dbt",
+    "voi-oss/dbt-exposures-crawler",
+    "fabrice-etanchaud/dbt-dremio",
+    "infinitelambda/dbt-tags",
+    "prefect-archive/prefect-dbt",
+    "josephmachado/dbt_development",
+    "MassTransit/Sample-DbTransport",
+    "Snowflake-Labs/sfguide-deploying-pipelines-with-snowflake-and-dbt-labs",
+    "omidsaraf/AWS_Snowflake_DBT__Project"
+  ],
+  "rows": 2733,
+  "skipped": [
+    "VeerMuchandi/dbtest",
+    "dbt-labs/dbt-demo-data",
+    "kzzzr/mybi-dbt-showcase",
+    "stacktonic-com/stacktonic-dbt-example-project",
+    "motherduckdb/dbt-tutorial-template",
+    "josephmachado/dbt_development",
+    "MassTransit/Sample-DbTransport"
+  ],
+  "sources": {
+    "Dashlane/dbt-invoke": {
+      "commit": "a7cd109a863723cd8626fe4e467cc1ffec09ad9b",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "ScalefreeCOM/turbovault4dbt": {
+      "commit": "2bb60be41b29aa1c88d9a3ada2d919a091a2f811",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "Snowflake-Labs/sfguide-deploying-pipelines-with-snowflake-and-dbt-labs": {
+      "commit": "2e2ee63d40bfb2c1720baf05d0984c78132ef22a",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "bqbooster/dbt-bigquery-monitoring": {
+      "commit": "4196b204a04334068ad03b09141620c2d8e00823",
+      "licence": "MIT",
+      "notice": null
+    },
+    "datacoves/cookiecutter-dbt": {
+      "commit": "bf0114d37c19ffa1cd5233f83f4b73a55ce338d5",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "fabrice-etanchaud/dbt-dremio": {
+      "commit": "82ecd699887698dbb253a7a0f58982b257548a13",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "get-select/dbt-snowflake-query-tags": {
+      "commit": "20d2973611c25fb59801d9e4febb155d681c4e3d",
+      "licence": "MIT",
+      "notice": null
+    },
+    "godatadriven/dbt-bouncer": {
+      "commit": "3f5b11493b84b2108150b60c73eb0dc184cdd13a",
+      "licence": "MIT",
+      "notice": null
+    },
+    "infinitelambda/dbt-tags": {
+      "commit": "a606471e132a6d9ec13099fc0fc24adf7cc671a1",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "omidsaraf/AWS_Snowflake_DBT__Project": {
+      "commit": "12b24d7b4b68e4cf85b2c1120c55a95b61188bfe",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "prefect-archive/prefect-dbt": {
+      "commit": "87fd00fd0ded9ecf8278d63284a1518475f1f84b",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "sungchun12/airflow-dbt-cloud": {
+      "commit": "e62c116c11a844e9fea19e6a18155f22b4e82344",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "voi-oss/dbt-exposures-crawler": {
+      "commit": "7074c91de9667635ed8867b70094be8d8b033c4a",
+      "licence": "Apache-2.0",
+      "notice": null
+    }
+  }
+}

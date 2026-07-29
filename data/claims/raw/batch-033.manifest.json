@@ -1,0 +1,80 @@
+{
+  "batch": 33,
+  "class_counts": {
+    "hard_negative": 7,
+    "negative": 314,
+    "positive": 646
+  },
+  "dropped": {
+    "accepted_values_missing_literal_values": 1,
+    "expression_missing_literal": 4,
+    "unmapped_expectation:dbt_expectations.expect_column_values_to_be_in_type_list": 43,
+    "unmapped_expectation:dbt_expectations.expect_column_values_to_match_regex": 16,
+    "unmapped_test:dbt_expectations.expect_column_to_exist": 36,
+    "unmapped_test:dbt_expectations.expect_column_value_lengths_to_equal": 6,
+    "unmapped_test:dbt_expectations.expect_row_values_to_have_recent_data": 38,
+    "unmapped_test:dbt_utils.unique_combination_of_columns": 324
+  },
+  "per_type_counts": {
+    "accepted_values": 21,
+    "none": 321,
+    "not_null": 615,
+    "relationships": 2,
+    "unique": 8
+  },
+  "repos": [
+    "ggsergi/saas-gtm-lab",
+    "CloudDataConsulting/cdc_dbt_utils",
+    "gururajbm/sc_cicd_test",
+    "cricbit/analytics-dbt",
+    "hugolo27/IntDatos26g2-FinalProject",
+    "CristhianSeverino/medallion-retail-pipeline-dbt-gx",
+    "InigoAB/dbt-course",
+    "DalgoT4D/dbt_tap",
+    "jainsahil77/dbt_Crypto",
+    "DANIEL20003/dbt-postgres-pipeline",
+    "Jb-Analytics/snowflake-dbt-tpch-medallion",
+    "dbt-labs/always-sunny-bigquery",
+    "JD-V/dbt_poc",
+    "dbt-labs/Coalesce-2025-Accelerating-development-with-dbt-Copilot",
+    "jeremy6680/personal-warehouse",
+    "dbt-labs/jaffle-shop-metadata",
+    "jfereza/final_project",
+    "dbt-labs/snowflake_sko_hol_2026",
+    "jl-3586/dbtlearn",
+    "dhavaltapkhirwala/dbt_training"
+  ],
+  "rows": 967,
+  "skipped": [
+    "ggsergi/saas-gtm-lab",
+    "CloudDataConsulting/cdc_dbt_utils",
+    "gururajbm/sc_cicd_test",
+    "cricbit/analytics-dbt",
+    "hugolo27/IntDatos26g2-FinalProject",
+    "CristhianSeverino/medallion-retail-pipeline-dbt-gx",
+    "InigoAB/dbt-course",
+    "DalgoT4D/dbt_tap",
+    "DANIEL20003/dbt-postgres-pipeline",
+    "Jb-Analytics/snowflake-dbt-tpch-medallion",
+    "JD-V/dbt_poc",
+    "dbt-labs/Coalesce-2025-Accelerating-development-with-dbt-Copilot",
+    "jeremy6680/personal-warehouse",
+    "dbt-labs/jaffle-shop-metadata",
+    "jfereza/final_project",
+    "dbt-labs/snowflake_sko_hol_2026",
+    "jl-3586/dbtlearn",
+    "dhavaltapkhirwala/dbt_training"
+  ],
+  "sources": {
+    "dbt-labs/always-sunny-bigquery": {
+      "commit": "be3640ac01edf5fa08ab9b679bec9b65c99de7df",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "jainsahil77/dbt_Crypto": {
+      "commit": "29fffd423f60199d8336fa19915724144bdfe096",
+      "licence": "MIT",
+      "notice": null
+    }
+  }
+}

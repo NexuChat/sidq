@@ -1,0 +1,106 @@
+{
+  "batch": 10,
+  "class_counts": {
+    "hard_negative": 5,
+    "negative": 330,
+    "positive": 35
+  },
+  "dropped": {
+    "unmapped_test:dbt_utils.equality": 11,
+    "unmapped_test:dbt_utils.unique_combination_of_columns": 1,
+    "unmapped_test:equality_with_numeric_tolerance": 4
+  },
+  "per_type_counts": {
+    "none": 335,
+    "not_null": 20,
+    "relationships": 1,
+    "unique": 14
+  },
+  "repos": [
+    "markporoshin/dbt-greenplum",
+    "dbt-labs/snowplow",
+    "makinacorpus/DbToolsBundle",
+    "omnata-labs/dbt-ml-preprocessing",
+    "vertica/dbt-vertica",
+    "davidgasquez/dbt-docker",
+    "hnawaz007/dbt-dw",
+    "tnightengale/dbt-meta-testing",
+    "LAVI-USP/DBT-Reconstruction",
+    "JAdmin-JAVA/dbToDoc",
+    "venkatra/dbt_hacks",
+    "wjsutton/spill_the_dbt",
+    "technomonah/dbt_mcdm_challenge",
+    "bruno-szdl/dbt-cheatsheet",
+    "getindata/dbt-flink-adapter",
+    "dbt-labs/redshift",
+    "dbt-labs/dbt-databricks-demo",
+    "codeforkjeff/dbt-sqlite",
+    "anshlambagit/Airbnb_Snowflake_DBT_Data_Engineer_Project",
+    "data-diving/dbt-ui"
+  ],
+  "rows": 370,
+  "skipped": [
+    "markporoshin/dbt-greenplum",
+    "makinacorpus/DbToolsBundle",
+    "hnawaz007/dbt-dw",
+    "tnightengale/dbt-meta-testing",
+    "LAVI-USP/DBT-Reconstruction",
+    "JAdmin-JAVA/dbToDoc",
+    "venkatra/dbt_hacks",
+    "technomonah/dbt_mcdm_challenge",
+    "bruno-szdl/dbt-cheatsheet",
+    "anshlambagit/Airbnb_Snowflake_DBT_Data_Engineer_Project"
+  ],
+  "sources": {
+    "codeforkjeff/dbt-sqlite": {
+      "commit": "ca576b4733829ab65c136c395ce7ac70aaf43cba",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "data-diving/dbt-ui": {
+      "commit": "c8e7873833a5c2e30ca3f65cc85c23e68bf265ca",
+      "licence": "MIT",
+      "notice": null
+    },
+    "davidgasquez/dbt-docker": {
+      "commit": "129c6a7c18e52a2b5fa67e9f7a26f6dd233888e7",
+      "licence": "MIT",
+      "notice": null
+    },
+    "dbt-labs/dbt-databricks-demo": {
+      "commit": "89bfab8215d5588da1365f448dfd57483cf161f3",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "dbt-labs/redshift": {
+      "commit": "ad9e686eefe8b15ed47c134799c695ae58767672",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "dbt-labs/snowplow": {
+      "commit": "82d63829766e4c2ef0dfa64f0a4acda563241441",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "getindata/dbt-flink-adapter": {
+      "commit": "3f9b3fa828e0009194c84838db7b3a9e76bfb206",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "omnata-labs/dbt-ml-preprocessing": {
+      "commit": "73782c388266ca2f77e7de895638f76a7303a630",
+      "licence": "MIT",
+      "notice": null
+    },
+    "vertica/dbt-vertica": {
+      "commit": "0fdd229ee901eea542d3b9fd0a7ddeeac3b33093",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "wjsutton/spill_the_dbt": {
+      "commit": "0a3bf4fa7616d4caef863d943d73e99841669aec",
+      "licence": "MIT",
+      "notice": null
+    }
+  }
+}

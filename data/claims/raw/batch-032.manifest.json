@@ -1,0 +1,85 @@
+{
+  "batch": 32,
+  "class_counts": {
+    "hard_negative": 8,
+    "negative": 355,
+    "positive": 760
+  },
+  "dropped": {
+    "accepted_values_missing_literal_values": 1,
+    "unmapped_expectation:dbt_expectations.expect_column_values_to_be_in_type_list": 43,
+    "unmapped_expectation:dbt_expectations.expect_column_values_to_match_regex": 16,
+    "unmapped_test:compare_model_subset": 10,
+    "unmapped_test:dbt_expectations.expect_column_to_exist": 109,
+    "unmapped_test:dbt_expectations.expect_column_value_lengths_to_equal": 6,
+    "unmapped_test:dbt_expectations.expect_row_values_to_have_recent_data": 44,
+    "unmapped_test:dbt_utils.unique_combination_of_columns": 375,
+    "unmapped_test:null_threshold": 3
+  },
+  "per_type_counts": {
+    "accepted_values": 21,
+    "expression": 1,
+    "none": 363,
+    "not_null": 736,
+    "unique": 2
+  },
+  "repos": [
+    "DalgoT4D/dbt_shofco",
+    "basedosdados/pipelines",
+    "DalgoT4D/dbt_ummeed",
+    "bengo76/bengo_data_platform",
+    "danielpesa7/dbtlearn",
+    "bergerache/ecommerce-analytics",
+    "dlt-hub/rasa_semantic_schema",
+    "brabster/dbt_bigquery_template",
+    "Edgar-M123/dbt-nyc-taxi",
+    "brabster/pypi_vulnerabilities",
+    "erfederuiz/dbtlearn",
+    "BrenesRi/epl_project",
+    "erik-at-flipside/solana-models",
+    "bwilson668/mrr-playbook",
+    "EvaOrtegaM/Repositorio_1",
+    "cacachandrika/project_olist",
+    "feramoca/dbt_curso_civica_2022",
+    "CarolineDCS/projet_airbnb_DBT",
+    "Frederick2313072/data-collection",
+    "CL17189/dbt_analysis_DW"
+  ],
+  "rows": 1123,
+  "skipped": [
+    "DalgoT4D/dbt_shofco",
+    "basedosdados/pipelines",
+    "DalgoT4D/dbt_ummeed",
+    "bengo76/bengo_data_platform",
+    "danielpesa7/dbtlearn",
+    "bergerache/ecommerce-analytics",
+    "dlt-hub/rasa_semantic_schema",
+    "brabster/dbt_bigquery_template",
+    "Edgar-M123/dbt-nyc-taxi",
+    "brabster/pypi_vulnerabilities",
+    "erfederuiz/dbtlearn",
+    "BrenesRi/epl_project",
+    "bwilson668/mrr-playbook",
+    "EvaOrtegaM/Repositorio_1",
+    "cacachandrika/project_olist",
+    "feramoca/dbt_curso_civica_2022",
+    "CarolineDCS/projet_airbnb_DBT"
+  ],
+  "sources": {
+    "CL17189/dbt_analysis_DW": {
+      "commit": "d6bd47e0bda0f9870c2d11c79d7834b1ecf5ed3e",
+      "licence": "MIT",
+      "notice": null
+    },
+    "Frederick2313072/data-collection": {
+      "commit": "870ed04843da36f5c0dd4c2364cb345506d896dc",
+      "licence": "MIT",
+      "notice": null
+    },
+    "erik-at-flipside/solana-models": {
+      "commit": "bd09a61f5a1ba1e3ff54891e1283691f5d600b1f",
+      "licence": "MIT",
+      "notice": null
+    }
+  }
+}

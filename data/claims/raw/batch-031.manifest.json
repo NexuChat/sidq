@@ -1,0 +1,99 @@
+{
+  "batch": 31,
+  "class_counts": {
+    "hard_negative": 9,
+    "negative": 372,
+    "positive": 453
+  },
+  "dropped": {
+    "expression_missing_literal": 9,
+    "unmapped_expectation:dbt_expectations.expect_column_values_to_be_in_type_list": 8,
+    "unmapped_expectation:dbt_expectations.expect_column_values_to_be_of_type": 10,
+    "unmapped_test:dbt_expectations.expect_table_row_count_to_be_between": 1,
+    "unmapped_test:dbt_utils.unique_combination_of_columns": 35,
+    "unmapped_test:missing_value": 7
+  },
+  "per_type_counts": {
+    "accepted_values": 27,
+    "expression": 52,
+    "none": 381,
+    "not_null": 293,
+    "relationships": 40,
+    "unique": 41
+  },
+  "repos": [
+    "infinitelambda/carbon-analytics",
+    "jyablonski/nba_elt_dbt",
+    "prefeitura-rio/queries-rj-sms",
+    "tuva-health/tuva-core",
+    "alanperez89/test",
+    "95Sandykumar/snowflake-dbt-medallion",
+    "alfonsogmar/curso_data_engineering",
+    "aecoleman/jaffle-shop",
+    "Alhamzahalabboodi/dbt-project",
+    "alwyndsouza/dbt-conversation-ai-local",
+    "alumno4damian/curso_data_engineering",
+    "annayastremska/Hospital_DBT_BigQuery",
+    "clausherther/nfl-dbt",
+    "antjes88/dbt-accounting-warehouse",
+    "DalgoT4D/dbt_1000daysfund",
+    "Anwaribra/AdInsight360",
+    "DalgoT4D/dbt_arghyam",
+    "appspace/kwwhat",
+    "DalgoT4D/dbt_atcef",
+    "asanko1/dbt_vault_poc"
+  ],
+  "rows": 834,
+  "skipped": [
+    "jyablonski/nba_elt_dbt",
+    "prefeitura-rio/queries-rj-sms",
+    "tuva-health/tuva-core",
+    "alanperez89/test",
+    "alfonsogmar/curso_data_engineering",
+    "aecoleman/jaffle-shop",
+    "Alhamzahalabboodi/dbt-project",
+    "alwyndsouza/dbt-conversation-ai-local",
+    "alumno4damian/curso_data_engineering",
+    "annayastremska/Hospital_DBT_BigQuery",
+    "DalgoT4D/dbt_1000daysfund",
+    "DalgoT4D/dbt_arghyam",
+    "DalgoT4D/dbt_atcef"
+  ],
+  "sources": {
+    "95Sandykumar/snowflake-dbt-medallion": {
+      "commit": "2f3c754ebf3fe009a55e7cd974234e08a2a0ab06",
+      "licence": "MIT",
+      "notice": null
+    },
+    "Anwaribra/AdInsight360": {
+      "commit": "768dc540df732c4917435c98b9d50ebaa53bcc24",
+      "licence": "MIT",
+      "notice": null
+    },
+    "antjes88/dbt-accounting-warehouse": {
+      "commit": "dea11cef768963727e80b44bacbfe901de41193e",
+      "licence": "MIT",
+      "notice": null
+    },
+    "appspace/kwwhat": {
+      "commit": "75fc6b02ec2fe52a0f600525f05097462f476ee9",
+      "licence": "MIT",
+      "notice": null
+    },
+    "asanko1/dbt_vault_poc": {
+      "commit": "28d2ee7cb0629f64671355f3b22132282665b863",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "clausherther/nfl-dbt": {
+      "commit": "4d67b0056ee4d0cf02f953752d7f998a3c334ab1",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "infinitelambda/carbon-analytics": {
+      "commit": "26ae6c11b92ab1a10801235ad47d4378f3ad1161",
+      "licence": "Apache-2.0",
+      "notice": null
+    }
+  }
+}

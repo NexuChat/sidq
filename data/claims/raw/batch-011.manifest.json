@@ -1,0 +1,120 @@
+{
+  "batch": 11,
+  "class_counts": {
+    "hard_negative": 19,
+    "negative": 192,
+    "positive": 427
+  },
+  "dropped": {
+    "unmapped_expectation:dbt_expectations.expect_column_values_to_be_in_type_list": 307,
+    "unmapped_test:concept_record_completeness": 51,
+    "unmapped_test:dbt_expectations.expect_column_to_exist": 307,
+    "unmapped_test:dbt_expectations.expect_column_value_lengths_to_be_between": 83,
+    "unmapped_test:dbt_semantic_view.materialization_exists": 1,
+    "unmapped_test:dbt_semantic_view.materialization_is_active": 1,
+    "unmapped_test:dbt_utils.equality": 8,
+    "unmapped_test:dbt_utils.relationships_where": 109,
+    "unmapped_test:person_completeness": 16
+  },
+  "per_type_counts": {
+    "none": 211,
+    "not_null": 232,
+    "relationships": 160,
+    "unique": 35
+  },
+  "repos": [
+    "Snowflake-Labs/dbt_semantic_view",
+    "evolute-pt/dbtransfer",
+    "emilyriederer/dbtplyr",
+    "Apress/unlocking-dbt",
+    "dpguthrie/dbtc",
+    "tuanchris/dbt-generator",
+    "clausherther/dbt-tpch",
+    "VICIWUOHA/airflow-dbt-magic",
+    "kzzzr/jaffle_shop_dbtvault",
+    "gmyrianthous/dbt-dummy",
+    "rfdearborn/dbt-docs-to-notion",
+    "davidgasquez/dbt-devcontainer",
+    "luchonaveiro/dbt-postgres-tutorial",
+    "dbt-labs/dbt-Fundamentals-finished-project",
+    "victorcouste/trino-dbt-demo",
+    "techindicium/dbt-oracle",
+    "canva-public/dbt-column-lineage-extractor",
+    "autotraderuk/dbt-dry-run",
+    "AutohomeCorp/dbtree",
+    "OHDSI/dbt-synthea"
+  ],
+  "rows": 638,
+  "skipped": [
+    "evolute-pt/dbtransfer",
+    "dpguthrie/dbtc",
+    "clausherther/dbt-tpch",
+    "VICIWUOHA/airflow-dbt-magic",
+    "kzzzr/jaffle_shop_dbtvault",
+    "luchonaveiro/dbt-postgres-tutorial",
+    "dbt-labs/dbt-Fundamentals-finished-project",
+    "victorcouste/trino-dbt-demo"
+  ],
+  "sources": {
+    "Apress/unlocking-dbt": {
+      "commit": "793b1eb57b216684f9000717ee8240d97d6e83a9",
+      "licence": "MIT",
+      "notice": null
+    },
+    "AutohomeCorp/dbtree": {
+      "commit": "f73ff02be3d2d9ae50a847f0d9deac1231c40b1c",
+      "licence": "MIT",
+      "notice": null
+    },
+    "OHDSI/dbt-synthea": {
+      "commit": "33fdbfa9b354f00def5ee6e45525cb2da80e0ddf",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "Snowflake-Labs/dbt_semantic_view": {
+      "commit": "9851547dc22a36ea292eb25b4dfb02a6bcc97968",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "autotraderuk/dbt-dry-run": {
+      "commit": "a8589e721f4b391732ec7507d4923236010d863b",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "canva-public/dbt-column-lineage-extractor": {
+      "commit": "0358f814e37f584462425018e3603d80010231e9",
+      "licence": "MIT",
+      "notice": null
+    },
+    "davidgasquez/dbt-devcontainer": {
+      "commit": "9584d6a0ea49736ee7986745357cda024b2562ad",
+      "licence": "MIT",
+      "notice": null
+    },
+    "emilyriederer/dbtplyr": {
+      "commit": "1891b81585cce049d392d3f073d0e10c49fbc561",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "gmyrianthous/dbt-dummy": {
+      "commit": "8cbe76f9a4d97d46fa4b27accaf74f5c3a989d6c",
+      "licence": "MIT",
+      "notice": null
+    },
+    "rfdearborn/dbt-docs-to-notion": {
+      "commit": "092ffb38ce5f27fe5e810c08616a4b55b3b65e16",
+      "licence": "MIT",
+      "notice": null
+    },
+    "techindicium/dbt-oracle": {
+      "commit": "792deddb9037f403b05ca1c0dbd90ed1eb77513b",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "tuanchris/dbt-generator": {
+      "commit": "8a9277afa1226a10d2ea5280e1ad0ee4368906c6",
+      "licence": "MIT",
+      "notice": null
+    }
+  }
+}

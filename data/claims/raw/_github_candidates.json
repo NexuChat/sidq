@@ -1,0 +1,1146 @@
+{
+  "generated_at": "2026-07-29",
+  "method": "GitHub code search via authenticated MCP; candidates remain subject to the pinned-archive licence gate",
+  "queries": [
+    "accepted_values path:models language:YAML",
+    "expression_is_true path:models language:YAML",
+    "accepted_range path:models language:YAML",
+    "expect_column_values_to_ path:models language:YAML"
+  ],
+  "candidates": [
+    {
+      "repo": "infinitelambda/carbon-analytics",
+      "terms": [
+        "accepted_range",
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "jyablonski/nba_elt_dbt",
+      "terms": [
+        "accepted_range",
+        "expect_column_values_to_",
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "prefeitura-rio/queries-rj-sms",
+      "terms": [
+        "accepted_range",
+        "expect_column_values_to_",
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "tuva-health/tuva-core",
+      "terms": [
+        "expect_column_values_to_",
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "alanperez89/test",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "95Sandykumar/snowflake-dbt-medallion",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "alfonsogmar/curso_data_engineering",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "aecoleman/jaffle-shop",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "Alhamzahalabboodi/dbt-project",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "alwyndsouza/dbt-conversation-ai-local",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "alumno4damian/curso_data_engineering",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "annayastremska/Hospital_DBT_BigQuery",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "clausherther/nfl-dbt",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "antjes88/dbt-accounting-warehouse",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "DalgoT4D/dbt_1000daysfund",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "Anwaribra/AdInsight360",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "DalgoT4D/dbt_arghyam",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "appspace/kwwhat",
+      "terms": [
+        "accepted_range",
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "DalgoT4D/dbt_atcef",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "asanko1/dbt_vault_poc",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "DalgoT4D/dbt_shofco",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "basedosdados/pipelines",
+      "terms": [
+        "accepted_range",
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "DalgoT4D/dbt_ummeed",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "bengo76/bengo_data_platform",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "danielpesa7/dbtlearn",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "bergerache/ecommerce-analytics",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "dlt-hub/rasa_semantic_schema",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "brabster/dbt_bigquery_template",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "Edgar-M123/dbt-nyc-taxi",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "brabster/pypi_vulnerabilities",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "erfederuiz/dbtlearn",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "BrenesRi/epl_project",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "erik-at-flipside/solana-models",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "bwilson668/mrr-playbook",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "EvaOrtegaM/Repositorio_1",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "cacachandrika/project_olist",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "feramoca/dbt_curso_civica_2022",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "CarolineDCS/projet_airbnb_DBT",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "Frederick2313072/data-collection",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "CL17189/dbt_analysis_DW",
+      "terms": [
+        "accepted_range",
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "ggsergi/saas-gtm-lab",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "CloudDataConsulting/cdc_dbt_utils",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "gururajbm/sc_cicd_test",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "cricbit/analytics-dbt",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "hugolo27/IntDatos26g2-FinalProject",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "CristhianSeverino/medallion-retail-pipeline-dbt-gx",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "InigoAB/dbt-course",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "DalgoT4D/dbt_tap",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "jainsahil77/dbt_Crypto",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "DANIEL20003/dbt-postgres-pipeline",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "Jb-Analytics/snowflake-dbt-tpch-medallion",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "dbt-labs/always-sunny-bigquery",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "JD-V/dbt_poc",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "dbt-labs/Coalesce-2025-Accelerating-development-with-dbt-Copilot",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "jeremy6680/personal-warehouse",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "dbt-labs/jaffle-shop-metadata",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "jfereza/final_project",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "dbt-labs/snowflake_sko_hol_2026",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "jl-3586/dbtlearn",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "dhavaltapkhirwala/dbt_training",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "jyablonski/jyablonski_kimball_example",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "dre-at8865/podcast_analytics",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "kamalendubiswas-db/dbt-dss-demo",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "earnest-eg/earnest-transformations",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "kashyap0729/Airbnb-Analytics-with-DBT-Data-Build-Tool",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "esadeghi/bixi_dbt",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "levyvix/airbnb_rj",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "FavourEdet-Data/DAIRY_AGRICTECH",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "Lightstone1/real_estate_project",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "FelipeWendel/modern_data_stack",
+      "terms": [
+        "accepted_range",
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "MatthewPBriones/DBTPractice",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "Gabriel-boop-deep/DESAFIO_ANALISTA",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "mcgrath-dylan/finops-dbt",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "galafis/dbt-data-warehouse-modeling",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "mcgrath-dylan/snowflake-finops-pro",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "getindata/tpc-h-data-pipelines-demo",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "MetricsDAO/onboarding_dbt",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "godatadriven/github-contributions",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "PeterNdiforchu/dbt-snowflake-airbnb-project",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "GreciaLH/northwind-dbt-snowflake",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "pikeche/philip_project",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "habeas81/dcs_data",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "poplifostacks/dbt-cloud-demo",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "heatcheck64/407_lab",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "PrathapAI/projbigquery",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "hendrik-spl/dogs-as-a-service-pipeline",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "prefeitura-rio/queries-rj-iplanrio",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "hendrywijaya98/nyc_taxi_trip",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "r0sate/covid_insights_pipeline",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "Hiflylabs/dbt_snowflake_artifacts",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "remisharoon/dbt-production-blueprint",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "hiroaki1208/trading-dbt",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "robsrot/weather_analytics",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "IEUX/localBike",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "rohithay/ecomm-analysis",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "ifyjakande/finflow-analytics-dbt",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "Sehajbirsingh/dbtlearn",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "IlyasI/data-pipeline-demo",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "shankarlohar/dbt-snowflake-data-pipeline",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "infinitelambda/dq-tools",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "shawshankrai/dbtlearn",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "Intoxinator/dbt-migrate-generic-tests",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "shemar100/dbt-sandbox",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "Inzhenerka/dbt-scooters",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "simran08udhani/DBT",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "iplotnikov-telemedicine/analytics",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "ssabenoit/ssa-case-study",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "Iv0D/data_pipeline_clubdb",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "sundar139/Pixar_Analytics",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "Jen-ogo/geo_dbt",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "sushil6666/dbt_morning",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "jharris126/preppin-data-dbt",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "thebottlerocket/medallion-architecture",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "JoshuaSmart-Olufemi/dbt-MRR-LTV-Analysis",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "timlillpoppb/BigQuerySandbox",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "jpgianfaldoni/dbt-databricks-test",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "tismol/dbt",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "kevstyers/dbt_bigquery",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "tuva-health/athenahealth_connector",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "kgeonhoe/dbt_mini_mart",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "Zorba25/dblearn",
+      "terms": [
+        "expect_column_values_to_"
+      ]
+    },
+    {
+      "repo": "localdebootcamp/dbt",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "localstack-samples/snowflake-smart-factory-app",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "luccappaz/AirbnbWithDBT",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "Luchassmed/dataEng_trafiktal",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "lvgalvao/dbtcore-bigquery",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "Mairondc21/dbt_az_usuarios",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "makerofmaps1/dbt-demo",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "MaterializeIncLabs/dbt-example",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "matt-winkler/dbt-fusion",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "mbtsvetkov/Alnz",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "mdakilahmed/loan_eligibility_dbt_postgres",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "michaelrollins23/seatgeek-analytics",
+      "terms": [
+        "accepted_range",
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "Montreal-Analytics/poutineshop-public",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "mzazakeith/dbt_cap",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "nachan12/ecommerce-analytics-dbt",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "nagabharathnr/dbt_demo_proj",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "NicoleZevallos/walmart-dbt",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "nicor88/dbt-databricks-jaffle-shop",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "oysterhr/oyster_dbt_project_evaluator",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "ozzy2438/Customer_Health_Scoring_Engine",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "PamelaMast1/dbt_sandbox_cert",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "paradime-io/dbt-llm-evals",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "parleh-mate/singapore-parliament-speeches-dbt",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "pikki/unifiedmodel",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "PohTeyToe/kobo-recs-dag",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "poornavenkatn08/Credit_Risk_Analytics",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "portovep/dbt-testing-examples",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "PratikhyaManas/DBT-Multitenant",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "qualidadehsr-rgb/auditoria-de-prontuarios",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "Ranjiththank/ranjiththankrepo",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "ratpiGene/localbike-analytics",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "ray-dataworks1/international-payments-compliance-analytics",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "rfim/approvalmax-ai-platform-v2",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "rfim/approvalmax-databricks-ai-recovery-demo",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "rmeriga444/newday",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "roseoflife/dbt-financial-model",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "rosscyking1115/england-wales-housing-decision-support",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "sailaja-lb/final-project-dbt",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "sanctusgee/f1-data-platform",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "sdebruyn/dbt-fabric-conf25",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "senanurcetin/ieee-fraud-detection-analytics",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "slide-rule-tech/dbt-nexus",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "sodadata/dataos-demo-dbt-conversion-funnel",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "Som-Energia/somsolet_backoffice_dashboard",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "spechticus/dimensional_modelling",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "SRINI3695/jaffle_shop",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "stellar/stellar-dbt-public",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "tesshamzeh/dbt_data_modeling",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "TheDamiofLagos/currency_exchange_pipeline",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "TheDataFoundryAU/dbt_sample_project",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "Thomas-cj/LEAP_case",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "tottipensotti/ecommerce-dbt-project",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "toyedele/dbtcloud-test",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "tynfe/globe_itw",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "uday-0408/Streamcart",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "unionall-ai/dbt_training",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "vikneshwara-r-b/food_truck_analytics",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "vinski-dev/ecommerce_analytics",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "VishnuBhargav0/dbt_planetkart_project",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "windsor-ai/dbt-facebook-big_query",
+      "terms": [
+        "accepted_range",
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "yamamoto-yuta/dbt-cross-time-with-view",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "YCat33/dbt_galaxy_demo",
+      "terms": [
+        "accepted_range"
+      ]
+    },
+    {
+      "repo": "yevgenius/credit-apps-dbt",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "yghias/it-staffing-operating-system",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "z3z1ma/alto_duckdb_sandbox",
+      "terms": [
+        "expression_is_true"
+      ]
+    },
+    {
+      "repo": "zahero3/hellochef_dbt",
+      "terms": [
+        "expression_is_true"
+      ]
+    }
+  ]
+}

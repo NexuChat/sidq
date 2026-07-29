@@ -1,0 +1,136 @@
+{
+  "batch": 12,
+  "class_counts": {
+    "hard_negative": 294,
+    "negative": 4226,
+    "positive": 261
+  },
+  "dropped": {
+    "expression_missing_literal": 2,
+    "unmapped_expectation:dbt_expectations.expect_column_values_to_be_unique": 2,
+    "unmapped_test:custom_generic_test": 1,
+    "unmapped_test:dbt_assertions.generic_assertions": 2,
+    "unmapped_test:dbt_utils.at_least_one": 2,
+    "unmapped_test:dbt_utils.equality": 4,
+    "unmapped_test:dbt_utils.unique_combination_of_columns": 22,
+    "unmapped_test:row_count_in_range": 2
+  },
+  "per_type_counts": {
+    "accepted_values": 2,
+    "none": 4520,
+    "not_null": 182,
+    "relationships": 4,
+    "unique": 73
+  },
+  "repos": [
+    "LogicBuilder45/snowflake-dbt-accelerator",
+    "dbt-labs/dbt-onboarding-exemplar",
+    "kzzzr/dbtvault_greenplum_demo",
+    "Teradata/dbt-teradata",
+    "Minres/DBT-RISE-RISCV",
+    "entechlog/dbt-examples",
+    "dbt-labs/dbt-meshify",
+    "YuanDdQiao/dbtool",
+    "risingwavelabs/dbt-risingwave",
+    "rezer-bleede/dbt-Workbench",
+    "AxelThevenot/dbt-assertions",
+    "dbtoaster/dbtoaster-backend",
+    "realityforge/dbt",
+    "mikekaminsky/dbt-helper",
+    "dwallace0723/dbt-cloud-plugin",
+    "cloudera/dbt-impala",
+    "fivetran/dbt_stripe_source",
+    "colinta/dbt",
+    "dbt-labs/mrr-playbook",
+    "fivetran/dbt_shopify_source"
+  ],
+  "rows": 4781,
+  "skipped": [
+    "dbt-labs/dbt-onboarding-exemplar",
+    "kzzzr/dbtvault_greenplum_demo",
+    "YuanDdQiao/dbtool",
+    "dbt-labs/mrr-playbook"
+  ],
+  "sources": {
+    "AxelThevenot/dbt-assertions": {
+      "commit": "875178964d3d33ef27b135cd75aef6c1fbebfb3a",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "LogicBuilder45/snowflake-dbt-accelerator": {
+      "commit": "2952526441d1307af604a57eff289d59dfd74c7a",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "Minres/DBT-RISE-RISCV": {
+      "commit": "51514f306e0459ebf24cb45986460d26158e0937",
+      "licence": "BSD-3-Clause",
+      "notice": null
+    },
+    "Teradata/dbt-teradata": {
+      "commit": "11527d336ae22a344d8fc649f6e82c0a7cbafc65",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "cloudera/dbt-impala": {
+      "commit": "1320bec232dbf3e2ad90befeae25a84edb3f5927",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "colinta/dbt": {
+      "commit": "f8a2d67a7528290a55c87565d7e1135d0404c0f8",
+      "licence": "BSD-2-Clause",
+      "notice": null
+    },
+    "dbt-labs/dbt-meshify": {
+      "commit": "badf0e300a25126310eb111d96871f6aa60c2f76",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "dbtoaster/dbtoaster-backend": {
+      "commit": "e47273968b360b1c3685449f23d0510c78f59216",
+      "licence": "Apache-2.0",
+      "notice": "Copyright 2010-2017 EPFL DATA Lab (http://data.epfl.ch)"
+    },
+    "dwallace0723/dbt-cloud-plugin": {
+      "commit": "ffb3be2f59ad33b0087e75ee4ba6665d4ac09737",
+      "licence": "MIT",
+      "notice": null
+    },
+    "entechlog/dbt-examples": {
+      "commit": "1f4a8cc2eb5f26b8044332402d6a43eaaaec783c",
+      "licence": "MIT",
+      "notice": null
+    },
+    "fivetran/dbt_shopify_source": {
+      "commit": "5645eb3e819809905af1a8cc6a9ff44daa7f43a8",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "fivetran/dbt_stripe_source": {
+      "commit": "97f5fec87f62c5269d5f271c40f3dd790ed96c08",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "mikekaminsky/dbt-helper": {
+      "commit": "2d209ad151ef588519605dbe1031ca4bf8455ca2",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "realityforge/dbt": {
+      "commit": "067e45de0beece6ac7fd1ce0530db28bf56c2ef8",
+      "licence": "Apache-2.0",
+      "notice": null
+    },
+    "rezer-bleede/dbt-Workbench": {
+      "commit": "e90faa55dae6692466f1270dfa03e46a9bf381ab",
+      "licence": "MIT",
+      "notice": null
+    },
+    "risingwavelabs/dbt-risingwave": {
+      "commit": "cb187f4bed4f672ef5457a5becb24cf472b0b7c8",
+      "licence": "Apache-2.0",
+      "notice": null
+    }
+  }
+}
