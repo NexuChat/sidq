@@ -26,11 +26,9 @@ class BlastRadiusGate:
                 # A response which cannot honestly claim column granularity gets a table retry.
                 if column is not None and result.granularity != "column":
                     result = graph.get_downstream(asset.urn, self._depth, column=None)
-                result, bi_paths = _with_bi_consumers(graph, result)
+                result = _with_bi_consumers(graph, result)
                 paths = _paths(graph, asset.urn, result, column)
-                details = _details(
-                    graph, asset.urn, result, [*paths, *bi_paths], self._depth
-                )
+                details = _details(graph, asset.urn, result, paths, self._depth)
             except Exception as error:  # noqa: BLE001 - graph transports may raise arbitrary client errors
                 evidence.append(graph_unavailable(asset.urn, error))
                 continue
@@ -60,80 +58,105 @@ def _changed_column(asset: TouchedAsset) -> str | None:
 
 def _with_bi_consumers(
     graph: GraphClient, result: LineageResult
-) -> tuple[LineageResult, list[LineagePath]]:
+) -> LineageResult:
     """Charts and dashboards are entity-level hops after field-level lineage ends."""
     extra_urns: list[str] = []
     extra_types: dict[str, str] = {}
     extra_tags: dict[str, tuple[str, ...]] = {}
-    extra_paths: list[LineagePath] = []
     for urn in result.urns:
         if "looker" not in urn or ".explore." not in urn:
             continue
         consumers = graph.get_downstream(urn, 2)
         extra_urns.extend(consumers.urns)
-        if isinstance(consumers.entity_types, Mapping):
-            extra_types.update(consumers.entity_types)
-        if isinstance(consumers.tags, Mapping):
-            extra_tags.update(consumers.tags)
-        dashboard = next(
-            (
-                consumer
-                for consumer in consumers.urns
-                if consumers.entity_types.get(consumer, "").lower() == "dashboard"
-                or consumer.startswith("urn:li:dashboard:")
-            ),
-            None,
+        consumer_types = (
+            consumers.entity_types
+            if isinstance(consumers.entity_types, Mapping)
+            else {}
         )
-        chart = next(
-            (
-                consumer
-                for consumer in consumers.urns
-                if consumers.entity_types.get(consumer, "").lower() == "chart"
-                or consumer.startswith("urn:li:chart:")
+        consumer_tags = consumers.tags if isinstance(consumers.tags, Mapping) else {}
+        extra_types.update(consumer_types)
+        extra_tags.update(consumer_tags)
+    return LineageResult(
+        urns=tuple(sorted({*result.urns, *extra_urns})),
+        entity_types={
+            **(
+                dict(result.entity_types)
+                if isinstance(result.entity_types, Mapping)
+                else {}
             ),
-            None,
-        )
-        if chart is not None:
-            extra_paths.extend(graph.paths_between(urn, chart))
-        if chart is not None and dashboard is not None:
-            extra_paths.extend(graph.paths_between(chart, dashboard))
-    return (
-        LineageResult(
-            urns=tuple(sorted({*result.urns, *extra_urns})),
-            entity_types={**dict(result.entity_types), **extra_types},
-            paths=result.paths,
-            columns=result.columns,
-            tags={**dict(result.tags), **extra_tags},
-            granularity=result.granularity,
-        ),
-        extra_paths,
+            **extra_types,
+        },
+        paths=result.paths,
+        columns=result.columns,
+        tags={
+            **(dict(result.tags) if isinstance(result.tags, Mapping) else {}),
+            **extra_tags,
+        },
+        granularity=result.granularity,
     )
 
 
 def _paths(
-    graph: GraphClient, source: str, result: LineageResult, source_column: str | None
+    graph: GraphClient,
+    source: str,
+    result: LineageResult,
+    source_column: str | None,
 ) -> list[LineagePath]:
-    paths = list(result.paths)
     downstream = next(
         (urn for urn in result.urns if "looker" in urn and ".explore." in urn),
         next(iter(result.urns), None),
     )
-    if downstream is not None:
+    dashboard = next(
+        (urn for urn in result.urns if urn.startswith("urn:li:dashboard:")), None
+    )
+    if downstream is None or dashboard is None:
+        return []
+    if source_column is not None:
         target_columns = (
             result.columns.get(downstream, ())
             if isinstance(result.columns, Mapping)
             else ()
         )
-        if source_column is not None and target_columns:
-            paths.extend(
-                graph.paths_between(
-                    source, downstream, source_column, target_columns[0]
-                )
+        if target_columns:
+            column_paths = graph.paths_between(
+                source, downstream, source_column, target_columns[0]
             )
-        else:
-            paths.extend(graph.paths_between(source, downstream))
-    unique_paths = sorted({(path.urns, path.granularity) for path in paths})
-    return [LineagePath(urns, granularity) for urns, granularity in unique_paths]
+            entity_paths = graph.paths_between(downstream, dashboard)
+            combined = _combine_column_and_bi_paths(
+                column_paths, entity_paths, downstream, result.granularity
+            )
+            if combined:
+                return combined
+    return [
+        LineagePath(path.urns, result.granularity, path.note)
+        for path in graph.paths_between(source, dashboard)
+    ]
+
+
+def _combine_column_and_bi_paths(
+    column_paths: Sequence[LineagePath],
+    entity_paths: Sequence[LineagePath],
+    handoff_dataset: str,
+    granularity: str,
+) -> list[LineagePath]:
+    """Join two independently oriented paths at the field-to-entity boundary."""
+    if granularity != "column":
+        return []
+    for column_path in column_paths:
+        if not column_path.urns or column_path.granularity != "column":
+            continue
+        for entity_path in entity_paths:
+            if not entity_path.urns or entity_path.urns[0] != handoff_dataset:
+                continue
+            urns = (*column_path.urns, handoff_dataset, *entity_path.urns[1:])
+            return [
+                LineagePath(
+                    urns,
+                    "column",
+                    "Column lineage is proven through the BI field; chart and dashboard hops are entity-level.",
+                )
+            ]
+    return []
 
 
 def _details(
@@ -206,7 +229,7 @@ def _path_detail(path: LineagePath) -> dict[str, object]:
     The artifact serializer sorts arrays for determinism. Numbered edge keys retain
     the source-to-target order while remaining ordinary JSON data.
     """
-    return {
+    detail: dict[str, object] = {
         "granularity": path.granularity,
         "source": path.urns[0] if path.urns else "",
         "target": path.urns[-1] if path.urns else "",
@@ -215,3 +238,6 @@ def _path_detail(path: LineagePath) -> dict[str, object]:
             for index, (left, right) in enumerate(zip(path.urns, path.urns[1:]))
         },
     }
+    if path.note:
+        detail["note"] = path.note
+    return detail

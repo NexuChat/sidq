@@ -630,54 +630,37 @@
 
           <div class="trace">
             <div class="trace-heading">
-              <div class="eyebrow">Evidence / 07 nodes</div>
-              <h2>Column lineage names the dashboard it can break.</h2>
+              <div class="eyebrow">Evidence / 08 nodes</div>
+              <h2>Directed column lineage reaches the dashboard it can break.</h2>
             </div>
             <ol class="trace-list" aria-label="Column-level lineage evidence to the Looker dashboard">
               <li class="trace-item">
                 <span class="trace-index">01</span>
-                <span class="trace-type">Column source</span>
-                <span class="trace-asset"><strong>dbt · order details</strong>ORDER_ENTRY_DB.analytics.order_details / cust_email</span>
-                <span class="trace-arrow" aria-hidden="true">↓</span>
-              </li>
-              <li class="trace-item">
-                <span class="trace-index">02</span>
-                <span class="trace-type">Changed subject</span>
+                <span class="trace-type">Changed column</span>
                 <span class="trace-asset"><strong>dbt · customers</strong>order_entry_db.order_entry.customers / cust_email</span>
                 <span class="trace-arrow" aria-hidden="true">↓</span>
               </li>
               <li class="trace-item">
+                <span class="trace-index">02</span>
+                <span class="trace-type">Verified column lineage</span>
+                <span class="trace-asset"><strong>dbt → Snowflake → Looker</strong>ORDER_ENTRY_DB.analytics.order_details.cust_email → order-entry-looker.view.order_details.cust_email → order-entry.explore.order_details.order_details.cust_email</span>
+                <span class="trace-arrow" aria-hidden="true">↓</span>
+              </li>
+              <li class="trace-item">
                 <span class="trace-index">03</span>
-                <span class="trace-type">Column path</span>
-                <span class="trace-asset"><strong>Looker · view</strong>order-entry-looker.view.order_details / cust_email</span>
+                <span class="trace-type">Verified dashboard segment</span>
+                <span class="trace-asset"><strong>Looker · explore → chart</strong>order-entry.explore.order_details → dashboard_elements.224</span>
                 <span class="trace-arrow" aria-hidden="true">↓</span>
               </li>
               <li class="trace-item">
                 <span class="trace-index">04</span>
-                <span class="trace-type">Column path</span>
-                <span class="trace-asset"><strong>Looker · explore</strong>order-entry.explore.order_details / order_details.cust_email</span>
-                <span class="trace-arrow" aria-hidden="true">↓</span>
-              </li>
-              <li class="trace-item">
-                <span class="trace-index">05</span>
-                <span class="trace-type">Column target</span>
-                <span class="trace-asset"><strong>Snowflake · order details</strong>order_entry_db.analytics.order_details / cust_email</span>
-                <span class="trace-arrow" aria-hidden="true">—</span>
-              </li>
-              <li class="trace-item branch-start">
-                <span class="trace-index">06</span>
-                <span class="trace-type">Dashboard edge</span>
-                <span class="trace-asset"><strong>Looker · chart</strong>dashboard_elements.221 → order_details explore (node 04)</span>
-                <span class="trace-arrow" aria-hidden="true">↓</span>
-              </li>
-              <li class="trace-item">
-                <span class="trace-index">07</span>
                 <span class="trace-type">Dashboard</span>
-                <span class="trace-asset"><strong>Looker · dashboard</strong>dashboard_elements.221 → dashboards.53</span>
+                <span class="trace-asset"><strong>Looker · dashboard</strong>dashboards.53</span>
                 <span class="trace-arrow" aria-hidden="true">—</span>
               </li>
             </ol>
             <div class="provenance">
+              <span>Column lineage is proven through the BI field; chart and dashboard hops are entity-level.</span>
               <span>Source: <code>examples/01-blocked-pii-dashboard/verdict.json</code></span>
               <span>Commit: <code>d3f3bd2f4fe31837867592162ccea08859be6947</code></span>
             </div>

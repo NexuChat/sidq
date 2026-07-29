@@ -85,7 +85,8 @@ Only the deterministic policy findings in this section affect the merge decision
 - PII tags: <code>tag · PII_Data</code>
 - Column-level impact path:
 
-  <code>dbt · order_entry_db.order_entry.customers.cust_email</code> → <code>Looker view · order-entry-looker.view.order_details.cust_email</code> → <code>Looker explore · order-entry.explore.order_details.order_details.cust_email</code> → <code>Looker explore · order-entry.explore.order_details</code> → <code>Looker chart · dashboard_elements.221</code> → <code>Looker dashboard · dashboards.53</code>
+  <code>dbt · order_entry_db.order_entry.customers.cust_email</code> → <code>dbt · ORDER_ENTRY_DB.analytics.order_details.cust_email</code> → <code>Snowflake · order_entry_db.analytics.order_details.cust_email</code> → <code>Looker view · order-entry-looker.view.order_details.cust_email</code> → <code>Looker explore · order-entry.explore.order_details.order_details.cust_email</code> → <code>Looker explore · order-entry.explore.order_details</code> → <code>Looker chart · dashboard_elements.224</code> → <code>Looker dashboard · dashboards.53</code>
+- Path note: Column lineage is proven through the BI field; chart and dashboard hops are entity-level.
 
 ### ⚠️ <code>wide_blast_radius</code> — WARN
 
@@ -97,7 +98,8 @@ Only the deterministic policy findings in this section affect the merge decision
 - Blast radius: **16 downstream consumers** within 3 hops
 - Column-level impact path:
 
-  <code>dbt · order_entry_db.order_entry.customers.cust_email</code> → <code>Looker view · order-entry-looker.view.order_details.cust_email</code> → <code>Looker explore · order-entry.explore.order_details.order_details.cust_email</code> → <code>Looker explore · order-entry.explore.order_details</code> → <code>Looker chart · dashboard_elements.221</code> → <code>Looker dashboard · dashboards.53</code>
+  <code>dbt · order_entry_db.order_entry.customers.cust_email</code> → <code>dbt · ORDER_ENTRY_DB.analytics.order_details.cust_email</code> → <code>Snowflake · order_entry_db.analytics.order_details.cust_email</code> → <code>Looker view · order-entry-looker.view.order_details.cust_email</code> → <code>Looker explore · order-entry.explore.order_details.order_details.cust_email</code> → <code>Looker explore · order-entry.explore.order_details</code> → <code>Looker chart · dashboard_elements.224</code> → <code>Looker dashboard · dashboards.53</code>
+- Path note: Column lineage is proven through the BI field; chart and dashboard hops are entity-level.
 
 <details>
 <summary>Downstream consumers (16)</summary>
@@ -146,7 +148,8 @@ Only the deterministic policy findings in this section affect the merge decision
 - Blast radius: **16 downstream consumers** within 3 hops
 - Column-level impact path:
 
-  <code>dbt · order_entry_db.order_entry.customers.cust_email</code> → <code>Looker view · order-entry-looker.view.order_details.cust_email</code> → <code>Looker explore · order-entry.explore.order_details.order_details.cust_email</code> → <code>Looker explore · order-entry.explore.order_details</code> → <code>Looker chart · dashboard_elements.221</code> → <code>Looker dashboard · dashboards.53</code>
+  <code>dbt · order_entry_db.order_entry.customers.cust_email</code> → <code>dbt · ORDER_ENTRY_DB.analytics.order_details.cust_email</code> → <code>Snowflake · order_entry_db.analytics.order_details.cust_email</code> → <code>Looker view · order-entry-looker.view.order_details.cust_email</code> → <code>Looker explore · order-entry.explore.order_details.order_details.cust_email</code> → <code>Looker explore · order-entry.explore.order_details</code> → <code>Looker chart · dashboard_elements.224</code> → <code>Looker dashboard · dashboards.53</code>
+- Path note: Column lineage is proven through the BI field; chart and dashboard hops are entity-level.
 
 <details>
 <summary>Downstream consumers (16)</summary>
@@ -187,8 +190,7 @@ Only the deterministic policy findings in this section affect the merge decision
 
 ---
 
-Reproducibility: <code>policy_hash=09047cb616bbff703b8156594009b39cbf2531ba0d53050e3d3e17e81eed9356</code> · <code>commit_sha=d3f3bd2f4fe31837867592162ccea08859be6947</code> · run <code>sidq check --diff d3f3bd2f4fe31837867592162ccea08859be6947^..d3f3bd2f4fe31837867592162ccea08859be6947 --json</code>
-
+Reproducibility: <code>policy_hash=d35a65154fbbbffc9636d6dd9d9ad73c49eb59b05b3506c8bafdf45b0fb7f1cc</code> · <code>commit_sha=d3f3bd2f4fe31837867592162ccea08859be6947</code> · run <code>sidq check --diff d3f3bd2f4fe31837867592162ccea08859be6947^..d3f3bd2f4fe31837867592162ccea08859be6947 --json</code>
 ## Why Sidq is not its neighbours
 
 Impact analysis already exists. The *decision* does not, and nothing checks whether the catalog itself is telling the truth.

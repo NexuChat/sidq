@@ -6,7 +6,7 @@ import html
 import re
 import shlex
 from collections import deque
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from typing import Any, Literal
 from urllib.parse import quote, urlsplit
 
@@ -232,6 +232,9 @@ def _render_evidence_detail(evidence: Evidence, *, advisory: bool = False) -> li
                 ),
             )
         )
+        note = _impact_path_note(evidence, path)
+        if note:
+            lines.append(f"- Path note: {_escape(note)}")
 
     dashboards = _strings(detail.get("dashboards"))
     if dashboards and not path:
@@ -292,7 +295,7 @@ def _impact_path(evidence: Evidence) -> tuple[str, ...]:
             continue
         hops = raw_path.get("hops")
         if isinstance(hops, Mapping):
-            ordered_hops = (hops[key] for key in sorted(hops, key=str))
+            ordered_hops: Iterable[Any] = (hops[key] for key in sorted(hops, key=str))
         elif isinstance(hops, Sequence) and not isinstance(hops, (str, bytes)):
             ordered_hops = iter(hops)
         else:
@@ -313,14 +316,6 @@ def _impact_path(evidence: Evidence) -> tuple[str, ...]:
                 nodes.update((left, right))
     if not edges:
         return ()
-    # DataHub returns column lineage as schema-field URNs and chart lineage as
-    # dataset URNs. Join those two views at their shared dataset so the rendered
-    # chain can continue all the way to the dashboard.
-    for node in tuple(nodes):
-        dataset = _dataset_from_field(node)
-        if dataset and dataset in nodes:
-            edges.add((node, dataset))
-
     start = _path_start(evidence.subject, nodes)
     targets = sorted(node for node in nodes if node.startswith("urn:li:dashboard:"))
     if start is None or not targets:
@@ -328,7 +323,6 @@ def _impact_path(evidence: Evidence) -> tuple[str, ...]:
     adjacency: dict[str, set[str]] = {node: set() for node in nodes}
     for left, right in edges:
         adjacency[left].add(right)
-        adjacency[right].add(left)
     queue: deque[tuple[str, tuple[str, ...]]] = deque([(start, (start,))])
     visited = {start}
     target_set = set(targets)
@@ -341,6 +335,20 @@ def _impact_path(evidence: Evidence) -> tuple[str, ...]:
                 visited.add(neighbour)
                 queue.append((neighbour, (*path, neighbour)))
     return ()
+
+
+def _impact_path_note(evidence: Evidence, path: Sequence[str]) -> str:
+    raw_paths = evidence.detail.get("paths")
+    if not isinstance(raw_paths, Sequence) or isinstance(raw_paths, (str, bytes)):
+        return ""
+    for raw_path in raw_paths:
+        if not isinstance(raw_path, Mapping):
+            continue
+        if raw_path.get("source") != path[0] or raw_path.get("target") != path[-1]:
+            continue
+        note = raw_path.get("note")
+        return note if isinstance(note, str) else ""
+    return ""
 
 
 def _path_start(subject: str, nodes: set[str]) -> str | None:

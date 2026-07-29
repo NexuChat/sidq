@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from itertools import pairwise
 from pathlib import Path
 
 from sidq.gates.blast import BlastRadiusGate
@@ -11,10 +12,32 @@ CUSTOMERS = "urn:li:dataset:(urn:li:dataPlatform:dbt,b2fd91.order_entry_db.order
 FIXTURES = Path(__file__).parent / "fixtures" / "graph"
 
 
-def test_blast_gate_records_column_lineage_paths_from_replay() -> None:
+class DirectedReplayGraph(ReplayGraphClient):
+    """Expose the downstream relations which the replay verifies."""
+
+    def __init__(self, fixture_dir: Path) -> None:
+        super().__init__(fixture_dir)
+        self.downstream_edges: set[tuple[str, str]] = set()
+
+    def paths_between(
+        self,
+        a: str,
+        b: str,
+        source_column: str | None = None,
+        target_column: str | None = None,
+    ):
+        paths = super().paths_between(a, b, source_column, target_column)
+        if paths:
+            for path in paths:
+                self.downstream_edges.update(pairwise(path.urns))
+        return paths
+
+
+def test_blast_gate_emits_a_directed_column_path_to_dashboard() -> None:
+    graph = DirectedReplayGraph(FIXTURES)
     evidence = BlastRadiusGate().collect(
         [TouchedAsset(CUSTOMERS, "customers.sql", (), ("cust_email",), ())],
-        ReplayGraphClient(FIXTURES),
+        graph,
     )
 
     detail = evidence[0].detail
@@ -23,12 +46,28 @@ def test_blast_gate_records_column_lineage_paths_from_replay() -> None:
     assert detail["downstream_count"] == 16
     assert detail["dashboards"] == ["urn:li:dashboard:(looker,b2fd91.dashboards.53)"]
     assert detail["pii_tags"] == ["urn:li:tag:b2fd91.PII_Data"]
-    assert any(
-        "b2fd91.ORDER_ENTRY_DB.analytics.order_details" in urn
-        for path in detail["paths"]
-        for hop in path["hops"].values()
-        for urn in hop.values()
+    changed_field = f"urn:li:schemaField:({CUSTOMERS},cust_email)"
+    dashboard = "urn:li:dashboard:(looker,b2fd91.dashboards.53)"
+    path = next(item for item in detail["paths"] if item["target"] == dashboard)
+    hops = list(path["hops"].values())
+
+    assert path["source"] == changed_field
+    assert hops[0]["from"] == path["source"]
+    assert hops[-1]["to"] == path["target"]
+    assert all(left["to"] == right["from"] for left, right in pairwise(hops))
+    handoff = (
+        "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:looker,b2fd91.order-entry.explore.order_details,PROD),order_details.cust_email)",
+        "urn:li:dataset:(urn:li:dataPlatform:looker,b2fd91.order-entry.explore.order_details,PROD)",
     )
+    assert path["granularity"] == "column"
+    assert all(
+        (hop["from"], hop["to"]) in graph.downstream_edges
+        for hop in hops
+        if (hop["from"], hop["to"]) != handoff
+    )
+    assert handoff in [(hop["from"], hop["to"]) for hop in hops]
+    assert "chart and dashboard hops are entity-level" in path["note"]
+
     pii = next(item for item in evidence if item.kind == "pii_exposure")
     assert pii.detail["pii_tags"] == ["urn:li:tag:b2fd91.PII_Data"]
 

@@ -9,6 +9,7 @@ import threading
 from collections.abc import Callable, Mapping, Sequence
 from concurrent.futures import Future
 from dataclasses import dataclass
+from dataclasses import field as dataclass_field
 from pathlib import Path as FilePath
 from typing import Any, Protocol, runtime_checkable
 
@@ -38,6 +39,7 @@ class LineagePath:
 
     urns: tuple[str, ...]
     granularity: str = "table"
+    note: str | None = None
 
 
 # Kept as an alias because the engine specification calls this domain object Path.
@@ -49,8 +51,8 @@ class LineageResult:
     urns: tuple[str, ...] = ()
     entity_types: Mapping[str, str] | tuple[str, ...] = ()
     paths: tuple[LineagePath, ...] = ()
-    columns: Mapping[str, tuple[str, ...]] = ()
-    tags: Mapping[str, tuple[str, ...]] = ()
+    columns: Mapping[str, tuple[str, ...]] = dataclass_field(default_factory=dict)
+    tags: Mapping[str, tuple[str, ...]] = dataclass_field(default_factory=dict)
     granularity: str = "table"
 
 
@@ -189,7 +191,13 @@ class MCPGraphClient:
         default_granularity = (
             "column" if metadata.get("pathType") == "column-level" else "table"
         )
-        return list(_parse_paths(raw, default_granularity=default_granularity))
+        return _downstream_paths(
+            _parse_paths(raw, default_granularity=default_granularity),
+            a,
+            b,
+            source_column=source_column,
+            target_column=target_column,
+        )
 
     def close(self) -> None:
         close = getattr(self._tool_caller, "close", None)
@@ -300,11 +308,7 @@ def _tool_response_payload(response: Any, *, name: str = "tool") -> Any:
     if structured is not None:
         return structured
     text = next(
-        (
-            item.text
-            for item in response.content
-            if getattr(item, "type", "") == "text"
-        ),
+        (item.text for item in response.content if getattr(item, "type", "") == "text"),
         "{}",
     )
     return json.loads(text)
@@ -510,7 +514,7 @@ def _parse_paths(
             tuple(
                 node
                 if isinstance(node, str)
-                else _string(node, "urn", "entity_urn", "entityUrn") or ""
+                else _path_node_urn(_mapping(node))
                 for node in raw_nodes
             )
             if isinstance(raw_nodes, list)
@@ -525,3 +529,44 @@ def _parse_paths(
                 )
             )
     return sorted(paths, key=lambda path: (path.urns, path.granularity))
+
+
+def _path_node_urn(node: Mapping[str, Any]) -> str:
+    """Normalize both compact and typed MCP lineage-path nodes."""
+    urn = _string(node, "urn", "entity_urn", "entityUrn")
+    if urn:
+        return urn
+    parent = _string(_mapping(node.get("parent")), "urn", "entity_urn", "entityUrn")
+    field_path = _string(node, "fieldPath", "field_path")
+    return _schema_field_urn(parent, field_path) if parent and field_path else ""
+
+
+def _schema_field_urn(dataset_urn: str, column: str | None) -> str:
+    return (
+        f"urn:li:schemaField:({dataset_urn},{column})"
+        if column is not None
+        else dataset_urn
+    )
+
+
+def _downstream_paths(
+    paths: Sequence[LineagePath],
+    source: str,
+    target: str,
+    *,
+    source_column: str | None = None,
+    target_column: str | None = None,
+) -> list[LineagePath]:
+    """Return only ordered paths whose endpoints prove the downstream request."""
+    if not paths:
+        return []
+    source_node = _schema_field_urn(source, source_column)
+    target_node = _schema_field_urn(target, target_column)
+    trusted = [
+        path
+        for path in paths
+        if path.urns and path.urns[0] == source_node and path.urns[-1] == target_node
+    ]
+    if trusted:
+        return trusted
+    return []
