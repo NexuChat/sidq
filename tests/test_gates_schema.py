@@ -12,11 +12,15 @@ FIXTURES = Path(__file__).parent / "fixtures" / "graph"
 
 
 def test_schema_gate_reports_unknown_field_from_replay_fixture() -> None:
-    change = TouchedAsset("urn:target", "model.sql", (), (), (FieldRef(CUSTOMERS, "does_not_exist"),))
+    change = TouchedAsset(
+        "urn:target", "model.sql", (), (), (FieldRef(CUSTOMERS, "does_not_exist"),)
+    )
 
     evidence = SchemaGate().collect([change], ReplayGraphClient(FIXTURES))
 
-    assert [(item.kind, item.subject) for item in evidence] == [("unknown_field", f"{CUSTOMERS}#does_not_exist")]
+    assert [(item.kind, item.subject) for item in evidence] == [
+        ("unknown_field", f"{CUSTOMERS}#does_not_exist")
+    ]
 
 
 def test_schema_gate_reports_unknown_dataset_and_type_mismatch() -> None:

@@ -54,11 +54,15 @@ class LineageRotGate:
 
     id = "lineage_rot"
 
-    def __init__(self, sql_by_urn: Mapping[str, str] | None = None, *, dialect: str | None = None) -> None:
+    def __init__(
+        self, sql_by_urn: Mapping[str, str] | None = None, *, dialect: str | None = None
+    ) -> None:
         self._sql_by_urn = dict(sql_by_urn or {})
         self._dialect = dialect
 
-    def collect(self, change: Sequence[TouchedAsset], graph: GraphClient) -> list[Evidence]:
+    def collect(
+        self, change: Sequence[TouchedAsset], graph: GraphClient
+    ) -> list[Evidence]:
         evidence: list[Evidence] = []
         for asset in sorted(change, key=lambda item: item.urn):
             sql, read_error = self._sql(asset)
@@ -72,7 +76,11 @@ class LineageRotGate:
                 continue
             try:
                 dataset = graph.get_dataset(asset.urn)
-                catalog_fields = {field.path for field in dataset.fields} if dataset is not None else set()
+                catalog_fields = (
+                    {field.path for field in dataset.fields}
+                    if dataset is not None
+                    else set()
+                )
             except Exception as error:  # noqa: BLE001 - graph transports may raise arbitrary errors
                 evidence.append(graph_unavailable(asset.urn, error))
                 continue
@@ -93,15 +101,21 @@ class LineageRotGate:
                 except Exception as error:  # noqa: BLE001 - MCP transports may raise arbitrary errors
                     evidence.append(graph_unavailable(subject, error))
                     continue
-                source_urns, resolve_error = _source_urns(output, asset, graph, claimed.source_urns)
+                source_urns, resolve_error = _source_urns(
+                    output, asset, graph, claimed.source_urns
+                )
                 if resolve_error is not None:
                     evidence.append(_unverifiable(subject, resolve_error))
                     continue
-                computed, output_error = _computed_edges(asset.urn, output_name, output, source_urns)
+                computed, output_error = _computed_edges(
+                    asset.urn, output_name, output, source_urns
+                )
                 if output_error is not None:
                     evidence.append(_unverifiable(subject, output_error))
                     continue
-                _diff_edges(evidence, subject, claimed.edges, computed, output.expression)
+                _diff_edges(
+                    evidence, subject, claimed.edges, computed, output.expression
+                )
         return evidence
 
     def _sql(self, asset: TouchedAsset) -> tuple[str | None, str | None]:
@@ -127,14 +141,20 @@ def _outputs(sql: str, dialect: str | None) -> tuple[dict[str, _Output], str | N
     return _query_outputs(statements[0], {}), None
 
 
-def _query_outputs(query: Any, inherited_ctes: Mapping[str, _Relation]) -> dict[str, _Output]:
+def _query_outputs(
+    query: Any, inherited_ctes: Mapping[str, _Relation]
+) -> dict[str, _Output]:
     """Walk projections, joins, CTEs, and aliases into physical source columns."""
     from sqlglot import exp
 
     if isinstance(query, exp.Subquery):
         return _query_outputs(query.this, inherited_ctes)
     if not isinstance(query, exp.Select):
-        return {"<query>": _Output((), query.sql(), f"unsupported SQL expression: {type(query).__name__}")}
+        return {
+            "<query>": _Output(
+                (), query.sql(), f"unsupported SQL expression: {type(query).__name__}"
+            )
+        }
 
     ctes = dict(inherited_ctes)
     with_clause = query.args.get("with_")
@@ -157,10 +177,14 @@ def _query_outputs(query: Any, inherited_ctes: Mapping[str, _Relation]) -> dict[
     for projection in query.expressions:
         name = projection.alias_or_name
         if not name or name == "*":
-            outputs["<star>"] = _Output((), projection.sql(), "SELECT * cannot be resolved without a schema")
+            outputs["<star>"] = _Output(
+                (), projection.sql(), "SELECT * cannot be resolved without a schema"
+            )
             continue
         if projection.find(exp.Star) is not None:
-            outputs[name] = _Output((), projection.sql(), "SELECT * cannot be resolved without a schema")
+            outputs[name] = _Output(
+                (), projection.sql(), "SELECT * cannot be resolved without a schema"
+            )
             continue
         sources: list[_SourceColumn] = []
         reason: str | None = None
@@ -178,7 +202,9 @@ def _query_outputs(query: Any, inherited_ctes: Mapping[str, _Relation]) -> dict[
     return outputs
 
 
-def _add_relation(relations: dict[str, _Relation], item: Any, ctes: Mapping[str, _Relation]) -> None:
+def _add_relation(
+    relations: dict[str, _Relation], item: Any, ctes: Mapping[str, _Relation]
+) -> None:
     from sqlglot import exp
 
     alias = item.alias_or_name if hasattr(item, "alias_or_name") else ""
@@ -190,10 +216,14 @@ def _add_relation(relations: dict[str, _Relation], item: Any, ctes: Mapping[str,
         cte = ctes.get(item.name.casefold()) if item.name else None
         relations[alias.casefold()] = cte or _Relation(None, _table_name(item))
     else:
-        relations[alias.casefold()] = _Relation(None, reason=f"unsupported FROM expression: {type(item).__name__}")
+        relations[alias.casefold()] = _Relation(
+            None, reason=f"unsupported FROM expression: {type(item).__name__}"
+        )
 
 
-def _resolve_column(column: Any, relations: Mapping[str, _Relation]) -> tuple[tuple[_SourceColumn, ...], str | None]:
+def _resolve_column(
+    column: Any, relations: Mapping[str, _Relation]
+) -> tuple[tuple[_SourceColumn, ...], str | None]:
     qualifier = column.table.casefold() if column.table else ""
     if qualifier:
         relation = relations.get(qualifier)
@@ -225,12 +255,17 @@ def _table_name(table: Any) -> str:
 
 
 def _source_urns(
-    output: _Output, asset: TouchedAsset, graph: GraphClient, claimed_urns: Sequence[str]
+    output: _Output,
+    asset: TouchedAsset,
+    graph: GraphClient,
+    claimed_urns: Sequence[str],
 ) -> tuple[dict[str, str], str | None]:
     tables = sorted({source.table for source in output.sources})
     resolved: dict[str, str] = {}
     for table in tables:
-        claimed_candidates = {urn for urn in claimed_urns if _urn_matches_table(urn, table)}
+        claimed_candidates = {
+            urn for urn in claimed_urns if _urn_matches_table(urn, table)
+        }
         if len(claimed_candidates) == 1:
             resolved[table] = next(iter(claimed_candidates))
             continue
@@ -240,13 +275,18 @@ def _source_urns(
             reference.dataset_urn
             for source in output.sources
             for reference in asset.referenced_fields
-            if source.table == table and reference.field_path == source.column and _urn_matches_table(reference.dataset_urn, table)
+            if source.table == table
+            and reference.field_path == source.column
+            and _urn_matches_table(reference.dataset_urn, table)
         }
         if len(candidates) != 1:
             try:
                 candidate = graph.find_dataset(table)
             except Exception as error:  # noqa: BLE001
-                return {}, f"source dataset lookup failed for {table}: {type(error).__name__}"
+                return (
+                    {},
+                    f"source dataset lookup failed for {table}: {type(error).__name__}",
+                )
             if candidate is not None and _urn_matches_table(candidate, table):
                 candidates.add(candidate)
         if len(candidates) != 1:
@@ -256,7 +296,9 @@ def _source_urns(
 
 
 def _urn_matches_table(urn: str, table: str) -> bool:
-    match = re.match(r"^urn:li:dataset:\(urn:li:dataPlatform:[^,]+,([^,]+),[^)]+\)$", urn)
+    match = re.match(
+        r"^urn:li:dataset:\(urn:li:dataPlatform:[^,]+,([^,]+),[^)]+\)$", urn
+    )
     if match is None:
         return False
     relation = match.group(1).casefold()
@@ -297,7 +339,13 @@ def _claimed_edges(graph: GraphClient, target_urn: str, target_column: str) -> _
         raise _Unverifiable("graph client cannot retrieve target-side column lineage")
     raw = caller(
         "get_lineage",
-        {"urn": target_urn, "upstream": True, "max_hops": 1, "max_results": 100, "column": target_column},
+        {
+            "urn": target_urn,
+            "upstream": True,
+            "max_hops": 1,
+            "max_results": 100,
+            "column": target_column,
+        },
     )
     return _edges_from_mcp(raw, target_column)
 
@@ -324,17 +372,21 @@ def _edges_from_result(result: LineageResult, target_column: str) -> _Claims:
 
 def _edges_from_mcp(raw: Any, target_column: str) -> _Claims:
     document = raw if isinstance(raw, Mapping) else {}
-    metadata = document.get("metadata") if isinstance(document.get("metadata"), Mapping) else {}
+    raw_metadata = document.get("metadata")
+    metadata = raw_metadata if isinstance(raw_metadata, Mapping) else {}
     if metadata.get("queryType") != "column-level-lineage":
         raise _Unverifiable("graph did not return column-level lineage")
-    upstreams = document.get("upstreams") if isinstance(document.get("upstreams"), Mapping) else {}
-    results = upstreams.get("searchResults") if isinstance(upstreams.get("searchResults"), list) else []
+    raw_upstreams = document.get("upstreams")
+    upstreams = raw_upstreams if isinstance(raw_upstreams, Mapping) else {}
+    raw_results = upstreams.get("searchResults")
+    results = raw_results if isinstance(raw_results, list) else []
     edges: set[tuple[str, str, str]] = set()
     source_urns: set[str] = set()
     for item in results:
         if not isinstance(item, Mapping):
             continue
-        entity = item.get("entity") if isinstance(item.get("entity"), Mapping) else {}
+        raw_entity = item.get("entity")
+        entity = raw_entity if isinstance(raw_entity, Mapping) else {}
         urn = entity.get("urn")
         columns = item.get("lineageColumns")
         if not isinstance(urn, str) or not isinstance(columns, list):
@@ -361,7 +413,12 @@ def _diff_edges(
             Evidence(
                 "lineage_rot_missing",
                 subject,
-                {"claimed_edge": _edge(edge), "computed_edges": computed_detail, "sql_expression": expression, "confidence": "high"},
+                {
+                    "claimed_edge": _edge(edge),
+                    "computed_edges": computed_detail,
+                    "sql_expression": expression,
+                    "confidence": "high",
+                },
             )
         )
     for edge in sorted(computed_set - claimed_set):
@@ -369,15 +426,26 @@ def _diff_edges(
             Evidence(
                 "lineage_rot_extra",
                 subject,
-                {"claimed_edge": None, "computed_edges": computed_detail, "sql_expression": expression, "confidence": "high"},
+                {
+                    "claimed_edge": None,
+                    "computed_edges": computed_detail,
+                    "sql_expression": expression,
+                    "confidence": "high",
+                },
             )
         )
 
 
 def _edge(edge: tuple[str, str, str]) -> dict[str, str]:
     source_urn, source_column, target_column = edge
-    return {"source_dataset": source_urn, "source_column": source_column, "target_column": target_column}
+    return {
+        "source_dataset": source_urn,
+        "source_column": source_column,
+        "target_column": target_column,
+    }
 
 
 def _unverifiable(subject: str, reason: str) -> Evidence:
-    return Evidence("lineage_unverifiable", subject, {"reason": reason, "confidence": "none"})
+    return Evidence(
+        "lineage_unverifiable", subject, {"reason": reason, "confidence": "none"}
+    )

@@ -12,7 +12,9 @@ from sidq.models import Evidence, FieldRef, TouchedAsset
 class SchemaGate:
     id = "schema"
 
-    def collect(self, change: Sequence[TouchedAsset], graph: GraphClient) -> list[Evidence]:
+    def collect(
+        self, change: Sequence[TouchedAsset], graph: GraphClient
+    ) -> list[Evidence]:
         evidence: list[Evidence] = []
         cache: dict[str, DatasetInfo | None] = {}
         failed: set[str] = set()
@@ -35,18 +37,37 @@ class SchemaGate:
                     failed.add(reference.dataset_urn)
                 continue
             if info is None:
-                evidence.append(Evidence("unknown_dataset", reference.dataset_urn, {"referenced_by": _sources(change, reference)}))
+                evidence.append(
+                    Evidence(
+                        "unknown_dataset",
+                        reference.dataset_urn,
+                        {"referenced_by": _sources(change, reference)},
+                    )
+                )
                 continue
             path, expected_type = _typed_path(reference.field_path)
-            field = next((candidate for candidate in info.fields if candidate.path == path), None)
+            field = next(
+                (candidate for candidate in info.fields if candidate.path == path), None
+            )
             if field is None:
-                evidence.append(Evidence("unknown_field", f"{reference.dataset_urn}#{path}", {"field_path": path}))
-            elif expected_type is not None and not _compatible(expected_type, field.native_type):
+                evidence.append(
+                    Evidence(
+                        "unknown_field",
+                        f"{reference.dataset_urn}#{path}",
+                        {"field_path": path},
+                    )
+                )
+            elif expected_type is not None and not _compatible(
+                expected_type, field.native_type
+            ):
                 evidence.append(
                     Evidence(
                         "type_mismatch",
                         f"{reference.dataset_urn}#{path}",
-                        {"expected_type": expected_type, "graph_type": field.native_type},
+                        {
+                            "expected_type": expected_type,
+                            "graph_type": field.native_type,
+                        },
                     )
                 )
         return evidence
@@ -64,7 +85,13 @@ def _typed_path(path: str) -> tuple[str, str | None]:
 
 def _compatible(expected: str, actual: str) -> bool:
     normalize = lambda value: value.strip().lower().replace(" ", "")
-    aliases = {"int": "integer", "int4": "integer", "int8": "bigint", "varchar": "character varying", "bool": "boolean"}
+    aliases = {
+        "int": "integer",
+        "int4": "integer",
+        "int8": "bigint",
+        "varchar": "character varying",
+        "bool": "boolean",
+    }
     expected_normalized = aliases.get(normalize(expected), normalize(expected))
     actual_normalized = aliases.get(normalize(actual), normalize(actual))
     return expected_normalized == actual_normalized

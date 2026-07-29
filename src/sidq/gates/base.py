@@ -13,7 +13,9 @@ from sidq.models import Evidence, TouchedAsset
 class Gate(Protocol):
     id: str
 
-    def collect(self, change: Sequence[TouchedAsset], graph: GraphClient) -> list[Evidence]: ...
+    def collect(
+        self, change: Sequence[TouchedAsset], graph: GraphClient
+    ) -> list[Evidence]: ...
 
 
 def graph_unavailable(subject: str, error: Exception) -> Evidence:

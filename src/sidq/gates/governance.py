@@ -55,15 +55,15 @@ class GovernanceGate:
                 except Exception as error:  # noqa: BLE001 - graph transports vary
                     evidence.append(graph_unavailable(f"{asset.urn}#{field}", error))
                     continue
-                evidence.extend(
-                    _pii_exposure(asset, field, asset_info, downstream)
-                )
+                evidence.extend(_pii_exposure(asset, field, asset_info, downstream))
                 evidence.extend(
                     _access_policy_conflicts(
                         asset, field, asset_info, downstream, dataset
                     )
                 )
-        return sorted(evidence, key=lambda item: (item.kind, item.subject, repr(item.detail)))
+        return sorted(
+            evidence, key=lambda item: (item.kind, item.subject, repr(item.detail))
+        )
 
     def _deprecated_upstreams(
         self,
@@ -111,9 +111,7 @@ def _flowing_targets(result: LineageResult) -> tuple[str, ...]:
     if not isinstance(result.columns, Mapping):
         return ()
     return tuple(
-        sorted(
-            urn for urn in result.urns if tuple(result.columns.get(urn, ()))
-        )
+        sorted(urn for urn in result.urns if tuple(result.columns.get(urn, ())))
     )
 
 
@@ -160,7 +158,9 @@ def _pii_exposure(
             {
                 "changed_field": field,
                 "pii_tags": pii_tags,
-                "tagged_assets": {urn: tagged_assets[urn] for urn in sorted(tagged_assets)},
+                "tagged_assets": {
+                    urn: tagged_assets[urn] for urn in sorted(tagged_assets)
+                },
                 "unsafe_assets": unsafe_assets,
                 "granularity": downstream.granularity,
                 "confidence": "high",

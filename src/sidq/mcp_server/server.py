@@ -528,12 +528,12 @@ class SidqService:
             None,
         )
 
-    def _sql_workspace(self, sql: str):
+    def _sql_workspace(self, sql: str) -> _TemporaryProject:
         entries = _manifest_entries(self.repo_root)
         entry = _select_sql_entry(entries, self.default_sql_path)
         return _temporary_project(entry, {entry.source_path: sql})
 
-    def _diff_workspace(self, diff: str):
+    def _diff_workspace(self, diff: str) -> _TemporaryProject:
         patches = _parse_unified_diff(diff)
         if not patches:
             raise ValueError(
@@ -574,10 +574,10 @@ def create_server(service: SidqService) -> MCPServer:
         version="0.1.0",
     )
     read_only = ToolAnnotations(
-        readOnlyHint=True,
-        destructiveHint=False,
-        idempotentHint=True,
-        openWorldHint=True,
+        read_only_hint=True,
+        destructive_hint=False,
+        idempotent_hint=True,
+        open_world_hint=True,
     )
 
     @server.tool(

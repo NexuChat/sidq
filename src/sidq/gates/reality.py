@@ -16,7 +16,9 @@ class RealityGate:
     def __init__(self, source: LiveSourceClient) -> None:
         self._source = source
 
-    def collect(self, change: Sequence[TouchedAsset], graph: GraphClient) -> list[Evidence]:
+    def collect(
+        self, change: Sequence[TouchedAsset], graph: GraphClient
+    ) -> list[Evidence]:
         evidence: list[Evidence] = []
         for asset in sorted(change, key=lambda item: item.urn):
             try:
@@ -27,7 +29,11 @@ class RealityGate:
                 continue
             if catalog is None or source is None:
                 # An absent side cannot prove reality; make the failed prerequisite visible.
-                evidence.append(Evidence("graph_unavailable", asset.urn, {"error": "dataset_not_found"}))
+                evidence.append(
+                    Evidence(
+                        "graph_unavailable", asset.urn, {"error": "dataset_not_found"}
+                    )
+                )
                 continue
             graph_fields = _field_data(catalog.fields)
             live_fields = _field_data(source.fields)
@@ -51,6 +57,10 @@ class RealityGate:
 
 def _field_data(fields: Sequence[SchemaField]) -> list[dict[str, object]]:
     return [
-        {"path": field.path, "native_type": field.native_type, "nullable": field.nullable}
+        {
+            "path": field.path,
+            "native_type": field.native_type,
+            "nullable": field.nullable,
+        }
         for field in sorted(fields, key=lambda field: field.path)
     ]

@@ -21,11 +21,15 @@ class ReplayDocumentationGraph(ReplayGraphClient):
         return self._documentation
 
 
-def _change(*, removed: tuple[str, ...] = (), added: tuple[str, ...] = ()) -> TouchedAsset:
+def _change(
+    *, removed: tuple[str, ...] = (), added: tuple[str, ...] = ()
+) -> TouchedAsset:
     return TouchedAsset(ORDERS, "orders.sql", added, removed, ())
 
 
-def test_doc_rot_reports_asset_and_field_descriptions_that_name_removed_columns() -> None:
+def test_doc_rot_reports_asset_and_field_descriptions_that_name_removed_columns() -> (
+    None
+):
     graph = ReplayDocumentationGraph(
         {
             "description": "The legacy `old_status` column remains available.",
@@ -61,7 +65,12 @@ def test_doc_rot_does_not_treat_ordinary_prose_as_a_column_reference() -> None:
 
 
 def test_doc_rot_skips_when_the_graph_does_not_supply_documentation() -> None:
-    assert DocRotGate().collect([_change(removed=("old_status",))], ReplayDocumentationGraph(None)) == []
+    assert (
+        DocRotGate().collect(
+            [_change(removed=("old_status",))], ReplayDocumentationGraph(None)
+        )
+        == []
+    )
 
 
 def test_default_policy_warns_for_change_scoped_doc_rot() -> None:

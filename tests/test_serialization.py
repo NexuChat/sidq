@@ -16,7 +16,11 @@ def test_identical_inputs_produce_byte_identical_verdict_json() -> None:
     ]
     engine = PolicyEngine()
 
-    first = canonical_json(engine.decide(evidence, touched=touched, commit_sha="abc123"))
-    second = canonical_json(engine.decide(evidence, touched=touched, commit_sha="abc123"))
+    first = canonical_json(
+        engine.decide(evidence, touched=touched, commit_sha="abc123")
+    )
+    second = canonical_json(
+        engine.decide(evidence, touched=touched, commit_sha="abc123")
+    )
 
     assert first == second

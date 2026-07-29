@@ -10,7 +10,7 @@ from collections import defaultdict
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
-from typing import Any
+from typing import Any, Literal, TypeGuard, cast
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlencode, urlsplit
 from urllib.request import Request, urlopen
@@ -31,6 +31,8 @@ _MAX_RESPONSE_BYTES = 32 * 1024 * 1024
 _MAX_CHANGED_FILE_BYTES = 5 * 1024 * 1024
 _EXIT_CODES = {"PASS": 0, "WARN": 1, "BLOCK": 2}
 _CHECK_CONCLUSIONS = {0: "success", 1: "neutral", 2: "failure"}
+
+type RunMode = Literal["live", "fixture"]
 
 
 class ActionError(RuntimeError):
@@ -116,7 +118,7 @@ class GitHubClient:
         head_sha: str,
         exit_code: int,
         decision: str,
-        mode: str,
+        mode: RunMode,
     ) -> None:
         try:
             conclusion = _CHECK_CONCLUSIONS[exit_code]
@@ -206,7 +208,7 @@ def run_engine(
     *,
     repo_root: Path,
     commit_sha: str,
-    mode: str,
+    mode: RunMode,
     fixture_dir: Path | None = None,
     policy_path: Path | None = None,
 ) -> Verdict:
@@ -359,7 +361,7 @@ def _context_from_event(path: Path) -> PullRequestContext:
     return PullRequestContext(number, base_sha.lower(), head_sha.lower())
 
 
-def _valid_sha(value: Any) -> bool:
+def _valid_sha(value: Any) -> TypeGuard[str]:
     return isinstance(value, str) and bool(re.fullmatch(r"[0-9a-fA-F]{40,64}", value))
 
 
@@ -408,7 +410,7 @@ def _policy_path(repo_root: Path, action_path: Path, configured: str) -> Path:
 
 def _failure_verdict(
     *,
-    mode: str,
+    mode: RunMode,
     commit_sha: str,
     policy_path: Path | None,
     error: Exception,
@@ -449,7 +451,7 @@ def _publish_result(
     comment: str,
     exit_code: int,
     decision: str,
-    mode: str,
+    mode: RunMode,
 ) -> None:
     failures: list[str] = []
     try:
@@ -474,9 +476,10 @@ def main() -> int:
         workspace = Path(_required_env("GITHUB_WORKSPACE")).resolve()
         action_path = Path(os.environ.get("SIDQ_ACTION_PATH", workspace)).resolve()
         event = _context_from_event(Path(_required_env("GITHUB_EVENT_PATH")))
-        mode = os.environ.get("SIDQ_MODE", "live").strip().lower()
-        if mode not in {"live", "fixture"}:
+        mode_value = os.environ.get("SIDQ_MODE", "live").strip().lower()
+        if mode_value not in {"live", "fixture"}:
             raise ActionError("SIDQ_MODE must be 'live' or 'fixture'")
+        mode = cast(RunMode, mode_value)
         repo_root = _workspace_root(workspace, os.environ.get("SIDQ_REPO_ROOT", "."))
         policy_path = _policy_path(
             repo_root,

@@ -9,7 +9,9 @@ TARGET = "urn:li:dataset:(urn:li:dataPlatform:dbt,analytics.customers,PROD)"
 
 
 class Graph:
-    def __init__(self, claims: dict[str, tuple[str, ...]], *, granularity: str = "column") -> None:
+    def __init__(
+        self, claims: dict[str, tuple[str, ...]], *, granularity: str = "column"
+    ) -> None:
         self.claims = claims
         self.granularity = granularity
 
@@ -18,14 +20,20 @@ class Graph:
 
     def get_dataset(self, urn: str) -> DatasetInfo:
         assert urn == TARGET
-        return DatasetInfo(urn, tuple(SchemaField(column, "TEXT", True) for column in self.claims))
+        return DatasetInfo(
+            urn, tuple(SchemaField(column, "TEXT", True) for column in self.claims)
+        )
 
-    def get_upstream(self, urn: str, depth: int, column: str | None = None) -> LineageResult:
+    def get_upstream(
+        self, urn: str, depth: int, column: str | None = None
+    ) -> LineageResult:
         assert urn == TARGET
         assert depth == 1
         assert column is not None
         return LineageResult(
-            urns=(SOURCE,), columns={SOURCE: self.claims.get(column, ())}, granularity=self.granularity
+            urns=(SOURCE,),
+            columns={SOURCE: self.claims.get(column, ())},
+            granularity=self.granularity,
         )
 
 
@@ -35,7 +43,11 @@ def _asset() -> TouchedAsset:
         "unused.sql",
         (),
         (),
-        (FieldRef(SOURCE, "id"), FieldRef(SOURCE, "email"), FieldRef(SOURCE, "legacy_email")),
+        (
+            FieldRef(SOURCE, "id"),
+            FieldRef(SOURCE, "email"),
+            FieldRef(SOURCE, "legacy_email"),
+        ),
     )
 
 
@@ -44,7 +56,9 @@ def _gate(sql: str) -> LineageRotGate:
 
 
 def test_lineage_rot_reports_a_claimed_edge_the_sql_no_longer_produces() -> None:
-    evidence = _gate("SELECT c.id AS customer_id FROM analytics.raw_customers AS c").collect(
+    evidence = _gate(
+        "SELECT c.id AS customer_id FROM analytics.raw_customers AS c"
+    ).collect(
         [_asset()], Graph({"customer_id": ("id",), "legacy_email": ("legacy_email",)})
     )
 
@@ -57,25 +71,29 @@ def test_lineage_rot_reports_a_claimed_edge_the_sql_no_longer_produces() -> None
 
 
 def test_lineage_rot_is_clean_when_catalog_and_sql_agree() -> None:
-    evidence = _gate("SELECT c.id AS customer_id FROM analytics.raw_customers AS c").collect(
-        [_asset()], Graph({"customer_id": ("id",)})
-    )
+    evidence = _gate(
+        "SELECT c.id AS customer_id FROM analytics.raw_customers AS c"
+    ).collect([_asset()], Graph({"customer_id": ("id",)}))
 
     assert evidence == []
 
 
 def test_lineage_rot_reports_an_edge_missing_from_the_catalog() -> None:
-    evidence = _gate("SELECT c.email AS email FROM analytics.raw_customers AS c").collect(
-        [_asset()], Graph({"email": ()})
-    )
+    evidence = _gate(
+        "SELECT c.email AS email FROM analytics.raw_customers AS c"
+    ).collect([_asset()], Graph({"email": ()}))
 
     assert [item.kind for item in evidence] == ["lineage_rot_extra"]
     assert evidence[0].detail["claimed_edge"] is None
-    assert evidence[0].detail["computed_edges"] == [{"source_dataset": SOURCE, "source_column": "email", "target_column": "email"}]
+    assert evidence[0].detail["computed_edges"] == [
+        {"source_dataset": SOURCE, "source_column": "email", "target_column": "email"}
+    ]
 
 
 def test_lineage_rot_never_claims_rot_for_select_star() -> None:
-    evidence = _gate("SELECT * FROM analytics.raw_customers").collect([_asset()], Graph({}))
+    evidence = _gate("SELECT * FROM analytics.raw_customers").collect(
+        [_asset()], Graph({})
+    )
 
     assert [item.kind for item in evidence] == ["lineage_unverifiable"]
     assert "SELECT *" in evidence[0].detail["reason"]

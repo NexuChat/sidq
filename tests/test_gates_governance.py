@@ -10,7 +10,9 @@ from sidq.policy.engine import PolicyEngine
 
 CUSTOMERS = "urn:li:dataset:(urn:li:dataPlatform:dbt,b2fd91.order_entry_db.order_entry.customers,PROD)"
 LEGACY = "urn:li:dataset:(urn:li:dataPlatform:postgres,raw.legacy_customers,PROD)"
-RESTRICTED = "urn:li:dataset:(urn:li:dataPlatform:postgres,raw.restricted_customers,PROD)"
+RESTRICTED = (
+    "urn:li:dataset:(urn:li:dataPlatform:postgres,raw.restricted_customers,PROD)"
+)
 PUBLIC = "urn:li:dataset:(urn:li:dataPlatform:postgres,analytics.public_customers,PROD)"
 FIXTURES = Path(__file__).parent / "fixtures" / "graph"
 
@@ -145,7 +147,9 @@ def test_governance_reports_restricted_data_routed_to_an_unrestricted_asset() ->
     ]
 
 
-def test_governance_skips_access_conflicts_without_explicit_restriction_metadata() -> None:
+def test_governance_skips_access_conflicts_without_explicit_restriction_metadata() -> (
+    None
+):
     graph = ReplayGovernanceGraph(
         **{
             RESTRICTED: DatasetInfo(
@@ -172,4 +176,6 @@ def test_default_policy_warns_for_the_new_governance_evidence() -> None:
     )
 
     assert verdict.decision == "WARN"
-    assert [finding.rule_id for finding in verdict.findings] == ["access_policy_conflict"]
+    assert [finding.rule_id for finding in verdict.findings] == [
+        "access_policy_conflict"
+    ]

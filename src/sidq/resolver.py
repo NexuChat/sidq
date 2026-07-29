@@ -160,8 +160,16 @@ def _manifest_index(
             if not isinstance(urn, str):
                 urn = dataset_urn(str(platform), relation, env)
             columns = node.get("columns", {})
-            previous_fields = tuple(sorted(str(name) for name in columns)) if isinstance(columns, Mapping) else ()
-            indexed[_normalise_path(source_path, root)] = (urn, "dbt_manifest", previous_fields)
+            previous_fields = (
+                tuple(sorted(str(name) for name in columns))
+                if isinstance(columns, Mapping)
+                else ()
+            )
+            indexed[_normalise_path(source_path, root)] = (
+                urn,
+                "dbt_manifest",
+                previous_fields,
+            )
         if indexed:
             return indexed
     return {}

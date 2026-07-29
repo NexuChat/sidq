@@ -11,7 +11,9 @@ from sidq.graph.client import DatasetInfo, GraphClient
 from sidq.models import Evidence, TouchedAsset
 
 _QUOTED_REFERENCE = re.compile(r"[`\"']([^`\"']+)[`\"']")
-_SNAKE_CASE_REFERENCE = re.compile(r"(?<![A-Za-z0-9_])[a-z][a-z0-9]*_[a-z0-9_]+(?![A-Za-z0-9_])")
+_SNAKE_CASE_REFERENCE = re.compile(
+    r"(?<![A-Za-z0-9_])[a-z][a-z0-9]*_[a-z0-9_]+(?![A-Za-z0-9_])"
+)
 
 
 class DocRotGate:
@@ -62,7 +64,9 @@ class DocRotGate:
                             },
                         )
                     )
-        return sorted(evidence, key=lambda item: (item.subject, item.detail["mentioned_field"]))
+        return sorted(
+            evidence, key=lambda item: (item.subject, item.detail["mentioned_field"])
+        )
 
 
 def _documents(raw: Any, asset_urn: str) -> list[tuple[str, str]]:
@@ -94,5 +98,7 @@ def _post_change_fields(info: DatasetInfo, asset: TouchedAsset) -> set[str]:
 
 def _references(description: str) -> list[str]:
     quoted = {match.group(1) for match in _QUOTED_REFERENCE.finditer(description)}
-    snake_case = {match.group(0) for match in _SNAKE_CASE_REFERENCE.finditer(description)}
+    snake_case = {
+        match.group(0) for match in _SNAKE_CASE_REFERENCE.finditer(description)
+    }
     return sorted(quoted | snake_case)

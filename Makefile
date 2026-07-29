@@ -1,7 +1,15 @@
 DEMO_COMPOSE := docker compose -f demo/docker-compose.yml
 DEMO_INGEST_IMAGE := acryldata/datahub-ingestion:v1.5.0.6
 
-.PHONY: demo-up demo-ingest demo-break demo-restore demo-down
+VENV ?= .venv
+
+.PHONY: check demo-up demo-ingest demo-break demo-restore demo-down
+
+check:
+	$(VENV)/bin/ruff check .
+	$(VENV)/bin/ruff format --check .
+	$(VENV)/bin/mypy src/
+	$(VENV)/bin/pytest -q
 
 demo-up:
 	$(DEMO_COMPOSE) up -d --wait postgres
