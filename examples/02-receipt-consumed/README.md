@@ -7,6 +7,18 @@ The receipt body is queryable `sidq.*` structured properties; `commit_sha` and
 `policy_hash` make the policy decision reproducible. The writer owns only that
 namespace and the `sidq:verified` / `sidq:blocked` badges.
 
+> **The `policy_hash` in the transcript below is historical, and that is the
+> point of publishing it.** The scripts compute the hash live from
+> `src/sidq/policy/default_policy.yaml`, so every policy change gives a new one.
+> This run predates the constraint-reconciliation and `partial_blast_radius`
+> rules, so re-running it today yields a different `policy_hash` — a receipt
+> pinned to a policy that has since changed is exactly what
+> `search_verified` and `get_verification_status` are built to detect. The
+> transcript is kept verbatim rather than rewritten, because editing a recorded
+> live run to match today's code would destroy the only thing it proves.
+> `tests/test_receipt.py` fails if this paragraph is removed while the transcript
+> hash is stale.
+
 To reproduce, make `mcp-server-datahub` available on `PATH`, set
 `TOOLS_IS_MUTATION_ENABLED=true` (the receipt caller sets it for its MCP child
 process), then run:
