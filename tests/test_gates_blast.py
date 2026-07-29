@@ -133,3 +133,71 @@ def test_owner_parser_excludes_ownership_type_urns() -> None:
     )
 
     assert owners == ["urn:li:corpuser:alice"]
+
+
+def test_an_unreadable_downstream_asset_is_named_in_the_blast_detail() -> None:
+    """A failed downstream read must be auditable, never silently dropped.
+
+    `critical_assets` and `cross_team_owners` are what `critical_downstream`
+    blocks on, so a partial read that leaves them empty could weaken a blocking
+    verdict with no trace of why.
+    """
+
+    class PartiallyReadableGraph:
+        def get_dataset(self, urn: str) -> DatasetInfo | None:
+            if urn.startswith("urn:li:chart:"):
+                raise RuntimeError("charts are not datasets in this graph")
+            return DatasetInfo(urn, (), (), (), ("urn:li:corpuser:owner",))
+
+        def get_downstream(
+            self, urn: str, depth: int, column: str | None = None
+        ) -> LineageResult:
+            return LineageResult(
+                urns=("urn:li:chart:(looker,dash.1)",),
+                entity_types={"urn:li:chart:(looker,dash.1)": "chart"},
+                granularity="column" if column else "table",
+            )
+
+        def paths_between(self, *args: object, **kwargs: object) -> list:
+            return []
+
+    evidence = BlastRadiusGate(depth=3).collect(
+        [
+            TouchedAsset(
+                "urn:li:dataset:(urn:li:dataPlatform:dbt,db.t,PROD)", "", (), ("x",), ()
+            )
+        ],
+        PartiallyReadableGraph(),
+    )
+
+    radius = next(item for item in evidence if item.kind == "blast_radius")
+    assert radius.detail["unreadable_assets"] == ["urn:li:chart:(looker,dash.1)"]
+    assert radius.detail["cross_team_owners"] == []
+
+
+def test_a_fully_readable_radius_records_no_unreadable_assets() -> None:
+    class ReadableGraph:
+        def get_dataset(self, urn: str) -> DatasetInfo | None:
+            return DatasetInfo(urn, (), (), (), ())
+
+        def get_downstream(
+            self, urn: str, depth: int, column: str | None = None
+        ) -> LineageResult:
+            return LineageResult(
+                urns=("urn:li:dataset:(urn:li:dataPlatform:dbt,db.d,PROD)",)
+            )
+
+        def paths_between(self, *args: object, **kwargs: object) -> list:
+            return []
+
+    evidence = BlastRadiusGate(depth=3).collect(
+        [
+            TouchedAsset(
+                "urn:li:dataset:(urn:li:dataPlatform:dbt,db.t,PROD)", "", (), ("x",), ()
+            )
+        ],
+        ReadableGraph(),
+    )
+
+    radius = next(item for item in evidence if item.kind == "blast_radius")
+    assert radius.detail["unreadable_assets"] == []

@@ -190,8 +190,15 @@ canonical machine artifact that every other surface (MCP, bot, receipt) consumes
 - **Resolver tests**: a tiny dbt manifest fixture + a naming-convention case + an
   unresolvable file (must produce `unresolved_asset`, must not crash).
 - **Determinism test**: run the same input twice, assert byte-identical JSON.
-- **Golden end-to-end**: `examples/bad_change.sql` ⇒ BLOCK with the exact rule ids;
-  `examples/good_change.sql` ⇒ PASS. These are regression tests — never edit an
+- **Golden end-to-end**: implemented in `tests/test_golden_examples.py` against the
+  real published example, `examples/01-blocked-pii-dashboard`, rather than the
+  `bad_change.sql` / `good_change.sql` fixtures named in the first draft of this
+  spec — those were never created, so for a time this regression did not exist and
+  the engine could have changed its verdict on the artifact a judge opens. The test
+  runs offline from the committed replay snapshot and pins the BLOCK decision, the
+  offline-provable rule ids, the column-level lineage under them, and byte
+  determinism. Its scope limits and one known drift are recorded in
+  the project gap assessment §5 items ٢٥–٢٦. These are regression tests — never edit an
   example to make a test pass; fix the engine.
 
 ## 8. Wave 1 definition of done
