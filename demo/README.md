@@ -38,8 +38,10 @@ make demo-down
 ```
 
 - `demo-up` starts PostgreSQL and waits for its health check. A fresh volume is
-  initialized with 36 customers, 72 orders, 144 order items, and the
-  `analytics.customer_revenue` aggregate view.
+  initialized with 11 raw tables: the original 36 customers, 72 orders, and
+  144 order items plus categories, products, payments, shipments, refunds,
+  subscriptions, web sessions, and support tickets. The original
+  `analytics.customer_revenue` aggregate view remains available.
 - `demo-ingest` runs the matching DataHub `v1.5.0.6` ingestion image against
   `demo/ingest.dhub.yaml` on `datahub_network`. It ingests the `raw` and
   `analytics` schemas. Run this before `demo-break`, not after it.
@@ -97,17 +99,32 @@ ordinal_position | column_name | data_type
 5                | created_at  | timestamp with time zone
 ```
 
-## dbt resolver fixture
+## dbt warehouse fixture
 
-dbt is not installed in this workspace, so this demo takes the fixture route.
-`dbt/models/customer_revenue.sql` is the plain model SQL, while
-`dbt/manifest.json` is a small dbt-compatible manifest fixture. Its model node
-maps `models/customer_revenue.sql` directly to:
+`demo/dbt` is a small but production-shaped dbt project named `sidq_demo`.
+It has 18 models in three layers:
 
-```text
-urn:li:dataset:(urn:li:dataPlatform:postgres,sidq-demo.warehouse.analytics.customer_revenue,PROD)
-```
+- `staging/`: one explicit-list model for each of the 11 `raw` tables.
+- `intermediate/`: `int_order_enriched`, `int_customer_lifetime`, and
+  `int_payment_reconciliation`.
+- `marts/`: `customer_360`, `revenue_daily`, `product_performance`, and
+  `order_funnel`.
 
-The fixture exists for Sidq's manifest-first resolver; the PostgreSQL
-source recipe remains the authority that creates the catalog assets and
-lineage used in the live demo.
+All relationships are declared with dbt `source`/`ref` dependency comments,
+which dbt evaluates while leaving the executable SQL as ordinary PostgreSQL.
+This also lets SQLGlot parse every committed model without a Jinja rendering
+step. The longest lineage paths are source → staging → intermediate → mart.
+
+The project includes model and column descriptions, source-facing contracts,
+and tests for nullability, uniqueness, controlled values, and relationships.
+PII is marked with `meta: {pii: true}`. In particular,
+`raw.customers.email` and `raw.customers.full_name` flow through
+`stg_customers` and `int_customer_lifetime` into `customer_360`; email also
+flows through `int_order_enriched` into `order_funnel`.
+
+`dbt` is not installed in this workspace, so `dbt/manifest.json` is a
+hand-authored dbt-compatible manifest generated from the committed model SQL
+and schema contracts. It contains the raw and compiled code, dependencies,
+and columns for all 18 model nodes. Keep it in lockstep with model changes;
+Sidq's manifest-first resolver uses it as a fixture, while `seed.sql` remains
+the authority for the live PostgreSQL source tables.

@@ -1,32 +1,1439 @@
 {
-  "metadata": {
-    "adapter_type": "dbt"
-  },
-  "nodes": {
-    "model.sidq_demo.customers": {
-      "original_file_path": "models/order_entry/customers.sql",
-      "relation_name": "b2fd91.order_entry_db.order_entry.customers",
-      "config": {"meta": {"environment": "PROD"}},
-      "columns": {
-        "account_mgr_id": {}, "address_line1": {}, "address_line2": {}, "address_line3": {},
-        "country_id": {}, "credit_limit": {}, "cust_email": {}, "cust_first_name": {},
-        "cust_last_name": {}, "customer_class": {}, "customer_id": {}, "customer_since": {},
-        "dob": {}, "mailshot": {}, "nls_language": {}, "nls_territory": {},
-        "partner_mailshot": {}, "phone_number": {}, "region_id": {}, "suggestions": {},
-        "town_city": {}, "zipcode": {}
-      }
+ "metadata": {
+  "adapter_type": "dbt",
+  "dbt_schema_version": "https://schemas.getdbt.com/dbt/manifest/v12.json",
+  "project_name": "sidq_demo"
+ },
+ "nodes": {
+  "model.sidq_demo.customer_360": {
+   "columns": {
+    "current_plan_name": {
+     "description": "Current or most recent subscription plan.",
+     "meta": {},
+     "name": "current_plan_name"
     },
-    "model.sidq_demo.raw_customers": {
-      "original_file_path": "models/raw/customers.sql",
-      "relation_name": "sidq-demo.warehouse.raw.customers",
-      "config": {"meta": {"environment": "PROD"}},
-      "meta": {
-        "dataset_urn": "urn:li:dataset:(urn:li:dataPlatform:postgres,sidq-demo.warehouse.raw.customers,PROD)"
-      },
-      "columns": {
-        "customer_id": {}, "email": {}, "full_name": {}, "country": {},
-        "created_at": {}
-      }
+    "customer_country": {
+     "description": "Customer registration country.",
+     "meta": {},
+     "name": "customer_country"
+    },
+    "customer_created_at": {
+     "description": "UTC account creation timestamp.",
+     "meta": {},
+     "name": "customer_created_at"
+    },
+    "customer_email": {
+     "description": "PII customer email from raw.customers, retained for approved lifecycle activation.",
+     "meta": {
+      "pii": true
+     },
+     "name": "customer_email"
+    },
+    "customer_id": {
+     "description": "Unique customer identifier.",
+     "meta": {},
+     "name": "customer_id"
+    },
+    "customer_name": {
+     "description": "PII customer name from raw.customers, retained for customer-success workflows.",
+     "meta": {
+      "pii": true
+     },
+     "name": "customer_name"
+    },
+    "first_order_at": {
+     "description": "UTC timestamp of the first order.",
+     "meta": {},
+     "name": "first_order_at"
+    },
+    "last_order_at": {
+     "description": "UTC timestamp of the most recent order.",
+     "meta": {},
+     "name": "last_order_at"
+    },
+    "last_session_at": {
+     "description": "UTC timestamp of the latest identified session.",
+     "meta": {},
+     "name": "last_session_at"
+    },
+    "lifetime_order_count": {
+     "description": "Count of orders placed across the customer lifetime.",
+     "meta": {},
+     "name": "lifetime_order_count"
+    },
+    "lifetime_order_value": {
+     "description": "Gross lifetime order value before refunds.",
+     "meta": {},
+     "name": "lifetime_order_value"
+    },
+    "monthly_amount": {
+     "description": "Monthly recurring subscription amount.",
+     "meta": {},
+     "name": "monthly_amount"
+    },
+    "session_count": {
+     "description": "Count of identified web sessions.",
+     "meta": {},
+     "name": "session_count"
+    },
+    "subscription_status": {
+     "description": "Current subscription lifecycle state.",
+     "meta": {},
+     "name": "subscription_status"
+    },
+    "support_ticket_count": {
+     "description": "Total support tickets opened by the customer.",
+     "meta": {},
+     "name": "support_ticket_count"
+    },
+    "unresolved_ticket_count": {
+     "description": "Support tickets not in resolved status.",
+     "meta": {},
+     "name": "unresolved_ticket_count"
     }
+   },
+   "compiled_code": "-- depends_on: intermediate.int_customer_lifetime\nselect\n    customer_id,\n    customer_email,\n    customer_name,\n    customer_country,\n    customer_created_at,\n    lifetime_order_count,\n    first_order_at,\n    last_order_at,\n    lifetime_order_value,\n    current_plan_name,\n    subscription_status,\n    monthly_amount,\n    session_count,\n    last_session_at,\n    support_ticket_count,\n    unresolved_ticket_count\nfrom intermediate.int_customer_lifetime\n",
+   "config": {
+    "materialized": "view",
+    "schema": "analytics"
+   },
+   "depends_on": {
+    "macros": [],
+    "nodes": [
+     "model.sidq_demo.int_customer_lifetime"
+    ]
+   },
+   "name": "customer_360",
+   "original_file_path": "models/marts/customer_360.sql",
+   "raw_code": "-- depends_on: {{ ref('int_customer_lifetime') }}\nselect\n    customer_id,\n    customer_email,\n    customer_name,\n    customer_country,\n    customer_created_at,\n    lifetime_order_count,\n    first_order_at,\n    last_order_at,\n    lifetime_order_value,\n    current_plan_name,\n    subscription_status,\n    monthly_amount,\n    session_count,\n    last_session_at,\n    support_ticket_count,\n    unresolved_ticket_count\nfrom intermediate.int_customer_lifetime\n",
+   "relation_name": "warehouse.analytics.customer_360",
+   "resource_type": "model"
+  },
+  "model.sidq_demo.int_customer_lifetime": {
+   "columns": {
+    "current_plan_name": {
+     "description": "Current or latest subscription plan.",
+     "meta": {},
+     "name": "current_plan_name"
+    },
+    "customer_country": {
+     "description": "Customer registration country.",
+     "meta": {},
+     "name": "customer_country"
+    },
+    "customer_created_at": {
+     "description": "UTC account creation timestamp.",
+     "meta": {},
+     "name": "customer_created_at"
+    },
+    "customer_email": {
+     "description": "PII customer email retained for lifecycle activation.",
+     "meta": {
+      "pii": true
+     },
+     "name": "customer_email"
+    },
+    "customer_id": {
+     "description": "Unique customer identifier.",
+     "meta": {},
+     "name": "customer_id"
+    },
+    "customer_name": {
+     "description": "PII customer name retained for customer-success workflows.",
+     "meta": {
+      "pii": true
+     },
+     "name": "customer_name"
+    },
+    "first_order_at": {
+     "description": "UTC timestamp of the first order.",
+     "meta": {},
+     "name": "first_order_at"
+    },
+    "last_order_at": {
+     "description": "UTC timestamp of the latest order.",
+     "meta": {},
+     "name": "last_order_at"
+    },
+    "last_session_at": {
+     "description": "UTC timestamp of the latest identified session.",
+     "meta": {},
+     "name": "last_session_at"
+    },
+    "lifetime_order_count": {
+     "description": "Count of all orders placed by the customer.",
+     "meta": {},
+     "name": "lifetime_order_count"
+    },
+    "lifetime_order_value": {
+     "description": "Gross lifetime order value.",
+     "meta": {},
+     "name": "lifetime_order_value"
+    },
+    "monthly_amount": {
+     "description": "Current monthly recurring amount.",
+     "meta": {},
+     "name": "monthly_amount"
+    },
+    "session_count": {
+     "description": "Count of identified web sessions.",
+     "meta": {},
+     "name": "session_count"
+    },
+    "subscription_status": {
+     "description": "Current subscription lifecycle state.",
+     "meta": {},
+     "name": "subscription_status"
+    },
+    "support_ticket_count": {
+     "description": "Total support tickets opened.",
+     "meta": {},
+     "name": "support_ticket_count"
+    },
+    "unresolved_ticket_count": {
+     "description": "Tickets not yet resolved.",
+     "meta": {},
+     "name": "unresolved_ticket_count"
+    }
+   },
+   "compiled_code": "-- depends_on: staging.stg_orders\n-- depends_on: staging.stg_web_sessions\n-- depends_on: staging.stg_support_tickets\n-- depends_on: staging.stg_customers\n-- depends_on: staging.stg_subscriptions\nwith order_metrics as (\n    select\n        customer_id,\n        count(order_id)::bigint as lifetime_order_count,\n        min(ordered_at) as first_order_at,\n        max(ordered_at) as last_order_at,\n        sum(order_total)::numeric(14, 2) as lifetime_order_value\n    from staging.stg_orders\n    group by customer_id\n),\nsession_metrics as (\n    select\n        customer_id,\n        count(session_id)::bigint as session_count,\n        max(session_started_at) as last_session_at\n    from staging.stg_web_sessions\n    group by customer_id\n),\nticket_metrics as (\n    select\n        customer_id,\n        count(ticket_id)::bigint as support_ticket_count,\n        count(ticket_id) filter (where ticket_status <> 'resolved')::bigint as unresolved_ticket_count\n    from staging.stg_support_tickets\n    group by customer_id\n)\nselect\n    customers.customer_id,\n    customers.customer_email,\n    customers.customer_name,\n    customers.customer_country,\n    customers.customer_created_at,\n    coalesce(order_metrics.lifetime_order_count, 0)::bigint as lifetime_order_count,\n    order_metrics.first_order_at,\n    order_metrics.last_order_at,\n    coalesce(order_metrics.lifetime_order_value, 0)::numeric(14, 2) as lifetime_order_value,\n    subscriptions.plan_name as current_plan_name,\n    subscriptions.subscription_status,\n    subscriptions.monthly_amount,\n    coalesce(session_metrics.session_count, 0)::bigint as session_count,\n    session_metrics.last_session_at,\n    coalesce(ticket_metrics.support_ticket_count, 0)::bigint as support_ticket_count,\n    coalesce(ticket_metrics.unresolved_ticket_count, 0)::bigint as unresolved_ticket_count\nfrom staging.stg_customers as customers\nleft join order_metrics on order_metrics.customer_id = customers.customer_id\nleft join staging.stg_subscriptions as subscriptions on subscriptions.customer_id = customers.customer_id\nleft join session_metrics on session_metrics.customer_id = customers.customer_id\nleft join ticket_metrics on ticket_metrics.customer_id = customers.customer_id\n",
+   "config": {
+    "materialized": "view",
+    "schema": "intermediate"
+   },
+   "depends_on": {
+    "macros": [],
+    "nodes": [
+     "model.sidq_demo.stg_orders",
+     "model.sidq_demo.stg_web_sessions",
+     "model.sidq_demo.stg_support_tickets",
+     "model.sidq_demo.stg_customers",
+     "model.sidq_demo.stg_subscriptions"
+    ]
+   },
+   "name": "int_customer_lifetime",
+   "original_file_path": "models/intermediate/int_customer_lifetime.sql",
+   "raw_code": "-- depends_on: {{ ref('stg_orders') }}\n-- depends_on: {{ ref('stg_web_sessions') }}\n-- depends_on: {{ ref('stg_support_tickets') }}\n-- depends_on: {{ ref('stg_customers') }}\n-- depends_on: {{ ref('stg_subscriptions') }}\nwith order_metrics as (\n    select\n        customer_id,\n        count(order_id)::bigint as lifetime_order_count,\n        min(ordered_at) as first_order_at,\n        max(ordered_at) as last_order_at,\n        sum(order_total)::numeric(14, 2) as lifetime_order_value\n    from staging.stg_orders\n    group by customer_id\n),\nsession_metrics as (\n    select\n        customer_id,\n        count(session_id)::bigint as session_count,\n        max(session_started_at) as last_session_at\n    from staging.stg_web_sessions\n    group by customer_id\n),\nticket_metrics as (\n    select\n        customer_id,\n        count(ticket_id)::bigint as support_ticket_count,\n        count(ticket_id) filter (where ticket_status <> 'resolved')::bigint as unresolved_ticket_count\n    from staging.stg_support_tickets\n    group by customer_id\n)\nselect\n    customers.customer_id,\n    customers.customer_email,\n    customers.customer_name,\n    customers.customer_country,\n    customers.customer_created_at,\n    coalesce(order_metrics.lifetime_order_count, 0)::bigint as lifetime_order_count,\n    order_metrics.first_order_at,\n    order_metrics.last_order_at,\n    coalesce(order_metrics.lifetime_order_value, 0)::numeric(14, 2) as lifetime_order_value,\n    subscriptions.plan_name as current_plan_name,\n    subscriptions.subscription_status,\n    subscriptions.monthly_amount,\n    coalesce(session_metrics.session_count, 0)::bigint as session_count,\n    session_metrics.last_session_at,\n    coalesce(ticket_metrics.support_ticket_count, 0)::bigint as support_ticket_count,\n    coalesce(ticket_metrics.unresolved_ticket_count, 0)::bigint as unresolved_ticket_count\nfrom staging.stg_customers as customers\nleft join order_metrics on order_metrics.customer_id = customers.customer_id\nleft join staging.stg_subscriptions as subscriptions on subscriptions.customer_id = customers.customer_id\nleft join session_metrics on session_metrics.customer_id = customers.customer_id\nleft join ticket_metrics on ticket_metrics.customer_id = customers.customer_id\n",
+   "relation_name": "warehouse.intermediate.int_customer_lifetime",
+   "resource_type": "model"
+  },
+  "model.sidq_demo.int_order_enriched": {
+   "columns": {
+    "carrier": {
+     "description": "Delivery carrier.",
+     "meta": {},
+     "name": "carrier"
+    },
+    "customer_country": {
+     "description": "Customer registration country.",
+     "meta": {},
+     "name": "customer_country"
+    },
+    "customer_email": {
+     "description": "PII customer email propagated from stg_customers for order operations.",
+     "meta": {
+      "pii": true
+     },
+     "name": "customer_email"
+    },
+    "customer_id": {
+     "description": "Customer who placed the order.",
+     "meta": {},
+     "name": "customer_id"
+    },
+    "customer_name": {
+     "description": "PII customer name propagated from stg_customers.",
+     "meta": {
+      "pii": true
+     },
+     "name": "customer_name"
+    },
+    "delivered_at": {
+     "description": "UTC delivery timestamp.",
+     "meta": {},
+     "name": "delivered_at"
+    },
+    "item_gross_revenue": {
+     "description": "Sum of extended item prices.",
+     "meta": {},
+     "name": "item_gross_revenue"
+    },
+    "item_quantity": {
+     "description": "Total units on the order.",
+     "meta": {},
+     "name": "item_quantity"
+    },
+    "net_revenue": {
+     "description": "Gross order total minus refund amount.",
+     "meta": {},
+     "name": "net_revenue"
+    },
+    "order_id": {
+     "description": "Unique checkout order identifier.",
+     "meta": {},
+     "name": "order_id"
+    },
+    "order_status": {
+     "description": "Current order lifecycle state.",
+     "meta": {},
+     "name": "order_status"
+    },
+    "order_total": {
+     "description": "Gross order value before refunds.",
+     "meta": {},
+     "name": "order_total"
+    },
+    "ordered_at": {
+     "description": "UTC checkout timestamp.",
+     "meta": {},
+     "name": "ordered_at"
+    },
+    "payment_amount": {
+     "description": "Amount submitted to the processor.",
+     "meta": {},
+     "name": "payment_amount"
+    },
+    "payment_id": {
+     "description": "Payment record associated with the order.",
+     "meta": {},
+     "name": "payment_id"
+    },
+    "payment_provider": {
+     "description": "Processor payment rail.",
+     "meta": {},
+     "name": "payment_provider"
+    },
+    "payment_status": {
+     "description": "Current processor status.",
+     "meta": {},
+     "name": "payment_status"
+    },
+    "refund_amount": {
+     "description": "Total refund amount applied to the order.",
+     "meta": {},
+     "name": "refund_amount"
+    },
+    "shipment_status": {
+     "description": "Current fulfilment state.",
+     "meta": {},
+     "name": "shipment_status"
+    }
+   },
+   "compiled_code": "-- depends_on: staging.stg_order_items\n-- depends_on: staging.stg_refunds\n-- depends_on: staging.stg_orders\n-- depends_on: staging.stg_customers\n-- depends_on: staging.stg_payments\n-- depends_on: staging.stg_shipments\nwith item_totals as (\n    select\n        order_id,\n        sum(quantity)::bigint as item_quantity,\n        sum(quantity * unit_price)::numeric(14, 2) as item_gross_revenue\n    from staging.stg_order_items\n    group by order_id\n),\nrefund_totals as (\n    select\n        order_id,\n        sum(refund_amount)::numeric(12, 2) as refund_amount\n    from staging.stg_refunds\n    group by order_id\n)\nselect\n    orders.order_id,\n    orders.customer_id,\n    customers.customer_email,\n    customers.customer_name,\n    customers.customer_country,\n    orders.order_status,\n    orders.ordered_at,\n    orders.order_total,\n    item_totals.item_quantity,\n    item_totals.item_gross_revenue,\n    payments.payment_id,\n    payments.payment_provider,\n    payments.payment_status,\n    payments.payment_amount,\n    shipments.shipment_status,\n    shipments.carrier,\n    shipments.delivered_at,\n    coalesce(refund_totals.refund_amount, 0)::numeric(12, 2) as refund_amount,\n    (orders.order_total - coalesce(refund_totals.refund_amount, 0))::numeric(12, 2) as net_revenue\nfrom staging.stg_orders as orders\njoin staging.stg_customers as customers on customers.customer_id = orders.customer_id\nleft join item_totals on item_totals.order_id = orders.order_id\nleft join staging.stg_payments as payments on payments.order_id = orders.order_id\nleft join staging.stg_shipments as shipments on shipments.order_id = orders.order_id\nleft join refund_totals on refund_totals.order_id = orders.order_id\n",
+   "config": {
+    "materialized": "view",
+    "schema": "intermediate"
+   },
+   "depends_on": {
+    "macros": [],
+    "nodes": [
+     "model.sidq_demo.stg_order_items",
+     "model.sidq_demo.stg_refunds",
+     "model.sidq_demo.stg_orders",
+     "model.sidq_demo.stg_customers",
+     "model.sidq_demo.stg_payments",
+     "model.sidq_demo.stg_shipments"
+    ]
+   },
+   "name": "int_order_enriched",
+   "original_file_path": "models/intermediate/int_order_enriched.sql",
+   "raw_code": "-- depends_on: {{ ref('stg_order_items') }}\n-- depends_on: {{ ref('stg_refunds') }}\n-- depends_on: {{ ref('stg_orders') }}\n-- depends_on: {{ ref('stg_customers') }}\n-- depends_on: {{ ref('stg_payments') }}\n-- depends_on: {{ ref('stg_shipments') }}\nwith item_totals as (\n    select\n        order_id,\n        sum(quantity)::bigint as item_quantity,\n        sum(quantity * unit_price)::numeric(14, 2) as item_gross_revenue\n    from staging.stg_order_items\n    group by order_id\n),\nrefund_totals as (\n    select\n        order_id,\n        sum(refund_amount)::numeric(12, 2) as refund_amount\n    from staging.stg_refunds\n    group by order_id\n)\nselect\n    orders.order_id,\n    orders.customer_id,\n    customers.customer_email,\n    customers.customer_name,\n    customers.customer_country,\n    orders.order_status,\n    orders.ordered_at,\n    orders.order_total,\n    item_totals.item_quantity,\n    item_totals.item_gross_revenue,\n    payments.payment_id,\n    payments.payment_provider,\n    payments.payment_status,\n    payments.payment_amount,\n    shipments.shipment_status,\n    shipments.carrier,\n    shipments.delivered_at,\n    coalesce(refund_totals.refund_amount, 0)::numeric(12, 2) as refund_amount,\n    (orders.order_total - coalesce(refund_totals.refund_amount, 0))::numeric(12, 2) as net_revenue\nfrom staging.stg_orders as orders\njoin staging.stg_customers as customers on customers.customer_id = orders.customer_id\nleft join item_totals on item_totals.order_id = orders.order_id\nleft join staging.stg_payments as payments on payments.order_id = orders.order_id\nleft join staging.stg_shipments as shipments on shipments.order_id = orders.order_id\nleft join refund_totals on refund_totals.order_id = orders.order_id\n",
+   "relation_name": "warehouse.intermediate.int_order_enriched",
+   "resource_type": "model"
+  },
+  "model.sidq_demo.int_payment_reconciliation": {
+   "columns": {
+    "customer_email": {
+     "description": "PII customer email available only for payment operations.",
+     "meta": {
+      "pii": true
+     },
+     "name": "customer_email"
+    },
+    "customer_id": {
+     "description": "Customer billed by the payment.",
+     "meta": {},
+     "name": "customer_id"
+    },
+    "order_id": {
+     "description": "Associated checkout order identifier.",
+     "meta": {},
+     "name": "order_id"
+    },
+    "order_total": {
+     "description": "Gross source order total.",
+     "meta": {},
+     "name": "order_total"
+    },
+    "paid_at": {
+     "description": "UTC capture timestamp for successful payments.",
+     "meta": {},
+     "name": "paid_at"
+    },
+    "payment_amount": {
+     "description": "Amount submitted to the processor.",
+     "meta": {},
+     "name": "payment_amount"
+    },
+    "payment_created_at": {
+     "description": "UTC payment record creation time.",
+     "meta": {},
+     "name": "payment_created_at"
+    },
+    "payment_id": {
+     "description": "Unique payment identifier.",
+     "meta": {},
+     "name": "payment_id"
+    },
+    "payment_provider": {
+     "description": "Processor payment rail.",
+     "meta": {},
+     "name": "payment_provider"
+    },
+    "payment_status": {
+     "description": "Processor lifecycle status.",
+     "meta": {},
+     "name": "payment_status"
+    },
+    "provider_transaction_id": {
+     "description": "Unique payment processor transaction identifier.",
+     "meta": {},
+     "name": "provider_transaction_id"
+    },
+    "reconciliation_status": {
+     "description": "Checkable reconciliation classification.",
+     "meta": {},
+     "name": "reconciliation_status"
+    },
+    "refunded_amount": {
+     "description": "Refunds aggregated against the payment.",
+     "meta": {},
+     "name": "refunded_amount"
+    },
+    "settled_amount": {
+     "description": "Payment amount net of issued refunds.",
+     "meta": {},
+     "name": "settled_amount"
+    }
+   },
+   "compiled_code": "-- depends_on: staging.stg_refunds\n-- depends_on: staging.stg_payments\n-- depends_on: staging.stg_orders\n-- depends_on: staging.stg_customers\nwith refund_totals as (\n    select\n        payment_id,\n        sum(refund_amount)::numeric(12, 2) as refunded_amount\n    from staging.stg_refunds\n    group by payment_id\n)\nselect\n    payments.payment_id,\n    payments.order_id,\n    payments.customer_id,\n    customers.customer_email,\n    payments.provider_transaction_id,\n    payments.payment_provider,\n    payments.payment_status,\n    payments.payment_amount,\n    orders.order_total,\n    coalesce(refund_totals.refunded_amount, 0)::numeric(12, 2) as refunded_amount,\n    (payments.payment_amount - coalesce(refund_totals.refunded_amount, 0))::numeric(12, 2) as settled_amount,\n    payments.paid_at,\n    payments.payment_created_at,\n    case\n        when payments.payment_status = 'succeeded' and payments.payment_amount = orders.order_total then 'reconciled'\n        when payments.payment_status = 'pending' then 'awaiting_payment'\n        when payments.payment_status = 'refunded' then 'refunded'\n        else 'investigate'\n    end as reconciliation_status\nfrom staging.stg_payments as payments\njoin staging.stg_orders as orders on orders.order_id = payments.order_id\njoin staging.stg_customers as customers on customers.customer_id = payments.customer_id\nleft join refund_totals on refund_totals.payment_id = payments.payment_id\n",
+   "config": {
+    "materialized": "view",
+    "schema": "intermediate"
+   },
+   "depends_on": {
+    "macros": [],
+    "nodes": [
+     "model.sidq_demo.stg_refunds",
+     "model.sidq_demo.stg_payments",
+     "model.sidq_demo.stg_orders",
+     "model.sidq_demo.stg_customers"
+    ]
+   },
+   "name": "int_payment_reconciliation",
+   "original_file_path": "models/intermediate/int_payment_reconciliation.sql",
+   "raw_code": "-- depends_on: {{ ref('stg_refunds') }}\n-- depends_on: {{ ref('stg_payments') }}\n-- depends_on: {{ ref('stg_orders') }}\n-- depends_on: {{ ref('stg_customers') }}\nwith refund_totals as (\n    select\n        payment_id,\n        sum(refund_amount)::numeric(12, 2) as refunded_amount\n    from staging.stg_refunds\n    group by payment_id\n)\nselect\n    payments.payment_id,\n    payments.order_id,\n    payments.customer_id,\n    customers.customer_email,\n    payments.provider_transaction_id,\n    payments.payment_provider,\n    payments.payment_status,\n    payments.payment_amount,\n    orders.order_total,\n    coalesce(refund_totals.refunded_amount, 0)::numeric(12, 2) as refunded_amount,\n    (payments.payment_amount - coalesce(refund_totals.refunded_amount, 0))::numeric(12, 2) as settled_amount,\n    payments.paid_at,\n    payments.payment_created_at,\n    case\n        when payments.payment_status = 'succeeded' and payments.payment_amount = orders.order_total then 'reconciled'\n        when payments.payment_status = 'pending' then 'awaiting_payment'\n        when payments.payment_status = 'refunded' then 'refunded'\n        else 'investigate'\n    end as reconciliation_status\nfrom staging.stg_payments as payments\njoin staging.stg_orders as orders on orders.order_id = payments.order_id\njoin staging.stg_customers as customers on customers.customer_id = payments.customer_id\nleft join refund_totals on refund_totals.payment_id = payments.payment_id\n",
+   "relation_name": "warehouse.intermediate.int_payment_reconciliation",
+   "resource_type": "model"
+  },
+  "model.sidq_demo.order_funnel": {
+   "columns": {
+    "customer_country": {
+     "description": "Customer registration country.",
+     "meta": {},
+     "name": "customer_country"
+    },
+    "customer_email": {
+     "description": "PII email from raw.customers exposed for approved order recovery workflows.",
+     "meta": {
+      "pii": true
+     },
+     "name": "customer_email"
+    },
+    "customer_id": {
+     "description": "Customer who placed the order.",
+     "meta": {},
+     "name": "customer_id"
+    },
+    "funnel_stage": {
+     "description": "Derived operational funnel classification.",
+     "meta": {},
+     "name": "funnel_stage"
+    },
+    "net_revenue": {
+     "description": "Gross order total less refunds.",
+     "meta": {},
+     "name": "net_revenue"
+    },
+    "order_id": {
+     "description": "Unique checkout order identifier.",
+     "meta": {},
+     "name": "order_id"
+    },
+    "order_status": {
+     "description": "Current raw order lifecycle state.",
+     "meta": {},
+     "name": "order_status"
+    },
+    "order_total": {
+     "description": "Gross order total before refunds.",
+     "meta": {},
+     "name": "order_total"
+    },
+    "ordered_at": {
+     "description": "UTC checkout timestamp.",
+     "meta": {},
+     "name": "ordered_at"
+    },
+    "payment_status": {
+     "description": "Current processor payment status.",
+     "meta": {},
+     "name": "payment_status"
+    },
+    "refund_amount": {
+     "description": "Total refund amount issued for the order.",
+     "meta": {},
+     "name": "refund_amount"
+    },
+    "shipment_status": {
+     "description": "Current fulfilment shipment status.",
+     "meta": {},
+     "name": "shipment_status"
+    }
+   },
+   "compiled_code": "-- depends_on: intermediate.int_order_enriched\nselect\n    order_id,\n    customer_id,\n    customer_email,\n    customer_country,\n    ordered_at,\n    order_status,\n    payment_status,\n    shipment_status,\n    order_total,\n    refund_amount,\n    net_revenue,\n    case\n        when payment_status = 'succeeded' and shipment_status = 'delivered' then 'completed'\n        when payment_status = 'pending' then 'payment_pending'\n        when payment_status = 'refunded' then 'refunded'\n        else 'in_progress'\n    end as funnel_stage\nfrom intermediate.int_order_enriched\n",
+   "config": {
+    "materialized": "view",
+    "schema": "analytics"
+   },
+   "depends_on": {
+    "macros": [],
+    "nodes": [
+     "model.sidq_demo.int_order_enriched"
+    ]
+   },
+   "name": "order_funnel",
+   "original_file_path": "models/marts/order_funnel.sql",
+   "raw_code": "-- depends_on: {{ ref('int_order_enriched') }}\nselect\n    order_id,\n    customer_id,\n    customer_email,\n    customer_country,\n    ordered_at,\n    order_status,\n    payment_status,\n    shipment_status,\n    order_total,\n    refund_amount,\n    net_revenue,\n    case\n        when payment_status = 'succeeded' and shipment_status = 'delivered' then 'completed'\n        when payment_status = 'pending' then 'payment_pending'\n        when payment_status = 'refunded' then 'refunded'\n        else 'in_progress'\n    end as funnel_stage\nfrom intermediate.int_order_enriched\n",
+   "relation_name": "warehouse.analytics.order_funnel",
+   "resource_type": "model"
+  },
+  "model.sidq_demo.product_performance": {
+   "columns": {
+    "category_name": {
+     "description": "Product category name.",
+     "meta": {},
+     "name": "category_name"
+    },
+    "department": {
+     "description": "Merchandising department.",
+     "meta": {},
+     "name": "department"
+    },
+    "gross_item_revenue": {
+     "description": "Extended order-item revenue for the SKU.",
+     "meta": {},
+     "name": "gross_item_revenue"
+    },
+    "items_in_orders": {
+     "description": "Number of order-item records for the SKU.",
+     "meta": {},
+     "name": "items_in_orders"
+    },
+    "list_price": {
+     "description": "Current advertised product price.",
+     "meta": {},
+     "name": "list_price"
+    },
+    "product_id": {
+     "description": "Unique product identifier.",
+     "meta": {},
+     "name": "product_id"
+    },
+    "product_name": {
+     "description": "Customer-facing product name.",
+     "meta": {},
+     "name": "product_name"
+    },
+    "sku": {
+     "description": "Unique stock keeping unit.",
+     "meta": {},
+     "name": "sku"
+    },
+    "units_sold": {
+     "description": "Total quantity sold for the SKU.",
+     "meta": {},
+     "name": "units_sold"
+    }
+   },
+   "compiled_code": "-- depends_on: staging.stg_products\n-- depends_on: staging.stg_categories\n-- depends_on: staging.stg_order_items\nselect\n    products.product_id,\n    products.sku,\n    products.product_name,\n    categories.category_name,\n    categories.department,\n    products.list_price,\n    count(order_items.item_id)::bigint as items_in_orders,\n    coalesce(sum(order_items.quantity), 0)::bigint as units_sold,\n    coalesce(sum(order_items.quantity * order_items.unit_price), 0)::numeric(14, 2) as gross_item_revenue\nfrom staging.stg_products as products\njoin staging.stg_categories as categories on categories.category_id = products.category_id\nleft join staging.stg_order_items as order_items on order_items.sku = products.sku\ngroup by\n    products.product_id,\n    products.sku,\n    products.product_name,\n    categories.category_name,\n    categories.department,\n    products.list_price\n",
+   "config": {
+    "materialized": "view",
+    "schema": "analytics"
+   },
+   "depends_on": {
+    "macros": [],
+    "nodes": [
+     "model.sidq_demo.stg_products",
+     "model.sidq_demo.stg_categories",
+     "model.sidq_demo.stg_order_items"
+    ]
+   },
+   "name": "product_performance",
+   "original_file_path": "models/marts/product_performance.sql",
+   "raw_code": "-- depends_on: {{ ref('stg_products') }}\n-- depends_on: {{ ref('stg_categories') }}\n-- depends_on: {{ ref('stg_order_items') }}\nselect\n    products.product_id,\n    products.sku,\n    products.product_name,\n    categories.category_name,\n    categories.department,\n    products.list_price,\n    count(order_items.item_id)::bigint as items_in_orders,\n    coalesce(sum(order_items.quantity), 0)::bigint as units_sold,\n    coalesce(sum(order_items.quantity * order_items.unit_price), 0)::numeric(14, 2) as gross_item_revenue\nfrom staging.stg_products as products\njoin staging.stg_categories as categories on categories.category_id = products.category_id\nleft join staging.stg_order_items as order_items on order_items.sku = products.sku\ngroup by\n    products.product_id,\n    products.sku,\n    products.product_name,\n    categories.category_name,\n    categories.department,\n    products.list_price\n",
+   "relation_name": "warehouse.analytics.product_performance",
+   "resource_type": "model"
+  },
+  "model.sidq_demo.revenue_daily": {
+   "columns": {
+    "customer_country": {
+     "description": "Customer registration country.",
+     "meta": {},
+     "name": "customer_country"
+    },
+    "gross_revenue": {
+     "description": "Sum of gross order totals before refunds.",
+     "meta": {},
+     "name": "gross_revenue"
+    },
+    "net_revenue": {
+     "description": "Gross revenue less refunds.",
+     "meta": {},
+     "name": "net_revenue"
+    },
+    "order_count": {
+     "description": "Count of orders in the reporting group.",
+     "meta": {},
+     "name": "order_count"
+    },
+    "paid_order_count": {
+     "description": "Count of orders with succeeded payment status.",
+     "meta": {},
+     "name": "paid_order_count"
+    },
+    "payment_provider": {
+     "description": "Payment rail used for the orders.",
+     "meta": {},
+     "name": "payment_provider"
+    },
+    "refunded_revenue": {
+     "description": "Sum of refunds issued against grouped orders.",
+     "meta": {},
+     "name": "refunded_revenue"
+    },
+    "revenue_date": {
+     "description": "Calendar date of checkout activity in UTC.",
+     "meta": {},
+     "name": "revenue_date"
+    }
+   },
+   "compiled_code": "-- depends_on: intermediate.int_order_enriched\nselect\n    ordered_at::date as revenue_date,\n    customer_country,\n    payment_provider,\n    count(order_id)::bigint as order_count,\n    count(order_id) filter (where payment_status = 'succeeded')::bigint as paid_order_count,\n    sum(order_total)::numeric(14, 2) as gross_revenue,\n    sum(refund_amount)::numeric(14, 2) as refunded_revenue,\n    sum(net_revenue)::numeric(14, 2) as net_revenue\nfrom intermediate.int_order_enriched\ngroup by\n    ordered_at::date,\n    customer_country,\n    payment_provider\n",
+   "config": {
+    "materialized": "view",
+    "schema": "analytics"
+   },
+   "depends_on": {
+    "macros": [],
+    "nodes": [
+     "model.sidq_demo.int_order_enriched"
+    ]
+   },
+   "name": "revenue_daily",
+   "original_file_path": "models/marts/revenue_daily.sql",
+   "raw_code": "-- depends_on: {{ ref('int_order_enriched') }}\nselect\n    ordered_at::date as revenue_date,\n    customer_country,\n    payment_provider,\n    count(order_id)::bigint as order_count,\n    count(order_id) filter (where payment_status = 'succeeded')::bigint as paid_order_count,\n    sum(order_total)::numeric(14, 2) as gross_revenue,\n    sum(refund_amount)::numeric(14, 2) as refunded_revenue,\n    sum(net_revenue)::numeric(14, 2) as net_revenue\nfrom intermediate.int_order_enriched\ngroup by\n    ordered_at::date,\n    customer_country,\n    payment_provider\n",
+   "relation_name": "warehouse.analytics.revenue_daily",
+   "resource_type": "model"
+  },
+  "model.sidq_demo.stg_categories": {
+   "columns": {
+    "category_code": {
+     "description": "Unique merchandising category code.",
+     "meta": {},
+     "name": "category_code"
+    },
+    "category_id": {
+     "description": "Immutable category key.",
+     "meta": {},
+     "name": "category_id"
+    },
+    "category_name": {
+     "description": "Human-readable category name.",
+     "meta": {},
+     "name": "category_name"
+    },
+    "created_at": {
+     "description": "UTC timestamp when the taxonomy entry was created.",
+     "meta": {},
+     "name": "created_at"
+    },
+    "department": {
+     "description": "Merchandising department that owns the category.",
+     "meta": {},
+     "name": "department"
+    },
+    "is_active": {
+     "description": "Whether the category is currently available for sale.",
+     "meta": {},
+     "name": "is_active"
+    }
+   },
+   "compiled_code": "-- depends_on: raw.categories\nselect\n    category_id,\n    category_code,\n    category_name,\n    department,\n    is_active,\n    created_at\nfrom raw.categories\n",
+   "config": {
+    "materialized": "view",
+    "schema": "staging"
+   },
+   "depends_on": {
+    "macros": [],
+    "nodes": [
+     "source.sidq_demo.raw.categories"
+    ]
+   },
+   "name": "stg_categories",
+   "original_file_path": "models/staging/stg_categories.sql",
+   "raw_code": "-- depends_on: {{ source('raw', 'categories') }}\nselect\n    category_id,\n    category_code,\n    category_name,\n    department,\n    is_active,\n    created_at\nfrom raw.categories\n",
+   "relation_name": "warehouse.staging.stg_categories",
+   "resource_type": "model"
+  },
+  "model.sidq_demo.stg_customers": {
+   "columns": {
+    "customer_country": {
+     "description": "Customer country code captured at registration.",
+     "meta": {},
+     "name": "customer_country"
+    },
+    "customer_created_at": {
+     "description": "Account creation timestamp in UTC.",
+     "meta": {},
+     "name": "customer_created_at"
+    },
+    "customer_email": {
+     "description": "PII email address, expected to be unique per customer.",
+     "meta": {
+      "pii": true
+     },
+     "name": "customer_email"
+    },
+    "customer_id": {
+     "description": "Immutable customer key; each value appears exactly once.",
+     "meta": {},
+     "name": "customer_id"
+    },
+    "customer_name": {
+     "description": "PII customer full name from the application profile.",
+     "meta": {
+      "pii": true
+     },
+     "name": "customer_name"
+    }
+   },
+   "compiled_code": "-- depends_on: raw.customers\nselect\n    customer_id,\n    email as customer_email,\n    full_name as customer_name,\n    country as customer_country,\n    created_at as customer_created_at\nfrom raw.customers\n",
+   "config": {
+    "materialized": "view",
+    "schema": "staging"
+   },
+   "depends_on": {
+    "macros": [],
+    "nodes": [
+     "source.sidq_demo.raw.customers"
+    ]
+   },
+   "name": "stg_customers",
+   "original_file_path": "models/staging/stg_customers.sql",
+   "raw_code": "-- depends_on: {{ source('raw', 'customers') }}\nselect\n    customer_id,\n    email as customer_email,\n    full_name as customer_name,\n    country as customer_country,\n    created_at as customer_created_at\nfrom raw.customers\n",
+   "relation_name": "warehouse.staging.stg_customers",
+   "resource_type": "model"
+  },
+  "model.sidq_demo.stg_order_items": {
+   "columns": {
+    "item_id": {
+     "description": "Immutable line item key.",
+     "meta": {},
+     "name": "item_id"
+    },
+    "order_id": {
+     "description": "Parent order key.",
+     "meta": {},
+     "name": "order_id"
+    },
+    "quantity": {
+     "description": "Positive number of units purchased.",
+     "meta": {},
+     "name": "quantity"
+    },
+    "sku": {
+     "description": "Product stock keeping unit captured at sale time.",
+     "meta": {},
+     "name": "sku"
+    },
+    "unit_price": {
+     "description": "Non-negative unit sale price at checkout.",
+     "meta": {},
+     "name": "unit_price"
+    }
+   },
+   "compiled_code": "-- depends_on: raw.order_items\nselect\n    item_id,\n    order_id,\n    sku,\n    quantity::integer as quantity,\n    unit_price::numeric(10, 2) as unit_price\nfrom raw.order_items\n",
+   "config": {
+    "materialized": "view",
+    "schema": "staging"
+   },
+   "depends_on": {
+    "macros": [],
+    "nodes": [
+     "source.sidq_demo.raw.order_items"
+    ]
+   },
+   "name": "stg_order_items",
+   "original_file_path": "models/staging/stg_order_items.sql",
+   "raw_code": "-- depends_on: {{ source('raw', 'order_items') }}\nselect\n    item_id,\n    order_id,\n    sku,\n    quantity::integer as quantity,\n    unit_price::numeric(10, 2) as unit_price\nfrom raw.order_items\n",
+   "relation_name": "warehouse.staging.stg_order_items",
+   "resource_type": "model"
+  },
+  "model.sidq_demo.stg_orders": {
+   "columns": {
+    "customer_id": {
+     "description": "Customer who placed the order; must resolve to stg_customers.",
+     "meta": {},
+     "name": "customer_id"
+    },
+    "order_id": {
+     "description": "Immutable order primary key.",
+     "meta": {},
+     "name": "order_id"
+    },
+    "order_status": {
+     "description": "Current order lifecycle state.",
+     "meta": {},
+     "name": "order_status"
+    },
+    "order_total": {
+     "description": "Gross order amount in transaction currency; source constraint prevents negative totals.",
+     "meta": {},
+     "name": "order_total"
+    },
+    "ordered_at": {
+     "description": "UTC timestamp when checkout was submitted.",
+     "meta": {},
+     "name": "ordered_at"
+    }
+   },
+   "compiled_code": "-- depends_on: raw.orders\nselect\n    order_id,\n    customer_id,\n    order_total::numeric(12, 2) as order_total,\n    status as order_status,\n    ordered_at\nfrom raw.orders\n",
+   "config": {
+    "materialized": "view",
+    "schema": "staging"
+   },
+   "depends_on": {
+    "macros": [],
+    "nodes": [
+     "source.sidq_demo.raw.orders"
+    ]
+   },
+   "name": "stg_orders",
+   "original_file_path": "models/staging/stg_orders.sql",
+   "raw_code": "-- depends_on: {{ source('raw', 'orders') }}\nselect\n    order_id,\n    customer_id,\n    order_total::numeric(12, 2) as order_total,\n    status as order_status,\n    ordered_at\nfrom raw.orders\n",
+   "relation_name": "warehouse.staging.stg_orders",
+   "resource_type": "model"
+  },
+  "model.sidq_demo.stg_payments": {
+   "columns": {
+    "billing_address_line1": {
+     "description": "PII primary billing street address.",
+     "meta": {
+      "pii": true
+     },
+     "name": "billing_address_line1"
+    },
+    "billing_address_line2": {
+     "description": "PII secondary billing address detail when supplied.",
+     "meta": {
+      "pii": true
+     },
+     "name": "billing_address_line2"
+    },
+    "billing_city": {
+     "description": "Billing city.",
+     "meta": {},
+     "name": "billing_city"
+    },
+    "billing_country": {
+     "description": "Billing country code.",
+     "meta": {},
+     "name": "billing_country"
+    },
+    "billing_email": {
+     "description": "PII billing email submitted to the payment provider.",
+     "meta": {
+      "pii": true
+     },
+     "name": "billing_email"
+    },
+    "billing_phone": {
+     "description": "PII billing phone number.",
+     "meta": {
+      "pii": true
+     },
+     "name": "billing_phone"
+    },
+    "customer_id": {
+     "description": "Customer billed for the payment.",
+     "meta": {},
+     "name": "customer_id"
+    },
+    "order_id": {
+     "description": "Order settled by this payment.",
+     "meta": {},
+     "name": "order_id"
+    },
+    "paid_at": {
+     "description": "UTC time at which a successful payment was captured.",
+     "meta": {},
+     "name": "paid_at"
+    },
+    "payment_amount": {
+     "description": "Non-negative payment amount.",
+     "meta": {},
+     "name": "payment_amount"
+    },
+    "payment_created_at": {
+     "description": "UTC time the processor payment record was created.",
+     "meta": {},
+     "name": "payment_created_at"
+    },
+    "payment_id": {
+     "description": "Immutable payment primary key.",
+     "meta": {},
+     "name": "payment_id"
+    },
+    "payment_provider": {
+     "description": "Payment rail used for authorization.",
+     "meta": {},
+     "name": "payment_provider"
+    },
+    "payment_status": {
+     "description": "Processor lifecycle status; succeeded records have a paid_at timestamp.",
+     "meta": {},
+     "name": "payment_status"
+    },
+    "provider_transaction_id": {
+     "description": "Unique processor transaction identifier.",
+     "meta": {},
+     "name": "provider_transaction_id"
+    }
+   },
+   "compiled_code": "-- depends_on: raw.payments\nselect\n    payment_id,\n    order_id,\n    customer_id,\n    provider as payment_provider,\n    provider_transaction_id,\n    payment_status,\n    amount::numeric(12, 2) as payment_amount,\n    billing_email,\n    billing_phone,\n    billing_address_line1,\n    billing_address_line2,\n    billing_city,\n    billing_country,\n    paid_at,\n    created_at as payment_created_at\nfrom raw.payments\n",
+   "config": {
+    "materialized": "view",
+    "schema": "staging"
+   },
+   "depends_on": {
+    "macros": [],
+    "nodes": [
+     "source.sidq_demo.raw.payments"
+    ]
+   },
+   "name": "stg_payments",
+   "original_file_path": "models/staging/stg_payments.sql",
+   "raw_code": "-- depends_on: {{ source('raw', 'payments') }}\nselect\n    payment_id,\n    order_id,\n    customer_id,\n    provider as payment_provider,\n    provider_transaction_id,\n    payment_status,\n    amount::numeric(12, 2) as payment_amount,\n    billing_email,\n    billing_phone,\n    billing_address_line1,\n    billing_address_line2,\n    billing_city,\n    billing_country,\n    paid_at,\n    created_at as payment_created_at\nfrom raw.payments\n",
+   "relation_name": "warehouse.staging.stg_payments",
+   "resource_type": "model"
+  },
+  "model.sidq_demo.stg_products": {
+   "columns": {
+    "category_id": {
+     "description": "Parent merchandising category key.",
+     "meta": {},
+     "name": "category_id"
+    },
+    "is_active": {
+     "description": "Whether the product remains sellable.",
+     "meta": {},
+     "name": "is_active"
+    },
+    "launched_at": {
+     "description": "UTC product launch timestamp.",
+     "meta": {},
+     "name": "launched_at"
+    },
+    "list_price": {
+     "description": "Positive advertised unit price, never below unit_cost.",
+     "meta": {},
+     "name": "list_price"
+    },
+    "product_id": {
+     "description": "Immutable product key.",
+     "meta": {},
+     "name": "product_id"
+    },
+    "product_name": {
+     "description": "Customer-facing product name.",
+     "meta": {},
+     "name": "product_name"
+    },
+    "sku": {
+     "description": "Unique stock keeping unit used by order items.",
+     "meta": {},
+     "name": "sku"
+    },
+    "unit_cost": {
+     "description": "Non-negative internal unit cost.",
+     "meta": {},
+     "name": "unit_cost"
+    }
+   },
+   "compiled_code": "-- depends_on: raw.products\nselect\n    product_id,\n    category_id,\n    sku,\n    product_name,\n    unit_cost::numeric(10, 2) as unit_cost,\n    list_price::numeric(10, 2) as list_price,\n    is_active,\n    launched_at\nfrom raw.products\n",
+   "config": {
+    "materialized": "view",
+    "schema": "staging"
+   },
+   "depends_on": {
+    "macros": [],
+    "nodes": [
+     "source.sidq_demo.raw.products"
+    ]
+   },
+   "name": "stg_products",
+   "original_file_path": "models/staging/stg_products.sql",
+   "raw_code": "-- depends_on: {{ source('raw', 'products') }}\nselect\n    product_id,\n    category_id,\n    sku,\n    product_name,\n    unit_cost::numeric(10, 2) as unit_cost,\n    list_price::numeric(10, 2) as list_price,\n    is_active,\n    launched_at\nfrom raw.products\n",
+   "relation_name": "warehouse.staging.stg_products",
+   "resource_type": "model"
+  },
+  "model.sidq_demo.stg_refunds": {
+   "columns": {
+    "order_id": {
+     "description": "Order identifier receiving the refund.",
+     "meta": {},
+     "name": "order_id"
+    },
+    "payment_id": {
+     "description": "Payment identifier receiving the refund.",
+     "meta": {},
+     "name": "payment_id"
+    },
+    "refund_amount": {
+     "description": "Positive refund amount.",
+     "meta": {},
+     "name": "refund_amount"
+    },
+    "refund_id": {
+     "description": "Immutable refund primary key.",
+     "meta": {},
+     "name": "refund_id"
+    },
+    "refund_reason": {
+     "description": "Coded business reason for the refund.",
+     "meta": {},
+     "name": "refund_reason"
+    },
+    "refunded_at": {
+     "description": "UTC timestamp when the refund was issued.",
+     "meta": {},
+     "name": "refunded_at"
+    }
+   },
+   "compiled_code": "-- depends_on: raw.refunds\nselect\n    refund_id,\n    payment_id,\n    order_id,\n    refund_reason,\n    refund_amount::numeric(12, 2) as refund_amount,\n    refunded_at\nfrom raw.refunds\n",
+   "config": {
+    "materialized": "view",
+    "schema": "staging"
+   },
+   "depends_on": {
+    "macros": [],
+    "nodes": [
+     "source.sidq_demo.raw.refunds"
+    ]
+   },
+   "name": "stg_refunds",
+   "original_file_path": "models/staging/stg_refunds.sql",
+   "raw_code": "-- depends_on: {{ source('raw', 'refunds') }}\nselect\n    refund_id,\n    payment_id,\n    order_id,\n    refund_reason,\n    refund_amount::numeric(12, 2) as refund_amount,\n    refunded_at\nfrom raw.refunds\n",
+   "relation_name": "warehouse.staging.stg_refunds",
+   "resource_type": "model"
+  },
+  "model.sidq_demo.stg_shipments": {
+   "columns": {
+    "carrier": {
+     "description": "Parcel carrier responsible for the shipment.",
+     "meta": {},
+     "name": "carrier"
+    },
+    "delivered_at": {
+     "description": "UTC delivery timestamp, never earlier than shipped_at.",
+     "meta": {},
+     "name": "delivered_at"
+    },
+    "order_id": {
+     "description": "Unique parent order key for the shipment.",
+     "meta": {},
+     "name": "order_id"
+    },
+    "recipient_phone": {
+     "description": "PII phone number supplied for delivery updates.",
+     "meta": {
+      "pii": true
+     },
+     "name": "recipient_phone"
+    },
+    "shipment_id": {
+     "description": "Immutable shipment primary key.",
+     "meta": {},
+     "name": "shipment_id"
+    },
+    "shipment_status": {
+     "description": "Fulfilment lifecycle status.",
+     "meta": {},
+     "name": "shipment_status"
+    },
+    "shipped_at": {
+     "description": "UTC carrier handoff timestamp when known.",
+     "meta": {},
+     "name": "shipped_at"
+    },
+    "shipping_address_line1": {
+     "description": "PII primary delivery street address.",
+     "meta": {
+      "pii": true
+     },
+     "name": "shipping_address_line1"
+    },
+    "shipping_address_line2": {
+     "description": "PII secondary delivery address detail when supplied.",
+     "meta": {
+      "pii": true
+     },
+     "name": "shipping_address_line2"
+    },
+    "shipping_city": {
+     "description": "Delivery city.",
+     "meta": {},
+     "name": "shipping_city"
+    },
+    "shipping_country": {
+     "description": "Delivery country code.",
+     "meta": {},
+     "name": "shipping_country"
+    },
+    "tracking_number": {
+     "description": "Unique carrier tracking number.",
+     "meta": {},
+     "name": "tracking_number"
+    }
+   },
+   "compiled_code": "-- depends_on: raw.shipments\nselect\n    shipment_id,\n    order_id,\n    carrier,\n    tracking_number,\n    shipment_status,\n    recipient_phone,\n    shipping_address_line1,\n    shipping_address_line2,\n    shipping_city,\n    shipping_country,\n    shipped_at,\n    delivered_at\nfrom raw.shipments\n",
+   "config": {
+    "materialized": "view",
+    "schema": "staging"
+   },
+   "depends_on": {
+    "macros": [],
+    "nodes": [
+     "source.sidq_demo.raw.shipments"
+    ]
+   },
+   "name": "stg_shipments",
+   "original_file_path": "models/staging/stg_shipments.sql",
+   "raw_code": "-- depends_on: {{ source('raw', 'shipments') }}\nselect\n    shipment_id,\n    order_id,\n    carrier,\n    tracking_number,\n    shipment_status,\n    recipient_phone,\n    shipping_address_line1,\n    shipping_address_line2,\n    shipping_city,\n    shipping_country,\n    shipped_at,\n    delivered_at\nfrom raw.shipments\n",
+   "relation_name": "warehouse.staging.stg_shipments",
+   "resource_type": "model"
+  },
+  "model.sidq_demo.stg_subscriptions": {
+   "columns": {
+    "cancelled_at": {
+     "description": "UTC cancellation timestamp when the plan was cancelled.",
+     "meta": {},
+     "name": "cancelled_at"
+    },
+    "customer_id": {
+     "description": "Customer who owns the plan.",
+     "meta": {},
+     "name": "customer_id"
+    },
+    "monthly_amount": {
+     "description": "Positive monthly recurring amount.",
+     "meta": {},
+     "name": "monthly_amount"
+    },
+    "plan_name": {
+     "description": "Commercial subscription tier.",
+     "meta": {},
+     "name": "plan_name"
+    },
+    "started_at": {
+     "description": "UTC subscription start timestamp.",
+     "meta": {},
+     "name": "started_at"
+    },
+    "subscription_id": {
+     "description": "Immutable subscription key.",
+     "meta": {},
+     "name": "subscription_id"
+    },
+    "subscription_status": {
+     "description": "Current renewal lifecycle state.",
+     "meta": {},
+     "name": "subscription_status"
+    }
+   },
+   "compiled_code": "-- depends_on: raw.subscriptions\nselect\n    subscription_id,\n    customer_id,\n    plan_name,\n    subscription_status,\n    monthly_amount::numeric(10, 2) as monthly_amount,\n    started_at,\n    cancelled_at\nfrom raw.subscriptions\n",
+   "config": {
+    "materialized": "view",
+    "schema": "staging"
+   },
+   "depends_on": {
+    "macros": [],
+    "nodes": [
+     "source.sidq_demo.raw.subscriptions"
+    ]
+   },
+   "name": "stg_subscriptions",
+   "original_file_path": "models/staging/stg_subscriptions.sql",
+   "raw_code": "-- depends_on: {{ source('raw', 'subscriptions') }}\nselect\n    subscription_id,\n    customer_id,\n    plan_name,\n    subscription_status,\n    monthly_amount::numeric(10, 2) as monthly_amount,\n    started_at,\n    cancelled_at\nfrom raw.subscriptions\n",
+   "relation_name": "warehouse.staging.stg_subscriptions",
+   "resource_type": "model"
+  },
+  "model.sidq_demo.stg_support_tickets": {
+   "columns": {
+    "customer_id": {
+     "description": "Customer who opened the ticket.",
+     "meta": {},
+     "name": "customer_id"
+    },
+    "opened_at": {
+     "description": "UTC timestamp when the ticket was created.",
+     "meta": {},
+     "name": "opened_at"
+    },
+    "order_id": {
+     "description": "Related order when the request concerns a purchase.",
+     "meta": {},
+     "name": "order_id"
+    },
+    "resolved_at": {
+     "description": "UTC resolution timestamp when the ticket is closed.",
+     "meta": {},
+     "name": "resolved_at"
+    },
+    "subject": {
+     "description": "Short support request subject.",
+     "meta": {},
+     "name": "subject"
+    },
+    "ticket_id": {
+     "description": "Immutable support ticket primary key.",
+     "meta": {},
+     "name": "ticket_id"
+    },
+    "ticket_priority": {
+     "description": "Triage priority assigned by support.",
+     "meta": {},
+     "name": "ticket_priority"
+    },
+    "ticket_status": {
+     "description": "Current support workflow state.",
+     "meta": {},
+     "name": "ticket_status"
+    }
+   },
+   "compiled_code": "-- depends_on: raw.support_tickets\nselect\n    ticket_id,\n    customer_id,\n    order_id,\n    ticket_status,\n    priority as ticket_priority,\n    subject,\n    opened_at,\n    resolved_at\nfrom raw.support_tickets\n",
+   "config": {
+    "materialized": "view",
+    "schema": "staging"
+   },
+   "depends_on": {
+    "macros": [],
+    "nodes": [
+     "source.sidq_demo.raw.support_tickets"
+    ]
+   },
+   "name": "stg_support_tickets",
+   "original_file_path": "models/staging/stg_support_tickets.sql",
+   "raw_code": "-- depends_on: {{ source('raw', 'support_tickets') }}\nselect\n    ticket_id,\n    customer_id,\n    order_id,\n    ticket_status,\n    priority as ticket_priority,\n    subject,\n    opened_at,\n    resolved_at\nfrom raw.support_tickets\n",
+   "relation_name": "warehouse.staging.stg_support_tickets",
+   "resource_type": "model"
+  },
+  "model.sidq_demo.stg_web_sessions": {
+   "columns": {
+    "anonymous_id": {
+     "description": "Browser-scoped anonymous visitor identifier.",
+     "meta": {},
+     "name": "anonymous_id"
+    },
+    "converted_order_id": {
+     "description": "Order attributed to the session when conversion occurred.",
+     "meta": {},
+     "name": "converted_order_id"
+    },
+    "customer_id": {
+     "description": "Customer identifier when the session is authenticated.",
+     "meta": {},
+     "name": "customer_id"
+    },
+    "device_type": {
+     "description": "Device family inferred at collection time.",
+     "meta": {},
+     "name": "device_type"
+    },
+    "ip_address": {
+     "description": "PII network address collected for fraud and security review.",
+     "meta": {
+      "pii": true
+     },
+     "name": "ip_address"
+    },
+    "landing_channel": {
+     "description": "First-touch acquisition channel.",
+     "meta": {},
+     "name": "landing_channel"
+    },
+    "session_ended_at": {
+     "description": "UTC timestamp when the session ended.",
+     "meta": {},
+     "name": "session_ended_at"
+    },
+    "session_id": {
+     "description": "Immutable session primary key.",
+     "meta": {},
+     "name": "session_id"
+    },
+    "session_started_at": {
+     "description": "UTC timestamp when the session started.",
+     "meta": {},
+     "name": "session_started_at"
+    }
+   },
+   "compiled_code": "-- depends_on: {{ source('raw', 'web_sessions') }}\nselect\n    session_id,\n    customer_id,\n    anonymous_id,\n    session_started_at,\n    session_ended_at,\n    landing_channel,\n    device_type,\n    ip_address,\n    converted_order_id\nfrom raw.web_sessions\n-- Zero-duration sessions are bot probes and tracker noise; downstream\n-- attribution must never count them.\nwhere session_ended_at > session_started_at\n",
+   "config": {
+    "materialized": "view",
+    "schema": "staging"
+   },
+   "depends_on": {
+    "macros": [],
+    "nodes": [
+     "source.sidq_demo.raw.web_sessions"
+    ]
+   },
+   "name": "stg_web_sessions",
+   "original_file_path": "models/staging/stg_web_sessions.sql",
+   "raw_code": "-- depends_on: {{ source('raw', 'web_sessions') }}\nselect\n    session_id,\n    customer_id,\n    anonymous_id,\n    session_started_at,\n    session_ended_at,\n    landing_channel,\n    device_type,\n    ip_address,\n    converted_order_id\nfrom raw.web_sessions\n-- Zero-duration sessions are bot probes and tracker noise; downstream\n-- attribution must never count them.\nwhere session_ended_at > session_started_at\n",
+   "relation_name": "warehouse.staging.stg_web_sessions",
+   "resource_type": "model"
+  },
+  "model.sidq_demo.customers": {
+   "original_file_path": "models/order_entry/customers.sql",
+   "relation_name": "b2fd91.order_entry_db.order_entry.customers",
+   "config": {
+    "meta": {
+     "environment": "PROD"
+    }
+   },
+   "columns": {
+    "account_mgr_id": {},
+    "address_line1": {},
+    "address_line2": {},
+    "address_line3": {},
+    "country_id": {},
+    "credit_limit": {},
+    "cust_email": {},
+    "cust_first_name": {},
+    "cust_last_name": {},
+    "customer_class": {},
+    "customer_id": {},
+    "customer_since": {},
+    "dob": {},
+    "mailshot": {},
+    "nls_language": {},
+    "nls_territory": {},
+    "partner_mailshot": {},
+    "phone_number": {},
+    "region_id": {},
+    "suggestions": {},
+    "town_city": {},
+    "zipcode": {}
+   }
+  },
+  "model.sidq_demo.raw_customers": {
+   "original_file_path": "models/raw/customers.sql",
+   "relation_name": "sidq-demo.warehouse.raw.customers",
+   "config": {
+    "meta": {
+     "environment": "PROD"
+    }
+   },
+   "meta": {
+    "dataset_urn": "urn:li:dataset:(urn:li:dataPlatform:postgres,sidq-demo.warehouse.raw.customers,PROD)"
+   },
+   "columns": {
+    "customer_id": {},
+    "email": {},
+    "full_name": {},
+    "country": {},
+    "created_at": {}
+   }
   }
+ },
+ "sources": {
+  "source.sidq_demo.raw.categories": {
+   "name": "categories",
+   "relation_name": "warehouse.raw.categories",
+   "resource_type": "source",
+   "source_name": "raw"
+  },
+  "source.sidq_demo.raw.customers": {
+   "name": "customers",
+   "relation_name": "warehouse.raw.customers",
+   "resource_type": "source",
+   "source_name": "raw"
+  },
+  "source.sidq_demo.raw.order_items": {
+   "name": "order_items",
+   "relation_name": "warehouse.raw.order_items",
+   "resource_type": "source",
+   "source_name": "raw"
+  },
+  "source.sidq_demo.raw.orders": {
+   "name": "orders",
+   "relation_name": "warehouse.raw.orders",
+   "resource_type": "source",
+   "source_name": "raw"
+  },
+  "source.sidq_demo.raw.payments": {
+   "name": "payments",
+   "relation_name": "warehouse.raw.payments",
+   "resource_type": "source",
+   "source_name": "raw"
+  },
+  "source.sidq_demo.raw.products": {
+   "name": "products",
+   "relation_name": "warehouse.raw.products",
+   "resource_type": "source",
+   "source_name": "raw"
+  },
+  "source.sidq_demo.raw.refunds": {
+   "name": "refunds",
+   "relation_name": "warehouse.raw.refunds",
+   "resource_type": "source",
+   "source_name": "raw"
+  },
+  "source.sidq_demo.raw.shipments": {
+   "name": "shipments",
+   "relation_name": "warehouse.raw.shipments",
+   "resource_type": "source",
+   "source_name": "raw"
+  },
+  "source.sidq_demo.raw.subscriptions": {
+   "name": "subscriptions",
+   "relation_name": "warehouse.raw.subscriptions",
+   "resource_type": "source",
+   "source_name": "raw"
+  },
+  "source.sidq_demo.raw.support_tickets": {
+   "name": "support_tickets",
+   "relation_name": "warehouse.raw.support_tickets",
+   "resource_type": "source",
+   "source_name": "raw"
+  },
+  "source.sidq_demo.raw.web_sessions": {
+   "name": "web_sessions",
+   "relation_name": "warehouse.raw.web_sessions",
+   "resource_type": "source",
+   "source_name": "raw"
+  }
+ }
 }

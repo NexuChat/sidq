@@ -10,3 +10,9 @@ models:
   sidq_demo:
     +schema: analytics
     +materialized: view
+    staging:
+      +schema: staging
+    intermediate:
+      +schema: intermediate
+    marts:
+      +schema: analytics
