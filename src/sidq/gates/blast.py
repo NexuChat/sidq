@@ -169,6 +169,7 @@ def _details(
     dashboards: list[str] = []
     critical: list[str] = []
     cross_team: list[str] = []
+    unreadable: list[str] = []
     pii_assets: dict[str, list[str]] = {}
     for urn in result.urns:
         entity_type = (
@@ -183,7 +184,15 @@ def _details(
         try:
             info: DatasetInfo | None = graph.get_dataset(urn)
         except Exception:  # noqa: BLE001 -- optional enrichment must not discard proven lineage
+            # Keeping the proven lineage is right, but staying silent is not.
+            # critical_assets and cross_team_owners are exactly the fields
+            # critical_downstream blocks on, so an unread downstream asset can
+            # quietly weaken a blocking verdict. Recording the URN keeps that
+            # incompleteness auditable in the verdict instead of invisible.
+            # Whether it should also escalate to a refusal is a policy decision,
+            # not a gate decision, so this gate reports and does not escalate.
             info = None
+            unreadable.append(urn)
         tags = info.tags if info is not None else (inline_tags or ())
         if entity_type.lower() == "dashboard" or urn.startswith("urn:li:dashboard:"):
             dashboards.append(urn)
@@ -212,6 +221,7 @@ def _details(
         "dashboards": sorted(set(dashboards)),
         "critical_assets": sorted(set(critical)),
         "cross_team_owners": sorted(set(cross_team)),
+        "unreadable_assets": sorted(set(unreadable)),
         "pii_tags": sorted({tag for tags in pii_assets.values() for tag in tags}),
         "pii_assets": {urn: pii_assets[urn] for urn in sorted(pii_assets)},
         "depth": depth,

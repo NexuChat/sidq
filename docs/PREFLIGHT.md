@@ -141,10 +141,21 @@ does not match. This is the mechanical version of the lesson recorded in
 
 ## 8. Deliverables
 
-| artifact | content |
-|---|---|
-| `scripts/train_preflight.py` | trains all four rungs, one seed, deterministic |
-| `scripts/eval_preflight.py` | held-out evaluation, emits the metric table |
-| `docs/PREFLIGHT-RESULTS.md` | the four-rung table, headline false-negative rate, chosen operating point, and the kill-criteria verdict — **published whether or not it ships** |
-| `src/sidq/preflight/` | the feature builder + serving path, only if the criteria are met |
-| MCP tool `preflight_check` | exposed to the agent, only if the criteria are met |
+**Status as of 2026-07-29: none of these exist. Not started.** This section is a
+plan, not a record. Every row below is unbuilt, and nothing in the submission
+depends on any of them — the deterministic engine is complete without pre-flight,
+exactly as §6 requires.
+
+| artifact | content | status |
+|---|---|---|
+| `scripts/train_preflight.py` | trains all four rungs, one seed, deterministic | ⬜ not started |
+| `scripts/eval_preflight.py` | held-out evaluation, emits the metric table | ⬜ not started |
+| `docs/PREFLIGHT-RESULTS.md` | the four-rung table, headline false-negative rate, chosen operating point, and the kill-criteria verdict — **published whether or not it ships** | ⬜ not started |
+| `src/sidq/preflight/` | the feature builder + serving path, only if the criteria are met | ⬜ not started |
+| MCP tool `preflight_check` | exposed to the agent, only if the criteria are met | ⬜ not started |
+
+The honest reading of this document today: the failure criteria were fixed in
+advance, which is the whole point of writing it early, and then the work was not
+begun. It is registered as an open gap in
+[the project gap assessment](PREFLIGHT-RESULTS.md) §5 so it cannot be mistaken for shipped
+capability.
