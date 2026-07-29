@@ -12,6 +12,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["mypy", "pytest", "ruff", "types-PyYAML"]
+advisory = ["transformers>=5.0", "torch>=2.5"]
 # Kept out of the default install: these packages and the model weights are
 # only required for the CPU LoRA experiment in scripts/train_lora.py.
 train = [
@@ -37,6 +38,7 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
 
 [tool.ruff.format]
 exclude = [
@@ -50,6 +52,8 @@ exclude = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/test_published_artifact_granularity.py" = ["I001"]
+"scripts/**" = ["BLE001", "PLW1510", "S110", "S112", "SIM101", "SIM102", "SIM103", "FLY002", "PERF102", "UP022", "F841"]
+"data/claims/**" = ["BLE001", "PLW1510", "S110", "S112", "UP022"]
 
 [tool.mypy]
 python_version = "3.12"

@@ -117,9 +117,7 @@ _CLAIM_TYPES = ("unique", "not_null", "accepted_values", "relationships", "expre
 # These installed Qwen3 templates expose native thinking control.  Passing
 # ``think: false`` has Ollama render the equivalent of ``/no_think`` and
 # avoids spending constrained-extraction output tokens on reasoning.
-_THINKING_MODELS = frozenset(
-    {"qwen3.5:4b", "qwen3.5:2b", "qwen3:1.7b", "qwen3:0.6b"}
-)
+_THINKING_MODELS = frozenset({"qwen3.5:4b", "qwen3.5:2b", "qwen3:1.7b", "qwen3:0.6b"})
 # The Qwen3.5 renderer takes raw generate prompts, so it requires its control
 # token in the prompt as well as the native request flag.
 _PROMPT_NO_THINK_MODELS = frozenset({"qwen3.5:4b", "qwen3.5:2b"})
@@ -230,11 +228,15 @@ class ModelExtractor:
                 f"the requested model with `ollama pull {self.model}`. ({error})"
             ) from error
         models = payload.get("models")
-        names = {
-            entry.get("name")
-            for entry in models
-            if isinstance(entry, dict) and isinstance(entry.get("name"), str)
-        } if isinstance(models, list) else set()
+        names: set[str] = (
+            {
+                entry["name"]
+                for entry in models
+                if isinstance(entry, dict) and isinstance(entry.get("name"), str)
+            }
+            if isinstance(models, list)
+            else set()
+        )
         if self.model not in names and f"{self.model}:latest" not in names:
             installed = ", ".join(sorted(names)) or "none"
             raise ModelRuntimeError(
@@ -242,9 +244,7 @@ class ModelExtractor:
                 f"{self.model}` and retry. Installed models: {installed}."
             )
 
-    def _generate(
-        self, prompt: str, *, response_format: dict[str, Any] | None
-    ) -> str:
+    def _generate(self, prompt: str, *, response_format: dict[str, Any] | None) -> str:
         body: dict[str, Any] = {
             "model": self.model,
             "prompt": prompt,
@@ -285,7 +285,9 @@ class ModelExtractor:
             detail = error.read().decode("utf-8", errors="replace")
             raise ModelRuntimeError(f"Ollama HTTP {error.code}: {detail}") from error
         except (URLError, TimeoutError, OSError) as error:
-            raise ModelRuntimeError(f"cannot reach Ollama at {self._api_base}: {error}") from error
+            raise ModelRuntimeError(
+                f"cannot reach Ollama at {self._api_base}: {error}"
+            ) from error
         if not isinstance(payload, dict):
             raise ModelRuntimeError("Ollama returned a non-object API response")
         return payload
@@ -324,9 +326,12 @@ sentence: {sentence}
             return None
         claim_type = raw_claim.get("type")
         confidence = raw_claim.get("confidence")
-        if claim_type not in _CLAIM_TYPES or isinstance(confidence, bool) or not isinstance(
-            confidence, (int, float)
-        ) or not 0.0 <= confidence <= 1.0:
+        if (
+            claim_type not in _CLAIM_TYPES
+            or isinstance(confidence, bool)
+            or not isinstance(confidence, (int, float))
+            or not 0.0 <= confidence <= 1.0
+        ):
             return None
         try:
             if set(raw_claim) != {"type", "values", "expr", "confidence"}:
@@ -336,7 +341,9 @@ sentence: {sentence}
             if claim_type in {"unique", "not_null"}:
                 if values is not None:
                     return None
-                return Claim(claim_type, column, source_sentence=sentence, confidence=confidence)
+                return Claim(
+                    claim_type, column, source_sentence=sentence, confidence=confidence
+                )
             if claim_type == "accepted_values":
                 if not isinstance(values, list) or len(values) < 2 or expr is not None:
                     return None
