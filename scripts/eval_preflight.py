@@ -125,28 +125,39 @@ def load_rungs() -> dict | None:
 
 
 def _measured_lines(rungs: dict) -> list[str]:
-    """§4 and §6 decided by measurement rather than by argument."""
-    rows = [["rung", "false-negative rate", "abstention", "accuracy"]]
+    """§4 and §6 decided by measurement, including where a criterion cannot decide."""
+    rows = [["rung", "false-negative rate", "false positives", "abstention", "accuracy"]]
     for rung in rungs["rungs"]:
         rows.append(
             [
                 rung["rung"],
                 f"{rung['false_negative_rate']:.2%}",
+                str(rung["false_positives"]),
                 f"{rung['abstention_rate']:.2%}",
                 f"{rung['accuracy']:.2%}",
             ]
         )
     widths = [max(len(row[i]) for row in rows) for i in range(len(rows[0]))]
-    table = [
-        "| " + " | ".join(cell.ljust(widths[i]) for i, cell in enumerate(rows[0])) + " |",
-        "|" + "|".join("-" * (width + 2) for width in widths) + "|",
+
+    def line(cells: list[str]) -> str:
+        return "| " + " | ".join(c.ljust(widths[i]) for i, c in enumerate(cells)) + " |"
+
+    table = [line(rows[0]), "|" + "|".join("-" * (w + 2) for w in widths) + "|"]
+    table.extend(line(row) for row in rows[1:])
+
+    by_name = {rung["rung"]: rung for rung in rungs["rungs"]}
+    l0 = next(rung for name, rung in by_name.items() if name.startswith("L0 "))
+    candidates = [
+        rung
+        for name, rung in by_name.items()
+        if not name.startswith("L0") and rung["abstention_rate"] <= 0.5
     ]
-    table.extend(
-        "| " + " | ".join(cell.ljust(widths[i]) for i, cell in enumerate(row)) + " |"
-        for row in rows[1:]
-    )
-    l0 = rungs["rungs"][0]
-    best = min(rungs["rungs"][1:], key=lambda item: item["false_negative_rate"])
+    best = min(candidates, key=lambda rung: rung["false_negative_rate"])
+    blocks = round(rungs["test_rows"] * rungs["test_block_share"])
+
+    one = best["false_negative_rate"] <= 0.01
+    two = best["abstention_rate"] <= 0.5
+
     return [
         (
             f"The ladder was trained on {rungs['train_rows']:,} rows and evaluated on "
@@ -157,40 +168,80 @@ def _measured_lines(rungs: dict) -> list[str]:
         "",
         *table,
         "",
+        (
+            f"The best rung is **{best['rung']}**: {best['false_negatives']} missed "
+            f"blocks out of {blocks:,}, and {best['false_positives']} false alarms."
+        ),
+        "",
         "| §6 criterion | outcome |",
         "| --- | --- |",
         (
-            f"| 1. false-negative rate ≤ 1% | **failed** — the best trained rung is "
-            f"{best['rung']} at {best['false_negative_rate']:.1%}, more than twenty "
-            "times the bar. |"
+            f"| 1. false-negative rate ≤ 1% | {'**met**' if one else '**failed**'} — "
+            f"{best['false_negative_rate']:.2%}. |"
         ),
         (
-            f"| 2. abstention rate ≤ 50% | met — {best['abstention_rate']:.1%}, but "
-            "meeting it while missing one blocking change in four is not a partial "
-            "success. |"
+            f"| 2. abstention rate ≤ 50% | {'**met**' if two else '**failed**'} — "
+            f"{best['abstention_rate']:.2%}. |"
         ),
         (
-            f"| 3. the winning rung beats L0 **and** the rung below it | **failed** — "
-            f"L0 never says PASS, so its false-negative rate is {l0['false_negative_rate']:.0%} "
-            "and no trained rung can beat it on the headline. L2 is also worse than "
-            "L1 on both false negatives and accuracy, so the ladder does not even "
-            "hold internally. |"
+            "| 3. the winning rung beats L0 **and** the rung below it | "
+            "**cannot be decided as written** — see below. |"
+        ),
+        "",
+        "### Criterion 3 is unsatisfiable, and that is a defect in the criterion",
+        "",
+        (
+            f"L0 blocks everything, so it never says PASS, so its false-negative rate "
+            f"is {l0['false_negative_rate']:.0%} by construction. On the headline "
+            "metric alone **no model can ever beat it** — not this one, not a perfect "
+            "one. The criterion as written cannot be satisfied by any classifier, "
+            "which was not visible until the numbers existed."
         ),
         "",
         (
-            "Two criteria failed, so **pre-flight is not shipped**. L3 — a transformer "
-            "over the raw diff — is deliberately not attempted: §4 permits it only "
-            "once L2's false-negative rate is unacceptable *and* the cheaper rungs "
-            "have earned the escalation. Here L2 is beaten by a formula, which is a "
-            "signal that the features carry little about the verdict, not that the "
-            "model needs more capacity."
+            "The comparison it was reaching for is whether the rung beats the trivial "
+            f"baseline at being a useful pre-filter. It does, decisively: L0 flags all "
+            f"{rungs['test_rows']:,} changes as blocking, including {l0['false_positives']:,} "
+            f"that the oracle passes, while {best['rung']} has "
+            f"{best['false_positives']} false alarms and misses "
+            f"{best['false_negatives']}. It also beats the rung below it — the same "
+            "model without the deterministic pre-checks — by two orders of magnitude."
         ),
         "",
         (
-            f"L0's {l0['accuracy']:.0%} accuracy is the trap §5 names. It is a good "
-            "number attached to a model that has learned only that most changes in "
-            "this corpus block. Reporting accuracy instead of the false-negative rate "
-            "is how the previous attempt looked healthier than it was."
+            "**So the decision does not belong to this script.** Criteria 1 and 2 are "
+            "met. Criterion 3 requires amending a pre-registered criterion after "
+            "seeing the numbers, and amending your own kill criteria once you know "
+            "the result is the exact move these criteria exist to prevent. It needs a "
+            "human who is willing to say, on the record, that the criterion was "
+            "written wrong rather than that the model did well. Until then pre-flight "
+            "is **not shipped**, and the deterministic engine remains complete "
+            "without it."
+        ),
+        "",
+        "### What actually moved the number",
+        "",
+        (
+            "The first ladder missed 22.23% of blocking changes. Diagnosing which "
+            "rules those misses carried showed almost all of them were "
+            "`unresolved_asset`: the changed file maps to no manifest model, so the "
+            "oracle refuses to certify. That is not a thing to learn — it is a thing "
+            "to compute, and a pre-filter can compute it locally with no graph and no "
+            "model. The same is true of unparseable SQL."
+        ),
+        "",
+        (
+            "Adding those two deterministic pre-checks took the false-negative rate "
+            "from 22.23% to 0.27% without touching the model. The lesson is the one "
+            "§1 already implies: a model is legitimate only where no deterministic "
+            "algorithm exists, and part of what was being modelled had one."
+        ),
+        "",
+        (
+            "L2 scores identically to L1 at every stage, so the trees earn nothing "
+            "over the formula. §4 anticipated this: if the logistic regression wins, "
+            "the model is a formula and a formula is what would ship. L3 is therefore "
+            "not attempted."
         ),
     ]
 

@@ -141,30 +141,49 @@ does not match. This is the mechanical version of the lesson recorded in
 
 ## 8. Deliverables
 
-**Result: not shipped, by measurement.** The ladder was trained and evaluated on
-2026-07-30 over 20,666 oracle-labelled mutations, split by dbt model per §3. The
-best trained rung misses **24.7%** of blocking changes — twenty-four times the
-1% bar — and no trained rung beats L0 on the headline, because L0 never says PASS.
-L2 is also worse than L1, so the ladder does not hold internally either. The full
-record is [`docs/PREFLIGHT-RESULTS.md`](PREFLIGHT-RESULTS.md).
+**Result: not shipped — but the reason changed, and the change is on the record.**
+
+The ladder was trained and evaluated on 2026-07-30 over 20,666 oracle-labelled
+mutations, split by dbt model per §3. The best rung, **L1+**, misses **16 blocking
+changes out of 5,921 (0.27%)** with **zero false alarms** and no abstentions.
+
+- Criterion 1 (false negatives ≤ 1%): **met**.
+- Criterion 2 (abstentions ≤ 50%): **met**.
+- Criterion 3 (beat L0): **cannot be decided as written.** L0 blocks everything, so
+  it never says PASS, so its false-negative rate is 0% by construction and no
+  classifier can ever beat it on the headline metric. That is a defect in the
+  criterion, invisible until the numbers existed.
+
+Amending a pre-registered criterion after seeing the result is precisely the move
+these criteria exist to prevent, so it is **not** amended here. Pre-flight stays
+unshipped pending an owner decision recorded against §6. The full record, including
+what the criterion was reaching for and how the winning rung compares on it, is
+[`docs/PREFLIGHT-RESULTS.md`](PREFLIGHT-RESULTS.md).
+
+The number that moved was not the model. The first ladder missed 22.23%; almost
+every miss carried `unresolved_asset`, meaning the changed file maps to no manifest
+model and the oracle refuses to certify. That is not something to learn, it is
+something to compute. Adding two deterministic pre-checks — does the file resolve,
+does the SQL parse — took the rate to 0.27% without touching the classifier, which
+is §1's own condition applied honestly: a model is legitimate only where no
+deterministic algorithm exists.
 
 | artifact | content | status |
 |---|---|---|
 | `scripts/eval_preflight.py` | corpus validation against §3 and §6, renders the measured ladder | ✅ built |
 | `docs/PREFLIGHT-RESULTS.md` | the kill-criteria verdict — **published whether or not it ships** | ✅ published |
-| `scripts/train_preflight.py` | trains the ladder, one seed, deterministic | ✅ built — L0/L1/L2 trained and published |
-| `src/sidq/preflight/` | the feature builder + serving path, only if the criteria are met | ⬜ not built — the criteria were not met |
-| MCP tool `preflight_check` | exposed to the agent, only if the criteria are met | ⬜ not built — the criteria were not met |
+| `scripts/train_preflight.py` | trains the ladder, one seed, deterministic | ✅ built — six rungs trained and published |
+| `src/sidq/preflight/` | the feature builder + serving path, only if the criteria are met | ⬜ not built — awaiting the §6 criterion-3 decision |
+| MCP tool `preflight_check` | exposed to the agent, only if the criteria are met | ⬜ not built — awaiting the §6 criterion-3 decision |
 
-L3 is not built and that is the spec working. §4 permits a transformer only once
-L2 has failed *and* earned the escalation; here L2 is beaten by a logistic
-regression, which says the features carry little signal about the verdict, not that
-the model wants more capacity. Reaching for L3 anyway is the mistake §4 named in
-advance.
+L3 is not built and that is the spec working. §4 permits a transformer only once L2
+has failed *and* earned the escalation; here L2 scores identically to L1 at every
+stage, so the trees earn nothing over the formula and the formula is what would
+ship. Reaching for L3 anyway is the mistake §4 named in advance.
 
-Writing the criteria before the data existed is what made the result readable.
-Without them, an 80% accuracy figure from L0 — a model that has learned only that
-most changes block — would have been the headline. `docs/LORA.md` is the same
-lesson learned the expensive way.
+Writing the criteria before the data existed is what made this readable — and what
+made a flawed criterion visible as a flaw rather than as a result. Without them, the
+headline would have been L0's 80% accuracy, from a model that has learned only that
+most changes block. `docs/LORA.md` is the same lesson learned the expensive way.
 
 The deterministic engine ships alone, and §6 pre-committed to exactly that.
