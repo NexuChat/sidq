@@ -9,6 +9,9 @@ Type=simple
 User=dev
 Group=dev
 WorkingDirectory=/home/dev/sidq-public
+# systemd's default PATH has no ~/.local/bin, where the isolated
+# mcp-server-datahub tool lives; the live-audit endpoint spawns it by name.
+Environment=PATH=/home/dev/.local/bin:/usr/local/bin:/usr/bin:/bin
 Environment=SIDQ_LANDING_PORT=8766
 Environment=DATAHUB_GMS_URL=http://localhost:8080
 Environment=DATAHUB_TELEMETRY_ENABLED=false
