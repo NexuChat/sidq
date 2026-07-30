@@ -21,6 +21,13 @@ class SchemaField:
     path: str
     native_type: str
     nullable: bool
+    description: str | None = None
+    # Governance markers carried at *column* granularity. DataHub's showcase sample
+    # marks PII with glossary terms rather than tags, and the two are different
+    # write surfaces (`add_terms` vs `add_tags`), so they are kept apart here
+    # instead of being flattened into one bag a repair could not act on.
+    tags: tuple[str, ...] = ()
+    terms: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,6 +38,9 @@ class DatasetInfo:
     terms: tuple[str, ...] = ()
     owners: tuple[str, ...] = ()
     deprecated: bool = False
+    # (display name, term URN) for every glossary term on this asset. Field-level
+    # markers arrive as names; writing one back requires its URN.
+    glossary: tuple[tuple[str, str], ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -168,6 +178,7 @@ class MCPGraphClient:
             ),
             owners=tuple(sorted(set(_owners(entity)))),
             deprecated=_deprecated(entity),
+            glossary=_glossary(entity),
         )
         self._datasets[urn] = result
         return result
@@ -396,6 +407,66 @@ def _owners(value: Any) -> list[str]:
     return []
 
 
+def _markers(value: Any, *keys: str) -> tuple[str, ...]:
+    """Column-level tags or terms, unioned across every key that carries them.
+
+    Unlike `_strings` this does not stop at the first key that yields something.
+    DataHub reports a field's ingested and hand-edited glossary terms under two
+    separate keys, and in the showcase sample the PII marker lives only in the
+    second — taking the first would have silently dropped every PII signal.
+
+    It also accepts display names, not just URNs, because `list_schema_fields`
+    returns names. Detection works on either; the repair resolves the name to a
+    URN before it will write anything.
+    """
+    document = _mapping(value)
+    found: set[str] = set()
+    for key in keys:
+        candidate = document.get(key)
+        if isinstance(candidate, str):
+            found.add(candidate)
+        elif isinstance(candidate, list):
+            for item in candidate:
+                if isinstance(item, str) and item:
+                    found.add(item)
+                elif isinstance(item, Mapping):
+                    found.update(_urns(item))
+    return tuple(sorted(found))
+
+
+def _glossary(value: Any) -> tuple[tuple[str, str], ...]:
+    """(display name, URN) for every tag and glossary term named on this asset.
+
+    Column markers arrive from `list_schema_fields` as bare names, and both write
+    tools need URNs. The catalog names both forms at asset level, so this is the
+    catalog resolving its own vocabulary rather than Sidq inventing a mapping. Tags
+    and terms share the map because a field carries either and the URN prefix is
+    what later decides which tool writes it back.
+    """
+    document = _mapping(value)
+    pairs: set[tuple[str, str]] = set()
+    for container, items_key, item_key in (
+        ("glossaryTerms", "terms", "term"),
+        ("tags", "tags", "tag"),
+    ):
+        items = _mapping(document.get(container)).get(items_key)
+        for item in items if isinstance(items, list) else ():
+            node = _mapping(_mapping(item).get(item_key))
+            urn = node.get("urn")
+            if not isinstance(urn, str):
+                continue
+            name = _mapping(node.get("properties")).get("name")
+            if isinstance(name, str) and name:
+                pairs.add((name, urn))
+            # The trailing URN segment is the name DataHub ingests a column marker
+            # under; the display name can be decorated ("💲 Large Table") and then
+            # matches nothing. Both are recorded so either spelling resolves.
+            tail = urn.rsplit(".", 1)[-1] if "." in urn else urn.rsplit(":", 1)[-1]
+            if tail:
+                pairs.add((tail, urn))
+    return tuple(sorted(pairs))
+
+
 def _urns(value: Any) -> list[str]:
     if isinstance(value, str):
         return [value] if value.startswith("urn:") else []
@@ -462,7 +533,22 @@ def _parse_fields(value: Any) -> list[SchemaField]:
             if isinstance(nullable_value, bool)
             else str(nullable_value).lower() in {"true", "yes", "y", "1"}
         )
-        fields.append(SchemaField(path, native_type, nullable))
+        fields.append(
+            SchemaField(
+                path,
+                native_type,
+                nullable,
+                _string(field, "description", "fieldDescription") or None,
+                _markers(field, "tags", "globalTags", "editedTags", "tag_urns"),
+                _markers(
+                    field,
+                    "glossaryTerms",
+                    "editedGlossaryTerms",
+                    "terms",
+                    "term_urns",
+                ),
+            )
+        )
     return sorted(fields, key=lambda field: field.path)
 
 

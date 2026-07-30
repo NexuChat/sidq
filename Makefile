@@ -10,7 +10,9 @@ AUDIT_BUDGET ?= 5
 RECEIPT_URN ?= urn:li:dataset:(urn:li:dataPlatform:snowflake,b2fd91.order_entry_db.order_entry.customers,PROD)
 UNAUDITED_URN ?= urn:li:dataset:(urn:li:dataPlatform:snowflake,b2fd91.order_entry_db.order_entry.warehouses,PROD)
 
-.PHONY: check regen regen-check gate-demo live-loop demo-up demo-ingest demo-break demo-restore demo-down
+REPAIR_BUDGET ?= 15
+
+.PHONY: check regen regen-check gate-demo live-loop repair-demo repair-reset demo-up demo-ingest demo-break demo-restore demo-down
 
 check:
 	$(VENV)/bin/ruff check .
@@ -76,6 +78,25 @@ live-loop:
 	@DATAHUB_GMS_URL=$(DATAHUB_GMS_URL) DATAHUB_TELEMETRY_ENABLED=false \
 	  $(VENV)/bin/sidq verify '$(UNAUDITED_URN)' 2>/dev/null; \
 	  status=$$?; [ $$status -eq 1 ] || { echo "expected NOT VERIFIED, got exit $$status"; exit 1; }
+
+# The repair agent, on live DataHub. It proposes only from catalog evidence, then
+# re-runs the deterministic engine against the catalog each repair *would* create
+# and keeps what survives. On the showcase sample the interesting part is what it
+# refuses: tagging just the column named in the finding resolves that finding and
+# immediately creates a new one downstream, so the proposal it offers instead
+# covers the whole field-lineage closure — 7 columns across dbt, Snowflake and
+# Looker, in one MCP call.
+#
+# Dry run. `sidq repair --via-mcp --apply` writes it; `make repair-reset` restores
+# the sample afterwards so the demonstration can be run again.
+repair-demo:
+	@DATAHUB_GMS_URL=$(DATAHUB_GMS_URL) DATAHUB_TELEMETRY_ENABLED=false \
+	  $(VENV)/bin/sidq repair --via-mcp --budget $(REPAIR_BUDGET) 2>/dev/null; \
+	  status=$$?; [ $$status -le 1 ] || { echo "repair could not read the catalog"; exit 1; }
+
+repair-reset:
+	@DATAHUB_GMS_URL=$(DATAHUB_GMS_URL) DATAHUB_TELEMETRY_ENABLED=false \
+	  $(VENV)/bin/python scripts/reset_repair_demo.py 2>/dev/null
 
 demo-up:
 	$(DEMO_COMPOSE) up -d --wait postgres
