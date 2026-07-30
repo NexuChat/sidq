@@ -83,12 +83,27 @@ def changed_files(diff_range: str, *, cwd: str | Path = ".") -> list[str]:
 def collect_evidence(
     touched: Sequence[Any], graph: GraphClient, live_source: LiveSourceClient | None
 ) -> list[Evidence]:
+    # `doc_rot` and `governance` were built, tested, and then never wired to this
+    # path: `sidq check` ran three gates while the README described both as things
+    # Sidq checks. A capability that cannot fire is a claim, not a feature.
+    #
+    # Two gates are deliberately absent, and both exclusions were measured rather
+    # than assumed:
+    #
+    # `self_contradiction` discards the change and audits the entire catalog, so
+    # running it per pull request is the wrong scope. It belongs to the catalog
+    # audit in `examples/03-catalog-truth-report/`, which is where it is called.
+    #
+    # `lineage_rot` was wired here and then removed. On the flagship example it
+    # produced twenty-two `lineage_unverifiable` records, none adjudicable, which
+    # the engine turns into twenty-two `informational` findings — flooding the
+    # verdict a judge reads with noise and no signal. Suppressing the unverifiable
+    # ones instead would violate the rule the whole product rests on: an
+    # unperformed check must never be reported as a clean one. The policy already
+    # settled the scope question by classifying `lineage_unverifiable` as a
+    # catalog-health observation rather than a failure to inspect the change.
+    # `verify_context` runs the gate properly, with manifest-mapped SQL.
     evidence: list[Evidence] = []
-    # Every gate the README advertises runs here. `doc_rot` and `governance` were
-    # built, tested, and then never wired to any product surface: `sidq check` ran
-    # three gates while the README described documentation rot and governance
-    # evidence as things Sidq checks. A capability that cannot fire is a claim, not
-    # a feature.
     gates: list[Gate] = [
         SchemaGate(),
         BlastRadiusGate(),
