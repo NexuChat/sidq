@@ -140,7 +140,7 @@ def comment() -> str:
     order, and the production bot renders straight off the live object, so the two
     disagree on the order the rule ids appear in the heading. Publishing in
     canonical order keeps the two files a judge reads side by side consistent with
-    each other; the divergence itself is recorded in the project gap assessment §5.
+    each other; the divergence itself is pinned by a test.
 
     Findings are matched by their canonical serialisation, not by rule id. Keying
     on the rule id was a real bug: two gates raise `pii_exposure` on two different

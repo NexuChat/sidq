@@ -1,6 +1,6 @@
 # DELIVERY SPEC — the judge-facing surfaces (binding)
 
-Authority: the project design contract §8 item 4. Written 2026-07-28 to kill a risk that would
+Written 2026-07-28 to kill a risk that would
 otherwise surface on day 9.
 
 ## The problem
@@ -29,7 +29,7 @@ DataHub moves to a path or a second hostname. This page is fed by an artifact we
 produce, so it costs close to nothing.
 
 **Hard boundary:** this is a landing page, not the "verdict panel" web app that
-the project design contract deliberately dropped. If it starts acquiring routes, state, or a build
+the design deliberately dropped. If it starts acquiring routes, state, or a build
 step, it has failed. One file.
 
 ## The decision — three surfaces, no tunnel, no hosting
@@ -41,7 +41,7 @@ comments**, produced by running the gate here against the live local DataHub and
 through the GitHub API. The threads are permanent, readable without installing anything,
 and every verdict in them was computed against a real graph.
 
-At minimum four PRs, each one a scene from the project design contract §6:
+At minimum four PRs, each one a demonstration scene:
 
 | PR | Change | Expected verdict |
 |---|---|---|
@@ -89,7 +89,7 @@ rule that only fires on a hand-made fixture does not belong in the demo.
 
 **Known gap (accepted):** the OSS MCP server reports `Data Quality Tools DISABLED` and
 does not advertise assertion tools, so the assertion-dependency gate has no MCP path.
-It stays where the project design contract §8 already put it — in the cut list — and if built at all it
+It stays in the cut list, and if built at all it
 goes through the Python SDK, not MCP.
 
 ### 2. One-command local reproduction

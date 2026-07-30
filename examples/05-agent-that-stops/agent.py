@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """An analytics agent that asks whether the catalog is telling the truth.
 
-the project gap assessment §6 records an open gap: the demo agent has to be a real
+This closes an open gap: the demo agent has to be a real
 agent, not a script. The distinction it means is not "does an LLM drive it" — it
 is whether the thing **chooses its next action from what it observed**. This one
 does: it searches for an asset, verifies it, and then branches. Depending on what

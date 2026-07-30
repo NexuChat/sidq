@@ -1,6 +1,6 @@
 # ENGINE SPEC — wave 1 (binding)
 
-Authority: the project design contract. This file specifies **how** the engine is built; DECISION
+This file specifies **how** the engine is built; the product decisions
 specifies **what** must exist. On conflict, DECISION wins.
 
 Non-negotiable: **gates collect evidence, the policy engine decides.** No gate may
@@ -32,7 +32,7 @@ src/sidq/
                        channel: add_structured_properties (queryable body) +
                        add_tags (sidq:verified | sidq:blocked badge) +
                        save_document (full evidence). Requires
-                       TOOLS_IS_MUTATION_ENABLED=true. See `docs/RECON.md`.
+                       TOOLS_IS_MUTATION_ENABLED=true. See docs/RECON.md.
   mcp_server/          our own MCP server                            (wave 2)
   bot/                 Verdict -> PR comment markdown                (wave 4)
   cli.py
@@ -198,7 +198,7 @@ canonical machine artifact that every other surface (MCP, bot, receipt) consumes
   runs offline from the committed replay snapshot and pins the BLOCK decision, the
   offline-provable rule ids, the column-level lineage under them, and byte
   determinism. Its scope limits and one known drift are recorded in
-  the project gap assessment §5 items ٢٥–٢٦. These are regression tests — never edit an
+  the two divergences recorded below. These are regression tests — never edit an
   example to make a test pass; fix the engine.
 
 ## 8. Wave 1 definition of done

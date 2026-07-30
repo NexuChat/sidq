@@ -1,6 +1,6 @@
 # SIDQ RECEIPT SPEC — wave 3 (binding)
 
-Authority: the project design contract §3 and §5. Verified facts: `docs/RECON.md` §3.
+Verified facts: `docs/RECON.md`.
 
 The receipt is the answer to judging criterion #1 ("depth of DataHub use **including
 writing back to the graph**"). It fails that criterion the moment it becomes decorative.
