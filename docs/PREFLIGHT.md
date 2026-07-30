@@ -141,21 +141,23 @@ does not match. This is the mechanical version of the lesson recorded in
 
 ## 8. Deliverables
 
-**Status as of 2026-07-29: none of these exist. Not started.** This section is a
-plan, not a record. Every row below is unbuilt, and nothing in the submission
-depends on any of them — the deterministic engine is complete without pre-flight,
-exactly as §6 requires.
+**Result: not shipped.** The corpus was validated against §6 on 2026-07-30 and
+criterion 3 is unsatisfiable — every one of the 20,666 labels is `BLOCK`, so L0 is
+perfect by construction and no rung can beat it. The full record, including the two
+criteria that were met *vacuously* and why that is a warning rather than a success,
+is [`docs/PREFLIGHT-RESULTS.md`](PREFLIGHT-RESULTS.md).
 
 | artifact | content | status |
 |---|---|---|
-| `scripts/train_preflight.py` | trains all four rungs, one seed, deterministic | ⬜ not started |
-| `scripts/eval_preflight.py` | held-out evaluation, emits the metric table | ⬜ not started |
-| `docs/PREFLIGHT-RESULTS.md` | the four-rung table, headline false-negative rate, chosen operating point, and the kill-criteria verdict — **published whether or not it ships** | ⬜ not started |
-| `src/sidq/preflight/` | the feature builder + serving path, only if the criteria are met | ⬜ not started |
-| MCP tool `preflight_check` | exposed to the agent, only if the criteria are met | ⬜ not started |
+| `scripts/eval_preflight.py` | corpus validation against §3 and §6, emits the results document | ✅ built |
+| `docs/PREFLIGHT-RESULTS.md` | the kill-criteria verdict — **published whether or not it ships** | ✅ published |
+| `scripts/train_preflight.py` | trains all four rungs, one seed, deterministic | ⬜ not built — §4 cannot be exercised on a single-label corpus |
+| `src/sidq/preflight/` | the feature builder + serving path, only if the criteria are met | ⬜ not built — the criteria were not met |
+| MCP tool `preflight_check` | exposed to the agent, only if the criteria are met | ⬜ not built — the criteria were not met |
 
-The honest reading of this document today: the failure criteria were fixed in
-advance, which is the whole point of writing it early, and then the work was not
-begun. It is registered as an open gap in
-[the project gap assessment](PREFLIGHT-RESULTS.md) §5 so it cannot be mistaken for shipped
-capability.
+Writing the criteria before the data existed is what let this be settled by
+counting labels rather than by a training run, a tuning cycle, and an argument
+about which number to report. `docs/LORA.md` is the same lesson learned the
+expensive way.
+
+The deterministic engine ships alone, and §6 pre-committed to exactly that.
