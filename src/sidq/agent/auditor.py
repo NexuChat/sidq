@@ -74,6 +74,8 @@ class AuditRun:
     unverifiable: list[Evidence] = field(default_factory=list)
     deferred: list[Target] = field(default_factory=list)
     verified: list[str] = field(default_factory=list)
+    # Examined, but nothing could be established either way — never 'clean'.
+    unestablished: list[str] = field(default_factory=list)
     order: list[Target] = field(default_factory=list)
     # Evidence kept per asset so a receipt can be built later without re-auditing.
     evidence_by_urn: dict[str, list[Evidence]] = field(default_factory=dict)
@@ -95,6 +97,7 @@ class AuditRun:
             "findings_by_kind": dict(sorted(by_kind.items())),
             "unverifiable": len(self.unverifiable),
             "verified_clean": len(self.verified),
+            "unestablished": len(self.unestablished),
             "promoted_by_a_finding": len(self.promoted),
         }
 
@@ -200,7 +203,14 @@ class CatalogAuditor:
             )
             result.findings.extend(found)
             if not found:
-                result.verified.append(target.urn)
+                # "Nothing found" and "nothing checkable" are different answers.
+                # An asset whose only evidence is unverifiable was looked at and
+                # not established, so calling it clean would be the exact mistake
+                # this project exists to catch — in its own report, no less.
+                if any(item.kind.endswith("_unverifiable") for item in collected):
+                    result.unestablished.append(target.urn)
+                else:
+                    result.verified.append(target.urn)
                 continue
 
             # Only a contagious finding redirects the budget. A lie about how the
@@ -248,6 +258,10 @@ class CatalogAuditor:
                 entity for entity in self._snapshot.entities if entity.urn in neighbours
             ),
             related,
+            # Carried, not defaulted. Dropping it would let slicing quietly turn a
+            # bounded read into a complete one, and every asset whose lineage was
+            # never fetched would come back looking clean.
+            self._snapshot.field_lineage_resolved,
         )
         return [
             item
@@ -278,6 +292,11 @@ def render(result: AuditRun, *, catalog: str) -> list[str]:
         f"  unverifiable    {summary['unverifiable']}",
         f"  verified clean  {summary['verified_clean']}",
     ]
+    if result.unestablished:
+        lines.append(
+            f"  NOT established {len(result.unestablished)} "
+            "(examined, but nothing could be checked — not clean)"
+        )
     if result.deferred:
         lines.append(
             f"  NOT examined    {len(result.deferred)} (budget reached; "

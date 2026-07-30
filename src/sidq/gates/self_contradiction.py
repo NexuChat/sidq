@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import re
 from collections import defaultdict, deque
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -71,6 +71,96 @@ class CatalogSnapshot:
 
     entities: tuple[CatalogEntity, ...]
     edges: tuple[LineageEdge, ...] = ()
+    field_lineage_resolved: frozenset[str] | None = None
+    """Assets whose *column-level* lineage was actually fetched.
+
+    ``None`` means every asset's field lineage is present, which is true of the SDK
+    path because one aspect read returns the whole fine-grained record. The MCP
+    path has to ask per column, so it can only afford a subset — and the assets it
+    could not afford must be reported as unexamined rather than passed over in
+    silence, or a bounded read would masquerade as a clean bill of health.
+    """
+
+    @classmethod
+    def from_mcp(
+        cls,
+        graph: Any,
+        *,
+        query: str = "*",
+        depth: int = 2,
+        field_lineage_budget: int = 0,
+    ) -> CatalogSnapshot:
+        """Read the snapshot through the official DataHub MCP server.
+
+        `from_datahub` below reads through the DataHub Python SDK, which is a
+        legitimate client but not an MCP one — and an audit that claims to run on
+        the official agent surface should actually run on it. This path uses only
+        `search`, `get_entities`, `list_schema_fields`, and `get_lineage`, which is
+        exactly what `mcp-server-datahub` exposes read-only.
+
+        It is deliberately narrower than the SDK path, in two measured ways.
+
+        MCP `search` is paginated, so this sees one bounded page rather than the
+        whole catalog — what an agent would actually see. And MCP `get_lineage`
+        returns column granularity only when asked for one named column, so field
+        lineage costs one call per column (0.116s each against the local DataHub on
+        2026-07-30). `field_lineage_budget` caps how many assets are worth that:
+        the most connected ones first, since a wrong claim about a widely consumed
+        asset is the one that propagates. Everything past the cap is recorded as
+        unresolved, never as clean.
+        """
+        search = getattr(graph, "search_assets", None) or getattr(
+            graph, "_search", None
+        )
+        if not callable(search) or not callable(getattr(graph, "get_dataset", None)):
+            raise _Unverifiable("graph does not expose the MCP read surface")
+
+        entities: list[CatalogEntity] = []
+        table_edges: dict[str, list[LineageEdge]] = {}
+        for urn in _mcp_urns(search, query):
+            dataset = graph.get_dataset(urn)
+            if dataset is None:
+                continue
+            entities.append(
+                CatalogEntity(
+                    urn=urn,
+                    kind="dataset",
+                    fields=tuple(CatalogField(field.path) for field in dataset.fields),
+                    tags=tuple(dataset.tags),
+                    owners=tuple(dataset.owners),
+                    deprecated=bool(dataset.deprecated),
+                )
+            )
+            table_edges[urn] = _mcp_table_edges(graph, urn, depth)
+
+        # Most-consumed first: the same ordering the auditor uses, so the assets
+        # whose field lineage gets resolved are the ones it will examine.
+        ranked = sorted(
+            (entity.urn for entity in entities),
+            key=lambda urn: (-len(table_edges.get(urn, ())), urn),
+        )
+        affordable = set(ranked[: max(field_lineage_budget, 0)])
+        by_urn = {entity.urn: entity for entity in entities}
+        resolved: set[str] = set()
+        edges: list[LineageEdge] = []
+        for urn, table_only in table_edges.items():
+            if urn not in affordable:
+                edges.extend(table_only)
+                continue
+            try:
+                field_edges = _mcp_field_edges(graph, by_urn[urn], depth)
+            except _Unverifiable:
+                # Budgeted for, but not actually read: keep the table-level view
+                # and leave the asset out of `resolved` so it is reported as such.
+                edges.extend(table_only)
+                continue
+            resolved.add(urn)
+            edges.extend(field_edges or table_only)
+        return cls(
+            tuple(sorted(entities, key=lambda item: item.urn)),
+            tuple(sorted(edges, key=_edge_key)),
+            frozenset(resolved),
+        )
 
     @classmethod
     def from_datahub(cls, graph: Any) -> CatalogSnapshot:
@@ -176,11 +266,68 @@ class SelfContradictionGate:
         evidence.extend(_orphan_lineage(entities, snapshot.edges))
         evidence.extend(_pii_leaks(entities, snapshot.edges))
         evidence.extend(_unowned_consumed(entities, snapshot.edges))
+        evidence.extend(_field_lineage_unresolved(entities, snapshot))
         return evidence
 
 
 class _Unverifiable(RuntimeError):
     pass
+
+
+def _mcp_urns(search: Any, query: str) -> list[str]:
+    """Pull dataset URNs out of whatever shape the MCP search tool returns."""
+    raw = search(query)
+    if isinstance(raw, list) and all(isinstance(item, str) for item in raw):
+        return sorted(dict.fromkeys(raw))
+    found: list[str] = []
+    stack: list[Any] = [raw]
+    while stack:
+        item = stack.pop()
+        if isinstance(item, Mapping):
+            urn = item.get("urn")
+            if isinstance(urn, str) and urn.startswith("urn:li:dataset:"):
+                found.append(urn)
+            stack.extend(item.values())
+        elif isinstance(item, (list, tuple)):
+            stack.extend(item)
+    return sorted(dict.fromkeys(found))
+
+
+def _mcp_table_edges(graph: Any, urn: str, depth: int) -> list[LineageEdge]:
+    """Table-granularity downstream edges for one asset, over the MCP lineage tool."""
+    try:
+        result = graph.get_downstream(urn, depth)
+    except Exception:  # noqa: BLE001 - a lineage gap is absence, not a crash
+        return []
+    targets = getattr(result, "urns", ()) if result is not None else ()
+    return [LineageEdge(urn, None, str(target), None) for target in targets or ()]
+
+
+def _mcp_field_edges(
+    graph: Any, entity: CatalogEntity, depth: int
+) -> list[LineageEdge]:
+    """Column-granularity edges for one asset: one MCP lineage call per column.
+
+    Raises `_Unverifiable` if any single column cannot be read. Partial success is
+    the dangerous case here — the asset would be marked resolved while a column
+    nobody managed to ask about stayed silent, which is precisely how an
+    unperformed check turns into a clean one.
+    """
+    edges: list[LineageEdge] = []
+    for field in entity.fields:
+        try:
+            result = graph.get_downstream(entity.urn, depth, field.path)
+        except Exception as error:
+            raise _Unverifiable(f"column lineage failed for {field.path}") from error
+        columns = getattr(result, "columns", {}) if result is not None else {}
+        if not isinstance(columns, Mapping):
+            raise _Unverifiable(f"column lineage was unreadable for {field.path}")
+        for target, target_fields in columns.items():
+            edges.extend(
+                LineageEdge(entity.urn, field.path, str(target), str(target_field))
+                for target_field in target_fields or ()
+            )
+    return edges
 
 
 def _snapshot(graph: Any) -> CatalogSnapshot:
@@ -411,6 +558,30 @@ def _unowned_consumed(
         )
         for entity in sorted(entities.values(), key=lambda item: item.urn)
         if consumers[entity.urn] and not entity.owners
+    ]
+
+
+def _field_lineage_unresolved(
+    entities: dict[str, CatalogEntity], snapshot: CatalogSnapshot
+) -> list[Evidence]:
+    """Name the assets whose column lineage was never fetched.
+
+    Without this the bounded MCP read would look identical to a clean one: no
+    field-level edge, therefore no `lineage_field_missing`, therefore apparently
+    fine. Saying so per asset is what lets the auditor count them as unverifiable
+    instead of counting them as verified.
+    """
+    resolved = snapshot.field_lineage_resolved
+    if resolved is None:
+        return []
+    return [
+        _unverifiable(
+            "lineage_field_missing",
+            "column lineage was not fetched for this asset (field-lineage budget)",
+            urn,
+        )
+        for urn, entity in sorted(entities.items())
+        if entity.kind == "dataset" and entity.fields and urn not in resolved
     ]
 
 

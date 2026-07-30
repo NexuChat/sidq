@@ -12,7 +12,7 @@ Docker version 29.4.3, build 055a478
 Docker Compose version v5.1.3
 acryl-datahub==1.6.0.16
 mcp-server-datahub==0.6.0
-mcp==1.29.0
+mcp>=1.29,<3   # tested on 2.0.0; the pin was 1.29.0 and drifted
 pytest==9.1.1
 ruff==0.16.0
 sqlglot==30.14.0
@@ -48,7 +48,7 @@ Observed version output:
 
 ```text
 acryl-datahub==1.6.0.16
-mcp==1.29.0
+mcp==2.0.0
 mcp-server-datahub==0.6.0
 pytest==9.1.1
 PyYAML==6.0.3
@@ -224,6 +224,25 @@ To destroy only the disposable demo database and its named volume:
 ```bash
 make demo-down
 ```
+
+## 4b. The category-complete loop over official MCP
+
+With the quickstart and the showcase datapack loaded, one command runs the whole
+loop against live DataHub through `mcp-server-datahub` and nothing else:
+
+```bash
+make live-loop
+```
+
+It audits over official MCP, writes receipts back over official MCP, then reads
+one back from a separate process and reports on a fourth asset the audit never
+reached. The run recorded on 2026-07-30 examined 5 assets, wrote 5 receipts,
+returned `VERIFIED` for `order_entry.customers`, and `NOT VERIFIED — no receipt on
+this asset` for `order_entry.warehouses`.
+
+`AUDIT_BUDGET`, `RECEIPT_URN`, and `UNAUDITED_URN` are overridable, and the budget
+matters: field lineage costs one MCP call per column (0.116s each against the
+local DataHub), so raising it raises the runtime roughly linearly.
 
 ## 5. Project verification
 

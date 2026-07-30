@@ -55,13 +55,26 @@ def receipts_for(
 ) -> list[Receipt]:
     """What the audit would write back, computed without writing anything.
 
-    Only examined assets get a receipt. A deferred asset has no evidence behind
-    it, and writing "verified" for something the agent never looked at is the one
-    thing a verification layer may never do.
+    Only *established* assets get a receipt, and the exclusions are two.
+
+    A deferred asset has no evidence behind it, and writing "verified" for
+    something the agent never looked at is the one thing a verification layer may
+    never do.
+
+    An unestablished asset is the subtler case and cost more to get right. It was
+    examined, but every piece of evidence came back unverifiable — and because the
+    policy classifies those as informational rather than failures, the engine
+    returns PASS. Writing that would stamp "verified" on an asset nothing was
+    proved about, in the product whose entire thesis is that this must not happen.
+    No receipt is the truthful output: a reader then reports "no receipt on this
+    asset", which is exactly what was true.
     """
     engine = PolicyEngine(policy_path)
+    unestablished = set(result.unestablished)
     receipts: list[Receipt] = []
     for urn in result.examined:
+        if urn in unestablished:
+            continue
         verdict = engine.decide(
             tuple(result.evidence_by_urn.get(urn, ())), commit_sha=commit_sha
         )
