@@ -48,10 +48,9 @@ backup.sql
 
 # Local editor, assistant, and orchestration state. None of it has ever been
 # tracked; this keeps an accidental `git add -A` from being the first time.
-.assistant/
+.assistant*/
 .agent*/
-.cursor/
-.aider*
+.editor-state/
 *_INSTRUCTIONS.md
 .mcp.json
 **/session-*.json
