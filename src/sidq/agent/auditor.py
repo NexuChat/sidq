@@ -9,8 +9,10 @@ just as importantly, what it did not.
 check, and dumps a report: a fixed sequence that behaves identically regardless of
 what it finds. This chooses its next target from what it has already observed. It
 ranks assets by how much damage a lie about them would do, spends a bounded budget
-on the worst first, deepens only where a finding warrants it, and stops with an
-accounting. Given the same catalog it is deterministic; given a *different* one it
+on the worst first, and — the part that makes it a loop rather than a sort — lets
+what it finds change what it looks at next: an asset that turns out to be lied
+about promotes its neighbours ahead of their static score, because contradictions
+cluster. Given the same catalog it is deterministic; given a *different* one it
 does something different.
 
 **What it never does.** It does not decide truth with a model, and it does not
@@ -35,6 +37,24 @@ from sidq.models import Evidence
 # so the budget is explicit and what it excluded is always reported.
 DEFAULT_BUDGET = 250
 
+# Findings that say something about how the metadata was *written*, and therefore
+# predict the same mistake next door: one job, one migration, one bad assumption
+# applied across a set of models. These promote a neighbour.
+#
+# Ownership gaps and deprecation are deliberately not here. They are per-asset
+# governance facts, not contagious ones — an unowned table tells you nothing about
+# whether its neighbour has an owner. Promoting on them was tried and it spent the
+# budget chasing a signal that does not cluster: on the live catalog it displaced
+# every `lineage_field_missing` finding at the same budget.
+CONTAGIOUS_FINDINGS = frozenset(
+    {
+        "doc_references_missing_column",
+        "lineage_field_missing",
+        "orphan_lineage",
+        "pii_leak_untagged",
+    }
+)
+
 
 @dataclass(frozen=True, slots=True)
 class Target:
@@ -57,6 +77,8 @@ class AuditRun:
     order: list[Target] = field(default_factory=list)
     # Evidence kept per asset so a receipt can be built later without re-auditing.
     evidence_by_urn: dict[str, list[Evidence]] = field(default_factory=dict)
+    # (because_of, promoted) — the agent reacting to what it found, made visible.
+    promoted: list[tuple[str, str]] = field(default_factory=list)
 
     @property
     def covered(self) -> int:
@@ -73,6 +95,7 @@ class AuditRun:
             "findings_by_kind": dict(sorted(by_kind.items())),
             "unverifiable": len(self.unverifiable),
             "verified_clean": len(self.verified),
+            "promoted_by_a_finding": len(self.promoted),
         }
 
 
@@ -130,25 +153,79 @@ class CatalogAuditor:
     # -- action ----------------------------------------------------------
 
     def run(self) -> AuditRun:
+        """Examine the catalog, letting what is found change what is looked at next.
+
+        The order is not fixed up front. An asset that turns out to be lied about
+        promotes its immediate neighbours, because catalog contradictions cluster:
+        a model with a bad lineage edge usually has siblings written by the same
+        job, in the same migration, with the same mistake. A human auditor who
+        found one would look next door rather than continue down an alphabetical
+        list, and this does the same.
+
+        An earlier version of this method sorted once and iterated, while the
+        docstring claimed it deepened where a finding warranted it. It did not —
+        every target got identical treatment and nothing branched on a result. The
+        claim was rhetoric; this is the loop that makes it true.
+
+        Still deterministic: promotion depends only on catalog contents, so the
+        same catalog always yields the same transcript.
+        """
         plan = self.plan()
         result = AuditRun(order=plan)
-        for position, target in enumerate(plan):
-            if position >= self._budget:
-                # Not silence: everything past the budget is named as deferred so
+        by_urn = {target.urn: target for target in plan}
+        queue = list(plan)
+        promoted: set[str] = set()
+        seen: set[str] = set()
+
+        while queue:
+            target = queue.pop(0)
+            if target.urn in seen:
+                continue
+            seen.add(target.urn)
+
+            if len(result.examined) >= self._budget:
+                # Not silence: everything the budget did not reach is named, so
                 # the report can never read as complete coverage.
                 result.deferred.append(target)
                 continue
+
             result.examined.append(target.urn)
             collected = self._examine(target)
             result.evidence_by_urn[target.urn] = collected
-            for item in collected:
-                if item.kind.endswith("_unverifiable"):
-                    result.unverifiable.append(item)
-                else:
-                    result.findings.append(item)
-            if not any(item.subject.startswith(target.urn) for item in result.findings):
+            found = [
+                item for item in collected if not item.kind.endswith("_unverifiable")
+            ]
+            result.unverifiable.extend(
+                item for item in collected if item.kind.endswith("_unverifiable")
+            )
+            result.findings.extend(found)
+            if not found:
                 result.verified.append(target.urn)
+                continue
+
+            # Only a contagious finding redirects the budget. A lie about how the
+            # metadata was written predicts the same lie next door; a missing owner
+            # does not.
+            if not any(item.kind in CONTAGIOUS_FINDINGS for item in found):
+                continue
+            for urn in self._neighbours(target.urn):
+                if urn in seen or urn in promoted or urn not in by_urn:
+                    continue
+                promoted.add(urn)
+                result.promoted.append((target.urn, urn))
+                queue.insert(0, by_urn[urn])
         return result
+
+    def _neighbours(self, urn: str) -> list[str]:
+        """Assets one lineage hop away, in a stable order."""
+        return sorted(
+            {edge.target_urn for edge in self._snapshot.edges if edge.source_urn == urn}
+            | {
+                edge.source_urn
+                for edge in self._snapshot.edges
+                if edge.target_urn == urn
+            }
+        )
 
     def _examine(self, target: Target) -> list[Evidence]:
         """Run the deterministic checks against this asset's slice of the catalog.
