@@ -294,3 +294,101 @@ def test_audit_is_declared_once() -> None:
 
     assert parser.parse_args(["audit"]).command == "audit"
     assert parser.parse_args(["explain", "pii_exposure"]).command == "explain"
+
+
+# ---------------------------------------------------------------------------
+# The feedback loop: what it finds must change what it looks at next, or the
+# word "agent" is decoration on a sorted for-loop.
+# ---------------------------------------------------------------------------
+
+
+def test_a_contagious_finding_promotes_a_neighbour_past_the_budget() -> None:
+    """The asset next door is unreachable on score alone; the finding reaches it."""
+    # A `lineage_field_missing` contradiction belongs to the asset whose stored
+    # schema lacks the field — the edge's *target*, not the source claiming it. So
+    # the asset that carries the finding is the one that must be examined early,
+    # and what it drags in is a neighbour nothing else would reach.
+    lied_about = _dataset(
+        "lied_about", fields=(CatalogField("real"),), owners=("urn:li:corpuser:a",)
+    )
+    quiet = _dataset("zzz_quiet", owners=("urn:li:corpuser:a",))
+    filler = tuple(
+        _dataset(f"f{index}", owners=("urn:li:corpuser:a",)) for index in range(8)
+    )
+    edges = (
+        # A filler claims an edge into a column `lied_about` does not have, so the
+        # contradiction is attributed to `lied_about`.
+        LineageEdge(filler[0].urn, "id", lied_about.urn, "ghost"),
+        # `lied_about` feeds several consumers, which is what puts it near the top
+        # of the plan. `quiet` is one of them and has no consumers of its own, so
+        # it scores nothing and sorts last.
+        LineageEdge(lied_about.urn, "real", quiet.urn, "id"),
+        *(LineageEdge(lied_about.urn, "real", item.urn, "id") for item in filler[1:4]),
+    )
+    snapshot = CatalogSnapshot((lied_about, quiet, *filler), edges)
+
+    # On score alone the quiet neighbour is nowhere near a budget of two.
+    assert quiet.urn not in {
+        target.urn for target in CatalogAuditor(snapshot).plan()[:2]
+    }
+
+    result = CatalogAuditor(snapshot, budget=2).run()
+
+    assert quiet.urn in result.examined, (
+        "a neighbour of a lied-about asset must be pulled into a budget that "
+        "would never have reached it on its static score"
+    )
+    assert any(
+        because == lied_about.urn and got == quiet.urn
+        for because, got in result.promoted
+    )
+    assert result.summary()["promoted_by_a_finding"] >= 1
+
+
+def test_a_governance_gap_does_not_promote_anyone() -> None:
+    """An unowned asset says nothing about whether its neighbour has an owner.
+
+    Promoting on ownership was tried and spent the budget chasing a signal that
+    does not cluster; on the live catalog it displaced every lineage contradiction
+    at the same budget.
+    """
+    unowned = _dataset("unowned", owners=())
+    neighbour = _dataset("neighbour", owners=("urn:li:corpuser:a",))
+    edges = (LineageEdge(unowned.urn, "id", neighbour.urn, "id"),)
+
+    result = CatalogAuditor(CatalogSnapshot((unowned, neighbour), edges)).run()
+
+    assert any(item.kind == "unowned_consumed" for item in result.findings)
+    assert result.promoted == [], "ownership gaps are not contagious"
+
+
+def test_promotion_leaves_the_run_deterministic() -> None:
+    """A demo depends on the same catalog producing the same transcript."""
+    a = _dataset("a", owners=("urn:li:corpuser:x",))
+    b = _dataset("b", fields=(CatalogField("real"),), owners=("urn:li:corpuser:x",))
+    c = _dataset("c", fields=(CatalogField("real"),), owners=("urn:li:corpuser:x",))
+    edges = (
+        LineageEdge(a.urn, "id", b.urn, "ghost"),
+        LineageEdge(a.urn, "id", c.urn, "ghost"),
+    )
+    snapshot = CatalogSnapshot((a, b, c), edges)
+
+    first = CatalogAuditor(snapshot, budget=3).run()
+    second = CatalogAuditor(snapshot, budget=3).run()
+
+    assert first.examined == second.examined
+    assert first.promoted == second.promoted
+
+
+def test_no_asset_is_examined_twice_even_when_promoted() -> None:
+    """Promotion must not let the budget be spent re-examining the same asset."""
+    a = _dataset("a", owners=("urn:li:corpuser:x",))
+    b = _dataset("b", fields=(CatalogField("real"),), owners=("urn:li:corpuser:x",))
+    edges = (
+        LineageEdge(a.urn, "id", b.urn, "ghost"),
+        LineageEdge(b.urn, "id", a.urn, "ghost"),
+    )
+
+    result = CatalogAuditor(CatalogSnapshot((a, b), edges), budget=10).run()
+
+    assert len(result.examined) == len(set(result.examined))
