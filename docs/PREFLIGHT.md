@@ -34,7 +34,7 @@ Four conditions. A model that fails any one of them is decoration.
 
 ## 2. The architectural guarantee
 
-**Pre-flight never touches a verdict.** the project design contract's locked constant — zero LLM
+**Pre-flight never touches a verdict.** The project's locked constant — zero LLM
 in the verdict — remains literally true. The model is a speed layer above a
 deterministic authority that stays the sole decider. Structurally:
 

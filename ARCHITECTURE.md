@@ -1,7 +1,6 @@
 # Sidq — the refusal capability for the agent era
 
-> Aligned to the project design contract (2026-07-28). Build details live in `docs/ENGINE-SPEC.md`.
-> On any conflict, the project design contract wins.
+> The shape of the system. Build details live in `docs/ENGINE-SPEC.md`.
 
 Everyone taught AI to write SQL. We taught it **when to refuse** — and we leave proof.
 

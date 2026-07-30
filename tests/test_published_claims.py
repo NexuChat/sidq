@@ -1,6 +1,6 @@
 """Every number the README claims must trace to a committed evidence file.
 
-the submission checklist requires that "every number in the README traces to
+The project requires that "every number in the README traces to
 a file in the repo — no unsupported claim". That was verified by hand, which means
 it holds only until the next edit. These tests mechanise it, so a headline number
 that drifts from its evidence breaks the build instead of reaching a judge.
