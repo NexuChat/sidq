@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -275,3 +276,34 @@ def test_every_published_example_file_is_present(artifact: str) -> None:
     """ENGINE-SPEC §7 calls these regression artifacts; a missing one is a broken link."""
     path = BLOCKED / artifact if artifact != "README.md" else BLOCKED / "README.md"
     assert path.exists(), f"{path} is referenced as published evidence"
+
+
+def test_regenerating_does_not_leak_the_published_host_into_the_process() -> None:
+    """The generator must not mutate the environment other tests read.
+
+    It pins `SIDQ_DATAHUB_UI_URL` so published artifacts carry the public host, but
+    this module is imported by the suite. A permanent mutation leaked into
+    `test_cli.py`, which asserts the localhost default; the suite only passed
+    because that file happens to sort first.
+    """
+    before = os.environ.get("SIDQ_DATAHUB_UI_URL")
+
+    regenerate_example_01.rendered()
+
+    assert os.environ.get("SIDQ_DATAHUB_UI_URL") == before
+
+
+def test_the_generator_still_pins_the_public_host_inside_its_own_run() -> None:
+    """Scoping the variable must not silently reintroduce localhost links."""
+    verdict = regenerate_example_01.regenerate()
+
+    links = [
+        link
+        for finding in verdict["findings"]
+        for evidence in finding["evidence"]
+        for link in evidence["graph_links"]
+    ]
+    assert links, "the published verdict must carry graph links"
+    assert all(link.startswith("https://datahub.mlki.app") for link in links), (
+        "published evidence must not point at localhost"
+    )
