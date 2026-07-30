@@ -31,6 +31,8 @@ import os
 import re
 import sys
 import tempfile
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import replace
 from pathlib import Path
 
@@ -67,11 +69,33 @@ COMMIT_SHA = "d3f3bd2f4fe31837867592162ccea08859be6947"
 DATAHUB_UI_URL = "https://datahub.mlki.app"
 
 
+@contextmanager
+def _published_graph_host() -> Iterator[None]:
+    """Set the published UI host for one call, then put the environment back.
+
+    This module is imported by the test suite, so mutating the process
+    environment permanently would leak into every later test. `test_cli.py`
+    asserts the localhost default, and it only passed because it happens to sort
+    before `test_golden_examples.py` — any reordering would have broken CI.
+    """
+    previous = os.environ.get("SIDQ_DATAHUB_UI_URL")
+    os.environ["SIDQ_DATAHUB_UI_URL"] = DATAHUB_UI_URL
+    try:
+        yield
+    finally:
+        if previous is None:
+            del os.environ["SIDQ_DATAHUB_UI_URL"]
+        else:
+            os.environ["SIDQ_DATAHUB_UI_URL"] = previous
+
+
 def _verdict_object():
     """Return the engine's own Verdict, not its JSON, for the comment renderer."""
-    os.environ["SIDQ_DATAHUB_UI_URL"] = DATAHUB_UI_URL
     sql = (EXAMPLE / "customers.sql").read_text(encoding="utf-8")
-    with tempfile.TemporaryDirectory(prefix="sidq-example-01-") as workspace:
+    with (
+        _published_graph_host(),
+        tempfile.TemporaryDirectory(prefix="sidq-example-01-") as workspace,
+    ):
         root = _write_project(Path(workspace), sql)
         return cli.check(
             [str(root / SOURCE_PATH)],

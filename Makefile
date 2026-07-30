@@ -3,13 +3,25 @@ DEMO_INGEST_IMAGE := acryldata/datahub-ingestion:v1.5.0.6
 
 VENV ?= .venv
 
-.PHONY: check demo-up demo-ingest demo-break demo-restore demo-down
+.PHONY: check regen regen-check demo-up demo-ingest demo-break demo-restore demo-down
 
 check:
 	$(VENV)/bin/ruff check .
 	$(VENV)/bin/ruff format --check .
 	$(VENV)/bin/mypy src/
 	$(VENV)/bin/pytest -q
+
+# Published artifacts are generated, and `make check` fails when a committed copy
+# no longer matches the engine. Editing the policy is the usual cause: it changes
+# the policy hash, which every published artifact quotes. Run `make regen` and
+# commit the result — never hand-edit the artifacts back into agreement.
+regen:
+	$(VENV)/bin/python scripts/regenerate_example_01.py
+	$(VENV)/bin/python scripts/measure_reconcile.py
+
+regen-check:
+	$(VENV)/bin/python scripts/regenerate_example_01.py --check
+	$(VENV)/bin/python scripts/measure_reconcile.py --check
 
 demo-up:
 	$(DEMO_COMPOSE) up -d --wait postgres

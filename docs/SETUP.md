@@ -228,6 +228,30 @@ make demo-down
 ## 5. Project verification
 
 ```bash
-.venv/bin/pytest -q
-.venv/bin/ruff check .
+make check          # ruff lint, ruff format, mypy, pytest — what CI runs
 ```
+
+## 6. Regenerating published artifacts
+
+Some files in this repository are generated, not written: the flagship verdict in
+`examples/01-blocked-pii-dashboard/`, the PR comment rendered beside it, and
+`docs/RECONCILE-COVERAGE.md`. `make check` fails when a committed copy no longer
+matches what the engine produces.
+
+Editing `src/sidq/policy/default_policy.yaml` is the usual trigger, because it
+changes the policy hash that every published artifact quotes. The fix is:
+
+```bash
+make regen          # rewrite the generated artifacts from the engine
+make regen-check    # verify the committed copies are current, changing nothing
+```
+
+Both run fully offline against the committed graph replay snapshot in
+`tests/fixtures/graph/`, so neither needs DataHub or PostgreSQL running.
+
+**Do not hand-edit a generated artifact back into agreement.** That is how the
+published `policy_hash` drifted out of step with the shipped policy once already,
+which quietly broke the reproduction command the README advertises. If a graph
+fixture is genuinely missing rather than stale,
+`scripts/record_missing_graph_fixtures.py` records it from a live DataHub and adds
+only what is absent.
