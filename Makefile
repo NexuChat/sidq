@@ -12,7 +12,7 @@ UNAUDITED_URN ?= urn:li:dataset:(urn:li:dataPlatform:snowflake,b2fd91.order_entr
 
 REPAIR_BUDGET ?= 15
 
-.PHONY: check regen regen-check gate-demo live-loop repair-demo repair-reset demo-up demo-ingest demo-break demo-restore demo-down
+.PHONY: check regen regen-check gate-demo live-loop converge-demo repair-demo repair-reset demo-up demo-ingest demo-break demo-restore demo-down
 
 check:
 	$(VENV)/bin/ruff check .
@@ -78,6 +78,22 @@ live-loop:
 	@DATAHUB_GMS_URL=$(DATAHUB_GMS_URL) DATAHUB_TELEMETRY_ENABLED=false \
 	  $(VENV)/bin/sidq verify '$(UNAUDITED_URN)' 2>/dev/null; \
 	  status=$$?; [ $$status -eq 1 ] || { echo "expected NOT VERIFIED, got exit $$status"; exit 1; }
+
+# The audit that resumes. Run one spends the budget worst-first and writes
+# receipts; run two reads those receipts back and spends the *same* budget on
+# assets run one never reached. No state file is written anywhere in between —
+# the memory is the catalog itself, so this is two agents cooperating through
+# receipts alone. Watch the `vouched` line appear and `NOT examined` fall.
+converge-demo:
+	@echo "== run 1: spend the budget worst-first, write receipts =="
+	@DATAHUB_GMS_URL=$(DATAHUB_GMS_URL) DATAHUB_TELEMETRY_ENABLED=false \
+	  $(VENV)/bin/sidq audit --via-mcp --budget $(AUDIT_BUDGET) --write-receipts 2>/dev/null; \
+	  status=$$?; [ $$status -le 1 ] || { echo "audit could not read the catalog"; exit 1; }
+	@echo
+	@echo "== run 2: same budget — the receipts vouch, the budget moves on =="
+	@DATAHUB_GMS_URL=$(DATAHUB_GMS_URL) DATAHUB_TELEMETRY_ENABLED=false \
+	  $(VENV)/bin/sidq audit --via-mcp --budget $(AUDIT_BUDGET) --write-receipts --resume 2>/dev/null; \
+	  status=$$?; [ $$status -le 1 ] || { echo "audit could not read the catalog"; exit 1; }
 
 # The repair agent, on live DataHub. It proposes only from catalog evidence, then
 # re-runs the deterministic engine against the catalog each repair *would* create

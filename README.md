@@ -105,6 +105,13 @@ than in a file beside the agent, any Sidq instance resumes where any other
 stopped. There is no ledger to sync; the catalog is the ledger.
 
 ```bash
+make converge-demo    # both runs, over official MCP, against the live catalog
+```
+
+Or by hand — the second command spends the same budget the first did, on what
+the first could not reach:
+
+```bash
 .venv/bin/sidq audit --server http://localhost:8080 --budget 40 --write-receipts
 .venv/bin/sidq audit --server http://localhost:8080 --budget 40 --write-receipts --resume
 ```
