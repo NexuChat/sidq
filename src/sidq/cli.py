@@ -13,12 +13,15 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
+from sidq.agent import CatalogAuditor, render
+from sidq.agent.auditor import DEFAULT_BUDGET
 from sidq.gates.base import Gate
 from sidq.gates.blast import BlastRadiusGate
 from sidq.gates.doc_rot import DocRotGate
 from sidq.gates.governance import GovernanceGate
 from sidq.gates.reality import RealityGate
 from sidq.gates.schema import SchemaGate
+from sidq.gates.self_contradiction import CatalogSnapshot
 from sidq.graph.client import (
     DatasetInfo,
     GraphClient,
@@ -281,11 +284,57 @@ def _parser() -> argparse.ArgumentParser:
     check_parser.add_argument("--json", action="store_true", dest="as_json")
     explain_parser = commands.add_parser("explain")
     explain_parser.add_argument("rule_id")
+    audit_parser = commands.add_parser(
+        "audit", help="audit a whole catalog for claims that contradict each other"
+    )
+    audit_parser.add_argument(
+        "--server", default="http://localhost:8080", help="DataHub GMS URL"
+    )
+    audit_parser.add_argument(
+        "--budget",
+        type=int,
+        default=DEFAULT_BUDGET,
+        help="how many assets to examine, worst consequence first",
+    )
+    audit_parser.add_argument("--json", action="store_true", dest="as_json")
     return parser
+
+
+def _audit(arguments: Any) -> int:
+    """Point the auditor at a catalog and report what it found.
+
+    Exit code is 1 when the catalog contradicts itself, so this is usable in CI
+    as well as by a person. It is never 2: an audit reports, it does not refuse a
+    change, and conflating the two would misrepresent what was run.
+    """
+    try:
+        from datahub.ingestion.graph.client import DataHubGraph
+        from datahub.ingestion.graph.config import DatahubClientConfig
+    except ImportError:
+        print(
+            "sidq: catalog audit needs the DataHub client (pip install acryl-datahub)",
+            file=sys.stderr,
+        )
+        return 2
+    try:
+        graph = DataHubGraph(DatahubClientConfig(server=arguments.server))
+        snapshot = CatalogSnapshot.from_datahub(graph)
+    except Exception as error:  # noqa: BLE001 - the client raises several types
+        print(f"sidq: could not read the catalog: {error}", file=sys.stderr)
+        return 2
+
+    result = CatalogAuditor(snapshot, budget=arguments.budget).run()
+    if arguments.as_json:
+        sys.stdout.buffer.write(canonical_json(result.summary()) + b"\n")
+    else:
+        print("\n".join(render(result, catalog=arguments.server)))
+    return 1 if result.findings else 0
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     arguments = _parser().parse_args(argv)
+    if arguments.command == "audit":
+        return _audit(arguments)
     if arguments.command == "explain":
         policy = load_policy()
         rule = next(
