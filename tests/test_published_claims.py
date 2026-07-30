@@ -208,3 +208,70 @@ def test_the_landing_page_does_not_point_a_judge_at_localhost() -> None:
     html = LANDING.read_text(encoding="utf-8")
 
     assert "localhost" not in html
+
+
+# ---------------------------------------------------------------------------
+# The generated truth report, and the video script the owner narrates on camera.
+# ---------------------------------------------------------------------------
+
+TRUTH_DOC = ROOT / "docs" / "TRUTH-REPORT.md"
+VIDEO = ROOT / "docs" / "the video plan"
+
+
+def test_the_generated_truth_report_agrees_with_its_own_evidence() -> None:
+    """`docs/TRUTH-REPORT.md` and `report.json` come from one script run.
+
+    The markdown is generated beside the JSON, so the two can only disagree if one
+    was edited by hand — which is precisely how the published `policy_hash` drifted.
+    """
+    summary = _summary()
+    text = TRUTH_DOC.read_text(encoding="utf-8")
+
+    for check, entry in summary.items():
+        row = next(
+            (line for line in text.splitlines() if line.startswith(f"| `{check}`")),
+            None,
+        )
+        assert row is not None, f"{check} is missing from the published report table"
+        assert str(entry["findings"]) in row, (
+            f"{check} reports {entry['findings']} findings; the table row says {row!r}"
+        )
+
+
+def test_every_contradiction_count_the_video_narrates_is_the_real_one() -> None:
+    """The owner reads these aloud on camera; a stale figure cannot be corrected later.
+
+    The script chooses which counts to narrate — it states the contradiction and
+    dataset totals and skips the unowned-asset one — so this checks the numbers it
+    actually claims rather than demanding it recite every metric. Unlike every other
+    artifact here, a wrong number is unfixable once recorded.
+    """
+    entry = _summary()["lineage_field_missing"]
+    text = VIDEO.read_text(encoding="utf-8")
+
+    narrated = {
+        int(value)
+        for value in re.findall(r"(\d+)\s+internal field-lineage contradictions", text)
+    }
+    assert narrated, "the video script must state the contradiction count it shows"
+    assert narrated == {entry["findings"]}, (
+        f"the script narrates {narrated}; the evidence says {entry['findings']}"
+    )
+
+    datasets = {int(value) for value in re.findall(r"across (\d+) datasets", text)}
+    assert datasets == {entry["datasets_examined"]}, (
+        f"the script narrates {datasets} datasets; "
+        f"the evidence says {entry['datasets_examined']}"
+    )
+
+
+def test_the_video_script_keeps_the_negative_result_it_promises_to_state() -> None:
+    """The script commits to saying the unverifiable count out loud. Hold it to that."""
+    text = VIDEO.read_text(encoding="utf-8")
+
+    assert "32" in text
+    assert "unverifiable" in text.lower()
+    # The script also lists claims it must NOT make; that discipline is the point.
+    assert "A claim that the 285 contradictions prove" in text, (
+        "the video script must keep its explicit list of claims not to make"
+    )
