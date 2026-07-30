@@ -399,6 +399,41 @@
         color: var(--acid);
       }
 
+      .run-row {
+        gap: 14px;
+        flex-wrap: wrap;
+        border-top: 1px solid var(--rule);
+        margin-top: 4px;
+      }
+
+      .copy.run {
+        padding: 11px 0;
+        border-left: 0;
+        color: var(--acid);
+      }
+
+      .copy.run + .copy.run {
+        padding-left: 22px;
+        border-left: 1px solid var(--rule);
+      }
+
+      .copy.run[disabled] {
+        color: var(--paper-dim);
+        cursor: progress;
+      }
+
+      #run-output {
+        margin: 16px 0 0;
+        padding: 16px;
+        max-height: 22rem;
+        overflow: auto;
+        border: 1px solid var(--rule);
+        color: var(--paper);
+        font: 0.72rem/1.6 var(--mono);
+        white-space: pre;
+        tab-size: 2;
+      }
+
       .command p {
         margin: 18px 0 0;
         color: var(--paper-dim);
@@ -680,6 +715,12 @@
               <button class="copy" type="button" data-copy="make demo-up &amp;&amp; make demo-ingest &amp;&amp; make gate-demo" aria-describedby="copy-status">Copy</button>
             </div>
             <p id="copy-status" aria-live="polite">One command. A local graph. The same deterministic verdict.</p>
+            <div class="command-row run-row">
+              <button class="copy run" type="button" data-run="gate-demo">Run it here — offline verdict</button>
+              <button class="copy run" type="button" data-run="audit">Run it here — live catalog audit</button>
+            </div>
+            <p id="run-status" aria-live="polite">Or run either one on this machine, now. No clone, no setup.</p>
+            <pre id="run-output" hidden></pre>
           </div>
         </div>
       </section>
@@ -735,6 +776,47 @@
           copyStatus.textContent = "One command. A local graph. The same deterministic verdict.";
         }, 2400);
       });
+
+      // The two buttons above run the real commands on the machine serving this
+      // page. There is no input: the button carries a name, the server matches it
+      // against a closed table of fixed argument lists, and anything else is a
+      // 404 before a process starts. Exit 1 from the audit means it found
+      // something, which is a result rather than an error — so the status line
+      // distinguishes the two instead of colouring every non-zero code red.
+      const runOutput = document.querySelector("#run-output");
+      const runStatus = document.querySelector("#run-status");
+      const runButtons = document.querySelectorAll("[data-run]");
+
+      for (const button of runButtons) {
+        button.addEventListener("click", async () => {
+          const label = button.textContent;
+          for (const other of runButtons) other.disabled = true;
+          button.textContent = "Running…";
+          runStatus.textContent = "Running on the host now. This is not a recording.";
+          runOutput.hidden = false;
+          runOutput.textContent = "";
+          try {
+            const response = await fetch(`/run/${button.dataset.run}`, { method: "POST" });
+            const result = await response.json();
+            if (!response.ok) {
+              runStatus.textContent = result.error || "The run could not start.";
+              runOutput.hidden = true;
+            } else {
+              runOutput.textContent = `$ ${result.command}\n\n${result.output}`;
+              runStatus.textContent =
+                result.exit_code === 0
+                  ? `${result.description} Exit 0.`
+                  : `${result.description} Exit ${result.exit_code} — findings, not a failure.`;
+            }
+          } catch {
+            runStatus.textContent = "Could not reach the run endpoint.";
+            runOutput.hidden = true;
+          } finally {
+            for (const other of runButtons) other.disabled = false;
+            button.textContent = label;
+          }
+        });
+      }
     </script>
   </body>
 </html>

@@ -4,6 +4,30 @@
 
 Sidq is a DataHub-native verification layer for agents and data-code changes. It checks whether catalog context is truthful before an agent relies on it, then applies an explicit policy and leaves evidence that the next agent can read.
 
+## Judge runbook
+
+Four commands, in order of how much they need. The first needs nothing at all.
+
+| # | Command | Needs | What it proves | Takes |
+|---|---|---|---|---|
+| 1 | `make gate-demo` | nothing — no DataHub, no network, no credentials | The published `BLOCK` verdict is re-derived from the committed graph recording, byte-identical, with the same `policy_hash`. Hand-editing an artifact fails this. | ~2s |
+| 2 | `make check` | nothing | 419 tests, lint, format, types — everything CI runs, including the guards on every claim this README makes. | ~15s |
+| 3 | `make live-loop` | a running DataHub ([`docs/SETUP.md`](docs/SETUP.md)) | The whole agent loop over the **official MCP server only**: read → decide → write a receipt → a *separate process* reads it back → an asset the audit never reached returns `NOT VERIFIED`. | ~60s |
+| 4 | `make repair-demo` | the same DataHub | The repair agent proposes a fix from catalog evidence, re-runs the deterministic engine against the catalog that fix *would* create, and shows what it proved and what it refused. | ~40s |
+
+Nothing above is a recording. If you have no DataHub, run 1 and 2 — they are the
+ones that prove determinism, and they need nothing but a clone and `make`.
+
+You can also run 1 and 3 from the hosted page without cloning anything:
+[sidq.mlki.app](https://sidq.mlki.app) has **Run it here** buttons that execute
+the real commands on the host and print the real output.
+
+**What to look at if you only have five minutes.** Run `make gate-demo`, then open
+[`examples/01-blocked-pii-dashboard/verdict.json`](examples/01-blocked-pii-dashboard/verdict.json)
+and confirm the printed hash matches the committed one. That single check
+establishes the property everything else rests on: the decision is reproducible
+and no model participated in it.
+
 ## The problem is already in the sample
 
 We scanned DataHub's own shipped `showcase-ecommerce` sample using read-only catalog metadata. It contains **285 internal contradictions across 67 datasets**, plus **29 consumed-but-unowned assets**. This is not a claim that DataHub's source systems are broken. It is a narrower, hand-checkable finding: the catalog contains claims that contradict other claims visible in the catalog. A curated, officially shipped sample already contains this much inconsistency; nothing in the sample checks for it before an agent builds on it.
@@ -94,6 +118,40 @@ and the run can only afford a subset. Every asset outside that budget is recorde
 as unresolved, reported as `NOT established` rather than `verified clean`, and
 **gets no receipt at all** — because the policy treats unverifiable evidence as
 informational, so an unexamined asset would otherwise have been stamped `PASS`.
+
+### The repair agent — it proves its fixes before it writes them
+
+Finding a contradiction is half the job. `sidq repair` proposes what to do about
+each one, and — more usefully — reports what it cannot fix.
+
+```bash
+make repair-demo      # dry run; `sidq repair --via-mcp --apply` writes it
+```
+
+Proposals come from catalog evidence only. Two of the six checks are mechanically
+repairable, because the correct value already exists elsewhere in the catalog: a
+PII marker that lineage says should have propagated, and an owner that every owned
+upstream agrees on. The other four produce nothing, each with its reason recorded.
+An agent with an answer for all six would be inventing four of them.
+
+**Nothing is offered for writing until the deterministic engine has re-run against
+the catalog the repair would create.** It must resolve the finding, introduce no
+new one, and the surviving set must still hold when applied together.
+
+That gate changed the design rather than decorating it. The first PII repair
+tagged only the column the finding named. Against the live showcase catalog the
+engine refused it:
+
+```
+Refused — proposed, then disproved:
+  order_details#customer_id
+    resolves the finding but introduces 1 new one(s)
+    would introduce: pii_leak_untagged on …looker…explore.order_details#customer_id
+```
+
+A one-hop repair does not fix a leak, it moves it. The proposal it offers instead
+covers the whole field-lineage closure — 7 columns across dbt, Snowflake and
+Looker — as a single MCP call, and *that* one the engine proves.
 
 ## Four surfaces
 
