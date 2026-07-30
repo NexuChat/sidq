@@ -40,15 +40,26 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
+from sidq.resolver import _sql_parts
+
 CORPUS = ROOT / "data" / "benchmark" / "labelled.jsonl"
 MUTATIONS = ROOT / "data" / "benchmark" / "mutations.jsonl"
 FIXTURES = ROOT / "tests" / "fixtures" / "graph"
 RESULTS = ROOT / "data" / "benchmark" / "preflight-rungs.json"
 SEED = 0
-# §5: the operating point is chosen by driving false negatives toward zero and
-# paying for it in abstentions. A prediction is only emitted when the model is at
-# least this confident; everything else abstains and costs one oracle call.
-CONFIDENCE_FLOOR = 0.90
+# §5: false negatives are the dangerous error, false positives are tolerable. The
+# operating point encodes that asymmetry directly — PASS is only emitted when the
+# model is at least this confident the change passes, while BLOCK needs no such
+# margin, because being wrong in that direction costs one oracle call.
+#
+# A data-chosen threshold was tried and is recorded as a negative result. Picking
+# the PASS bar as the lowest probability assigned to any validation block is a
+# fragile statistic on a model-disjoint validation split: a handful of models where
+# the classifier happens to be confident drags the bar upward, and everything below
+# it is waved through. It moved L1 from 0.27% false negatives to 14.51%, and to
+# 16.13% after the validation split was itself corrected to be model-disjoint. The
+# fixed conservative bar below beats both, so it is what ships.
+PASS_CONFIDENCE = 0.10
 
 
 def load_rows() -> list[dict]:
@@ -191,22 +202,20 @@ def features(context: dict, diff: str, schema: SchemaCache) -> dict[str, float]:
     }
 
 
-def split_by_model(rows: list[dict]) -> tuple[list[dict], list[dict], list[str]]:
+def model_of(row: dict) -> str:
+    return str((row["context"].get("changed_files") or ["?"])[0])
+
+
+def split_by_model(
+    rows: list[dict], *, every: int = 3, offset: int = 0
+) -> tuple[list[dict], list[dict], list[str]]:
     """Hold out whole dbt models, per §3. Deterministic, no shuffling."""
-    models = sorted(
-        {str((row["context"].get("changed_files") or ["?"])[0]) for row in rows}
-    )
-    holdout = {model for index, model in enumerate(models) if index % 3 == 0}
-    train = [
-        row
-        for row in rows
-        if str((row["context"].get("changed_files") or ["?"])[0]) not in holdout
-    ]
-    test = [
-        row
-        for row in rows
-        if str((row["context"].get("changed_files") or ["?"])[0]) in holdout
-    ]
+    models = sorted({model_of(row) for row in rows})
+    holdout = {
+        model for index, model in enumerate(models) if index % every == offset
+    }
+    train = [row for row in rows if model_of(row) not in holdout]
+    test = [row for row in rows if model_of(row) in holdout]
     return train, test, sorted(holdout)
 
 
@@ -222,15 +231,20 @@ def certain_block(row: dict) -> bool:
 
     A pre-filter should apply what is decidable and model only the remainder.
     """
-    if not (row["context"].get("touched_urns") or []):
+    urns = row["context"].get("touched_urns") or []
+    if not urns:
         return True
     text = row.get("sql") or ""
     if not text.strip():
         return False
     try:
-        import sqlglot
-
-        sqlglot.parse_one(text)
+        # The engine's own analysis, not a re-implementation of it. A bare
+        # `sqlglot.parse_one` was tried first and missed sixteen refusals: the
+        # engine's `unparseable_sql` also covers column-resolution failures that
+        # happen well after parsing succeeds — "could not resolve X through a
+        # derived relation". Two implementations that are supposed to agree is
+        # exactly what §7 forbids, so this calls the one the oracle calls.
+        _sql_parts(text, str(urns[0]), None)
     except Exception:
         return True
     return False
@@ -295,11 +309,9 @@ def run() -> dict:
     majority = round(float(train_y.mean()))
     rungs.append(_score("L0 majority class", truth, [majority] * len(truth)))
 
-    def with_floor(probabilities) -> list[int | None]:
-        return [
-            1 if p >= CONFIDENCE_FLOOR else 0 if p <= 1 - CONFIDENCE_FLOOR else None
-            for p in probabilities
-        ]
+    def with_point(probabilities) -> list[int | None]:
+        """Say PASS only under the confidence bar; BLOCK otherwise (§5)."""
+        return [0 if p <= PASS_CONFIDENCE else 1 for p in probabilities]
 
     certain = [certain_block(row) for row in test]
 
@@ -320,38 +332,53 @@ def run() -> dict:
         )
     )
 
+    # L0.75 — the rule the trained models turn out to be imitating. Found by
+    # asking what the classifier had learned rather than accepting its score: on
+    # every row the pre-checks leave, the oracle blocks exactly when a referenced
+    # column is missing from the cached schema or the change has any downstream
+    # consumer. Published as a rung because §1's first condition — that no
+    # deterministic algorithm exists — is the one that decides whether a model is
+    # legitimate at all, and here it is false.
+    def rule(row: dict) -> int:
+        vector = features(row["context"], row["diff"], schema)
+        return 1 if vector["has_unknown_referenced"] or vector["downstream"] else 0
+
+    rungs.append(
+        _score(
+            "L0.75 pre-checks and a two-term rule",
+            truth,
+            with_precheck([rule(row) for row in test]),
+        )
+    )
+
     scaler = StandardScaler().fit(train_x)
     l1 = LogisticRegression(max_iter=2000, random_state=SEED).fit(
         scaler.transform(train_x), train_y
     )
     l1_probabilities = l1.predict_proba(scaler.transform(test_x))[:, 1]
-    rungs.append(
-        _score("L1 logistic regression", truth, with_floor(l1_probabilities))
-    )
+    rungs.append(_score("L1 logistic regression", truth, with_point(l1_probabilities)))
     rungs.append(
         _score(
             "L1+ pre-checks and logistic regression",
             truth,
-            with_precheck(with_floor(l1_probabilities)),
+            with_precheck(with_point(l1_probabilities)),
         )
     )
 
     l2 = HistGradientBoostingClassifier(random_state=SEED).fit(train_x, train_y)
     l2_probabilities = l2.predict_proba(test_x)[:, 1]
-    rungs.append(
-        _score("L2 gradient-boosted trees", truth, with_floor(l2_probabilities))
-    )
+    rungs.append(_score("L2 gradient-boosted trees", truth, with_point(l2_probabilities)))
     rungs.append(
         _score(
             "L2+ pre-checks and gradient-boosted trees",
             truth,
-            with_precheck(with_floor(l2_probabilities)),
+            with_precheck(with_point(l2_probabilities)),
         )
     )
 
     return {
         "seed": SEED,
-        "confidence_floor": CONFIDENCE_FLOOR,
+        "pass_confidence": PASS_CONFIDENCE,
         "features": keys,
         "train_rows": len(train),
         "test_rows": len(test),

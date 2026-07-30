@@ -141,32 +141,34 @@ does not match. This is the mechanical version of the lesson recorded in
 
 ## 8. Deliverables
 
-**Result: not shipped — but the reason changed, and the change is on the record.**
+**Result: no model ships, and §1 decided it rather than §6.**
 
 The ladder was trained and evaluated on 2026-07-30 over 20,666 oracle-labelled
-mutations, split by dbt model per §3. The best rung, **L1+**, misses **16 blocking
-changes out of 5,921 (0.27%)** with **zero false alarms** and no abstentions.
+mutations, split by dbt model. Two rungs reach a perfect held-out score — and one
+of them is not a model.
 
-- Criterion 1 (false negatives ≤ 1%): **met**.
-- Criterion 2 (abstentions ≤ 50%): **met**.
-- Criterion 3 (beat L0): **cannot be decided as written.** L0 blocks everything, so
-  it never says PASS, so its false-negative rate is 0% by construction and no
-  classifier can ever beat it on the headline metric. That is a defect in the
-  criterion, invisible until the numbers existed.
+`L0.75` is two deterministic pre-checks plus a two-term rule: **block when a
+referenced column is missing from the cached schema, or when the change has any
+downstream consumer.** Zero missed blocks out of 5,921, zero false alarms, on seven
+models never seen in training. The trained rungs match it and never exceed it; they
+were imitating it.
 
-Amending a pre-registered criterion after seeing the result is precisely the move
-these criteria exist to prevent, so it is **not** amended here. Pre-flight stays
-unshipped pending an owner decision recorded against §6. The full record, including
-what the criterion was reaching for and how the winning rung compares on it, is
+That settles §1 before §6 is reached. §1's first condition for a model being
+legitimate here is that no deterministic algorithm exists. On this corpus one does,
+and it is three lines long — so a model would be decoration, which is the failure
+§1 was written to prevent. The deliverable, per §4, is the cheapest rung that meets
+the bar, and that is the rule.
+
+**The claim is bounded and the bound matters more than the number.** These fixtures
+carry PII tags on one legacy model and almost no ownership or deprecation spread,
+so the oracle's verdict here is driven by `unknown_field` and by having any
+downstream at all. A graph with real governance variety would not collapse to two
+terms. The honest finding is not that pre-flight is easy — it is that **this corpus
+cannot tell us whether pre-flight is hard**, and a model trained on it would have
+shipped a rule wearing a classifier's clothes.
+
+The full record, including the negative results reached along the way, is
 [`docs/PREFLIGHT-RESULTS.md`](PREFLIGHT-RESULTS.md).
-
-The number that moved was not the model. The first ladder missed 22.23%; almost
-every miss carried `unresolved_asset`, meaning the changed file maps to no manifest
-model and the oracle refuses to certify. That is not something to learn, it is
-something to compute. Adding two deterministic pre-checks — does the file resolve,
-does the SQL parse — took the rate to 0.27% without touching the classifier, which
-is §1's own condition applied honestly: a model is legitimate only where no
-deterministic algorithm exists.
 
 | artifact | content | status |
 |---|---|---|

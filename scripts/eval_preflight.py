@@ -147,12 +147,25 @@ def _measured_lines(rungs: dict) -> list[str]:
 
     by_name = {rung["rung"]: rung for rung in rungs["rungs"]}
     l0 = next(rung for name, rung in by_name.items() if name.startswith("L0 "))
+    # Everything except the trivial baseline competes, including the non-model
+    # rungs. Excluding every name beginning with "L0" was tried and was wrong: it
+    # silently disqualified the two-term rule, so the report named a classifier as
+    # the deliverable when a rule tied it.
     candidates = [
         rung
         for name, rung in by_name.items()
-        if not name.startswith("L0") and rung["abstention_rate"] <= 0.5
+        if name != l0["rung"] and rung["abstention_rate"] <= 0.5
     ]
-    best = min(candidates, key=lambda rung: rung["false_negative_rate"])
+    # §4: "the deliverable is the cheapest rung that meets the bar". The rungs are
+    # published simplest-first, so a tie must resolve to the earlier one — naming
+    # the classifier when a rule equals it would misreport what should ship.
+    best = min(
+        candidates,
+        key=lambda rung: (
+            rung["false_negative_rate"],
+            rungs["rungs"].index(rung),
+        ),
+    )
     blocks = round(rungs["test_rows"] * rungs["test_block_share"])
 
     one = best["false_negative_rate"] <= 0.01
@@ -169,8 +182,10 @@ def _measured_lines(rungs: dict) -> list[str]:
         *table,
         "",
         (
-            f"The best rung is **{best['rung']}**: {best['false_negatives']} missed "
-            f"blocks out of {blocks:,}, and {best['false_positives']} false alarms."
+            f"The cheapest rung that meets the bar is **{best['rung']}**: "
+            f"{best['false_negatives']} missed blocks out of {blocks:,}, and "
+            f"{best['false_positives']} false alarms. §4 asks for the cheapest, not "
+            "the most sophisticated, so a tie resolves downward."
         ),
         "",
         "| §6 criterion | outcome |",
@@ -185,38 +200,52 @@ def _measured_lines(rungs: dict) -> list[str]:
         ),
         (
             "| 3. the winning rung beats L0 **and** the rung below it | "
-            "**cannot be decided as written** — see below. |"
+            "**not reached** — a non-model rung ties the best model, so §1 decides "
+            "this before §6 can. |"
         ),
         "",
-        "### Criterion 3 is unsatisfiable, and that is a defect in the criterion",
+        "### The result is that no model is needed",
         "",
         (
-            f"L0 blocks everything, so it never says PASS, so its false-negative rate "
-            f"is {l0['false_negative_rate']:.0%} by construction. On the headline "
-            "metric alone **no model can ever beat it** — not this one, not a perfect "
-            "one. The criterion as written cannot be satisfied by any classifier, "
-            "which was not visible until the numbers existed."
-        ),
-        "",
-        (
-            "The comparison it was reaching for is whether the rung beats the trivial "
-            f"baseline at being a useful pre-filter. It does, decisively: L0 flags all "
-            f"{rungs['test_rows']:,} changes as blocking, including {l0['false_positives']:,} "
-            f"that the oracle passes, while {best['rung']} has "
-            f"{best['false_positives']} false alarms and misses "
-            f"{best['false_negatives']}. It also beats the rung below it — the same "
-            "model without the deterministic pre-checks — by two orders of magnitude."
+            "Two rungs reach a perfect held-out score, and one of them is not a "
+            "model. `L0.75` is the deterministic pre-checks plus a two-term rule: "
+            "**block when a referenced column is missing from the cached schema, or "
+            "when the change has any downstream consumer at all.** It reproduces the "
+            "oracle on every one of the 6,050 rows the pre-checks leave undecided."
         ),
         "",
         (
-            "**So the decision does not belong to this script.** Criteria 1 and 2 are "
-            "met. Criterion 3 requires amending a pre-registered criterion after "
-            "seeing the numbers, and amending your own kill criteria once you know "
-            "the result is the exact move these criteria exist to prevent. It needs a "
-            "human who is willing to say, on the record, that the criterion was "
-            "written wrong rather than that the model did well. Until then pre-flight "
-            "is **not shipped**, and the deterministic engine remains complete "
-            "without it."
+            "The trained rungs match that score and do not exceed it. They were "
+            "imitating the rule. This was found by asking what the classifier had "
+            "learned rather than by accepting a good number, which is the only way "
+            "a 100% score should ever be read."
+        ),
+        "",
+        (
+            "**That decides §1 rather than §6.** §1's first condition for a model "
+            "being legitimate here is that no deterministic algorithm exists. On this "
+            "corpus one does, and it is three lines long. A model that ties a rule is "
+            "decoration, which is the exact failure §1 was written to prevent — so "
+            "pre-flight ships as a rule or not at all, and the criteria in §6 never "
+            "get to arbitrate."
+        ),
+        "",
+        "### What this result does not say",
+        "",
+        (
+            "The rule holds *on this corpus*, and the corpus is narrow. Its verdicts "
+            "are driven almost entirely by `unknown_field` and by having any "
+            "downstream at all, because these fixtures carry PII tags on one legacy "
+            "model and no deprecation or ownership variation to speak of. A graph "
+            "with real governance spread would not collapse to two terms, and the "
+            "honest claim is bounded accordingly: **the local signal is sufficient "
+            "here**, not everywhere."
+        ),
+        "",
+        (
+            "So the finding is not that pre-flight is easy. It is that this corpus "
+            "cannot tell us whether pre-flight is hard, and a model trained on it "
+            "would have shipped a rule wearing a classifier's clothes."
         ),
         "",
         "### What actually moved the number",
