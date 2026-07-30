@@ -17,6 +17,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -25,7 +26,7 @@ from scripts import regenerate_example_01
 from sidq import cli
 from sidq.graph.fixtures import ReplayGraphClient
 from sidq.policy.engine import default_policy_path
-from sidq.serialization import canonical_json
+from sidq.serialization import canonical_data, canonical_json
 
 ROOT = Path(__file__).parents[1]
 FIXTURES = ROOT / "tests" / "fixtures" / "graph"
@@ -307,3 +308,72 @@ def test_the_generator_still_pins_the_public_host_inside_its_own_run() -> None:
     assert all(link.startswith("https://datahub.mlki.app") for link in links), (
         "published evidence must not point at localhost"
     )
+
+
+def test_the_published_comment_order_is_a_deliberate_reorder_not_production_order() -> (
+    None
+):
+    """Pin the divergence so nobody "fixes" it and breaks the sealed branches.
+
+    The production bot renders straight off the live Verdict, whose findings are in
+    engine insertion order. `canonical_data` sorts every list by the full JSON text
+    of its items, so `verdict.json` stores a different order. The published comment
+    is rendered in the canonical order on purpose, so the two files a judge reads
+    side by side agree — and all four `sealed/pr-*` branches carry that same order.
+
+    Sorting the heading alphabetically instead would look tidier and is wrong: it
+    would change `main`'s comment while the four sealed branches keep the old one,
+    trading an invisible divergence for a visible inconsistency across branches.
+
+    This test fails if the two orders ever coincide, which would mean the reorder in
+    `scripts/regenerate_example_01.py` has become dead code and should be removed.
+    """
+    verdict = regenerate_example_01._verdict_object()
+    engine_order = [finding.rule_id for finding in verdict.findings]
+    canonical_order = [
+        finding["rule_id"] for finding in canonical_data(verdict)["findings"]
+    ]
+
+    assert set(engine_order) == set(canonical_order)
+    assert engine_order != canonical_order, (
+        "engine and canonical finding order now agree; the deliberate reorder in "
+        "scripts/regenerate_example_01.py is dead code and should be deleted"
+    )
+
+
+def test_the_published_comment_heading_matches_every_sealed_branch() -> None:
+    """The four sealed PR branches are judge-facing; main must not drift from them."""
+    heading = next(
+        line
+        for line in (BLOCKED / "pr-comment.md").read_text(encoding="utf-8").splitlines()
+        if line.startswith("# ")
+    )
+
+    completed = subprocess.run(
+        ["git", "branch", "--list", "sealed/*", "--format=%(refname:short)"],
+        capture_output=True,
+        text=True,
+        check=True,
+        cwd=ROOT,
+    )
+    branches = [name for name in completed.stdout.split() if name]
+    assert len(branches) == 4, f"expected four sealed branches, found {branches}"
+
+    for branch in branches:
+        blob = subprocess.run(
+            [
+                "git",
+                "show",
+                f"{branch}:examples/01-blocked-pii-dashboard/pr-comment.md",
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+            cwd=ROOT,
+        ).stdout
+        branch_heading = next(
+            line for line in blob.splitlines() if line.startswith("# ")
+        )
+        assert branch_heading == heading, (
+            f"{branch} publishes {branch_heading!r} while main publishes {heading!r}"
+        )
