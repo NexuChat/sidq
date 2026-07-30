@@ -37,9 +37,52 @@ The boundary is explicit. The deterministic findings are the only findings that 
 
 The shipped judge path contains no LLM calls. A future model-assisted advisory lane may help with meaning-level checks, but it remains advisory and does not decide policy. The same policy and the same commit produce a byte-identical verdict, identified by `policy_hash` and `commit_sha`.
 
-## Three surfaces
+## Try it in one command
 
-### 1. MCP server
+Point Sidq at a catalog it has never seen. It ranks every asset by how much damage
+a lie about it would do — downstream consumers, PII tags, missing ownership,
+deprecation — examines the worst first, and tells you what it found *and what it
+did not get to*.
+
+```bash
+.venv/bin/sidq audit --server http://localhost:8080 --budget 40
+```
+
+Run against a DataHub carrying the shipped `showcase-ecommerce` sample, it
+perceives 93 entities and 964 lineage edges, chooses its own order, and finds
+**all 285 `lineage_field_missing` contradictions inside its first 40 assets** —
+because it starts with the one carrying 500 downstream consumers rather than with
+whatever the catalog happens to list first.
+
+It also reports unowned consumed assets, and that count is worth reading
+carefully: the audit published in
+[`examples/03-catalog-truth-report/report.json`](examples/03-catalog-truth-report/report.json)
+found 29 across the 82 `showcase-ecommerce` entities it was scoped to, while a
+live run here reports 31 because this DataHub also carries the bundled demo
+project. Same check, different catalog contents. The published figure is the one
+scoped to the sample.
+
+`--write-receipts` carries each verdict back into the catalog as a queryable
+`sidq.*` receipt, so the next agent can read what this one concluded. It is off by
+default: an audit does not mutate a catalog unless you ask it to.
+
+## Four surfaces
+
+### 1. The catalog auditor — an agent, not a script
+
+`src/sidq/agent/` decides what to examine from what it has already observed. The
+audit script in `examples/03-catalog-truth-report/` reads everything in
+enumeration order and behaves identically whatever it finds; the auditor behaves
+differently on a different catalog, spends a bounded budget where it matters, and
+reports its own coverage gaps rather than presenting a partial sweep as complete.
+
+It never decides truth. It runs the same deterministic engine every other surface
+runs and chooses where to point it, so the LLM-free guarantee stays structural
+rather than becoming a promise. `examples/05-agent-that-stops/` shows the other
+side of the same idea: an analytics agent that asks `verify_context` before it
+writes SQL, and stops when the answer is that the catalog cannot be trusted.
+
+### 2. MCP server
 
 `sidq-mcp` exposes exactly three tools over stdio:
 
@@ -51,7 +94,7 @@ The shipped judge path contains no LLM calls. A future model-assisted advisory l
 
 `search_verified` distinguishes `verified`, `unverified`, `stale`, `unverifiable`, and `rejected`; a failed graph lookup is `GRAPH_UNAVAILABLE`, not an empty search result. MCP responses use canonical JSON, so identical inputs and verification state produce byte-identical output. See [`docs/MCP-SERVER.md`](docs/MCP-SERVER.md) for the client configuration and wire examples.
 
-### 2. CLI
+### 3. CLI
 
 The CLI is the canonical engine surface. It accepts a diff or SQL file and emits human-readable or canonical JSON output:
 
@@ -63,7 +106,7 @@ The CLI is the canonical engine surface. It accepts a diff or SQL file and emits
 
 Exit codes are `0` for `PASS`, `1` for `WARN`, and `2` for `BLOCK`. The JSON verdict is the artifact consumed by the MCP server, PR bot, and receipt path.
 
-### 3. GitHub PR bot
+### 4. GitHub PR bot
 
 The bot renders deterministic findings, provenance, graph evidence, impact paths, and the exact reproduction command. This is the real rendered output from [`examples/01-blocked-pii-dashboard/pr-comment.md`](examples/01-blocked-pii-dashboard/pr-comment.md):
 
