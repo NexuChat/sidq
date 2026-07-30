@@ -41,6 +41,8 @@ The rule holds *on this corpus*, and the corpus is narrow. Its verdicts are driv
 
 So the finding is not that pre-flight is easy. It is that this corpus cannot tell us whether pre-flight is hard, and a model trained on it would have shipped a rule wearing a classifier's clothes.
 
+**The rule was re-tested after the evidence got richer, not before.** Wiring the documentation and governance gates into `sidq check` took `doc_rot` from zero fires to 2,564 and `pii_exposure` from 46 to 1,367 across the corpus. The rule still reproduces the oracle on all 6,050 undecided rows. The reason is worth stating plainly rather than claiming as a win: every held-out row carrying `doc_rot` was already blocking for another reason, so the new gates added explanation rather than new decisions. Evidence got richer; the decision boundary did not move.
+
 ### What actually moved the number
 
 The first ladder missed 22.23% of blocking changes. Diagnosing which rules those misses carried showed almost all of them were `unresolved_asset`: the changed file maps to no manifest model, so the oracle refuses to certify. That is not a thing to learn — it is a thing to compute, and a pre-filter can compute it locally with no graph and no model. The same is true of unparseable SQL.
@@ -57,7 +59,7 @@ measured rather than reasoned about.
 | measure | value |
 | --- | ---: |
 | rows | 20,666 |
-| distinct labels | 2 |
+| distinct labels | 3 |
 | blocked as `UNVERIFIABLE_CHANGE` | 1,373 (6.6%) |
 | adjudicated on concrete rules | 19,293 (93.4%) |
 | distinct dbt models (the §3 split unit) | 20 |
@@ -68,9 +70,10 @@ Evidence kinds behind the labels:
 | --- | ---: |
 | `blast_radius` | 19,366 |
 | `unknown_field` | 9,361 |
+| `doc_rot` | 2,564 |
+| `pii_exposure` | 1,367 |
 | `unresolved_asset` | 1,300 |
 | `unparseable_sql` | 73 |
-| `pii_exposure` | 46 |
 
 19,293 rows were adjudicated on concrete rules across 20 dbt models, which is enough to split by model per §3 and still measure a false-negative rate.
 

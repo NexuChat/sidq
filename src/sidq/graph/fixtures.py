@@ -123,6 +123,19 @@ class ReplayGraphClient:
         raw = self._read("get_dataset", urn)
         return _dataset(raw) if raw is not None else None
 
+    def get_documentation(self, urn: str) -> dict[str, Any] | None:
+        """Serve the descriptions the recorded snapshot already carries.
+
+        `DocRotGate` reads documentation through this optional method, and until
+        now nothing but a test stub implemented it — so the doc-rot check returned
+        empty against both the replay snapshot and the live client, and produced
+        zero evidence across 20,666 labelled runs while the README advertised it as
+        a truth check. The recordings hold `field_descriptions` already; this hands
+        them over rather than re-fetching or re-deriving anything.
+        """
+        raw = self._read("get_dataset", urn)
+        return raw if isinstance(raw, dict) else None
+
     def find_dataset(self, name_or_urn: str) -> str | None:
         raw = self._read("find_dataset", name_or_urn)
         return raw if isinstance(raw, str) else None

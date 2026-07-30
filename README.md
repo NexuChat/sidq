@@ -84,6 +84,17 @@ Only the deterministic policy findings in this section affect the merge decision
 
 - Changed column: <code>cust_email</code>
 - PII tags: <code>tag · PII_Data</code>
+- PII tag not carried by **10 downstream consumers**, including <code>Looker view · order-entry-looker.view.order_details</code>, <code>Looker explore · order-entry.explore.order_details</code>, <code>Power BI · datahub_order_entries.Customer_Analytics_Measures</code>
+
+### 🚫 <code>pii_exposure</code> — BLOCK
+
+**Why:** PII exposure is not permitted for dbt · order_entry_db.order_entry.customers.cust_email.
+
+**Evidence:** [<code>dbt · order_entry_db.order_entry.customers.cust_email</code>](https://datahub.mlki.app/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Adbt%2Cb2fd91.order_entry_db.order_entry.customers%2CPROD%29)
+
+- Changed column: <code>cust_email</code>
+- PII tags: <code>tag · PII_Data</code>
+- Reaches: <code>Looker dashboard · dashboards.53</code>
 - Column-level impact path:
 
   <code>dbt · order_entry_db.order_entry.customers.cust_email</code> → <code>dbt · ORDER_ENTRY_DB.analytics.order_details.cust_email</code> → <code>Snowflake · order_entry_db.analytics.order_details.cust_email</code> → <code>Looker view · order-entry-looker.view.order_details.cust_email</code> → <code>Looker explore · order-entry.explore.order_details.order_details.cust_email</code> → <code>Looker explore · order-entry.explore.order_details</code> → <code>Looker chart · dashboard_elements.224</code> → <code>Looker dashboard · dashboards.53</code>
@@ -96,6 +107,7 @@ Only the deterministic policy findings in this section affect the merge decision
 **Evidence:** [<code>dbt · order_entry_db.order_entry.customers</code>](https://datahub.mlki.app/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Adbt%2Cb2fd91.order_entry_db.order_entry.customers%2CPROD%29)
 
 - PII tags: <code>tag · PII_Data</code>
+- Reaches: <code>Looker dashboard · dashboards.53</code>
 - Blast radius: **16 downstream consumers** within 3 hops
 - Column-level impact path:
 
@@ -146,6 +158,7 @@ Only the deterministic policy findings in this section affect the merge decision
 **Evidence:** [<code>dbt · order_entry_db.order_entry.customers</code>](https://datahub.mlki.app/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Adbt%2Cb2fd91.order_entry_db.order_entry.customers%2CPROD%29)
 
 - PII tags: <code>tag · PII_Data</code>
+- Reaches: <code>Looker dashboard · dashboards.53</code>
 - Blast radius: **16 downstream consumers** within 3 hops
 - Column-level impact path:
 
@@ -192,55 +205,3 @@ Only the deterministic policy findings in this section affect the merge decision
 ---
 
 Reproducibility: <code>policy_hash=baa612f729a56ff7497718cc3cf77cd9142967cb4ec0e075c2b3495eeb2f2927</code> · <code>commit_sha=d3f3bd2f4fe31837867592162ccea08859be6947</code> · run <code>sidq check --diff d3f3bd2f4fe31837867592162ccea08859be6947^..d3f3bd2f4fe31837867592162ccea08859be6947 --json</code>
-## Why Sidq is not its neighbours
-
-Impact analysis already exists. The *decision* does not, and nothing checks whether the catalog itself is telling the truth.
-
-| Neighbour | Why Sidq is not it |
-|---|---|
-| **[`acryldata/dbt-impact-action`](https://github.com/acryldata/dbt-impact-action)** | Converts dbt to URNs and shows blast radius. Impact analysis exists; the decision does not, and it does not check catalog truth. |
-| Monte Carlo · Foundational · Atlan | Closed commercial products focused on code checks; they do not check the catalog against the live source for every PR. |
-| Datafold · Recce | Data diff and impact analysis; not Sidq's governance policy and catalog-truth receipt. |
-| Atlas · Flyway · Prisma | Live schema drift in CI, but schema registries/migration tools without lineage, dashboards, or PII context. |
-| DataHub circuit breaker | Rejects a pipeline run, not a code merge or an agent's proposed change. |
-| Metadata Tests · Schema Assertions | Compare against ingested or declared expectations; they are not this catalog-truth check at PR time. |
-
-## Quickstart
-
-From a fresh checkout with the documented Python and Docker prerequisites:
-
-```bash
-make demo-up && make demo-ingest && .venv/bin/sidq check --file demo/dbt/models/customer_revenue.sql --json
-```
-
-The controlled source demo and its `email` → `email_address` drift cycle are documented in [`demo/README.md`](demo/README.md). The full environment setup is [`docs/SETUP.md`](docs/SETUP.md). For a test-only verification run, use `.venv/bin/pytest -q`.
-
-Live surfaces:
-
-- [Sidq landing page](https://sidq.mlki.app)
-- [Live DataHub](https://datahub.mlki.app) — username `datahub`, password `datahub`
-
-## Roadmap and out of scope
-
-Sidq deliberately does not claim these as built:
-
-- **Continuous drift sentinel:** out of scope because this submission verifies context at the point an agent reads or proposes a change; a background service would expand the operational surface.
-- **Blanket write quarantine:** out of scope because Sidq does not own every producer or write path in a DataHub deployment; it fails closed at its decision points instead.
-- **Global trust score:** out of scope because a single aggregate score hides which check was missing, stale, or contradicted. Sidq exposes evidence and statuses instead.
-- **Model-assisted advisory lane:** not part of the deterministic judgment. If added, models may produce advisory `WARN` findings only; they never block.
-
-The assertion-dependency gate has no MCP path in the OSS server: the server reports data-quality tools as disabled. It is therefore not presented as an MCP capability; any future implementation would need the Python SDK path.
-
-## Disclosures
-
-- Built during the submission period.
-- AI coding assistants were used during development.
-- No pre-existing code was incorporated; the repository's project code was written during the submission period.
-
-## Repository map
-
-- [the project design contract](the project design contract) — v3 product thesis, surfaces, scope, and neighbour map.
-- [`docs/TRUTH-REPORT.md`](docs/TRUTH-REPORT.md) — the catalog-only audit and its negative `lineage_rot` result.
-- [`docs/MCP-SERVER.md`](docs/MCP-SERVER.md) — MCP configuration and tool contracts.
-- [`docs/PR-BOT.md`](docs/PR-BOT.md) — PR action and rendering details.
-- [`examples/`](examples/) — worked verdicts and machine-readable evidence.

@@ -86,10 +86,42 @@ def test_the_published_verdict_json_is_still_a_block() -> None:
     assert published["decision"] == "BLOCK"
     assert published["policy_hash"]
     assert [finding["rule_id"] for finding in published["findings"]] == [
+        # PII exposure is raised twice, by two gates that found it on two routes.
+        # The governance gate was built and never wired to `sidq check`, so until
+        # it was, only the dashboard route appeared.
+        "pii_exposure",
         "pii_exposure",
         "wide_blast_radius",
         "critical_downstream",
     ]
+
+
+def test_the_two_pii_findings_report_different_routes() -> None:
+    """Two identical-looking blocks would read as a bug rather than as depth.
+
+    One is the blast radius reaching a tagged dashboard; the other is the tag
+    failing to carry into downstream consumers. They must be distinguishable in
+    the evidence, or wiring the second gate has made the artifact worse.
+    """
+    published = _published()
+    details = [
+        evidence["detail"]
+        for finding in published["findings"]
+        if finding["rule_id"] == "pii_exposure"
+        for evidence in finding["evidence"]
+    ]
+
+    assert len(details) == 2
+    assert any("dashboards" in detail for detail in details), (
+        "one PII finding must be the route that reaches a dashboard"
+    )
+    assert any("unsafe_assets" in detail for detail in details), (
+        "the other must be the route where the tag is not carried downstream"
+    )
+
+    comment = (BLOCKED / "pr-comment.md").read_text(encoding="utf-8")
+    assert "Reaches:" in comment
+    assert "PII tag not carried by" in comment
 
 
 def test_the_blocked_example_still_blocks_with_the_same_rule_ids(
@@ -237,17 +269,41 @@ def test_every_artifact_publishing_the_hash_publishes_the_current_one(
 def test_a_change_that_touches_no_flagged_column_does_not_block(
     tmp_path: Path,
 ) -> None:
-    """ENGINE-SPEC §7: the good-change half. Selecting one unflagged column is safe."""
+    """ENGINE-SPEC §7: the good-change half.
+
+    The change must be genuinely benign, which means the contract and the SQL agree.
+    An earlier version of this test reused the flagship manifest — all twenty-two
+    columns — and selected one, so the "safe" change silently removed twenty-one
+    including `cust_email`. It passed only because the governance gate was not
+    wired to the CLI; once it was, the engine blocked it, correctly. The test was
+    wrong, not the engine.
+    """
     published = _published()
     safe_column = "customer_id"
     assert safe_column in published["touched"][0]["added_fields"]
     relation = published["touched"][0]["urn"].split(",")[1]
-    model, project_root = _project(tmp_path, f"select {safe_column}\nfrom {relation}\n")
 
-    result = _decide(model, project_root)
+    manifest = {
+        "metadata": {"adapter_type": "dbt"},
+        "nodes": {
+            "model.sidq.customers": {
+                "original_file_path": "models/customers.sql",
+                "relation_name": relation,
+                "config": {"meta": {"environment": "PROD"}},
+                "columns": {safe_column: {}},
+            }
+        },
+    }
+    (tmp_path / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+    model = tmp_path / "models" / "customers.sql"
+    model.parent.mkdir(parents=True, exist_ok=True)
+    model.write_text(f"select {safe_column}\nfrom {relation}\n", encoding="utf-8")
+
+    result = _decide(model, tmp_path)
 
     assert result["decision"] != "BLOCK", (
-        f"a single unflagged column must not block; got {result['findings']}"
+        f"a change that adds and removes nothing must not block; "
+        f"got {[finding['rule_id'] for finding in result['findings']]}"
     )
 
 

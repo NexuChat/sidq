@@ -7,6 +7,45 @@
         {
           "detail": {
             "changed_field": "cust_email",
+            "confidence": "high",
+            "granularity": "column",
+            "pii_tags": [
+              "urn:li:tag:b2fd91.PII_Data"
+            ],
+            "tagged_assets": {
+              "urn:li:dataset:(urn:li:dataPlatform:dbt,b2fd91.ORDER_ENTRY_DB.analytics.order_details,PROD)": [
+                "urn:li:tag:b2fd91.PII_Data"
+              ]
+            },
+            "unsafe_assets": [
+              "urn:li:dataset:(urn:li:dataPlatform:looker,b2fd91.order-entry-looker.view.order_details,PROD)",
+              "urn:li:dataset:(urn:li:dataPlatform:looker,b2fd91.order-entry.explore.order_details,PROD)",
+              "urn:li:dataset:(urn:li:dataPlatform:powerbi,b2fd91.datahub_order_entries.Customer_Analytics_Measures,PROD)",
+              "urn:li:dataset:(urn:li:dataPlatform:powerbi,b2fd91.datahub_order_entries.Essential_KPI_Measures,PROD)",
+              "urn:li:dataset:(urn:li:dataPlatform:powerbi,b2fd91.datahub_order_entries.Geographic_Measures,PROD)",
+              "urn:li:dataset:(urn:li:dataPlatform:powerbi,b2fd91.datahub_order_entries.ORDER_DETAILS,PROD)",
+              "urn:li:dataset:(urn:li:dataPlatform:powerbi,b2fd91.datahub_order_entries.Product_Perfromance_Measures,PROD)",
+              "urn:li:dataset:(urn:li:dataPlatform:powerbi,b2fd91.datahub_order_entries.Time_Inteligence_Measures,PROD)",
+              "urn:li:dataset:(urn:li:dataPlatform:snowflake,b2fd91.order_entry_db.analytics.order_details,PROD)",
+              "urn:li:dataset:(urn:li:dataPlatform:snowflake,b2fd91.order_entry_db.analytics.order_details_replica,PROD)"
+            ]
+          },
+          "graph_links": [
+            "https://datahub.mlki.app/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Adbt%2Cb2fd91.order_entry_db.order_entry.customers%2CPROD%29"
+          ],
+          "kind": "pii_exposure",
+          "subject": "urn:li:dataset:(urn:li:dataPlatform:dbt,b2fd91.order_entry_db.order_entry.customers,PROD)#cust_email"
+        }
+      ],
+      "message": "PII exposure is not permitted for urn:li:dataset:(urn:li:dataPlatform:dbt,b2fd91.order_entry_db.order_entry.customers,PROD)#cust_email.",
+      "rule_id": "pii_exposure",
+      "severity": "block"
+    },
+    {
+      "evidence": [
+        {
+          "detail": {
+            "changed_field": "cust_email",
             "dashboards": [
               "urn:li:dashboard:(looker,b2fd91.dashboards.53)"
             ],

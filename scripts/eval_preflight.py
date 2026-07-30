@@ -248,6 +248,18 @@ def _measured_lines(rungs: dict) -> list[str]:
             "would have shipped a rule wearing a classifier's clothes."
         ),
         "",
+        (
+            "**The rule was re-tested after the evidence got richer, not before.** "
+            "Wiring the documentation and governance gates into `sidq check` took "
+            "`doc_rot` from zero fires to 2,564 and `pii_exposure` from 46 to 1,367 "
+            "across the corpus. The rule still reproduces the oracle on all 6,050 "
+            "undecided rows. The reason is worth stating plainly rather than "
+            "claiming as a win: every held-out row carrying `doc_rot` was already "
+            "blocking for another reason, so the new gates added explanation rather "
+            "than new decisions. Evidence got richer; the decision boundary did not "
+            "move."
+        ),
+        "",
         "### What actually moved the number",
         "",
         (

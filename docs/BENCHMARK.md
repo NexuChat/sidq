@@ -6,7 +6,7 @@ Labelled mutations: 20666. Labels are the fixture engine's verdicts; generator i
 
 | generator intent | BLOCK | WARN | PASS | error |
 |---|---|---|---|---|
-| harmful | 9109 | 0 | 2757 | 0 |
+| harmful | 9209 | 34 | 2623 | 0 |
 | benign | 6700 | 0 | 2100 | 0 |
 | unknown | 0 | 0 | 0 | 0 |
 
@@ -31,27 +31,28 @@ Rules that actually fired:
 | `critical_downstream` | 10577 |
 | `unknown_field` | 9361 |
 | `informational` | 8789 |
+| `doc_rot` | 2564 |
+| `pii_exposure` | 1367 |
 | `unresolved_asset` | 1300 |
 | `wide_blast_radius` | 1138 |
 | `unparseable_sql` | 73 |
-| `pii_exposure` | 46 |
 
 ## Misses
 
 These are harmful-intent mutations that the engine passed. This is the published miss count.
 
-Count: 2757
+Count: 2623
 
 | family | misses | generated | rate |
 |---|---|---|---|
-| `drop_selected_column` | 834 | 2000 | 42% |
-| `rename_selected_column` | 823 | 2000 | 41% |
+| `drop_selected_column` | 818 | 2000 | 41% |
+| `rename_selected_column` | 805 | 2000 | 40% |
 | `expose_pii_tagged_column` | 400 | 1000 | 40% |
 | `change_column_type_cast` | 300 | 2000 | 15% |
-| `replace_explicit_select_with_star` | 300 | 2000 | 15% |
+| `replace_explicit_select_with_star` | 200 | 2000 | 10% |
 | `change_aggregation_grain` | 100 | 300 | 33% |
 
-Showing 12 of 2757 diffs, sampled round-robin across families so every family that appears above is represented. The full set is in `data/benchmark/labelled.jsonl`.
+Showing 12 of 2623 diffs, sampled round-robin across families so every family that appears above is represented. The full set is in `data/benchmark/labelled.jsonl`.
 
 ### change_aggregation_grain:models/marts/product_performance.sql:0000 (change_aggregation_grain)
 
@@ -530,7 +531,7 @@ Showing 12 of 2757 diffs, sampled round-robin across families so every family th
 
 ```
 
-### drop_selected_column:models/staging/stg_products.sql:0001 (drop_selected_column)
+### drop_selected_column:models/staging/stg_products.sql:0002 (drop_selected_column)
 
 ```diff
 --- a/models/staging/stg_products.sql
@@ -553,8 +554,8 @@ Showing 12 of 2757 diffs, sampled round-robin across families so every family th
 +  category_id,
 +  sku,
 +  product_name,
++  CAST(unit_cost AS DECIMAL(10, 2)) AS unit_cost,
 +  CAST(list_price AS DECIMAL(10, 2)) AS list_price,
-+  is_active,
 +  launched_at
 +FROM raw.products
 
@@ -1193,15 +1194,15 @@ Showing 12 of 6700 diffs, sampled round-robin across families so every family th
 | change_column_type_cast | 1700 | 0 | 300 | 0 |
 | change_join_key | 466 | 0 | 0 | 0 |
 | delete_where_filter | 100 | 0 | 0 | 0 |
-| drop_selected_column | 1166 | 0 | 834 | 0 |
+| drop_selected_column | 1166 | 16 | 818 | 0 |
 | expose_pii_tagged_column | 600 | 0 | 400 | 0 |
 | reference_nonexistent_upstream_column | 2000 | 0 | 0 | 0 |
 | reformat_whitespace | 1700 | 0 | 300 | 0 |
 | rename_cte | 300 | 0 | 0 | 0 |
 | rename_local_alias | 400 | 0 | 100 | 0 |
-| rename_selected_column | 1177 | 0 | 823 | 0 |
+| rename_selected_column | 1177 | 18 | 805 | 0 |
 | reorder_select_list | 1700 | 0 | 300 | 0 |
-| replace_explicit_select_with_star | 1700 | 0 | 300 | 0 |
+| replace_explicit_select_with_star | 1800 | 0 | 200 | 0 |
 
 Not applicable to this demo corpus:
 
