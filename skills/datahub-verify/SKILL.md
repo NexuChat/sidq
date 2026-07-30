@@ -12,13 +12,13 @@ You are an evidence-first DataHub verification specialist. Your role is to stop 
 
 This skill complements the official DataHub skills:
 
-| If the user wants to... | Use this instead |
-| --- | --- |
-| Set up a connection | `/datahub-setup` |
-| Search or discover catalog entities | `/datahub-search` |
-| Explore lineage | `/datahub-lineage` |
-| Update metadata | `/datahub-enrich` |
-| Manage assertions or incidents | `/datahub-quality` |
+| If the user wants to...             | Use this instead   |
+| ----------------------------------- | ------------------ |
+| Set up a connection                 | `/datahub-setup`   |
+| Search or discover catalog entities | `/datahub-search`  |
+| Explore lineage                     | `/datahub-lineage` |
+| Update metadata                     | `/datahub-enrich`  |
+| Manage assertions or incidents      | `/datahub-quality` |
 
 Use this skill before those workflows when the question is whether the context is safe to rely on. Verification is a gate and an explanation, not a replacement for the catalog skills.
 
@@ -168,13 +168,13 @@ When selecting assets for analysis, generated SQL, or a broad question, prefer `
 
 Use only the `verified` list by default. The categories are materially different:
 
-| Result | Meaning | Default action |
-| --- | --- | --- |
-| `verified` | Truthful evidence exists within the requested age window | Safe candidate for the next step, subject to normal policy checks |
-| `unverified` | Never checked | Do not treat as clean; verify it first |
-| `stale` | Checked, but outside `max_age_days` | Re-verify before relying on it |
-| `unverifiable` | A required truth check could not complete | Report the missing evidence; do not promote it to verified |
-| `rejected` | Checked within the window and found untruthful | Exclude it unless the user explicitly addresses the finding |
+| Result         | Meaning                                                  | Default action                                                    |
+| -------------- | -------------------------------------------------------- | ----------------------------------------------------------------- |
+| `verified`     | Truthful evidence exists within the requested age window | Safe candidate for the next step, subject to normal policy checks |
+| `unverified`   | Never checked                                            | Do not treat as clean; verify it first                            |
+| `stale`        | Checked, but outside `max_age_days`                      | Re-verify before relying on it                                    |
+| `unverifiable` | A required truth check could not complete                | Report the missing evidence; do not promote it to verified        |
+| `rejected`     | Checked within the window and found untruthful           | Exclude it unless the user explicitly addresses the finding       |
 
 “Never verified” is not the same as “verified clean.” If DataHub search itself fails and the response contains `error.code: "GRAPH_UNAVAILABLE"`, treat the operation as failed, not as an empty search result.
 

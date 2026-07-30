@@ -19,6 +19,6 @@ Evidence-first verification for DataHub-backed agents. It checks proposed data-c
 
 ## Files
 
-| File | Purpose |
-| --- | --- |
+| File       | Purpose                                 |
+| ---------- | --------------------------------------- |
 | `SKILL.md` | Main verification workflow and examples |
