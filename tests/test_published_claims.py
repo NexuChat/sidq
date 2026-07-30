@@ -393,3 +393,18 @@ def test_the_readme_leads_with_something_a_judge_can_run() -> None:
     assert "sidq audit" in text
     # Writing to someone else's catalog must never read as the default.
     assert "It is off by\ndefault" in text or "off by default" in text
+
+
+def test_the_submission_checklist_names_one_category_and_says_why() -> None:
+    """The category is a Devpost field, so the repository's job is the reasoning.
+
+    The original choice carried a written tripwire — switch if the MCP surface ends
+    up carrying the demo. It does. A checklist that still instructed the old choice
+    would send the submission into a category whose first criterion is generating
+    code, which this project deliberately does not do.
+    """
+    text = (ROOT / "docs" / "the submission checklist").read_text(encoding="utf-8")
+
+    assert "Select **Agents That Do Real Work**" in text
+    assert "The tripwire fired." in text
+    assert "Sidq does not generate." in text
