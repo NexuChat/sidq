@@ -15,6 +15,8 @@ from urllib.parse import quote
 
 from sidq.gates.base import Gate
 from sidq.gates.blast import BlastRadiusGate
+from sidq.gates.doc_rot import DocRotGate
+from sidq.gates.governance import GovernanceGate
 from sidq.gates.reality import RealityGate
 from sidq.gates.schema import SchemaGate
 from sidq.graph.client import (
@@ -82,7 +84,17 @@ def collect_evidence(
     touched: Sequence[Any], graph: GraphClient, live_source: LiveSourceClient | None
 ) -> list[Evidence]:
     evidence: list[Evidence] = []
-    gates: list[Gate] = [SchemaGate(), BlastRadiusGate()]
+    # Every gate the README advertises runs here. `doc_rot` and `governance` were
+    # built, tested, and then never wired to any product surface: `sidq check` ran
+    # three gates while the README described documentation rot and governance
+    # evidence as things Sidq checks. A capability that cannot fire is a claim, not
+    # a feature.
+    gates: list[Gate] = [
+        SchemaGate(),
+        BlastRadiusGate(),
+        GovernanceGate(),
+        DocRotGate(),
+    ]
     if live_source is not None:
         gates.insert(0, RealityGate(live_source))
     for gate in gates:

@@ -210,6 +210,32 @@ def _render_evidence_detail(evidence: Evidence, *, advisory: bool = False) -> li
             )
         )
 
+    # Two gates raise `pii_exposure` by different routes: the blast radius when a
+    # tagged column reaches a dashboard, and the governance gate when the tag is
+    # lost into consumers that do not carry it. Without these bullets the two
+    # findings render byte-identical, which reads as a duplicated bug rather than
+    # as two distinct exposures.
+    dashboards = _strings(detail.get("dashboards"))
+    if dashboards:
+        lines.append(
+            "- Reaches: "
+            + ", ".join(
+                f"<code>{_escape(_human_label(item))}</code>"
+                for item in sorted(dashboards)
+            )
+        )
+
+    unsafe = _strings(detail.get("unsafe_assets"))
+    if unsafe:
+        lines.append(
+            f"- PII tag not carried by **{len(unsafe)} downstream "
+            f"{'consumer' if len(unsafe) == 1 else 'consumers'}**, including "
+            + ", ".join(
+                f"<code>{_escape(_human_label(item))}</code>"
+                for item in sorted(unsafe)[:3]
+            )
+        )
+
     count = detail.get("downstream_count")
     depth = detail.get("depth")
     if isinstance(count, int) and not isinstance(count, bool):

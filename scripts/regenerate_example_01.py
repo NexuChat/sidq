@@ -39,7 +39,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from sidq import cli
-from sidq.bot.comment import render_comment
+from sidq.bot.comment import STICKY_MARKER, render_comment
 from sidq.graph.fixtures import ReplayGraphClient
 from sidq.serialization import canonical_data, canonical_json
 
@@ -141,18 +141,25 @@ def comment() -> str:
     disagree on the order the rule ids appear in the heading. Publishing in
     canonical order keeps the two files a judge reads side by side consistent with
     each other; the divergence itself is recorded in the project gap assessment §5.
+
+    Findings are matched by their canonical serialisation, not by rule id. Keying
+    on the rule id was a real bug: two gates raise `pii_exposure` on two different
+    routes, and a dict keyed by rule id keeps only the last, so the published
+    comment showed one finding twice and dropped the other entirely.
     """
     verdict = _verdict_object()
-    canonical_order = [
-        finding["rule_id"] for finding in canonical_data(verdict)["findings"]
-    ]
-    by_rule = {finding.rule_id: finding for finding in verdict.findings}
-    return render_comment(
-        replace(
-            verdict,
-            findings=tuple(by_rule[rule_id] for rule_id in canonical_order),
+    canonical = canonical_data(verdict)["findings"]
+    remaining = list(verdict.findings)
+    ordered = []
+    for target in canonical:
+        match = next(
+            finding
+            for finding in remaining
+            if canonical_data(finding) == target
         )
-    )
+        remaining.remove(match)
+        ordered.append(match)
+    return render_comment(replace(verdict, findings=tuple(ordered)))
 
 
 def regenerate() -> dict:
@@ -210,6 +217,12 @@ def main() -> int:
         path = ROOT / name
         text = path.read_text(encoding="utf-8")
         updated = re.sub(r"policy_hash=[0-9a-f]{64}", f"policy_hash={new_hash}", text)
+        # docs/PR-BOT.md embeds the comment verbatim from the sticky marker on, and
+        # `tests/test_bot.py` asserts that. Substituting only the hash left the
+        # embedded body stale the moment the comment itself changed.
+        marker_at = updated.find(STICKY_MARKER)
+        if marker_at != -1:
+            updated = updated[:marker_at] + fresh_comment
         if updated != text:
             path.write_text(updated, encoding="utf-8")
             print(f"wrote {name}")
