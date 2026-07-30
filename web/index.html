@@ -341,6 +341,50 @@
         font-family: inherit;
       }
 
+      .ledger,
+      .agents {
+        padding: clamp(90px, 12vw, 160px) 0 0;
+      }
+
+      .stat-row {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        border-top: 1px solid var(--paper-dim);
+      }
+
+      .stat {
+        padding: 28px 22px 34px 0;
+        border-bottom: 1px solid var(--rule);
+      }
+
+      .stat + .stat {
+        padding-left: 22px;
+        border-left: 1px solid var(--rule);
+      }
+
+      .stat strong {
+        display: block;
+        margin-bottom: 10px;
+        font-family: var(--display);
+        font-size: clamp(2.7rem, 5.6vw, 5.2rem);
+        font-weight: 400;
+        letter-spacing: -0.05em;
+        line-height: 1;
+      }
+
+      .stat.alarm strong {
+        color: var(--signal);
+      }
+
+      .stat.silent strong {
+        color: var(--acid);
+      }
+
+      .stat span {
+        color: var(--paper-dim);
+        font-size: clamp(0.7rem, 1vw, 0.82rem);
+      }
+
       .reproduce {
         padding: clamp(90px, 14vw, 190px) 0;
       }
@@ -568,6 +612,15 @@
           flex-direction: column;
         }
 
+        .stat-row {
+          grid-template-columns: 1fr;
+        }
+
+        .stat + .stat {
+          padding-left: 0;
+          border-left: 0;
+        }
+
         .reproduce-grid {
           gap: 55px;
         }
@@ -703,10 +756,70 @@
         </div>
       </section>
 
+      <section class="ledger shell" aria-labelledby="ledger-title">
+        <div class="trace-heading">
+          <div class="eyebrow">01 / The sample</div>
+          <h2 id="ledger-title">The catalog DataHub ships already contradicts itself.</h2>
+        </div>
+        <div class="stat-row">
+          <div class="stat alarm">
+            <strong>285</strong>
+            <span>internal contradictions across 67 datasets, found read-only in the officially shipped <code>showcase-ecommerce</code> sample</span>
+          </div>
+          <div class="stat">
+            <strong>57 / 58</strong>
+            <span>column-lineage edges on a single PowerBI asset point at fields its stored schema does not contain</span>
+          </div>
+          <div class="stat">
+            <strong>29</strong>
+            <span>assets consumed downstream that no one owns</span>
+          </div>
+          <div class="stat silent">
+            <strong>32 / 32</strong>
+            <span>lineage-rot attempts refused as unverifiable — the sample ships no model SQL, so no verdict was invented</span>
+          </div>
+        </div>
+        <div class="provenance">
+          <span>Catalog-only comparisons: a stored claim against another stored claim, nothing external.</span>
+          <span>Evidence: <code>docs/TRUTH-REPORT.md</code> · <code>examples/03-catalog-truth-report/report.json</code></span>
+        </div>
+      </section>
+
+      <section class="agents shell" aria-labelledby="agents-title">
+        <div class="trace-heading">
+          <div class="eyebrow">02 / The agents</div>
+          <h2 id="agents-title">Spend a budget. Remember through the catalog. Refuse what you cannot prove.</h2>
+        </div>
+        <ol class="trace-list" aria-label="What the Sidq agents do">
+          <li class="trace-item">
+            <span class="trace-index">01</span>
+            <span class="trace-type">Auditor</span>
+            <span class="trace-asset"><strong>Chooses where to look.</strong><code>sidq audit</code> ranks every asset by the damage a lie about it would do, spends an explicit budget worst-first, and names what it did not reach. NOT VERIFIED is an answer, never a default.</span>
+            <span class="trace-arrow" aria-hidden="true">↓</span>
+          </li>
+          <li class="trace-item">
+            <span class="trace-index">02</span>
+            <span class="trace-type">Memory</span>
+            <span class="trace-asset"><strong>Remembers through the catalog itself.</strong><code>sidq audit --resume</code> reads the receipts previous runs wrote back: assets whose receipt still holds are skipped, the budget reaches assets no run has seen, and coverage converges — any Sidq instance resumes where any other stopped. No ledger to sync; the catalog is the ledger.</span>
+            <span class="trace-arrow" aria-hidden="true">↓</span>
+          </li>
+          <li class="trace-item">
+            <span class="trace-index">03</span>
+            <span class="trace-type">Repair agent</span>
+            <span class="trace-asset"><strong>Refuses the plausible fix.</strong><code>sidq repair</code> rejected the one-column PII fix — it resolved the finding and moved the leak downstream — and ships the 7-column closure the engine re-proved instead. Four of six checks get no proposal at all, each refusal with its reason recorded.</span>
+            <span class="trace-arrow" aria-hidden="true">—</span>
+          </li>
+        </ol>
+        <div class="provenance">
+          <span>All three run below, on this host, live.</span>
+          <span>The judged path contains no LLM calls; the same input produces a byte-identical verdict.</span>
+        </div>
+      </section>
+
       <section class="reproduce shell" aria-labelledby="reproduce-title">
         <div class="reproduce-grid">
           <div>
-            <div class="eyebrow">01 / Reproduce</div>
+            <div class="eyebrow">03 / Reproduce</div>
             <h2 id="reproduce-title">Do not take our word for it.</h2>
           </div>
           <div class="command">
