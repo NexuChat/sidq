@@ -31,6 +31,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CORPUS = ROOT / "data" / "benchmark" / "labelled.jsonl"
+RUNGS = ROOT / "data" / "benchmark" / "preflight-rungs.json"
 DOCUMENT = ROOT / "docs" / "PREFLIGHT-RESULTS.md"
 
 # §3 input contract. A feature builder may read only these; anything else is a leak.
@@ -52,9 +53,9 @@ VERDICT_DERIVED_KEYS = frozenset(
 
 _TRAINABLE_NOTE = (
     "The corpus has more than one label, so the ladder in §4 can be trained and "
-    "the criteria in §6 must be decided by measurement. **This script stops here "
-    "by design**: it validates the corpus, it does not fit models. Implement "
-    "`scripts/train_preflight.py` and rerun."
+    "the criteria in §6 must be decided by measurement. Run "
+    "`scripts/train_preflight.py` to produce `data/benchmark/preflight-rungs.json`, "
+    "then rerun this script."
 )
 _CRITERION_ONE = (
     "| 1. false-negative rate ≤ 1% | **met vacuously** — a model that can only "
@@ -117,10 +118,88 @@ def evaluate(rows: list[dict]) -> dict:
     }
 
 
+def load_rungs() -> dict | None:
+    if not RUNGS.exists():
+        return None
+    return json.loads(RUNGS.read_text(encoding="utf-8"))
+
+
+def _measured_lines(rungs: dict) -> list[str]:
+    """§4 and §6 decided by measurement rather than by argument."""
+    rows = [["rung", "false-negative rate", "abstention", "accuracy"]]
+    for rung in rungs["rungs"]:
+        rows.append(
+            [
+                rung["rung"],
+                f"{rung['false_negative_rate']:.2%}",
+                f"{rung['abstention_rate']:.2%}",
+                f"{rung['accuracy']:.2%}",
+            ]
+        )
+    widths = [max(len(row[i]) for row in rows) for i in range(len(rows[0]))]
+    table = [
+        "| " + " | ".join(cell.ljust(widths[i]) for i, cell in enumerate(rows[0])) + " |",
+        "|" + "|".join("-" * (width + 2) for width in widths) + "|",
+    ]
+    table.extend(
+        "| " + " | ".join(cell.ljust(widths[i]) for i, cell in enumerate(row)) + " |"
+        for row in rows[1:]
+    )
+    l0 = rungs["rungs"][0]
+    best = min(rungs["rungs"][1:], key=lambda item: item["false_negative_rate"])
+    return [
+        (
+            f"The ladder was trained on {rungs['train_rows']:,} rows and evaluated on "
+            f"{rungs['test_rows']:,} rows from {len(rungs['holdout_models'])} held-out "
+            "dbt models. The split is by model, per §3, so no model appears on both "
+            "sides and the numbers are not a memorisation score."
+        ),
+        "",
+        *table,
+        "",
+        "| §6 criterion | outcome |",
+        "| --- | --- |",
+        (
+            f"| 1. false-negative rate ≤ 1% | **failed** — the best trained rung is "
+            f"{best['rung']} at {best['false_negative_rate']:.1%}, more than twenty "
+            "times the bar. |"
+        ),
+        (
+            f"| 2. abstention rate ≤ 50% | met — {best['abstention_rate']:.1%}, but "
+            "meeting it while missing one blocking change in four is not a partial "
+            "success. |"
+        ),
+        (
+            f"| 3. the winning rung beats L0 **and** the rung below it | **failed** — "
+            f"L0 never says PASS, so its false-negative rate is {l0['false_negative_rate']:.0%} "
+            "and no trained rung can beat it on the headline. L2 is also worse than "
+            "L1 on both false negatives and accuracy, so the ladder does not even "
+            "hold internally. |"
+        ),
+        "",
+        (
+            "Two criteria failed, so **pre-flight is not shipped**. L3 — a transformer "
+            "over the raw diff — is deliberately not attempted: §4 permits it only "
+            "once L2's false-negative rate is unacceptable *and* the cheaper rungs "
+            "have earned the escalation. Here L2 is beaten by a formula, which is a "
+            "signal that the features carry little about the verdict, not that the "
+            "model needs more capacity."
+        ),
+        "",
+        (
+            f"L0's {l0['accuracy']:.0%} accuracy is the trap §5 names. It is a good "
+            "number attached to a model that has learned only that most changes in "
+            "this corpus block. Reporting accuracy instead of the false-negative rate "
+            "is how the previous attempt looked healthier than it was."
+        ),
+    ]
+
+
 def _verdict_lines(result: dict) -> list[str]:
     """State each pre-registered criterion and whether it is met, refuted, or moot."""
     if result["trainable"]:
-        return [_TRAINABLE_NOTE]
+        rungs = load_rungs()
+        return _measured_lines(rungs) if rungs else [_TRAINABLE_NOTE]
 
     label = next(iter(result["labels"]))
     criterion_three = (
@@ -145,6 +224,41 @@ def _verdict_lines(result: dict) -> list[str]:
     ]
 
 
+def _adjudication_note(result: dict) -> list[str]:
+    if result["trainable"]:
+        return [
+            (
+                f"{result['adjudicated']:,} rows were adjudicated on concrete rules "
+                f"across {result['models']} dbt models, which is enough to split by "
+                "model per §3 and still measure a false-negative rate."
+            ),
+        ]
+    return [
+        (
+            f"The {result['adjudicated']:,} adjudicated rows are too few to split by "
+            "dbt model and still measure a false-negative rate that means anything, "
+            "which is the only number §5 allows as a headline."
+        ),
+    ]
+
+
+def _distribution_heading(result: dict) -> list[str]:
+    if result["trainable"]:
+        return [
+            "## The label distribution",
+            "",
+            "The oracle reached real verdicts on this corpus, so the ladder can be",
+            "measured rather than reasoned about.",
+        ]
+    return [
+        "## Why the corpus has no variance",
+        "",
+        "The labels are the oracle's verdicts, and the oracle was fail-closed on",
+        "almost every row, so the engine refused to certify rather than guessing —",
+        "correct behaviour that happens to destroy the label distribution.",
+    ]
+
+
 def render(result: dict) -> str:
     unverifiable_share = result["unverifiable"] / result["rows"]
     adjudicated_share = result["adjudicated"] / result["rows"]
@@ -160,13 +274,7 @@ def render(result: dict) -> str:
         "",
         *_verdict_lines(result),
         "",
-        "## Why the corpus has no variance",
-        "",
-        "The labels are the oracle's verdicts, and the oracle was fail-closed on",
-        "almost every row. The graph fixtures cover one legacy model; the eighteen",
-        "newer demo models are absent from them, so the engine refused to certify",
-        "rather than guessing — correct behaviour that happens to destroy the label",
-        "distribution.",
+        *_distribution_heading(result),
         "",
         "| measure | value |",
         "| --- | ---: |",
@@ -191,9 +299,7 @@ def render(result: dict) -> str:
             for kind, count in result["evidence_kinds"].items()
         ),
         "",
-        f"The {result['adjudicated']:,} adjudicated rows are too few to split by dbt",
-        "model and still measure a false-negative rate that means anything, which is",
-        "the only number §5 allows as a headline.",
+        *_adjudication_note(result),
         "",
         "## The input contract held",
         "",

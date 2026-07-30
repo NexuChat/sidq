@@ -7,46 +7,48 @@
 
 ## The finding
 
-Every one of the 20,666 rows carries the same label (`BLOCK`), so the corpus cannot train or evaluate a classifier.
+The ladder was trained on 13,300 rows and evaluated on 7,366 rows from 7 held-out dbt models. The split is by model, per §3, so no model appears on both sides and the numbers are not a memorisation score.
+
+| rung                      | false-negative rate | abstention | accuracy |
+|---------------------------|---------------------|------------|----------|
+| L0 majority class         | 0.00%               | 0.00%      | 80.38%   |
+| L1 logistic regression    | 24.73%              | 16.66%     | 76.15%   |
+| L2 gradient-boosted trees | 26.65%              | 8.69%      | 63.16%   |
 
 | §6 criterion | outcome |
 | --- | --- |
-| 1. false-negative rate ≤ 1% | **met vacuously** — a model that can only emit `BLOCK` never says PASS, so it cannot miss one. The number is 0% and it means nothing. |
-| 2. abstention rate ≤ 50% | **met vacuously** — 0%, for the same reason. |
-| 3. the winning rung beats L0 **and** the rung below it | **refuted, and not by a narrow margin** — L0 is the majority class, which here is 100% accurate by construction. No rung can beat a perfect baseline. |
+| 1. false-negative rate ≤ 1% | **failed** — the best trained rung is L1 logistic regression at 24.7%, more than twenty times the bar. |
+| 2. abstention rate ≤ 50% | met — 16.7%, but meeting it while missing one blocking change in four is not a partial success. |
+| 3. the winning rung beats L0 **and** the rung below it | **failed** — L0 never says PASS, so its false-negative rate is 0% and no trained rung can beat it on the headline. L2 is also worse than L1 on both false negatives and accuracy, so the ladder does not even hold internally. |
 
-Criterion 3 is unsatisfiable, so **pre-flight is not shipped**. Note which two criteria were satisfied: the two that are reported as headline numbers. A run that published a 0% false-negative rate and a 0% abstention rate would have looked like the best possible result, from a corpus that contains no information at all. That is precisely the failure §5 was written to prevent, and it is why the criteria are read together.
+Two criteria failed, so **pre-flight is not shipped**. L3 — a transformer over the raw diff — is deliberately not attempted: §4 permits it only once L2's false-negative rate is unacceptable *and* the cheaper rungs have earned the escalation. Here L2 is beaten by a formula, which is a signal that the features carry little about the verdict, not that the model needs more capacity.
 
-## Why the corpus has no variance
+L0's 80% accuracy is the trap §5 names. It is a good number attached to a model that has learned only that most changes in this corpus block. Reporting accuracy instead of the false-negative rate is how the previous attempt looked healthier than it was.
 
-The labels are the oracle's verdicts, and the oracle was fail-closed on
-almost every row. The graph fixtures cover one legacy model; the eighteen
-newer demo models are absent from them, so the engine refused to certify
-rather than guessing — correct behaviour that happens to destroy the label
-distribution.
+## The label distribution
+
+The oracle reached real verdicts on this corpus, so the ladder can be
+measured rather than reasoned about.
 
 | measure | value |
 | --- | ---: |
 | rows | 20,666 |
-| distinct labels | 1 |
-| blocked as `UNVERIFIABLE_CHANGE` | 20,653 (99.9%) |
-| adjudicated on concrete rules | 13 (0.1%) |
+| distinct labels | 2 |
+| blocked as `UNVERIFIABLE_CHANGE` | 1,373 (6.6%) |
+| adjudicated on concrete rules | 19,293 (93.4%) |
 | distinct dbt models (the §3 split unit) | 20 |
 
 Evidence kinds behind the labels:
 
 | evidence kind | rows |
 | --- | ---: |
-| `graph_unavailable` | 19,353 |
+| `blast_radius` | 19,366 |
+| `unknown_field` | 9,361 |
 | `unresolved_asset` | 1,300 |
-| `unknown_field` | 100 |
 | `unparseable_sql` | 73 |
-| `blast_radius` | 13 |
-| `pii_exposure` | 13 |
+| `pii_exposure` | 46 |
 
-The 13 adjudicated rows are too few to split by dbt
-model and still measure a false-negative rate that means anything, which is
-the only number §5 allows as a headline.
+19,293 rows were adjudicated on concrete rules across 20 dbt models, which is enough to split by model per §3 and still measure a false-negative rate.
 
 ## The input contract held
 
