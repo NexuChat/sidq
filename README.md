@@ -184,7 +184,7 @@ Refused — proposed, then disproved:
 ```
 
 A one-hop repair does not fix a leak, it moves it. The proposal it offers instead
-covers the whole field-lineage closure — 7 columns across dbt, Snowflake and
+covers the whole field-lineage closure — 6 columns across dbt, Snowflake and
 Looker — as a single MCP call, and *that* one the engine proves.
 
 ## Four surfaces

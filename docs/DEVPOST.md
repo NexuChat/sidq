@@ -47,7 +47,7 @@ the surviving set must still hold when applied together. On the live showcase
 catalog that gate refused the obvious PII fix, because tagging the one column the
 finding named resolved it and immediately created a new untagged consumer
 downstream. The proposal it offers instead covers the whole field-lineage closure —
-7 columns across dbt, Snowflake and Looker — in one MCP call, and that one it
+6 columns across dbt, Snowflake and Looker — in one MCP call, and that one it
 proves. Four of the six checks produce no proposal at all, each with its reason
 recorded, because an agent with an answer for all six would be inventing four.
 
