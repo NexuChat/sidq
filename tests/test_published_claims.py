@@ -140,3 +140,71 @@ def test_the_judge_facing_summaries_mention_reconciliation(document: str) -> Non
         f"{document} does not mention constraint reconciliation, which ships in "
         "verify_context and is the strongest form of the catalog-truth thesis"
     )
+
+
+# ---------------------------------------------------------------------------
+# The landing page. It is the first surface a judge opens, it hardcodes values
+# from the generated verdict, and it claims to show "Real engine output".
+# ---------------------------------------------------------------------------
+
+LANDING = ROOT / "web" / "index.html"
+
+
+def _blast_detail() -> dict:
+    verdict = json.loads(
+        (ROOT / "examples" / "01-blocked-pii-dashboard" / "verdict.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    return next(
+        evidence["detail"]
+        for finding in verdict["findings"]
+        for evidence in finding["evidence"]
+        if evidence["kind"] == "blast_radius"
+    )
+
+
+def test_the_landing_page_decision_and_commit_match_the_verdict() -> None:
+    verdict = json.loads(
+        (ROOT / "examples" / "01-blocked-pii-dashboard" / "verdict.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    html = LANDING.read_text(encoding="utf-8")
+
+    assert f'id="verdict-title">{verdict["decision"]}<' in html
+    assert verdict["commit_sha"] in html
+    assert any(finding["rule_id"] in html for finding in verdict["findings"])
+
+
+def test_the_landing_page_node_count_matches_the_proven_lineage() -> None:
+    """The page advertises a node count; it must be the chain the verdict proves."""
+    path = _blast_detail()["paths"][0]
+    hops = path["hops"]
+    nodes = []
+    for key in sorted(hops):
+        if not nodes:
+            nodes.append(hops[key]["from"])
+        nodes.append(hops[key]["to"])
+    distinct = len(dict.fromkeys(nodes))
+
+    assert f"{distinct:02d} nodes" in LANDING.read_text(encoding="utf-8"), (
+        f"the landing page must advertise {distinct} lineage nodes"
+    )
+
+
+def test_the_landing_page_names_the_dashboard_the_verdict_reaches() -> None:
+    dashboards = _blast_detail()["dashboards"]
+    html = LANDING.read_text(encoding="utf-8")
+
+    assert dashboards, "the blocked example must still reach a dashboard"
+    for urn in dashboards:
+        identifier = urn.rsplit(".", 1)[-1].rstrip(")")
+        assert f"dashboards.{identifier}" in html
+
+
+def test_the_landing_page_does_not_point_a_judge_at_localhost() -> None:
+    """A dead link here burns the strongest thirty seconds of the submission."""
+    html = LANDING.read_text(encoding="utf-8")
+
+    assert "localhost" not in html
