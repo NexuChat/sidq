@@ -175,7 +175,7 @@ server's environment:
 DATAHUB_GMS_URL=http://localhost:8080 \
 TOOLS_IS_MUTATION_ENABLED=true \
 DATAHUB_TELEMETRY_ENABLED=false \
-  .venv/bin/mcp-server-datahub
+  mcp-server-datahub
 ```
 
 Without `TOOLS_IS_MUTATION_ENABLED=true`, only the eight read/document tools

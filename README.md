@@ -1,5 +1,7 @@
 # Sidq
 
+[![CI](https://github.com/NexuChat/sidq/actions/workflows/ci.yml/badge.svg)](https://github.com/NexuChat/sidq/actions/workflows/ci.yml)
+
 > Everyone is building agents that read the metadata graph and trust it blindly. Sidq is the only one asking whether the graph is lying — and it stops the agent before it builds on the lie.
 
 Sidq is a DataHub-native verification layer for agents and data-code changes. It checks whether catalog context is truthful before an agent relies on it, then applies an explicit policy and leaves evidence that the next agent can read.
@@ -18,9 +20,11 @@ Four commands, in order of how much they need. The first needs nothing at all.
 Nothing above is a recording. If you have no DataHub, run 1 and 2 — they are the
 ones that prove determinism, and they need nothing but a clone and `make`.
 
-You can also run 1 and 3 from the hosted page without cloning anything:
-[sidq.mlki.app](https://sidq.mlki.app) has **Run it here** buttons that execute
-the real commands on the host and print the real output.
+You can also run row 1, a live catalog audit, and row 4's dry run from the
+hosted page without cloning anything: [sidq.mlki.app](https://sidq.mlki.app) has
+**Run it here** buttons that execute the real commands on the host and print the
+real output. The runnable set is a closed table with no request input, and a
+test asserts it contains nothing that can write to a catalog.
 
 **What to look at if you only have five minutes.** Run `make gate-demo`, then open
 [`examples/01-blocked-pii-dashboard/verdict.json`](examples/01-blocked-pii-dashboard/verdict.json)

@@ -50,6 +50,15 @@ RUNNABLE: dict[str, tuple[str, tuple[str, ...]]] = {
         ),
         (str(VENV / "sidq"), "audit", "--via-mcp", "--budget", "5"),
     ),
+    "repair": (
+        (
+            "Propose repairs from catalog evidence, then re-run the deterministic "
+            "engine against the catalog each repair would create. Dry run — the "
+            "--apply flag is deliberately absent from this table, so nothing "
+            "is ever written from here."
+        ),
+        (str(VENV / "sidq"), "repair", "--via-mcp", "--budget", "15"),
+    ),
 }
 
 _lock = threading.Lock()

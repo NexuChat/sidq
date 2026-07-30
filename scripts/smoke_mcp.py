@@ -61,7 +61,7 @@ def server_command(explicit: str | None) -> str:
 
 
 def decode_result(tool_name: str, result: Any) -> Any:
-    if result.isError:
+    if result.is_error:
         messages = [
             item.text
             for item in result.content
@@ -128,8 +128,8 @@ async def smoke(args: argparse.Namespace, server_stderr: TextIO) -> None:
         initialized = await session.initialize()
         print(
             "Connected:",
-            f"server={initialized.serverInfo.name}",
-            f"version={initialized.serverInfo.version}",
+            f"server={initialized.server_info.name}",
+            f"version={initialized.server_info.version}",
             f"gms={args.gms_url}",
         )
 

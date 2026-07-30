@@ -311,16 +311,20 @@ def test_the_landing_page_can_only_run_read_only_commands() -> None:
     """
     from web.server import RUNNABLE
 
-    forbidden = ("--apply", "--write-receipts", "repair", "regen", "reset")
-    offenders = sorted(
-        f"{name}: {' '.join(argv)}"
-        for name, (_, argv) in RUNNABLE.items()
-        if any(token in argument for argument in argv for token in forbidden)
-        # `regen-check` verifies, `regen` rewrites; only the second is a write.
-        and "--check" not in argv
-    )
-
-    assert not offenders, f"the landing page could run a mutating command: {offenders}"
+    for name, (_, argv) in RUNNABLE.items():
+        joined = " ".join(argv)
+        # The only two flags that make a sidq command mutate a catalog. A bare
+        # `repair` is a dry run by construction — the CLI writes only under
+        # --apply, and tests/test_repair_agent.py pins that a dry run performs
+        # zero tool calls — so the guard names the write paths, not the word.
+        assert "--apply" not in argv and "--write-receipts" not in argv, (
+            f"{name} would write to the catalog: {joined}"
+        )
+        # Scripts that rewrite artifacts or reset the demo state.
+        assert "reset" not in joined, f"{name} mutates demo state: {joined}"
+        if "regen" in joined:
+            # `regen --check` verifies; bare `regen` rewrites committed files.
+            assert "--check" in argv, f"{name} rewrites artifacts: {joined}"
 
 
 def test_the_landing_page_run_buttons_name_commands_that_exist() -> None:
