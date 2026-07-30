@@ -179,6 +179,17 @@ def _measured_lines(rungs: dict) -> list[str]:
             "sides and the numbers are not a memorisation score."
         ),
         "",
+        (
+            f"Those rows contain **{rungs.get('distinct_train_diffs', 0):,} distinct "
+            f"training diffs and {rungs.get('distinct_test_diffs', 0):,} distinct test "
+            "diffs** — the generator repeats each diff across a small set of models, "
+            "so the row counts overstate the evidence roughly tenfold. No diff "
+            "appears on both sides: the split by model happens to keep every "
+            "repetition inside one model, which was checked rather than assumed. "
+            "The result below is real but it rests on the distinct counts, not the "
+            "row counts."
+        ),
+        "",
         *table,
         "",
         (

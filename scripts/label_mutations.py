@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import multiprocessing
 import shutil
@@ -219,6 +220,7 @@ def build_report(records: Iterable[dict[str, Any]]) -> str:
         "",
         _table(confusion),
         "",
+        *_distinct_section(ordered),
         *_coverage_section(ordered),
         "## Misses",
         "",
@@ -258,6 +260,36 @@ def build_report(records: Iterable[dict[str, Any]]) -> str:
 # which produced a 13 MB, 396,000-line document; the rates below carry the signal
 # and the sample carries the texture. The count is always stated in full.
 DIFF_SAMPLE_LIMIT = 12
+
+
+def _distinct_section(records: list[dict[str, Any]]) -> list[str]:
+    """Publish how much of the corpus is actually distinct.
+
+    The generator is asked for a fixed count per family across a small set of
+    models, so it reproduces the same diff many times. The row count is real, but
+    quoting it alone overstates the weight of the evidence by an order of
+    magnitude, so the distinct count is published beside it.
+    """
+    seen = {
+        hashlib.sha256(str(item.get("diff", "")).encode("utf-8")).hexdigest()
+        for item in records
+    }
+    total = len(records)
+    if not total:
+        return []
+    return [
+        "## How much of this is distinct",
+        "",
+        (
+            f"**{total:,} mutations, {len(seen):,} distinct diffs.** "
+            f"{total - len(seen):,} rows ({(total - len(seen)) / total:.1%}) repeat a "
+            "diff that appears elsewhere in the corpus, because the generator is "
+            "asked for a fixed count per family across a small set of models. Every "
+            "rate below is over the row count; the distinct count is what the "
+            "evidence actually weighs."
+        ),
+        "",
+    ]
 
 
 def _coverage_section(records: list[dict[str, Any]]) -> list[str]:

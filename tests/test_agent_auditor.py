@@ -253,3 +253,44 @@ def test_nothing_is_reported_written_that_was_not() -> None:
 
     assert all(not item.written for item in outcomes)
     assert "receipts written  0 of 4" in "\n".join(render_writeback(outcomes))
+
+
+# ---------------------------------------------------------------------------
+# The CLI surface. A capability nobody can invoke is the gap this repository
+# already had once, in the gates; the audit must not repeat it.
+# ---------------------------------------------------------------------------
+
+
+def test_audit_is_an_invocable_subcommand_with_writing_off_by_default() -> None:
+    """Writing to a catalog must never be the default of a read-only-sounding verb."""
+    from sidq.cli import _parser
+
+    parsed = _parser().parse_args(["audit"])
+
+    assert parsed.command == "audit"
+    assert parsed.write_receipts is False
+    assert parsed.budget > 0
+
+
+def test_audit_accepts_a_budget_and_an_explicit_write_opt_in() -> None:
+    from sidq.cli import _parser
+
+    parsed = _parser().parse_args(["audit", "--budget", "7", "--write-receipts"])
+
+    assert parsed.budget == 7
+    assert parsed.write_receipts is True
+
+
+def test_audit_is_declared_once() -> None:
+    """Two `add_parser("audit")` calls raise at import-time in argparse.
+
+    This happened: an earlier edit landed despite appearing to be rejected, and a
+    second declaration was added on top of it, so every `sidq` invocation crashed
+    before parsing anything. Cheap to assert, expensive to discover.
+    """
+    from sidq.cli import _parser
+
+    parser = _parser()
+
+    assert parser.parse_args(["audit"]).command == "audit"
+    assert parser.parse_args(["explain", "pii_exposure"]).command == "explain"

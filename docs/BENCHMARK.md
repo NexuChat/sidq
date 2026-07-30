@@ -10,6 +10,10 @@ Labelled mutations: 20666. Labels are the fixture engine's verdicts; generator i
 | benign | 6700 | 0 | 2100 | 0 |
 | unknown | 0 | 0 | 0 | 0 |
 
+## How much of this is distinct
+
+**20,666 mutations, 2,114 distinct diffs.** 18,552 rows (89.8%) repeat a diff that appears elsewhere in the corpus, because the generator is asked for a fixed count per family across a small set of models. Every rate below is over the row count; the distinct count is what the evidence actually weighs.
+
 ## What this corpus could exercise
 
 The generator's `intent` is not ground truth; it is a hypothesis about a

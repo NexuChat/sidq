@@ -9,6 +9,8 @@
 
 The ladder was trained on 13,300 rows and evaluated on 7,366 rows from 7 held-out dbt models. The split is by model, per §3, so no model appears on both sides and the numbers are not a memorisation score.
 
+Those rows contain **1,507 distinct training diffs and 607 distinct test diffs** — the generator repeats each diff across a small set of models, so the row counts overstate the evidence roughly tenfold. No diff appears on both sides: the split by model happens to keep every repetition inside one model, which was checked rather than assumed. The result below is real but it rests on the distinct counts, not the row counts.
+
 | rung                                      | false-negative rate | false positives | abstention | accuracy |
 |-------------------------------------------|---------------------|-----------------|------------|----------|
 | L0 majority class                         | 0.00%               | 1445            | 0.00%      | 80.38%   |
