@@ -46,18 +46,13 @@ backup.sql
 .idea/
 .vscode/
 
-# Agent/orchestration state must never reach this repository. None of it has
-# ever been tracked (verified across full history before the repo went public);
-# this keeps an accidental `git add -A` from being the first time.
+# Local editor, assistant, and orchestration state. None of it has ever been
+# tracked; this keeps an accidental `git add -A` from being the first time.
 .assistant/
-.agent-cache/
+.agent*/
 .cursor/
 .aider*
-.orchestration/
-.workflows/
-ASSISTANT.md
-CONTRIBUTORS-AI.md
-ASSISTANT-ALT.md
+*_INSTRUCTIONS.md
 .mcp.json
 **/session-*.json
 **/transcript-*.jsonl
