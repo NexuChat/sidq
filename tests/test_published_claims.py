@@ -316,27 +316,69 @@ def test_preflight_is_not_advertised_as_shipped_while_it_is_not() -> None:
 def test_the_published_refusal_matches_the_measured_rungs() -> None:
     """The refusal must follow from §6 applied to the numbers, not from prose.
 
-    An earlier version of this test asserted the corpus had no label variance. It
-    fired the moment the corpus was relabelled against fuller fixtures — which is
-    what it was for — and the documents were rewritten around the measured ladder
-    instead. This asserts the criteria themselves.
+    This assertion has been rewritten twice, both times because it fired when the
+    facts moved — first when the corpus gained label variance, then when adding
+    deterministic pre-checks took the false-negative rate under the bar. That is
+    the guard working: the published refusal has to keep matching its own reason.
     """
     rungs = eval_preflight.load_rungs()
     assert rungs is not None, "run scripts/train_preflight.py"
 
     by_name = {rung["rung"]: rung for rung in rungs["rungs"]}
-    trained = [rung for name, rung in by_name.items() if not name.startswith("L0")]
-    assert trained, "the ladder must publish more than the L0 baseline"
+    l0 = next(rung for name, rung in by_name.items() if name.startswith("L0 "))
+    candidates = [
+        rung
+        for name, rung in by_name.items()
+        if not name.startswith("L0") and rung["abstention_rate"] <= 0.5
+    ]
+    assert candidates, "the ladder must publish a rung that answers often enough"
+    best = min(candidates, key=lambda rung: rung["false_negative_rate"])
 
-    best = min(trained, key=lambda rung: rung["false_negative_rate"])
-    # §6 criterion 1: false-negative rate <= 1%.
-    assert best["false_negative_rate"] > 0.01, (
-        "a trained rung now meets the false-negative bar; PREFLIGHT.md and "
-        "PREFLIGHT-RESULTS.md must be revisited before this refusal can stand"
+    # Criteria 1 and 2 are currently met; the refusal does not rest on them.
+    assert best["false_negative_rate"] <= 0.01
+    assert best["abstention_rate"] <= 0.5
+
+    # Criterion 3 is what blocks shipping, and it blocks structurally: L0 never
+    # says PASS, so nothing can beat its false-negative rate. If that ever stops
+    # being true the published reasoning is wrong and must be rewritten.
+    assert l0["false_negative_rate"] == 0.0, (
+        "L0 no longer has a structurally perfect false-negative rate; the "
+        "published argument that criterion 3 is unsatisfiable no longer holds"
     )
-    # §6 criterion 3: the winner must beat L0 on the headline metric.
-    l0 = next(rung for name, rung in by_name.items() if name.startswith("L0"))
     assert best["false_negative_rate"] >= l0["false_negative_rate"]
+
+    results = eval_preflight.DOCUMENT.read_text(encoding="utf-8")
+    assert "cannot be decided as written" in results
+    assert "not shipped" in results.lower()
+
+
+def test_the_winning_rung_beats_the_baseline_criterion_three_meant() -> None:
+    """Criterion 3's intent, stated separately from its broken letter.
+
+    Published as a comparison rather than a pass mark, because reading the intent
+    back into the criterion is the goalpost move §6 exists to stop.
+    """
+    rungs = eval_preflight.load_rungs()
+    assert rungs is not None
+    by_name = {rung["rung"]: rung for rung in rungs["rungs"]}
+    l0 = next(rung for name, rung in by_name.items() if name.startswith("L0 "))
+    best = min(
+        (
+            rung
+            for name, rung in by_name.items()
+            if not name.startswith("L0") and rung["abstention_rate"] <= 0.5
+        ),
+        key=lambda rung: rung["false_negative_rate"],
+    )
+
+    # Useful means: far fewer false alarms than blocking everything, and a
+    # decisive improvement over the same model without the deterministic checks.
+    assert best["false_positives"] < l0["false_positives"]
+    plain = min(
+        (rung for name, rung in by_name.items() if name in {"L1 logistic regression"}),
+        key=lambda rung: rung["false_negative_rate"],
+    )
+    assert best["false_negative_rate"] < plain["false_negative_rate"] / 10
 
 
 def test_the_ladder_was_split_by_model_not_by_row() -> None:

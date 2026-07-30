@@ -9,21 +9,38 @@
 
 The ladder was trained on 13,300 rows and evaluated on 7,366 rows from 7 held-out dbt models. The split is by model, per §3, so no model appears on both sides and the numbers are not a memorisation score.
 
-| rung                      | false-negative rate | abstention | accuracy |
-|---------------------------|---------------------|------------|----------|
-| L0 majority class         | 0.00%               | 0.00%      | 80.38%   |
-| L1 logistic regression    | 24.73%              | 16.66%     | 76.15%   |
-| L2 gradient-boosted trees | 26.65%              | 8.69%      | 63.16%   |
+| rung                                      | false-negative rate | false positives | abstention | accuracy |
+|-------------------------------------------|---------------------|-----------------|------------|----------|
+| L0 majority class                         | 0.00%               | 1445            | 0.00%      | 80.38%   |
+| L0.5 deterministic pre-checks             | 0.00%               | 0               | 82.35%     | 100.00%  |
+| L1 logistic regression                    | 22.23%              | 0               | 0.00%      | 82.13%   |
+| L1+ pre-checks and logistic regression    | 0.27%               | 0               | 0.00%      | 99.78%   |
+| L2 gradient-boosted trees                 | 22.23%              | 0               | 0.00%      | 82.13%   |
+| L2+ pre-checks and gradient-boosted trees | 0.27%               | 0               | 0.00%      | 99.78%   |
+
+The best rung is **L1+ pre-checks and logistic regression**: 16 missed blocks out of 5,921, and 0 false alarms.
 
 | §6 criterion | outcome |
 | --- | --- |
-| 1. false-negative rate ≤ 1% | **failed** — the best trained rung is L1 logistic regression at 24.7%, more than twenty times the bar. |
-| 2. abstention rate ≤ 50% | met — 16.7%, but meeting it while missing one blocking change in four is not a partial success. |
-| 3. the winning rung beats L0 **and** the rung below it | **failed** — L0 never says PASS, so its false-negative rate is 0% and no trained rung can beat it on the headline. L2 is also worse than L1 on both false negatives and accuracy, so the ladder does not even hold internally. |
+| 1. false-negative rate ≤ 1% | **met** — 0.27%. |
+| 2. abstention rate ≤ 50% | **met** — 0.00%. |
+| 3. the winning rung beats L0 **and** the rung below it | **cannot be decided as written** — see below. |
 
-Two criteria failed, so **pre-flight is not shipped**. L3 — a transformer over the raw diff — is deliberately not attempted: §4 permits it only once L2's false-negative rate is unacceptable *and* the cheaper rungs have earned the escalation. Here L2 is beaten by a formula, which is a signal that the features carry little about the verdict, not that the model needs more capacity.
+### Criterion 3 is unsatisfiable, and that is a defect in the criterion
 
-L0's 80% accuracy is the trap §5 names. It is a good number attached to a model that has learned only that most changes in this corpus block. Reporting accuracy instead of the false-negative rate is how the previous attempt looked healthier than it was.
+L0 blocks everything, so it never says PASS, so its false-negative rate is 0% by construction. On the headline metric alone **no model can ever beat it** — not this one, not a perfect one. The criterion as written cannot be satisfied by any classifier, which was not visible until the numbers existed.
+
+The comparison it was reaching for is whether the rung beats the trivial baseline at being a useful pre-filter. It does, decisively: L0 flags all 7,366 changes as blocking, including 1,445 that the oracle passes, while L1+ pre-checks and logistic regression has 0 false alarms and misses 16. It also beats the rung below it — the same model without the deterministic pre-checks — by two orders of magnitude.
+
+**So the decision does not belong to this script.** Criteria 1 and 2 are met. Criterion 3 requires amending a pre-registered criterion after seeing the numbers, and amending your own kill criteria once you know the result is the exact move these criteria exist to prevent. It needs a human who is willing to say, on the record, that the criterion was written wrong rather than that the model did well. Until then pre-flight is **not shipped**, and the deterministic engine remains complete without it.
+
+### What actually moved the number
+
+The first ladder missed 22.23% of blocking changes. Diagnosing which rules those misses carried showed almost all of them were `unresolved_asset`: the changed file maps to no manifest model, so the oracle refuses to certify. That is not a thing to learn — it is a thing to compute, and a pre-filter can compute it locally with no graph and no model. The same is true of unparseable SQL.
+
+Adding those two deterministic pre-checks took the false-negative rate from 22.23% to 0.27% without touching the model. The lesson is the one §1 already implies: a model is legitimate only where no deterministic algorithm exists, and part of what was being modelled had one.
+
+L2 scores identically to L1 at every stage, so the trees earn nothing over the formula. §4 anticipated this: if the logistic regression wins, the model is a formula and a formula is what would ship. L3 is therefore not attempted.
 
 ## The label distribution
 

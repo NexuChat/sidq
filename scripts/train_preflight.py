@@ -41,6 +41,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 CORPUS = ROOT / "data" / "benchmark" / "labelled.jsonl"
+MUTATIONS = ROOT / "data" / "benchmark" / "mutations.jsonl"
+FIXTURES = ROOT / "tests" / "fixtures" / "graph"
 RESULTS = ROOT / "data" / "benchmark" / "preflight-rungs.json"
 SEED = 0
 # §5: the operating point is chosen by driving false negatives toward zero and
@@ -50,22 +52,104 @@ CONFIDENCE_FLOOR = 0.90
 
 
 def load_rows() -> list[dict]:
+    """Join each label to its diff. Both are §3 inputs; the family is not.
+
+    `family` and `intent` are generator metadata that would not exist for a real
+    change, so they are dropped here rather than merely left unused — a feature
+    cannot accidentally reach what the record does not carry.
+    """
+    diffs: dict[str, str] = {}
+    sql: dict[str, str] = {}
+    with MUTATIONS.open(encoding="utf-8") as handle:
+        for line in handle:
+            if not line.strip():
+                continue
+            record = json.loads(line)
+            diffs[str(record["id"])] = str(record.get("diff") or "")
+            sql[str(record["id"])] = str(record.get("mutated_sql") or "")
+    rows = []
     with CORPUS.open(encoding="utf-8") as handle:
-        return [json.loads(line) for line in handle if line.strip()]
+        for line in handle:
+            if not line.strip():
+                continue
+            record = json.loads(line)
+            rows.append(
+                {
+                    "id": record["id"],
+                    "verdict": record["verdict"],
+                    "context": record["context"],
+                    "diff": diffs.get(str(record["id"]), ""),
+                    "sql": sql.get(str(record["id"]), ""),
+                }
+            )
+    return rows
 
 
-def features(context: dict) -> dict[str, float]:
-    """Build the §3 input vector from the change context alone.
+class SchemaCache:
+    """The touched asset's cached schema — a §3 input a local pre-filter has.
 
-    This function is given the context and never the record, so a verdict-derived
-    feature is not merely forbidden — it is unreachable.
+    Reads the committed graph replay snapshot, which is exactly what "cached"
+    means here: no network call, no oracle, no evidence.
+    """
+
+    def __init__(self) -> None:
+        from sidq.graph.fixtures import ReplayGraphClient
+
+        self._client = ReplayGraphClient(FIXTURES)
+        self._cache: dict[str, frozenset[str]] = {}
+
+    def fields(self, urn: str) -> frozenset[str]:
+        if urn not in self._cache:
+            try:
+                dataset = self._client.get_dataset(urn)
+            except Exception:
+                dataset = None
+            self._cache[urn] = (
+                frozenset(field.path for field in dataset.fields) if dataset else frozenset()
+            )
+        return self._cache[urn]
+
+
+def features(context: dict, diff: str, schema: SchemaCache) -> dict[str, float]:
+    """Build the §3 input vector: change context, the diff, the cached schema.
+
+    Given only those three, never the record, so a verdict-derived feature is not
+    merely forbidden — it is unreachable. The first version of this builder used
+    counts alone and missed one blocking change in four. The features that matter
+    are the ones a rule actually keys on: `unknown_field` fires when a referenced
+    column is absent from the cached schema, which is computable here without any
+    network call at all.
     """
     added = context.get("added_fields") or []
     removed = context.get("removed_fields") or []
-    referenced = context.get("referenced_fields") or []
-    files = context.get("changed_files") or []
+    referenced = [str(item) for item in (context.get("referenced_fields") or [])]
+    files = [str(item) for item in (context.get("changed_files") or [])]
     urns = context.get("touched_urns") or []
+
+    # The `unknown_field` signal: a referenced column the cached schema does not have.
+    unknown = 0
+    resolvable = 0
+    for reference in referenced:
+        urn, _, field = reference.rpartition("#")
+        if not urn or not field:
+            continue
+        known = schema.fields(urn)
+        if not known:
+            continue
+        resolvable += 1
+        if field not in known:
+            unknown += 1
+
+    touched_fields: frozenset[str] = frozenset()
+    for urn in urns:
+        touched_fields |= schema.fields(str(urn))
+
+    lines = diff.splitlines()
+    added_lines = sum(1 for line in lines if line.startswith("+") and line[1:2] != "+")
+    removed_lines = sum(1 for line in lines if line.startswith("-") and line[1:2] != "-")
+    upper = diff.upper()
     text = " ".join(str(name).lower() for name in [*added, *removed, *referenced])
+
     return {
         "added": float(len(added)),
         "removed": float(len(removed)),
@@ -75,12 +159,34 @@ def features(context: dict) -> dict[str, float]:
         "unresolved": 0.0 if urns else 1.0,
         "downstream": float(context.get("downstream_count") or 0),
         "has_downstream": 1.0 if (context.get("downstream_count") or 0) else 0.0,
+        # Schema-derived: the strongest available predictor of `unknown_field`.
+        "unknown_referenced": float(unknown),
+        "has_unknown_referenced": 1.0 if unknown else 0.0,
+        "unknown_share": unknown / resolvable if resolvable else 0.0,
+        "schema_known": float(len(touched_fields)),
+        "schema_missing": 1.0 if urns and not touched_fields else 0.0,
+        "added_not_in_schema": float(
+            sum(1 for name in added if str(name) not in touched_fields)
+        ),
+        "removed_in_schema": float(
+            sum(1 for name in removed if str(name) in touched_fields)
+        ),
+        # Diff-derived: shape of the edit, which separates formatting from surgery.
+        "diff_added_lines": float(added_lines),
+        "diff_removed_lines": float(removed_lines),
+        "diff_churn": float(added_lines + removed_lines),
+        "diff_balanced": 1.0 if added_lines == removed_lines else 0.0,
+        "diff_has_cast": 1.0 if "CAST(" in upper else 0.0,
+        "diff_has_star": 1.0 if "SELECT *" in upper else 0.0,
+        "diff_has_join": 1.0 if "JOIN" in upper else 0.0,
+        "diff_has_group_by": 1.0 if "GROUP BY" in upper else 0.0,
+        "diff_has_where": 1.0 if "WHERE" in upper else 0.0,
         "mentions_email": 1.0 if "email" in text else 0.0,
         "mentions_id": 1.0 if "_id" in text else 0.0,
-        "is_staging": 1.0 if any("staging/" in str(f) for f in files) else 0.0,
-        "is_mart": 1.0 if any("marts/" in str(f) for f in files) else 0.0,
+        "is_staging": 1.0 if any("staging/" in name for name in files) else 0.0,
+        "is_mart": 1.0 if any("marts/" in name for name in files) else 0.0,
         "is_intermediate": (
-            1.0 if any("intermediate/" in str(f) for f in files) else 0.0
+            1.0 if any("intermediate/" in name for name in files) else 0.0
         ),
     }
 
@@ -102,6 +208,32 @@ def split_by_model(rows: list[dict]) -> tuple[list[dict], list[dict], list[str]]
         if str((row["context"].get("changed_files") or ["?"])[0]) in holdout
     ]
     return train, test, sorted(holdout)
+
+
+def certain_block(row: dict) -> bool:
+    """Decide locally what the oracle decides deterministically.
+
+    Two of the engine's refusals need no graph and no model at all. If the changed
+    file maps to no manifest asset, or its SQL does not parse, the oracle returns
+    BLOCK(UNVERIFIABLE_CHANGE) every time. Asking a classifier to *learn* that is a
+    category error, and it is what produced the first ladder's false negatives:
+    those cases lived only in held-out models, so the feature was never trained,
+    and the model guessed PASS on a refusal that was never in doubt.
+
+    A pre-filter should apply what is decidable and model only the remainder.
+    """
+    if not (row["context"].get("touched_urns") or []):
+        return True
+    text = row.get("sql") or ""
+    if not text.strip():
+        return False
+    try:
+        import sqlglot
+
+        sqlglot.parse_one(text)
+    except Exception:
+        return True
+    return False
 
 
 def _score(name: str, truth: list[int], predicted: list[int | None]) -> dict:
@@ -136,12 +268,16 @@ def run() -> dict:
     from sklearn.preprocessing import StandardScaler
 
     rows = load_rows()
+    schema = SchemaCache()
     train, test, holdout = split_by_model(rows)
-    keys = sorted(features(rows[0]["context"]))
+    keys = sorted(features(rows[0]["context"], rows[0]["diff"], schema))
 
     def matrix(subset: list[dict]) -> tuple:
         x = numpy.array(
-            [[features(row["context"])[key] for key in keys] for row in subset],
+            [
+                [features(row["context"], row["diff"], schema)[key] for key in keys]
+                for row in subset
+            ],
             dtype=float,
         )
         y = numpy.array(
@@ -165,24 +301,51 @@ def run() -> dict:
             for p in probabilities
         ]
 
+    certain = [certain_block(row) for row in test]
+
+    def with_precheck(predictions: list[int | None]) -> list[int | None]:
+        """Deterministic refusals override the model; it is never asked about them."""
+        return [
+            1 if sure else prediction
+            for sure, prediction in zip(certain, predictions, strict=True)
+        ]
+
+    # L0.5 — the deterministic pre-checks alone, abstaining everywhere else. It is
+    # published because it establishes how much of the ladder needs a model at all.
+    rungs.append(
+        _score(
+            "L0.5 deterministic pre-checks",
+            truth,
+            [1 if sure else None for sure in certain],
+        )
+    )
+
     scaler = StandardScaler().fit(train_x)
     l1 = LogisticRegression(max_iter=2000, random_state=SEED).fit(
         scaler.transform(train_x), train_y
     )
+    l1_probabilities = l1.predict_proba(scaler.transform(test_x))[:, 1]
+    rungs.append(
+        _score("L1 logistic regression", truth, with_floor(l1_probabilities))
+    )
     rungs.append(
         _score(
-            "L1 logistic regression",
+            "L1+ pre-checks and logistic regression",
             truth,
-            with_floor(l1.predict_proba(scaler.transform(test_x))[:, 1]),
+            with_precheck(with_floor(l1_probabilities)),
         )
     )
 
     l2 = HistGradientBoostingClassifier(random_state=SEED).fit(train_x, train_y)
+    l2_probabilities = l2.predict_proba(test_x)[:, 1]
+    rungs.append(
+        _score("L2 gradient-boosted trees", truth, with_floor(l2_probabilities))
+    )
     rungs.append(
         _score(
-            "L2 gradient-boosted trees",
+            "L2+ pre-checks and gradient-boosted trees",
             truth,
-            with_floor(l2.predict_proba(test_x)[:, 1]),
+            with_precheck(with_floor(l2_probabilities)),
         )
     )
 
