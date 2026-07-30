@@ -6,11 +6,12 @@ Sidq is a DataHub-native verification layer for data-code changes and agents. It
 asks whether catalog context is truthful before an agent relies on it.
 
 Sidq separates evidence collection from judgment. It compares catalog schema with a
-live PostgreSQL source, checks catalog lineage and descriptions where the required
-source material exists, resolves changed SQL to DataHub assets, follows downstream
-impact, and checks governance evidence such as PII, ownership, and deprecation.
-Its policy engine emits exactly `PASS`, `WARN`, or `BLOCK`. A graph failure is
-fail-closed. A deterministic finding is the only kind that can block.
+live PostgreSQL source, reconciles the constraints the catalog claims against the
+constraints that source actually enforces, checks catalog lineage and descriptions
+where the required source material exists, resolves changed SQL to DataHub assets,
+follows downstream impact, and checks governance evidence such as PII, ownership,
+and deprecation. Its policy engine emits exactly `PASS`, `WARN`, or `BLOCK`. A graph
+failure is fail-closed. A deterministic finding is the only kind that can block.
 
 The clearest example is `STALE_CONTEXT`: the live demo renames `raw.customers.email`
 to `email_address` without re-ingesting DataHub. Sidq sees the graph and source

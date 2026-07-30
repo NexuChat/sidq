@@ -120,10 +120,19 @@ Sidq runs the truth checks available for the asset:
 
 - `schema_drift`: catalog schema versus the live PostgreSQL source.
 - `lineage_rot`: stored column lineage versus the local model SQL.
+- `constraint_reconciliation`: catalog constraint claims versus the constraints the
+  live source actually enforces. The catalog projection is narrow by construction —
+  only `nullable=false` becomes a claim, because that is the one enforcement
+  assertion the graph seam carries, so keys and check constraints are never
+  reconciled in either direction. A claim the source does not enforce is a finding
+  (`constraint_contradicts_catalog`). A constraint the source enforces but the
+  catalog never claimed is **not** a finding: the catalog is silent, not lying, and
+  counting it would mark every ordinary table untruthful.
 
-`truthful` is `true` only when both checks complete without findings. A missing
-live source, model SQL, or column-level lineage is named in `unverifiable`;
-Sidq does not turn an unperformed check into a clean bill of health.
+`truthful` is `true` only when every check that ran completed without findings. A
+missing live source, model SQL, column-level lineage, or constraint introspection
+is named in `unverifiable`; Sidq does not turn an unperformed check into a clean
+bill of health.
 
 Example request:
 

@@ -127,7 +127,9 @@ Before relying on catalog schema, lineage, or metadata for an asset, call `verif
 
 `truthful: true` means every truth check that Sidq required for that asset completed without findings. If `truthful` is false, inspect `findings` and say plainly what disagrees. For example, `lineage_rot_missing` means the catalog claims a column edge that the available model SQL does not reproduce; do not silently use the catalog lineage as if it were current.
 
-If a live source, model SQL, or column-level lineage is missing, report the named item in `unverifiable`. Sidq currently checks `schema_drift` (catalog schema versus live PostgreSQL) and `lineage_rot` (stored column lineage versus local model SQL). `lineage_rot` cannot be adjudicated without model SQL. The assertion-dependency gate has no MCP path in the open-source server. Do not claim either check passed when it was not run.
+If a live source, model SQL, column-level lineage, or constraint introspection is missing, report the named item in `unverifiable`. Sidq currently checks `schema_drift` (catalog schema versus live PostgreSQL), `lineage_rot` (stored column lineage versus local model SQL), and `constraint_reconciliation` (catalog constraint claims versus the constraints the source enforces). `lineage_rot` cannot be adjudicated without model SQL. The assertion-dependency gate has no MCP path in the open-source server. Do not claim any check passed when it was not run.
+
+Read `constraint_contradicts_catalog` precisely: the catalog claimed a constraint the live source does not enforce, so a query that relies on that guarantee may be wrong. The reverse — the source enforcing something the catalog never mentioned — is deliberately not reported as a truth finding, because the catalog is silent rather than untruthful, and the schema aspect cannot express keys or check constraints at all. Do not present catalog silence to a user as a catalog lie.
 
 Example response to explain:
 

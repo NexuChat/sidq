@@ -15,8 +15,11 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
+from typing import get_args
 
 import pytest
+
+from sidq.mcp_server.server import UnverifiableResult
 
 ROOT = Path(__file__).parents[1]
 README = ROOT / "README.md"
@@ -90,3 +93,50 @@ def test_every_audit_check_reports_a_finding_count(check: str) -> None:
 
     assert "findings" in entry
     assert entry["datasets_examined"] > 0
+
+
+# ---------------------------------------------------------------------------
+# The documented tool contract must not fall behind the shipped tool.
+# ---------------------------------------------------------------------------
+
+CHECK_NAMES = frozenset(get_args(UnverifiableResult.model_fields["check"].annotation))
+CONTRACT_DOCS = (
+    "docs/MCP-SERVER.md",
+    "skills/datahub-verify/SKILL.md",
+)
+
+
+def test_the_check_names_are_the_ones_the_tool_can_actually_report() -> None:
+    """Pin the set so the guard below cannot be weakened by accident."""
+    assert CHECK_NAMES == {
+        "schema_drift",
+        "lineage_rot",
+        "constraint_reconciliation",
+    }
+
+
+@pytest.mark.parametrize("document", CONTRACT_DOCS)
+def test_every_documented_contract_names_every_check(document: str) -> None:
+    """A contract that omits a check teaches an agent an incomplete tool.
+
+    `constraint_reconciliation` shipped in `verify_context` while these documents
+    still described two checks, and `docs/MCP-SERVER.md` stated outright that
+    `truthful` depends on "both checks". `skills/datahub-verify/SKILL.md` is worse
+    than an internal doc being wrong: it is the upstream contribution, so it would
+    have taught every agent that installs it a tool narrower than the one it calls.
+    """
+    text = (ROOT / document).read_text(encoding="utf-8")
+    missing = sorted(name for name in CHECK_NAMES if name not in text)
+
+    assert not missing, f"{document} does not document: {', '.join(missing)}"
+
+
+@pytest.mark.parametrize("document", ("README.md", "docs/DEVPOST.md"))
+def test_the_judge_facing_summaries_mention_reconciliation(document: str) -> None:
+    """The judge-facing copy must describe what the engine actually does."""
+    text = (ROOT / document).read_text(encoding="utf-8").lower()
+
+    assert "reconcil" in text, (
+        f"{document} does not mention constraint reconciliation, which ships in "
+        "verify_context and is the strongest form of the catalog-truth thesis"
+    )
