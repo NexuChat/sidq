@@ -376,9 +376,16 @@ def run() -> dict:
         )
     )
 
+    # The row counts overstate the evidence: the generator repeats diffs across a
+    # small set of models. Both numbers are published so a reader can see which
+    # one a rate is really over.
+    distinct_train = len({row["diff"] for row in train})
+    distinct_test = len({row["diff"] for row in test})
     return {
         "seed": SEED,
         "pass_confidence": PASS_CONFIDENCE,
+        "distinct_train_diffs": distinct_train,
+        "distinct_test_diffs": distinct_test,
         "features": keys,
         "train_rows": len(train),
         "test_rows": len(test),

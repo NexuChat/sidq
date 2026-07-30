@@ -13,7 +13,13 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
-from sidq.agent import CatalogAuditor, render
+from sidq.agent import (
+    CatalogAuditor,
+    receipts_for,
+    render,
+    render_writeback,
+    write_receipts,
+)
 from sidq.agent.auditor import DEFAULT_BUDGET
 from sidq.gates.base import Gate
 from sidq.gates.blast import BlastRadiusGate
@@ -33,6 +39,7 @@ from sidq.graph.client import (
 from sidq.graph.live_source import LiveSourceClient
 from sidq.models import Evidence, Verdict
 from sidq.policy.engine import PolicyEngine, load_policy
+from sidq.receipt.write import StdioMCPReceiptToolCaller
 from sidq.resolver import Resolver
 from sidq.serialization import canonical_json
 
@@ -285,7 +292,8 @@ def _parser() -> argparse.ArgumentParser:
     explain_parser = commands.add_parser("explain")
     explain_parser.add_argument("rule_id")
     audit_parser = commands.add_parser(
-        "audit", help="audit a whole catalog for claims that contradict each other"
+        "audit",
+        help="audit a whole catalog for claims that contradict other claims",
     )
     audit_parser.add_argument(
         "--server", default="http://localhost:8080", help="DataHub GMS URL"
@@ -294,7 +302,12 @@ def _parser() -> argparse.ArgumentParser:
         "--budget",
         type=int,
         default=DEFAULT_BUDGET,
-        help="how many assets to examine, worst consequence first",
+        help="how many assets to examine, most consequential first",
+    )
+    audit_parser.add_argument(
+        "--write-receipts",
+        action="store_true",
+        help="write a receipt back for every asset examined (off by default)",
     )
     audit_parser.add_argument("--json", action="store_true", dest="as_json")
     return parser
@@ -303,9 +316,9 @@ def _parser() -> argparse.ArgumentParser:
 def _audit(arguments: Any) -> int:
     """Point the auditor at a catalog and report what it found.
 
-    Exit code is 1 when the catalog contradicts itself, so this is usable in CI
-    as well as by a person. It is never 2: an audit reports, it does not refuse a
-    change, and conflating the two would misrepresent what was run.
+    Exit code is 1 when the catalog contradicts itself and 2 only when the catalog
+    could not be read at all. An audit reports; it does not refuse a change, so
+    reusing `check`'s BLOCK code for a finding would misrepresent what was run.
     """
     try:
         from datahub.ingestion.graph.client import DataHubGraph
@@ -324,10 +337,27 @@ def _audit(arguments: Any) -> int:
         return 2
 
     result = CatalogAuditor(snapshot, budget=arguments.budget).run()
+    lines = list(render(result, catalog=arguments.server))
+
+    if arguments.write_receipts:
+        # Opt-in, because this mutates a catalog the operator may not own. The
+        # receipt carries the policy's verdict, not the agent's opinion, and only
+        # for assets the agent actually examined.
+        caller = StdioMCPReceiptToolCaller()
+        try:
+            outcomes = write_receipts(
+                receipts_for(result, commit_sha=commit_sha_for_ref("HEAD")), caller
+            )
+        finally:
+            close = getattr(caller, "close", None)
+            if callable(close):
+                close()
+        lines.extend(("", *render_writeback(outcomes)))
+
     if arguments.as_json:
         sys.stdout.buffer.write(canonical_json(result.summary()) + b"\n")
     else:
-        print("\n".join(render(result, catalog=arguments.server)))
+        print("\n".join(lines))
     return 1 if result.findings else 0
 
 
