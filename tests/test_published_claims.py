@@ -14,6 +14,8 @@ from __future__ import annotations
 
 import json
 import re
+import subprocess
+import sys
 from pathlib import Path
 from typing import get_args
 
@@ -408,3 +410,117 @@ def test_the_submission_checklist_names_one_category_and_says_why() -> None:
     assert "Select **Agents That Do Real Work**" in text
     assert "The tripwire fired." in text
     assert "Sidq does not generate." in text
+
+
+# ---------------------------------------------------------------------------
+# Commands we tell people to run must exist. Checking the landing page's numbers
+# while never checking its instructions is how `make gate-demo` reached a judge-
+# facing surface without ever being a target.
+# ---------------------------------------------------------------------------
+
+JUDGE_FACING = ("README.md", "web/index.html", "docs/SETUP.md", "docs/DEVPOST.md")
+
+
+def _make_targets() -> set[str]:
+    text = (ROOT / "Makefile").read_text(encoding="utf-8")
+    return set(re.findall(r"^([a-zA-Z][\w-]*):", text, flags=re.MULTILINE))
+
+
+@pytest.mark.parametrize("document", JUDGE_FACING)
+def test_every_make_command_we_publish_exists(document: str) -> None:
+    """A published instruction that fails is worse than no instruction."""
+    text = (ROOT / document).read_text(encoding="utf-8")
+    referenced = set(re.findall(r"\bmake ([a-z][\w-]*)", text))
+    missing = sorted(referenced - _make_targets())
+
+    assert not missing, f"{document} tells a reader to run: {', '.join(missing)}"
+
+
+def test_the_landing_page_command_is_the_one_that_reproduces_the_verdict() -> None:
+    """The page promises 'the same deterministic verdict'; the target must deliver it."""
+    makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
+
+    assert "gate-demo:" in makefile
+    body = makefile.split("gate-demo:", 1)[1].split("\ndemo-up:", 1)[0]
+    assert "regenerate_example_01.py --check" in body, (
+        "gate-demo must verify the published verdict is current, not just print it"
+    )
+
+
+def test_the_prior_work_disclosure_matches_what_is_shipped() -> None:
+    """The rules require disclosing pre-existing work, and we ship mined corpora.
+
+    `docs/DEVPOST.md` previously said no pre-existing code was incorporated while
+    `data/claims/` shipped material derived from SchemaStore, FHIR and dozens of
+    dbt repositories. Sidq's own source is original; the data is not, and a
+    submission field that says otherwise is a rules problem, not a wording one.
+    """
+    text = (ROOT / "docs" / "DEVPOST.md").read_text(encoding="utf-8")
+
+    assert "Third-party material is included" in text
+    for source in ("SchemaStore", "FHIR", "showcase-ecommerce"):
+        assert source in text, f"the disclosure must name {source}"
+    assert "ATTRIBUTION.md" in text
+
+
+def test_the_test_count_in_the_judge_runbook_is_the_real_one() -> None:
+    """The runbook tells a judge how many tests `make check` runs; it must be true.
+
+    A stale number is a small lie in the first table a judge reads, on the one
+    page whose whole argument is that published claims are checked. Collected
+    rather than run, so this stays fast and cannot recurse into itself.
+    """
+    text = (ROOT / "README.md").read_text(encoding="utf-8")
+    match = re.search(r"(\d[\d,]*) tests, lint, format, types", text)
+    assert match, "the judge runbook no longer states a test count"
+
+    completed = subprocess.run(
+        [sys.executable, "-m", "pytest", "--collect-only", "-q"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    collected = re.search(r"(\d+) tests? collected", completed.stdout)
+    assert collected, completed.stdout[-400:]
+
+    published = int(match.group(1).replace(",", ""))
+    actual = int(collected.group(1))
+    assert published == actual, (
+        f"README says {published} tests; pytest collects {actual}. "
+        "Update the runbook table."
+    )
+
+
+def test_the_landing_page_can_only_run_read_only_commands() -> None:
+    """The page runs commands on the host, so what it *can* run is a guarded set.
+
+    The safety of that endpoint is not the absence of a bug — it is that the table
+    contains nothing which writes. This asserts the property directly, so adding a
+    mutating entry breaks the build instead of quietly shipping a public write.
+    """
+    from web.server import RUNNABLE
+
+    forbidden = ("--apply", "--write-receipts", "repair", "regen", "reset")
+    offenders = sorted(
+        f"{name}: {' '.join(argv)}"
+        for name, (_, argv) in RUNNABLE.items()
+        if any(token in argument for argument in argv for token in forbidden)
+        # `regen-check` verifies, `regen` rewrites; only the second is a write.
+        and "--check" not in argv
+    )
+
+    assert not offenders, f"the landing page could run a mutating command: {offenders}"
+
+
+def test_the_landing_page_run_buttons_name_commands_that_exist() -> None:
+    """A button wired to a name outside the table is a 404 in a judge's face."""
+    from web.server import RUNNABLE
+
+    html = (ROOT / "web" / "index.html").read_text(encoding="utf-8")
+    wired = set(re.findall(r'data-run="([\w-]+)"', html))
+
+    assert wired, "the landing page no longer offers a runnable command"
+    assert wired <= set(RUNNABLE), (
+        f"unknown run targets: {sorted(wired - set(RUNNABLE))}"
+    )

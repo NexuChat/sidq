@@ -30,6 +30,18 @@ its own verdict. A fourth step asks about an asset the audit never reached and g
 bounded run records what it could not afford to read instead of passing it over in
 silence. Assets in that state get no receipt at all.
 
+A second agent, `sidq repair`, decides what to do about each finding — and reports
+what it cannot fix. Proposals come from catalog evidence only, and nothing is
+offered for writing until the deterministic engine has re-run against the catalog
+that repair would create: it must resolve the finding, introduce no new one, and
+the surviving set must still hold when applied together. On the live showcase
+catalog that gate refused the obvious PII fix, because tagging the one column the
+finding named resolved it and immediately created a new untagged consumer
+downstream. The proposal it offers instead covers the whole field-lineage closure —
+7 columns across dbt, Snowflake and Looker — in one MCP call, and that one it
+proves. Four of the six checks produce no proposal at all, each with its reason
+recorded, because an agent with an answer for all six would be inventing four.
+
 Sidq also writes a receipt back to DataHub through the official MCP mutation tools.
 The receipt has queryable `sidq.*` properties, a visible `sidq:verified` or
 `sidq:blocked` tag, and a human-readable evidence document. A separate reader can
@@ -131,7 +143,11 @@ decision explicit and reproducible.
 
 ## Try it
 
-Project link: https://sidq.mlki.app
+Project link: https://sidq.mlki.app — the page is executable, not a screenshot.
+Its **Run it here** buttons run the offline verdict reproduction and the live MCP
+catalog audit on the host and print the real output. The runnable set is a closed
+table of fixed argument lists with no request input, and it contains no command
+that can write to a catalog.
 
 Live DataHub: https://datahub.mlki.app
 
