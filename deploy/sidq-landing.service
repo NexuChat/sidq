@@ -8,11 +8,11 @@ StartLimitIntervalSec=0
 Type=simple
 User=dev
 Group=dev
-WorkingDirectory=/home/dev/sidq
+WorkingDirectory=/home/dev/sidq-public
 Environment=SIDQ_LANDING_PORT=8766
 Environment=DATAHUB_GMS_URL=http://localhost:8080
 Environment=DATAHUB_TELEMETRY_ENABLED=false
-ExecStart=/home/dev/sidq/.venv/bin/python /home/dev/sidq/web/server.py
+ExecStart=/home/dev/sidq-public/.venv/bin/python /home/dev/sidq-public/web/server.py
 Restart=always
 RestartSec=3s
 NoNewPrivileges=true

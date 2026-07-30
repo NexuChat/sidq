@@ -398,7 +398,12 @@ def test_the_published_comment_order_is_a_deliberate_reorder_not_production_orde
 
 
 def test_the_published_comment_heading_matches_every_sealed_branch() -> None:
-    """The four sealed PR branches are judge-facing; main must not drift from them."""
+    """The four sealed demo branches are judge-facing; main must not drift from them.
+
+    Skips rather than passes when the clone has no local demo branches — CI and a
+    judge's fresh checkout fetch only main, and asserting against branches that
+    were never fetched would either fail spuriously or, worse, pass vacuously.
+    """
     heading = next(
         line
         for line in (BLOCKED / "pr-comment.md").read_text(encoding="utf-8").splitlines()
@@ -406,14 +411,18 @@ def test_the_published_comment_heading_matches_every_sealed_branch() -> None:
     )
 
     completed = subprocess.run(
-        ["git", "branch", "--list", "sealed/*", "--format=%(refname:short)"],
+        ["git", "branch", "--list", "demo/*", "--format=%(refname:short)"],
         capture_output=True,
         text=True,
         check=True,
         cwd=ROOT,
     )
     branches = [name for name in completed.stdout.split() if name]
-    assert len(branches) == 4, f"expected four sealed branches, found {branches}"
+    if not branches:
+        pytest.skip(
+            "no local demo/* branches in this clone; fetch them to run this guard"
+        )
+    assert len(branches) == 4, f"expected four demo branches, found {branches}"
 
     for branch in branches:
         blob = subprocess.run(

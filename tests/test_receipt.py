@@ -184,6 +184,10 @@ def test_read_computes_schema_policy_and_age_staleness() -> None:
 
 
 def test_bootstrap_is_idempotent_with_a_graph_double() -> None:
+    # Bootstrap writes through the DataHub SDK, which is an optional integration;
+    # on a clone without it this is an unrunnable check, not a passing one.
+    pytest.importorskip("datahub")
+
     class Graph:
         def __init__(self) -> None:
             self.aspects: dict[str, object] = {}
