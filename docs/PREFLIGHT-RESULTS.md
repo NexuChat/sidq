@@ -12,27 +12,34 @@ The ladder was trained on 13,300 rows and evaluated on 7,366 rows from 7 held-ou
 | rung                                      | false-negative rate | false positives | abstention | accuracy |
 |-------------------------------------------|---------------------|-----------------|------------|----------|
 | L0 majority class                         | 0.00%               | 1445            | 0.00%      | 80.38%   |
-| L0.5 deterministic pre-checks             | 0.00%               | 0               | 82.35%     | 100.00%  |
+| L0.5 deterministic pre-checks             | 0.00%               | 0               | 82.13%     | 100.00%  |
+| L0.75 pre-checks and a two-term rule      | 0.00%               | 0               | 0.00%      | 100.00%  |
 | L1 logistic regression                    | 22.23%              | 0               | 0.00%      | 82.13%   |
-| L1+ pre-checks and logistic regression    | 0.27%               | 0               | 0.00%      | 99.78%   |
+| L1+ pre-checks and logistic regression    | 0.00%               | 0               | 0.00%      | 100.00%  |
 | L2 gradient-boosted trees                 | 22.23%              | 0               | 0.00%      | 82.13%   |
-| L2+ pre-checks and gradient-boosted trees | 0.27%               | 0               | 0.00%      | 99.78%   |
+| L2+ pre-checks and gradient-boosted trees | 0.00%               | 0               | 0.00%      | 100.00%  |
 
-The best rung is **L1+ pre-checks and logistic regression**: 16 missed blocks out of 5,921, and 0 false alarms.
+The cheapest rung that meets the bar is **L0.75 pre-checks and a two-term rule**: 0 missed blocks out of 5,921, and 0 false alarms. §4 asks for the cheapest, not the most sophisticated, so a tie resolves downward.
 
 | §6 criterion | outcome |
 | --- | --- |
-| 1. false-negative rate ≤ 1% | **met** — 0.27%. |
+| 1. false-negative rate ≤ 1% | **met** — 0.00%. |
 | 2. abstention rate ≤ 50% | **met** — 0.00%. |
-| 3. the winning rung beats L0 **and** the rung below it | **cannot be decided as written** — see below. |
+| 3. the winning rung beats L0 **and** the rung below it | **not reached** — a non-model rung ties the best model, so §1 decides this before §6 can. |
 
-### Criterion 3 is unsatisfiable, and that is a defect in the criterion
+### The result is that no model is needed
 
-L0 blocks everything, so it never says PASS, so its false-negative rate is 0% by construction. On the headline metric alone **no model can ever beat it** — not this one, not a perfect one. The criterion as written cannot be satisfied by any classifier, which was not visible until the numbers existed.
+Two rungs reach a perfect held-out score, and one of them is not a model. `L0.75` is the deterministic pre-checks plus a two-term rule: **block when a referenced column is missing from the cached schema, or when the change has any downstream consumer at all.** It reproduces the oracle on every one of the 6,050 rows the pre-checks leave undecided.
 
-The comparison it was reaching for is whether the rung beats the trivial baseline at being a useful pre-filter. It does, decisively: L0 flags all 7,366 changes as blocking, including 1,445 that the oracle passes, while L1+ pre-checks and logistic regression has 0 false alarms and misses 16. It also beats the rung below it — the same model without the deterministic pre-checks — by two orders of magnitude.
+The trained rungs match that score and do not exceed it. They were imitating the rule. This was found by asking what the classifier had learned rather than by accepting a good number, which is the only way a 100% score should ever be read.
 
-**So the decision does not belong to this script.** Criteria 1 and 2 are met. Criterion 3 requires amending a pre-registered criterion after seeing the numbers, and amending your own kill criteria once you know the result is the exact move these criteria exist to prevent. It needs a human who is willing to say, on the record, that the criterion was written wrong rather than that the model did well. Until then pre-flight is **not shipped**, and the deterministic engine remains complete without it.
+**That decides §1 rather than §6.** §1's first condition for a model being legitimate here is that no deterministic algorithm exists. On this corpus one does, and it is three lines long. A model that ties a rule is decoration, which is the exact failure §1 was written to prevent — so pre-flight ships as a rule or not at all, and the criteria in §6 never get to arbitrate.
+
+### What this result does not say
+
+The rule holds *on this corpus*, and the corpus is narrow. Its verdicts are driven almost entirely by `unknown_field` and by having any downstream at all, because these fixtures carry PII tags on one legacy model and no deprecation or ownership variation to speak of. A graph with real governance spread would not collapse to two terms, and the honest claim is bounded accordingly: **the local signal is sufficient here**, not everywhere.
+
+So the finding is not that pre-flight is easy. It is that this corpus cannot tell us whether pre-flight is hard, and a model trained on it would have shipped a rule wearing a classifier's clothes.
 
 ### What actually moved the number
 

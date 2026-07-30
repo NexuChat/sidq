@@ -313,72 +313,47 @@ def test_preflight_is_not_advertised_as_shipped_while_it_is_not() -> None:
     assert "not shipped" in results.lower()
 
 
-def test_the_published_refusal_matches_the_measured_rungs() -> None:
-    """The refusal must follow from §6 applied to the numbers, not from prose.
+def test_a_non_model_rung_still_ties_the_best_model() -> None:
+    """The published conclusion rests on this, so it is asserted, not narrated.
 
-    This assertion has been rewritten twice, both times because it fired when the
-    facts moved — first when the corpus gained label variance, then when adding
-    deterministic pre-checks took the false-negative rate under the bar. That is
-    the guard working: the published refusal has to keep matching its own reason.
+    This assertion has been rewritten three times, each time because it fired when
+    the facts moved: when the corpus gained label variance, when deterministic
+    pre-checks took the false-negative rate under the bar, and when a two-term rule
+    turned out to tie the classifiers. That is the guard doing its job — a
+    published conclusion has to keep matching its own evidence.
     """
     rungs = eval_preflight.load_rungs()
     assert rungs is not None, "run scripts/train_preflight.py"
-
     by_name = {rung["rung"]: rung for rung in rungs["rungs"]}
-    l0 = next(rung for name, rung in by_name.items() if name.startswith("L0 "))
-    candidates = [
+
+    rule = next(rung for name, rung in by_name.items() if name.startswith("L0.75"))
+    models = [
         rung
         for name, rung in by_name.items()
-        if not name.startswith("L0") and rung["abstention_rate"] <= 0.5
+        if name.startswith(("L1", "L2")) and rung["abstention_rate"] <= 0.5
     ]
-    assert candidates, "the ladder must publish a rung that answers often enough"
-    best = min(candidates, key=lambda rung: rung["false_negative_rate"])
+    assert models, "the ladder must publish trained rungs to compare against"
+    best_model = min(models, key=lambda rung: rung["false_negative_rate"])
 
-    # Criteria 1 and 2 are currently met; the refusal does not rest on them.
-    assert best["false_negative_rate"] <= 0.01
-    assert best["abstention_rate"] <= 0.5
-
-    # Criterion 3 is what blocks shipping, and it blocks structurally: L0 never
-    # says PASS, so nothing can beat its false-negative rate. If that ever stops
-    # being true the published reasoning is wrong and must be rewritten.
-    assert l0["false_negative_rate"] == 0.0, (
-        "L0 no longer has a structurally perfect false-negative rate; the "
-        "published argument that criterion 3 is unsatisfiable no longer holds"
+    assert rule["false_negative_rate"] <= best_model["false_negative_rate"], (
+        "a trained rung now beats the deterministic rule; §1's first condition may "
+        "hold after all and both documents must be rewritten before the "
+        "no-model-needed conclusion can stand"
     )
-    assert best["false_negative_rate"] >= l0["false_negative_rate"]
+    assert rule["false_positives"] <= best_model["false_positives"]
 
     results = eval_preflight.DOCUMENT.read_text(encoding="utf-8")
-    assert "cannot be decided as written" in results
-    assert "not shipped" in results.lower()
+    assert "no model is needed" in results
+    assert "cannot tell us whether pre-flight is hard" in results
 
 
-def test_the_winning_rung_beats_the_baseline_criterion_three_meant() -> None:
-    """Criterion 3's intent, stated separately from its broken letter.
+def test_the_published_deliverable_is_the_cheapest_rung_that_meets_the_bar() -> None:
+    """§4: cheapest, not most sophisticated. A tie must resolve downward."""
+    results = eval_preflight.DOCUMENT.read_text(encoding="utf-8")
 
-    Published as a comparison rather than a pass mark, because reading the intent
-    back into the criterion is the goalpost move §6 exists to stop.
-    """
-    rungs = eval_preflight.load_rungs()
-    assert rungs is not None
-    by_name = {rung["rung"]: rung for rung in rungs["rungs"]}
-    l0 = next(rung for name, rung in by_name.items() if name.startswith("L0 "))
-    best = min(
-        (
-            rung
-            for name, rung in by_name.items()
-            if not name.startswith("L0") and rung["abstention_rate"] <= 0.5
-        ),
-        key=lambda rung: rung["false_negative_rate"],
+    assert "The cheapest rung that meets the bar is **L0.75" in results, (
+        "the report must name the rule, not a classifier that merely ties it"
     )
-
-    # Useful means: far fewer false alarms than blocking everything, and a
-    # decisive improvement over the same model without the deterministic checks.
-    assert best["false_positives"] < l0["false_positives"]
-    plain = min(
-        (rung for name, rung in by_name.items() if name in {"L1 logistic regression"}),
-        key=lambda rung: rung["false_negative_rate"],
-    )
-    assert best["false_negative_rate"] < plain["false_negative_rate"] / 10
 
 
 def test_the_ladder_was_split_by_model_not_by_row() -> None:
