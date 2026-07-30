@@ -46,7 +46,6 @@ exclude = [
     "data/claims/**",
     "docs/**",
     "examples/**",
-    "research/**",
     "scripts/**",
     "tests/test_published_artifact_granularity.py",
 ]
