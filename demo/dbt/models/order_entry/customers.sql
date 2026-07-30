@@ -12,6 +12,7 @@ select
     customer_class,
     customer_id,
     customer_since,
+    'unclassified' as customer_segment,
     dob,
     mailshot,
     nls_language,
