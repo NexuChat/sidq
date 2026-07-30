@@ -174,3 +174,49 @@ def _staleness(
     if current_policy_hash is not None and current_policy_hash != recorded_policy_hash:
         return True, "policy hash changed since the last verification"
     return False, None
+
+
+def holds(status: Mapping[str, Any]) -> tuple[bool, str]:
+    """Decide whether a receipt read back from DataHub still vouches for an asset.
+
+    Three separate things can be true of a receipt, and only one of them is
+    "verified": it can be absent, it can be present but no longer applicable, or it
+    can be present and record a refusal. Collapsing those into a boolean would let
+    "we never checked" read the same as "we checked and it passed", which is the
+    exact failure this project exists to prevent — so the reason travels with the
+    answer and every caller has to render it.
+    """
+    verdict = status.get("verdict")
+    if not verdict:
+        return False, "no receipt on this asset"
+    if status.get("stale"):
+        return False, f"receipt is stale: {status.get('stale_reason') or 'unknown'}"
+    if verdict == "BLOCK":
+        return (
+            False,
+            f"receipt records a refusal ({status.get('reason_code') or verdict})",
+        )
+    return True, f"receipt records {verdict}"
+
+
+def render_verification(urn: str, status: Mapping[str, Any]) -> list[str]:
+    """Human-readable readback, showing the provenance the verdict rests on."""
+    verified, reason = holds(status)
+    lines = [
+        f"{'VERIFIED' if verified else 'NOT VERIFIED'}  {urn}",
+        f"  {reason}",
+    ]
+    for label, key in (
+        ("checked at", "checked_at"),
+        ("commit", "commit_sha"),
+        ("policy", "policy_hash"),
+        ("verifier", "verifier"),
+        ("evidence", "evidence_url"),
+    ):
+        value = status.get(key)
+        if value:
+            lines.append(f"  {label:<10}  {value}")
+    rules = status.get("rules_fired") or []
+    if rules:
+        lines.append(f"  {'rules':<10}  {', '.join(rules)}")
+    return lines

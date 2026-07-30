@@ -21,6 +21,15 @@ For a code change that removes `cust_email`, Sidq follows real column lineage th
 dbt, Snowflake, Looker, and a Looker dashboard. It sees the live `PII_Data` tag and
 returns `BLOCK`. The published example records 16 downstream consumers.
 
+The whole loop runs over the official DataHub MCP server in one command,
+`make live-loop`: the agent reads with `search`, `get_entities`,
+`list_schema_fields`, and `get_lineage`; the policy decides; the receipt is written
+with the MCP mutation tools; and a *separate process* reads it back and recomputes
+its own verdict. A fourth step asks about an asset the audit never reached and gets
+`NOT VERIFIED`, because MCP returns column lineage only per named column, so a
+bounded run records what it could not afford to read instead of passing it over in
+silence. Assets in that state get no receipt at all.
+
 Sidq also writes a receipt back to DataHub through the official MCP mutation tools.
 The receipt has queryable `sidq.*` properties, a visible `sidq:verified` or
 `sidq:blocked` tag, and a human-readable evidence document. A separate reader can
@@ -100,9 +109,23 @@ decision explicit and reproducible.
 
 ## Required disclosures
 
-- The project was created during the submission period.
+- The project was created during the submission period. Every line of Sidq's own
+  source, tests, and documentation was written inside the window; no pre-existing
+  project code was carried in.
 - AI coding assistants were used during development.
-- No pre-existing code was incorporated; the repository project code was written during the submission period.
+- **Third-party material is included, and it is data rather than code.** The
+  claim-extraction corpus under `data/claims/` is mined from permissively licensed
+  public sources — dbt repositories (MIT, Apache-2.0, BSD, Unlicense, CC0-1.0),
+  SchemaStore (Apache-2.0), FHIR R5 core (CC0-1.0), and application-code and
+  error-message corpora (MIT, Apache-2.0, BSD-3-Clause). Every released row retains
+  its source path, commit or version, and licence. The graph fixtures under
+  `tests/fixtures/graph/` are recordings of DataHub's own shipped
+  `showcase-ecommerce` sample. Full provenance is in
+  [`data/claims/ATTRIBUTION.md`](../data/claims/ATTRIBUTION.md),
+  [`data/claims/NOTICE`](../data/claims/NOTICE), and
+  [`data/claims/DATASHEET.md`](../data/claims/DATASHEET.md). Google Discovery JSON
+  was deliberately excluded because its redistribution licence could not be
+  confirmed.
 - The repository is Apache-2.0 licensed.
 - The video uses no copyrighted music. It uses silence or a permissively licensed track with attribution.
 

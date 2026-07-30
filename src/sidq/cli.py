@@ -39,6 +39,7 @@ from sidq.graph.client import (
 from sidq.graph.live_source import LiveSourceClient
 from sidq.models import Evidence, Verdict
 from sidq.policy.engine import PolicyEngine, load_policy
+from sidq.receipt.read import get_verification_status, holds, render_verification
 from sidq.receipt.write import StdioMCPReceiptToolCaller
 from sidq.resolver import Resolver
 from sidq.serialization import canonical_json
@@ -305,11 +306,23 @@ def _parser() -> argparse.ArgumentParser:
         help="how many assets to examine, most consequential first",
     )
     audit_parser.add_argument(
+        "--via-mcp",
+        action="store_true",
+        help="read the catalog through the official DataHub MCP server, not the SDK",
+    )
+    audit_parser.add_argument(
         "--write-receipts",
         action="store_true",
         help="write a receipt back for every asset examined (off by default)",
     )
     audit_parser.add_argument("--json", action="store_true", dest="as_json")
+    verify_parser = commands.add_parser(
+        "verify",
+        help="read one asset's receipt back from DataHub and judge whether it holds",
+    )
+    verify_parser.add_argument("urn", help="the dataset URN to read a receipt for")
+    verify_parser.add_argument("--policy")
+    verify_parser.add_argument("--json", action="store_true", dest="as_json")
     return parser
 
 
@@ -320,21 +333,48 @@ def _audit(arguments: Any) -> int:
     could not be read at all. An audit reports; it does not refuse a change, so
     reusing `check`'s BLOCK code for a finding would misrepresent what was run.
     """
-    try:
-        from datahub.ingestion.graph.client import DataHubGraph
-        from datahub.ingestion.graph.config import DatahubClientConfig
-    except ImportError:
-        print(
-            "sidq: catalog audit needs the DataHub client (pip install acryl-datahub)",
-            file=sys.stderr,
-        )
-        return 2
-    try:
-        graph = DataHubGraph(DatahubClientConfig(server=arguments.server))
-        snapshot = CatalogSnapshot.from_datahub(graph)
-    except Exception as error:  # noqa: BLE001 - the client raises several types
-        print(f"sidq: could not read the catalog: {error}", file=sys.stderr)
-        return 2
+    # `--via-mcp` reads through the official DataHub MCP server rather than the
+    # Python SDK. It is the difference between an agent that uses the agent
+    # surface and one that merely claims to: with it, a single run reads through
+    # official MCP, decides, and — with --write-receipts — writes back through
+    # official MCP too. Without it the SDK path is used, which sees the whole
+    # catalog rather than a bounded search page.
+    if arguments.via_mcp:
+        graph_client: Any = MCPGraphClient(StdioMCPToolCaller())
+        try:
+            # Column lineage costs one MCP call per column, so it is resolved for
+            # exactly the assets the auditor can afford to examine — the same
+            # most-consumed-first ordering — and the rest are reported unresolved.
+            snapshot = CatalogSnapshot.from_mcp(
+                graph_client, field_lineage_budget=arguments.budget
+            )
+        except Exception as error:  # noqa: BLE001 - MCP transports raise several types
+            print(
+                f"sidq: could not read the catalog over MCP: {error}", file=sys.stderr
+            )
+            return 2
+        finally:
+            close = getattr(graph_client, "close", None)
+            if callable(close):
+                close()
+    else:
+        try:
+            from datahub.ingestion.graph.client import DataHubGraph
+            from datahub.ingestion.graph.config import DatahubClientConfig
+        except ImportError:
+            print(
+                "sidq: catalog audit needs the DataHub client "
+                "(pip install acryl-datahub), or pass --via-mcp",
+                file=sys.stderr,
+            )
+            return 2
+        try:
+            snapshot = CatalogSnapshot.from_datahub(
+                DataHubGraph(DatahubClientConfig(server=arguments.server))
+            )
+        except Exception as error:  # noqa: BLE001 - the client raises several types
+            print(f"sidq: could not read the catalog: {error}", file=sys.stderr)
+            return 2
 
     result = CatalogAuditor(snapshot, budget=arguments.budget).run()
     lines = list(render(result, catalog=arguments.server))
@@ -361,10 +401,51 @@ def _audit(arguments: Any) -> int:
     return 1 if result.findings else 0
 
 
+def _verify(arguments: Any) -> int:
+    """Read a receipt back through official MCP, in whatever process runs this.
+
+    This is the last quarter of the loop, and it is a separate command on purpose.
+    A writer that reports its own success proves nothing; the receipt is only worth
+    something if an unrelated process can find it and reach the same conclusion.
+    Staleness is computed here, never read from the catalog: the catalog stores
+    what was decided, and whether that still applies is this reader's judgment.
+
+    Exit code 1 means the receipt does not currently hold — absent, stale, or a
+    recorded BLOCK. That is the answer, not a failure, so it stays distinct from
+    the 2 returned when the catalog could not be read at all.
+    """
+    caller = StdioMCPReceiptToolCaller()
+    try:
+        policy_hash = (
+            PolicyEngine(arguments.policy).decide((), commit_sha="").policy_hash
+        )
+        status = get_verification_status(
+            arguments.urn, caller, current_policy_hash=policy_hash
+        )
+    except Exception as error:  # noqa: BLE001 - MCP transports raise several types
+        print(f"sidq: could not read the receipt: {error}", file=sys.stderr)
+        return 2
+    finally:
+        close = getattr(caller, "close", None)
+        if callable(close):
+            close()
+
+    verified, _ = holds(status)
+    if arguments.as_json:
+        sys.stdout.buffer.write(
+            canonical_json({**status, "verified": verified}) + b"\n"
+        )
+    else:
+        print("\n".join(render_verification(arguments.urn, status)))
+    return 0 if verified else 1
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     arguments = _parser().parse_args(argv)
     if arguments.command == "audit":
         return _audit(arguments)
+    if arguments.command == "verify":
+        return _verify(arguments)
     if arguments.command == "explain":
         policy = load_policy()
         rule = next(

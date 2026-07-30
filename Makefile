@@ -3,7 +3,14 @@ DEMO_INGEST_IMAGE := acryldata/datahub-ingestion:v1.5.0.6
 
 VENV ?= .venv
 
-.PHONY: check regen regen-check demo-up demo-ingest demo-break demo-restore demo-down
+DATAHUB_GMS_URL ?= http://localhost:8080
+AUDIT_BUDGET ?= 5
+# The most-consumed asset in DataHub's own showcase-ecommerce sample, so the
+# budget above always reaches it and the readback below always has a receipt.
+RECEIPT_URN ?= urn:li:dataset:(urn:li:dataPlatform:snowflake,b2fd91.order_entry_db.order_entry.customers,PROD)
+UNAUDITED_URN ?= urn:li:dataset:(urn:li:dataPlatform:snowflake,b2fd91.order_entry_db.order_entry.warehouses,PROD)
+
+.PHONY: check regen regen-check gate-demo live-loop demo-up demo-ingest demo-break demo-restore demo-down
 
 check:
 	$(VENV)/bin/ruff check .
@@ -26,6 +33,49 @@ regen-check:
 	$(VENV)/bin/python scripts/measure_reconcile.py --check
 	$(VENV)/bin/python scripts/train_preflight.py --check
 	$(VENV)/bin/python scripts/eval_preflight.py --check
+
+# The command the landing page tells a judge to run. It existed only on the page
+# until 2026-07-30, which meant the one instruction on the first surface a judge
+# opens did not work. It runs the flagship change through the real engine against
+# the committed graph recording and prints the verdict, so it produces the same
+# answer on any machine with no DataHub, no network, and no credentials.
+gate-demo:
+	@$(VENV)/bin/python scripts/regenerate_example_01.py --check
+	@echo
+	@$(VENV)/bin/python -c "import json;v=json.load(open('examples/01-blocked-pii-dashboard/verdict.json'));\
+print('DECISION :', v['decision']);\
+print('RULES    :', ', '.join(f['rule_id'] for f in v['findings']));\
+print('COMMIT   :', v['commit_sha']);\
+print('POLICY   :', v['policy_hash'])"
+	@echo
+	@echo "Reproduced from examples/01-blocked-pii-dashboard/ — same policy, same commit,"
+	@echo "byte-identical verdict. Full evidence: examples/01-blocked-pii-dashboard/verdict.json"
+
+# The whole loop, on live DataHub, through the official MCP server only — the one
+# command that is category-complete rather than three surfaces implying a loop
+# none of them closes. Read with `search`/`get_entities`/`list_schema_fields`/
+# `get_lineage`, decide with the shipped policy, write with the mutation tools,
+# and then read it back from a process that shares nothing with the writer.
+#
+# Step 3 is the point. A writer that reports its own success proves nothing; the
+# receipt is only worth something because an unrelated process finds it and
+# reaches the same conclusion. Step 4 is the other half: an asset the audit never
+# reached must come back NOT VERIFIED, because "we did not check" and "we checked
+# and it passed" are the two answers this project exists to keep apart.
+live-loop:
+	@echo "== 1+2. read via official MCP, decide, write receipts via official MCP =="
+	@DATAHUB_GMS_URL=$(DATAHUB_GMS_URL) DATAHUB_TELEMETRY_ENABLED=false \
+	  $(VENV)/bin/sidq audit --via-mcp --budget $(AUDIT_BUDGET) --write-receipts 2>/dev/null; \
+	  status=$$?; [ $$status -le 1 ] || { echo "audit could not read the catalog"; exit 1; }
+	@echo
+	@echo "== 3. a separate process reads the receipt back and judges it itself =="
+	@DATAHUB_GMS_URL=$(DATAHUB_GMS_URL) DATAHUB_TELEMETRY_ENABLED=false \
+	  $(VENV)/bin/sidq verify '$(RECEIPT_URN)' 2>/dev/null
+	@echo
+	@echo "== 4. and an asset the audit never reached is NOT reported as clean =="
+	@DATAHUB_GMS_URL=$(DATAHUB_GMS_URL) DATAHUB_TELEMETRY_ENABLED=false \
+	  $(VENV)/bin/sidq verify '$(UNAUDITED_URN)' 2>/dev/null; \
+	  status=$$?; [ $$status -eq 1 ] || { echo "expected NOT VERIFIED, got exit $$status"; exit 1; }
 
 demo-up:
 	$(DEMO_COMPOSE) up -d --wait postgres

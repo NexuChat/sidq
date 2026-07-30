@@ -66,6 +66,35 @@ scoped to the sample.
 `sidq.*` receipt, so the next agent can read what this one concluded. It is off by
 default: an audit does not mutate a catalog unless you ask it to.
 
+### The whole loop, on the official MCP server, in one command
+
+`--server` above reads through the DataHub Python SDK. `--via-mcp` reads through
+`mcp-server-datahub` instead — the same server any DataHub agent would use, and
+nothing else:
+
+```bash
+make live-loop        # needs a running DataHub; see docs/SETUP.md
+```
+
+Four steps, one process boundary in the middle of them:
+
+1. **Read** through official MCP only — `search`, `get_entities`,
+   `list_schema_fields`, `get_lineage`.
+2. **Decide** with the shipped policy, and **write** the receipts back through the
+   official MCP mutation tools.
+3. **Read it back from a separate process**, which recomputes staleness and
+   reaches its own verdict. A writer that reports its own success proves nothing.
+4. **Ask about an asset the audit never reached** — and get `NOT VERIFIED`, not
+   silence. "We did not check" and "we checked and it passed" are the two answers
+   this project exists to keep apart.
+
+Step 4 is enforced in the code, not just in the demo. MCP returns column lineage
+only when asked for one named column, so field lineage costs one call per column
+and the run can only afford a subset. Every asset outside that budget is recorded
+as unresolved, reported as `NOT established` rather than `verified clean`, and
+**gets no receipt at all** — because the policy treats unverifiable evidence as
+informational, so an unexamined asset would otherwise have been stamped `PASS`.
+
 ## Four surfaces
 
 ### 1. The catalog auditor — an agent, not a script
