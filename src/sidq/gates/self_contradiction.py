@@ -10,7 +10,7 @@ from __future__ import annotations
 import re
 from collections import defaultdict, deque
 from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 from sidq.models import Evidence, TouchedAsset
@@ -117,21 +117,39 @@ class CatalogSnapshot:
 
         entities: list[CatalogEntity] = []
         table_edges: dict[str, list[LineageEdge]] = {}
+        # DataHub reports column-level PII by glossary term, and `list_schema_fields`
+        # returns the term's display name while every write tool needs its URN. The
+        # dataset-level payload carries both, so the catalog resolves its own names.
+        glossary: dict[str, str] = {}
         for urn in _mcp_urns(search, query):
             dataset = graph.get_dataset(urn)
             if dataset is None:
                 continue
+            glossary.update(dict(getattr(dataset, "glossary", ()) or ()))
             entities.append(
                 CatalogEntity(
                     urn=urn,
                     kind="dataset",
-                    fields=tuple(CatalogField(field.path) for field in dataset.fields),
+                    fields=tuple(
+                        CatalogField(
+                            field.path,
+                            getattr(field, "description", None),
+                            tuple(
+                                sorted(
+                                    set(getattr(field, "tags", ()))
+                                    | set(getattr(field, "terms", ()))
+                                )
+                            ),
+                        )
+                        for field in dataset.fields
+                    ),
                     tags=tuple(dataset.tags),
                     owners=tuple(dataset.owners),
                     deprecated=bool(dataset.deprecated),
                 )
             )
             table_edges[urn] = _mcp_table_edges(graph, urn, depth)
+        entities = [_with_resolved_markers(entity, glossary) for entity in entities]
 
         # Most-consumed first: the same ordering the auditor uses, so the assets
         # whose field lineage gets resolved are the ones it will examine.
@@ -291,6 +309,30 @@ def _mcp_urns(search: Any, query: str) -> list[str]:
         elif isinstance(item, (list, tuple)):
             stack.extend(item)
     return sorted(dict.fromkeys(found))
+
+
+def _with_resolved_markers(
+    entity: CatalogEntity, glossary: Mapping[str, str]
+) -> CatalogEntity:
+    """Replace a column marker's display name with the URN the catalog uses for it.
+
+    Detection works on either form, so this changes no finding. It exists so a
+    repair can be *written*: `add_terms` takes term URNs, and a repair agent that
+    proposed the string "PII" would produce a call the server rejects. When the
+    catalog never names the URN, the display name is kept and the repair declines
+    to write rather than guessing one.
+    """
+    if not glossary:
+        return entity
+    return replace(
+        entity,
+        fields=tuple(
+            replace(
+                item, tags=tuple(sorted({glossary.get(tag, tag) for tag in item.tags}))
+            )
+            for item in entity.fields
+        ),
+    )
 
 
 def _mcp_table_edges(graph: Any, urn: str, depth: int) -> list[LineageEdge]:

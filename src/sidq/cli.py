@@ -41,6 +41,15 @@ from sidq.models import Evidence, Verdict
 from sidq.policy.engine import PolicyEngine, load_policy
 from sidq.receipt.read import get_verification_status, holds, render_verification
 from sidq.receipt.write import StdioMCPReceiptToolCaller
+from sidq.repair import (
+    UNREPAIRABLE,
+    apply_repairs,
+    propose_all,
+    prove,
+    render_applied,
+    render_plan,
+    unfixed,
+)
 from sidq.resolver import Resolver
 from sidq.serialization import canonical_json
 
@@ -323,22 +332,38 @@ def _parser() -> argparse.ArgumentParser:
     verify_parser.add_argument("urn", help="the dataset URN to read a receipt for")
     verify_parser.add_argument("--policy")
     verify_parser.add_argument("--json", action="store_true", dest="as_json")
+    repair_parser = commands.add_parser(
+        "repair",
+        help="propose repairs the catalog's own evidence proves, and prove them",
+    )
+    repair_parser.add_argument(
+        "--server", default="http://localhost:8080", help="DataHub GMS URL"
+    )
+    repair_parser.add_argument("--budget", type=int, default=DEFAULT_BUDGET)
+    repair_parser.add_argument(
+        "--via-mcp",
+        action="store_true",
+        help="read the catalog through the official DataHub MCP server, not the SDK",
+    )
+    repair_parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="write the proven repairs (off by default; this mutates the catalog)",
+    )
+    repair_parser.add_argument("--json", action="store_true", dest="as_json")
     return parser
 
 
-def _audit(arguments: Any) -> int:
-    """Point the auditor at a catalog and report what it found.
+def _read_snapshot(arguments: Any) -> CatalogSnapshot | None:
+    """Read the whole catalog, over MCP or the SDK. ``None`` means it was unreadable.
 
-    Exit code is 1 when the catalog contradicts itself and 2 only when the catalog
-    could not be read at all. An audit reports; it does not refuse a change, so
-    reusing `check`'s BLOCK code for a finding would misrepresent what was run.
+    `--via-mcp` reads through the official DataHub MCP server rather than the
+    Python SDK. It is the difference between an agent that uses the agent surface
+    and one that merely claims to: with it, a single run reads through official
+    MCP, decides, and — with the write flags — writes back through official MCP
+    too. Without it the SDK path is used, which sees the whole catalog rather than
+    a bounded search page.
     """
-    # `--via-mcp` reads through the official DataHub MCP server rather than the
-    # Python SDK. It is the difference between an agent that uses the agent
-    # surface and one that merely claims to: with it, a single run reads through
-    # official MCP, decides, and — with --write-receipts — writes back through
-    # official MCP too. Without it the SDK path is used, which sees the whole
-    # catalog rather than a bounded search page.
     if arguments.via_mcp:
         graph_client: Any = MCPGraphClient(StdioMCPToolCaller())
         try:
@@ -352,29 +377,42 @@ def _audit(arguments: Any) -> int:
             print(
                 f"sidq: could not read the catalog over MCP: {error}", file=sys.stderr
             )
-            return 2
+            return None
         finally:
             close = getattr(graph_client, "close", None)
             if callable(close):
                 close()
-    else:
-        try:
-            from datahub.ingestion.graph.client import DataHubGraph
-            from datahub.ingestion.graph.config import DatahubClientConfig
-        except ImportError:
-            print(
-                "sidq: catalog audit needs the DataHub client "
-                "(pip install acryl-datahub), or pass --via-mcp",
-                file=sys.stderr,
-            )
-            return 2
-        try:
-            snapshot = CatalogSnapshot.from_datahub(
-                DataHubGraph(DatahubClientConfig(server=arguments.server))
-            )
-        except Exception as error:  # noqa: BLE001 - the client raises several types
-            print(f"sidq: could not read the catalog: {error}", file=sys.stderr)
-            return 2
+        return snapshot
+
+    try:
+        from datahub.ingestion.graph.client import DataHubGraph
+        from datahub.ingestion.graph.config import DatahubClientConfig
+    except ImportError:
+        print(
+            "sidq: reading a whole catalog needs the DataHub client "
+            "(pip install acryl-datahub), or pass --via-mcp",
+            file=sys.stderr,
+        )
+        return None
+    try:
+        return CatalogSnapshot.from_datahub(
+            DataHubGraph(DatahubClientConfig(server=arguments.server))
+        )
+    except Exception as error:  # noqa: BLE001 - the client raises several types
+        print(f"sidq: could not read the catalog: {error}", file=sys.stderr)
+        return None
+
+
+def _audit(arguments: Any) -> int:
+    """Point the auditor at a catalog and report what it found.
+
+    Exit code is 1 when the catalog contradicts itself and 2 only when the catalog
+    could not be read at all. An audit reports; it does not refuse a change, so
+    reusing `check`'s BLOCK code for a finding would misrepresent what was run.
+    """
+    snapshot = _read_snapshot(arguments)
+    if snapshot is None:
+        return 2
 
     result = CatalogAuditor(snapshot, budget=arguments.budget).run()
     lines = list(render(result, catalog=arguments.server))
@@ -399,6 +437,52 @@ def _audit(arguments: Any) -> int:
     else:
         print("\n".join(lines))
     return 1 if result.findings else 0
+
+
+def _repair(arguments: Any) -> int:
+    """Audit, propose repairs from catalog evidence, prove them, then optionally write.
+
+    Exit code 1 means findings remain unrepaired, which is the normal outcome — most
+    catalog contradictions have no mechanical fix and the agent says so rather than
+    inventing one. 2 is reserved for a catalog that could not be read at all.
+    """
+    snapshot = _read_snapshot(arguments)
+    if snapshot is None:
+        return 2
+
+    result = CatalogAuditor(snapshot, budget=arguments.budget).run()
+    plan = prove(snapshot, propose_all(result.findings, snapshot))
+    lines = render_plan(plan, dry_run=not arguments.apply)
+
+    remaining = unfixed(result.findings, plan)
+    if remaining:
+        # Named, not counted away. The repairable checks are the minority, and a
+        # report that showed only what it could fix would read as if the rest were
+        # handled. Each unrepairable kind carries the reason it has no mechanical
+        # fix, so "we did not repair this" never looks like "there was nothing here".
+        lines.extend(("", f"Still standing, unrepaired: {len(remaining)}"))
+        for kind in sorted({item.kind for item in remaining}):
+            count = sum(1 for item in remaining if item.kind == kind)
+            lines.append(f"  {kind:<34} {count}")
+            reason = UNREPAIRABLE.get(kind)
+            if reason:
+                lines.append(f"    no mechanical repair: {reason}")
+
+    if arguments.apply:
+        caller = StdioMCPReceiptToolCaller()
+        try:
+            outcomes = apply_repairs(plan, caller, dry_run=False)
+        finally:
+            close = getattr(caller, "close", None)
+            if callable(close):
+                close()
+        lines.extend(("", *render_applied(outcomes)))
+
+    if arguments.as_json:
+        sys.stdout.buffer.write(canonical_json(plan.summary()) + b"\n")
+    else:
+        print("\n".join(lines))
+    return 1 if remaining else 0
 
 
 def _verify(arguments: Any) -> int:
@@ -446,6 +530,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _audit(arguments)
     if arguments.command == "verify":
         return _verify(arguments)
+    if arguments.command == "repair":
+        return _repair(arguments)
     if arguments.command == "explain":
         policy = load_policy()
         rule = next(
