@@ -10,5 +10,21 @@ from sidq.agent.auditor import (
     audit,
     render,
 )
+from sidq.agent.writeback import (
+    WriteOutcome,
+    receipts_for,
+    render_writeback,
+    write_receipts,
+)
 
-__all__ = ("AuditRun", "CatalogAuditor", "Target", "audit", "render")
+__all__ = (
+    "AuditRun",
+    "CatalogAuditor",
+    "Target",
+    "WriteOutcome",
+    "audit",
+    "receipts_for",
+    "render",
+    "render_writeback",
+    "write_receipts",
+)

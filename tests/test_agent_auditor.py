@@ -8,7 +8,13 @@ enumerate and calls the result an audit is the failure mode worth guarding.
 
 from __future__ import annotations
 
-from sidq.agent import CatalogAuditor, render
+from sidq.agent import (
+    CatalogAuditor,
+    receipts_for,
+    render,
+    render_writeback,
+    write_receipts,
+)
 from sidq.gates.self_contradiction import (
     CatalogEntity,
     CatalogField,
@@ -142,3 +148,108 @@ def test_the_run_is_deterministic_for_one_catalog() -> None:
 
     assert first.examined == second.examined
     assert first.summary() == second.summary()
+
+
+# ---------------------------------------------------------------------------
+# Write-back: carrying the result into the catalog, without inventing any of it.
+# ---------------------------------------------------------------------------
+
+
+def test_only_examined_assets_get_a_receipt() -> None:
+    """Writing "verified" for an asset never looked at is the one unforgivable bug."""
+    entities = tuple(
+        _dataset(f"m{index}", owners=("urn:li:corpuser:a",)) for index in range(10)
+    )
+    result = CatalogAuditor(CatalogSnapshot(entities), budget=3).run()
+
+    receipts = receipts_for(result)
+
+    assert len(receipts) == 3
+    assert {receipt.urn for receipt in receipts} == set(result.examined)
+    deferred = {target.urn for target in result.deferred}
+    assert not deferred & {receipt.urn for receipt in receipts}
+
+
+def test_the_receipt_carries_the_policy_verdict_not_the_agent_s_opinion() -> None:
+    """The agent runs the shipped policy and carries its answer; it does not label.
+
+    The contradiction is attributed to the **target**, whose stored schema is the
+    thing missing the field — not to the source that claims the edge. An earlier
+    version of this test asserted the source and was simply wrong about whose
+    claim is false.
+    """
+    source = _dataset("source", owners=("urn:li:corpuser:a",))
+    target = _dataset(
+        "target", fields=(CatalogField("real"),), owners=("urn:li:corpuser:a",)
+    )
+    edges = (LineageEdge(source.urn, "id", target.urn, "ghost"),)
+    result = CatalogAuditor(CatalogSnapshot((source, target), edges)).run()
+
+    receipts = {receipt.urn: receipt for receipt in receipts_for(result)}
+
+    flagged = receipts[target.urn]
+    assert flagged.verdict in {"WARN", "BLOCK"}
+    assert "lineage_field_missing" in flagged.rules_fired
+    # Every receipt records which policy produced it, so a stale one is detectable.
+    assert flagged.policy_hash
+
+    # And the asset with nothing against it is not tarred by its neighbour.
+    assert receipts[source.urn].verdict == "PASS"
+    assert receipts[source.urn].rules_fired == ()
+
+
+def test_computing_receipts_touches_no_catalog() -> None:
+    """`receipts_for` must be pure, so a caller can inspect before writing."""
+    entities = (_dataset("m0", owners=("urn:li:corpuser:a",)),)
+    result = CatalogAuditor(CatalogSnapshot(entities)).run()
+
+    calls: list[str] = []
+
+    def recording(name: str, arguments: dict) -> dict:
+        calls.append(name)
+        return {}
+
+    receipts_for(result)
+
+    assert calls == [], "computing what would be written must not write"
+
+
+def test_one_failed_write_does_not_discard_the_rest() -> None:
+    """A transport error on one asset must not throw away a completed audit."""
+    entities = tuple(
+        _dataset(f"m{index}", owners=("urn:li:corpuser:a",)) for index in range(3)
+    )
+    result = CatalogAuditor(CatalogSnapshot(entities)).run()
+    receipts = receipts_for(result)
+    seen: list[str] = []
+
+    def flaky(name: str, arguments: dict) -> dict:
+        seen.append(name)
+        if len(seen) == 1:
+            raise RuntimeError("transport reset")
+        return {"urn": "urn:li:document:x"}
+
+    outcomes = write_receipts(receipts, flaky)
+
+    assert len(outcomes) == len(receipts)
+    assert any(not item.written for item in outcomes)
+    assert any(item.written for item in outcomes)
+    rendered = "\n".join(render_writeback(outcomes))
+    assert "write failures" in rendered
+    assert "RuntimeError" in rendered
+
+
+def test_nothing_is_reported_written_that_was_not() -> None:
+    """The count must come from outcomes, never from the number attempted."""
+    entities = tuple(
+        _dataset(f"m{index}", owners=("urn:li:corpuser:a",)) for index in range(4)
+    )
+    result = CatalogAuditor(CatalogSnapshot(entities)).run()
+
+    def always_fails(name: str, arguments: dict) -> dict:
+        raise RuntimeError("catalog is read-only")
+
+    outcomes = write_receipts(receipts_for(result), always_fails)
+
+    assert all(not item.written for item in outcomes)
+    assert "receipts written  0 of 4" in "\n".join(render_writeback(outcomes))
