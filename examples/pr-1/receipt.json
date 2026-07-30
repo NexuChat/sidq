@@ -1,0 +1,70 @@
+{
+  "readback": {
+    "checked_at": "2026-07-29T04:44:23Z",
+    "commit_sha": "072b8525b3bfba3fe1d494323ead0cc429cde096",
+    "evidence_url": "urn:li:document:shared-66fd24d8-fd93-4d53-a919-27df769c58f0",
+    "policy_hash": "6b54ee7eacac6e9ca40598946d802d1a6ca505699c1b66f85b7babaff6bafc5a",
+    "reason_code": null,
+    "rules_fired": [],
+    "stale": false,
+    "stale_reason": null,
+    "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,b2fd91.order_entry_db.order_entry.customers,PROD)",
+    "verdict": "PASS",
+    "verifier": "sidq@0.1.0"
+  },
+  "write": {
+    "add_structured_properties": {
+      "message": "Successfully added 8 structured propert(ies) to 1 entit(ies)",
+      "success": true
+    },
+    "add_tags": {
+      "message": "Successfully added 1 tag(s) to 1 entit(ies)",
+      "success": true
+    },
+    "receipt": {
+      "checked_at": "2026-07-29T04:44:23Z",
+      "commit_sha": "072b8525b3bfba3fe1d494323ead0cc429cde096",
+      "evidence": [
+        {
+          "evidence": [
+            {
+              "detail": {
+                "critical_assets": [],
+                "cross_team_owners": [],
+                "dashboards": [],
+                "depth": 3,
+                "downstream_count": 0,
+                "downstream_urns": [],
+                "granularity": "column",
+                "paths": [],
+                "pii_assets": {},
+                "pii_tags": []
+              },
+              "graph_links": [
+                "https://datahub.mlki.app/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Adbt%2Cb2fd91.order_entry_db.order_entry.customers%2CPROD%29"
+              ],
+              "kind": "blast_radius",
+              "subject": "urn:li:dataset:(urn:li:dataPlatform:dbt,b2fd91.order_entry_db.order_entry.customers,PROD)"
+            }
+          ],
+          "message": "No policy rule matched evidence kind blast_radius.",
+          "rule_id": "informational",
+          "severity": "info"
+        }
+      ],
+      "evidence_url": "urn:li:document:shared-66fd24d8-fd93-4d53-a919-27df769c58f0",
+      "policy_hash": "6b54ee7eacac6e9ca40598946d802d1a6ca505699c1b66f85b7babaff6bafc5a",
+      "reason_code": null,
+      "rules_fired": [],
+      "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,b2fd91.order_entry_db.order_entry.customers,PROD)",
+      "verdict": "PASS",
+      "verifier": "sidq@0.1.0"
+    },
+    "save_document": {
+      "author": "__datahub_system",
+      "message": "Successfully created document: Sidq PASS receipt for urn:li:dataset:(urn:li:dataPlatform:dbt,b2fd91.order_entry_db.order_entry.customers,PROD)",
+      "success": true,
+      "urn": "urn:li:document:shared-66fd24d8-fd93-4d53-a919-27df769c58f0"
+    }
+  }
+}
