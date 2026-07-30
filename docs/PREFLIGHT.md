@@ -141,23 +141,30 @@ does not match. This is the mechanical version of the lesson recorded in
 
 ## 8. Deliverables
 
-**Result: not shipped.** The corpus was validated against §6 on 2026-07-30 and
-criterion 3 is unsatisfiable — every one of the 20,666 labels is `BLOCK`, so L0 is
-perfect by construction and no rung can beat it. The full record, including the two
-criteria that were met *vacuously* and why that is a warning rather than a success,
-is [`docs/PREFLIGHT-RESULTS.md`](PREFLIGHT-RESULTS.md).
+**Result: not shipped, by measurement.** The ladder was trained and evaluated on
+2026-07-30 over 20,666 oracle-labelled mutations, split by dbt model per §3. The
+best trained rung misses **24.7%** of blocking changes — twenty-four times the
+1% bar — and no trained rung beats L0 on the headline, because L0 never says PASS.
+L2 is also worse than L1, so the ladder does not hold internally either. The full
+record is [`docs/PREFLIGHT-RESULTS.md`](PREFLIGHT-RESULTS.md).
 
 | artifact | content | status |
 |---|---|---|
-| `scripts/eval_preflight.py` | corpus validation against §3 and §6, emits the results document | ✅ built |
+| `scripts/eval_preflight.py` | corpus validation against §3 and §6, renders the measured ladder | ✅ built |
 | `docs/PREFLIGHT-RESULTS.md` | the kill-criteria verdict — **published whether or not it ships** | ✅ published |
-| `scripts/train_preflight.py` | trains all four rungs, one seed, deterministic | ⬜ not built — §4 cannot be exercised on a single-label corpus |
+| `scripts/train_preflight.py` | trains the ladder, one seed, deterministic | ✅ built — L0/L1/L2 trained and published |
 | `src/sidq/preflight/` | the feature builder + serving path, only if the criteria are met | ⬜ not built — the criteria were not met |
 | MCP tool `preflight_check` | exposed to the agent, only if the criteria are met | ⬜ not built — the criteria were not met |
 
-Writing the criteria before the data existed is what let this be settled by
-counting labels rather than by a training run, a tuning cycle, and an argument
-about which number to report. `docs/LORA.md` is the same lesson learned the
-expensive way.
+L3 is not built and that is the spec working. §4 permits a transformer only once
+L2 has failed *and* earned the escalation; here L2 is beaten by a logistic
+regression, which says the features carry little signal about the verdict, not that
+the model wants more capacity. Reaching for L3 anyway is the mistake §4 named in
+advance.
+
+Writing the criteria before the data existed is what made the result readable.
+Without them, an 80% accuracy figure from L0 — a model that has learned only that
+most changes block — would have been the headline. `docs/LORA.md` is the same
+lesson learned the expensive way.
 
 The deterministic engine ships alone, and §6 pre-committed to exactly that.

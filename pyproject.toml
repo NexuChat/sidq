@@ -17,6 +17,7 @@ advisory = ["transformers>=5.0", "torch>=2.5"]
 # only required for the CPU LoRA experiment in scripts/train_lora.py.
 train = [
     "accelerate>=1.0",
+    "scikit-learn>=1.5",
     "datasets>=3.0",
     "peft>=0.17",
     "safetensors>=0.5",

@@ -202,8 +202,10 @@ def build_report(records: Iterable[dict[str, Any]]) -> str:
     misses = [item for item in ordered if item.get("intent") == "harmful" and item.get("verdict") == "PASS"]
     false_alarms = [item for item in ordered if item.get("intent") == "benign" and item.get("verdict") == "BLOCK"]
     family_counts: dict[str, Counter[str]] = defaultdict(Counter)
+    family_totals: Counter[str] = Counter()
     for record in ordered:
         family_counts[str(record["family"])][str(record["verdict"])] += 1
+        family_totals[str(record["family"])] += 1
     families = [["family", *verdicts]] + [
         [family, *(str(family_counts[family][verdict]) for verdict in verdicts)]
         for family in sorted(family_counts)
@@ -217,6 +219,7 @@ def build_report(records: Iterable[dict[str, Any]]) -> str:
         "",
         _table(confusion),
         "",
+        *_coverage_section(ordered),
         "## Misses",
         "",
         "These are harmful-intent mutations that the engine passed. This is the published miss count.",
@@ -224,17 +227,11 @@ def build_report(records: Iterable[dict[str, Any]]) -> str:
         f"Count: {len(misses)}",
         "",
     ]
-    if misses:
-        for item in misses:
-            lines.extend([f"### {item['id']} ({item['family']})", "", "```diff", str(item.get("diff", "diff unavailable")), "```", ""])
-    else:
-        lines.append("None.\n")
+    lines.extend(_family_rate_table("miss", misses, family_totals))
+    lines.extend(_diff_samples(misses, DIFF_SAMPLE_LIMIT))
     lines.extend(["## False alarms", "", f"Count: {len(false_alarms)}", ""])
-    if false_alarms:
-        for item in false_alarms:
-            lines.extend([f"### {item['id']} ({item['family']})", "", "```diff", str(item.get("diff", "diff unavailable")), "```", ""])
-    else:
-        lines.append("None.\n")
+    lines.extend(_family_rate_table("false alarm", false_alarms, family_totals))
+    lines.extend(_diff_samples(false_alarms, DIFF_SAMPLE_LIMIT))
     lines.extend(
         [
             "## Per-family breakdown",
@@ -255,6 +252,101 @@ def build_report(records: Iterable[dict[str, Any]]) -> str:
         ]
     )
     return "\n".join(lines)
+
+
+# A benchmark nobody can open is not evidence. Every diff was published before,
+# which produced a 13 MB, 396,000-line document; the rates below carry the signal
+# and the sample carries the texture. The count is always stated in full.
+DIFF_SAMPLE_LIMIT = 12
+
+
+def _coverage_section(records: list[dict[str, Any]]) -> list[str]:
+    """State what the corpus could exercise, so a rate is not read as blindness.
+
+    A miss rate is only a measure of the gate if the gate could have fired. A rule
+    that needs downstream lineage cannot fire on a model whose radius is empty, and
+    reporting that as a miss would blame the engine for a gap in the fixtures.
+    """
+    total = len(records)
+    if not total:
+        return []
+    no_radius = sum(
+        1 for item in records if not (item.get("context", {}).get("downstream_count") or 0)
+    )
+    fired: Counter[str] = Counter()
+    for item in records:
+        fired.update(str(rule) for rule in (item.get("rule_ids") or ()))
+    rows = [["rule", "times fired"]]
+    rows.extend(
+        [f"`{rule}`", str(count)] for rule, count in fired.most_common()
+    )
+    return [
+        "## What this corpus could exercise",
+        "",
+        "The generator's `intent` is not ground truth; it is a hypothesis about a",
+        "mutation, and the label is the engine's verdict. A rate below is a measure",
+        "of the gate only where the gate could have fired at all.",
+        "",
+        f"- **{no_radius:,} of {total:,} rows ({no_radius / total:.0%}) have no",
+        "  downstream lineage in the fixtures.** Every rule that needs a blast",
+        "  radius — `pii_exposure`, `critical_downstream`, `wide_blast_radius` — is",
+        "  unreachable on those rows by construction, not by omission.",
+        "- PII tags exist in these fixtures only on the legacy showcase model, so the",
+        "  `expose_pii_tagged_column` family is largely a test of resolution rather",
+        "  than of PII detection. Its rate belongs in that light.",
+        "",
+        "Rules that actually fired:",
+        "",
+        _table(rows),
+        "",
+    ]
+
+
+def _family_rate_table(
+    label: str, records: list[dict[str, Any]], totals: Counter[str]
+) -> list[str]:
+    """Rates per family: where the gate is blind, rather than one aggregate number."""
+    if not records:
+        return []
+    by_family = Counter(str(item["family"]) for item in records)
+    rows = [["family", f"{label}es", "generated", "rate"]]
+    for family in sorted(by_family, key=lambda name: -by_family[name]):
+        total = totals[family]
+        share = f"{by_family[family] / total:.0%}" if total else "—"
+        rows.append([f"`{family}`", str(by_family[family]), str(total), share])
+    return [_table(rows), ""]
+
+
+def _diff_samples(records: list[dict[str, Any]], limit: int) -> list[str]:
+    """Publish a bounded, deterministic sample and say plainly what was withheld."""
+    if not records:
+        return ["None.", ""]
+    sample = _limited_sample(records, limit)
+    lines: list[str] = []
+    if len(sample) < len(records):
+        lines.extend(
+            [
+                (
+                    f"Showing {len(sample)} of {len(records)} diffs, sampled "
+                    "round-robin across families so every family that appears above "
+                    "is represented. The full set is in "
+                    "`data/benchmark/labelled.jsonl`."
+                ),
+                "",
+            ]
+        )
+    for item in sample:
+        lines.extend(
+            [
+                f"### {item['id']} ({item['family']})",
+                "",
+                "```diff",
+                str(item.get("diff", "diff unavailable")),
+                "```",
+                "",
+            ]
+        )
+    return lines
 
 
 def _limited_sample(records: list[dict[str, Any]], limit: int) -> list[dict[str, Any]]:

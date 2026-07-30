@@ -308,11 +308,43 @@ def test_preflight_is_not_advertised_as_shipped_while_it_is_not() -> None:
     """The spec is a binding contract; it must not read as delivered capability."""
     spec = (ROOT / "docs" / "PREFLIGHT.md").read_text(encoding="utf-8")
     results = eval_preflight.DOCUMENT.read_text(encoding="utf-8")
-    trainable = eval_preflight.evaluate(eval_preflight.load())["trainable"]
 
-    assert not trainable, (
-        "the corpus now has label variance; PREFLIGHT §4 can be exercised and "
-        "both documents must be revisited rather than left asserting a refusal"
-    )
     assert "not shipped" in spec.lower()
     assert "not shipped" in results.lower()
+
+
+def test_the_published_refusal_matches_the_measured_rungs() -> None:
+    """The refusal must follow from §6 applied to the numbers, not from prose.
+
+    An earlier version of this test asserted the corpus had no label variance. It
+    fired the moment the corpus was relabelled against fuller fixtures — which is
+    what it was for — and the documents were rewritten around the measured ladder
+    instead. This asserts the criteria themselves.
+    """
+    rungs = eval_preflight.load_rungs()
+    assert rungs is not None, "run scripts/train_preflight.py"
+
+    by_name = {rung["rung"]: rung for rung in rungs["rungs"]}
+    trained = [rung for name, rung in by_name.items() if not name.startswith("L0")]
+    assert trained, "the ladder must publish more than the L0 baseline"
+
+    best = min(trained, key=lambda rung: rung["false_negative_rate"])
+    # §6 criterion 1: false-negative rate <= 1%.
+    assert best["false_negative_rate"] > 0.01, (
+        "a trained rung now meets the false-negative bar; PREFLIGHT.md and "
+        "PREFLIGHT-RESULTS.md must be revisited before this refusal can stand"
+    )
+    # §6 criterion 3: the winner must beat L0 on the headline metric.
+    l0 = next(rung for name, rung in by_name.items() if name.startswith("L0"))
+    assert best["false_negative_rate"] >= l0["false_negative_rate"]
+
+
+def test_the_ladder_was_split_by_model_not_by_row() -> None:
+    """§3: a row-wise split measures memorisation and reports a useless number."""
+    rungs = eval_preflight.load_rungs()
+    assert rungs is not None
+
+    assert rungs["holdout_models"], "the held-out models must be named"
+    assert rungs["train_rows"] and rungs["test_rows"]
+    # Every held-out name is a dbt model path, not a row id.
+    assert all(name.endswith(".sql") for name in rungs["holdout_models"])
