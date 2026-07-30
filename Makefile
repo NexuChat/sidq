@@ -18,10 +18,12 @@ check:
 regen:
 	$(VENV)/bin/python scripts/regenerate_example_01.py
 	$(VENV)/bin/python scripts/measure_reconcile.py
+	$(VENV)/bin/python scripts/eval_preflight.py
 
 regen-check:
 	$(VENV)/bin/python scripts/regenerate_example_01.py --check
 	$(VENV)/bin/python scripts/measure_reconcile.py --check
+	$(VENV)/bin/python scripts/eval_preflight.py --check
 
 demo-up:
 	$(DEMO_COMPOSE) up -d --wait postgres

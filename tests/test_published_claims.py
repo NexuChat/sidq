@@ -19,6 +19,7 @@ from typing import get_args
 
 import pytest
 
+from scripts import eval_preflight
 from sidq.mcp_server.server import UnverifiableResult
 
 ROOT = Path(__file__).parents[1]
@@ -275,3 +276,43 @@ def test_the_video_script_keeps_the_negative_result_it_promises_to_state() -> No
     assert "A claim that the 285 contradictions prove" in text, (
         "the video script must keep its explicit list of claims not to make"
     )
+
+
+# ---------------------------------------------------------------------------
+# The pre-flight negative result. PREFLIGHT.md §6 pre-commits to publishing it.
+# ---------------------------------------------------------------------------
+
+
+def test_the_preflight_result_matches_the_corpus_it_reports_on() -> None:
+    """A published negative result is still a claim, and must stay true."""
+    assert eval_preflight.render(
+        eval_preflight.evaluate(eval_preflight.load())
+    ) == eval_preflight.DOCUMENT.read_text(encoding="utf-8"), (
+        "docs/PREFLIGHT-RESULTS.md is stale; rerun scripts/eval_preflight.py"
+    )
+
+
+def test_the_corpus_input_contract_has_no_verdict_leak() -> None:
+    """§3's leak rule, enforced mechanically rather than by reviewer vigilance.
+
+    A feature built from the verdict would score beautifully and be worthless —
+    the failure mode §3 calls hardest to notice after the fact.
+    """
+    result = eval_preflight.evaluate(eval_preflight.load())
+
+    assert result["leaked_keys"] == []
+    assert result["unexpected_keys"] == []
+
+
+def test_preflight_is_not_advertised_as_shipped_while_it_is_not() -> None:
+    """The spec is a binding contract; it must not read as delivered capability."""
+    spec = (ROOT / "docs" / "PREFLIGHT.md").read_text(encoding="utf-8")
+    results = eval_preflight.DOCUMENT.read_text(encoding="utf-8")
+    trainable = eval_preflight.evaluate(eval_preflight.load())["trainable"]
+
+    assert not trainable, (
+        "the corpus now has label variance; PREFLIGHT §4 can be exercised and "
+        "both documents must be revisited rather than left asserting a refusal"
+    )
+    assert "not shipped" in spec.lower()
+    assert "not shipped" in results.lower()
