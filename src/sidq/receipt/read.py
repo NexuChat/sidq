@@ -37,6 +37,61 @@ def get_verification_status(
             close = getattr(tool_caller, "close", None)
             if callable(close):
                 close()
+    return _status_of(
+        urn,
+        entity,
+        current_policy_hash=current_policy_hash,
+        max_age=max_age,
+        now=now,
+        schema_modified_at=schema_modified_at,
+    )
+
+
+# `get_entities` takes a list, so reading the whole catalog's receipts does not
+# have to cost one call per asset. The batch size is a courtesy to the server,
+# not a correctness bound; any chunking returns the same statuses.
+_BATCH = 20
+
+
+def get_verification_statuses(
+    urns: Sequence[str],
+    tool_caller: ToolCaller,
+    *,
+    current_policy_hash: str | None = None,
+    max_age: timedelta = timedelta(days=7),
+    now: datetime | None = None,
+) -> dict[str, dict[str, Any]]:
+    """Read many receipts at once, one bounded ``get_entities`` call per batch.
+
+    Every requested URN gets a status. An asset the response did not mention comes
+    back with no verdict — indistinguishable from "never verified", which is the
+    correct reading: a receipt that cannot be produced does not vouch for anything.
+    """
+    statuses: dict[str, dict[str, Any]] = {}
+    ordered = list(dict.fromkeys(str(urn) for urn in urns))
+    for start in range(0, len(ordered), _BATCH):
+        chunk = ordered[start : start + _BATCH]
+        by_urn = _entities_by_urn(tool_caller("get_entities", {"urns": chunk}))
+        for urn in chunk:
+            statuses[urn] = _status_of(
+                urn,
+                by_urn.get(urn, {}),
+                current_policy_hash=current_policy_hash,
+                max_age=max_age,
+                now=now,
+            )
+    return statuses
+
+
+def _status_of(
+    urn: str,
+    entity: Mapping[str, Any],
+    *,
+    current_policy_hash: str | None,
+    max_age: timedelta,
+    now: datetime | None,
+    schema_modified_at: datetime | None = None,
+) -> dict[str, Any]:
     values = _sidq_values(entity)
     result: dict[str, Any] = {
         "urn": urn,
@@ -60,6 +115,25 @@ def get_verification_status(
     result["stale"] = stale
     result["stale_reason"] = reason
     return result
+
+
+def _entities_by_urn(raw: Any) -> dict[str, Mapping[str, Any]]:
+    """Index a ``get_entities`` response by URN, tolerating the same shapes
+    ``_single_entity`` does. An unrecognisable payload indexes nothing, and the
+    caller reads that as "no receipt" rather than as an error to swallow."""
+    if isinstance(raw, Mapping):
+        nested = raw.get("entities") or raw.get("result")
+        if isinstance(nested, Sequence) and not isinstance(nested, (str, bytes)):
+            raw = nested
+        elif isinstance(raw.get("urn"), str):
+            return {str(raw["urn"]): raw}
+    if not isinstance(raw, Sequence) or isinstance(raw, (str, bytes)):
+        return {}
+    return {
+        str(item["urn"]): item
+        for item in raw
+        if isinstance(item, Mapping) and isinstance(item.get("urn"), str)
+    }
 
 
 def _single_entity(raw: Any, requested_urn: str) -> Mapping[str, Any]:

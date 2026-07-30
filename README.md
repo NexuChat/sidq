@@ -13,7 +13,7 @@ Four commands, in order of how much they need. The first needs nothing at all.
 | # | Command | Needs | What it proves | Takes |
 |---|---|---|---|---|
 | 1 | `make gate-demo` | nothing — no DataHub, no network, no credentials | The published `BLOCK` verdict is re-derived from the committed graph recording, byte-identical, with the same `policy_hash`. Hand-editing an artifact fails this. | ~2s |
-| 2 | `make check` | nothing | 403 tests, lint, format, types — everything CI runs, including the guards on every claim this README makes. | ~15s |
+| 2 | `make check` | nothing | 414 tests, lint, format, types — everything CI runs, including the guards on every claim this README makes. | ~15s |
 | 3 | `make live-loop` | a running DataHub ([`docs/SETUP.md`](docs/SETUP.md)) | The whole agent loop over the **official MCP server only**: read → decide → write a receipt → a *separate process* reads it back → an asset the audit never reached returns `NOT VERIFIED`. | ~60s |
 | 4 | `make repair-demo` | the same DataHub | The repair agent proposes a fix from catalog evidence, re-runs the deterministic engine against the catalog that fix *would* create, and shows what it proved and what it refused. | ~40s |
 
@@ -93,6 +93,29 @@ scoped to the sample.
 `--write-receipts` carries each verdict back into the catalog as a queryable
 `sidq.*` receipt, so the next agent can read what this one concluded. It is off by
 default: an audit does not mutate a catalog unless you ask it to.
+
+### The audit that resumes — the catalog is the agent's memory
+
+Those receipts are not only a record; they are state. `--resume` reads them back
+before planning: an asset whose receipt still holds — same policy hash, not aged
+out, schema unchanged since it was written — is skipped, and the whole budget
+flows to assets no run has reached. Coverage converges run over run under a
+budget that never changed, and because the memory lives in the catalog rather
+than in a file beside the agent, any Sidq instance resumes where any other
+stopped. There is no ledger to sync; the catalog is the ledger.
+
+```bash
+.venv/bin/sidq audit --server http://localhost:8080 --budget 40 --write-receipts
+.venv/bin/sidq audit --server http://localhost:8080 --budget 40 --write-receipts --resume
+```
+
+Nothing is skipped on trust. The reader recomputes the receipt's validity itself,
+with the same judgment every receipt consumer uses; a receipt that is stale,
+records a `BLOCK`, or cannot be read at all fails that check and the asset goes
+back in the queue — if the receipts are unreadable, the prior is empty and
+everything is re-examined. Forgetting costs budget, never correctness. And the
+report says `vouched`, never `verified`, for anything it skipped: whose word you
+are taking is part of the answer.
 
 ### The whole loop, on the official MCP server, in one command
 

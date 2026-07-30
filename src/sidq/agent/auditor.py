@@ -19,13 +19,20 @@ does something different.
 convert an unperformed check into a clean bill of health. Every judgment here is
 the deterministic engine's; the agent chooses *where to point it*, which is the
 part that was missing.
+
+**It can also remember — through the catalog, not beside it.** Given the prior
+receipts a previous run wrote back (`sidq.agent.memory`), it skips assets whose
+receipt still holds and spends the whole budget on assets no run has reached.
+Coverage converges across runs under a fixed budget, and because the memory is
+the catalog itself, any sidq instance resumes where any other stopped.
 """
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 
+from sidq.agent.memory import PriorReceipt
 from sidq.gates.self_contradiction import (
     CatalogEntity,
     CatalogSnapshot,
@@ -76,6 +83,9 @@ class AuditRun:
     verified: list[str] = field(default_factory=list)
     # Examined, but nothing could be established either way — never 'clean'.
     unestablished: list[str] = field(default_factory=list)
+    # (urn, reason) — skipped because a prior receipt still holds. Not examined
+    # this run and never counted as if it had been; the receipt vouches, we don't.
+    vouched: list[tuple[str, str]] = field(default_factory=list)
     order: list[Target] = field(default_factory=list)
     # Evidence kept per asset so a receipt can be built later without re-auditing.
     evidence_by_urn: dict[str, list[Evidence]] = field(default_factory=dict)
@@ -98,6 +108,7 @@ class AuditRun:
             "unverifiable": len(self.unverifiable),
             "verified_clean": len(self.verified),
             "unestablished": len(self.unestablished),
+            "vouched_by_receipt": len(self.vouched),
             "promoted_by_a_finding": len(self.promoted),
         }
 
@@ -111,10 +122,15 @@ class CatalogAuditor:
         *,
         budget: int = DEFAULT_BUDGET,
         gate: SelfContradictionGate | None = None,
+        prior: Mapping[str, PriorReceipt] | None = None,
     ) -> None:
         self._snapshot = snapshot
         self._budget = max(0, budget)
         self._gate = gate or SelfContradictionGate()
+        # What the catalog remembers from previous runs (`sidq.agent.memory`).
+        # Empty means amnesia, and amnesia is the safe default: nothing is ever
+        # skipped on the strength of a receipt nobody read.
+        self._prior = dict(prior or {})
 
     # -- perception ------------------------------------------------------
 
@@ -185,6 +201,20 @@ class CatalogAuditor:
             if target.urn in seen:
                 continue
             seen.add(target.urn)
+
+            # A holding receipt is a memoised verdict: the engine is
+            # deterministic, so unchanged asset + unchanged policy would
+            # reproduce exactly what a previous run already wrote back.
+            # Re-deriving it would spend budget to learn nothing, and the
+            # budget's whole purpose is to reach the assets no run has seen.
+            # `holds()` was recomputed by this reader at recall time — stale,
+            # blocked, and absent receipts all fail it and stay in the queue.
+            # Not even a promotion pierces this: a neighbour's lie is evidence
+            # about the neighbour, not a change to this asset's content.
+            prior = self._prior.get(target.urn)
+            if prior is not None and prior.holds:
+                result.vouched.append((target.urn, prior.reason))
+                continue
 
             if len(result.examined) >= self._budget:
                 # Not silence: everything the budget did not reach is named, so
@@ -292,6 +322,14 @@ def render(result: AuditRun, *, catalog: str) -> list[str]:
         f"  unverifiable    {summary['unverifiable']}",
         f"  verified clean  {summary['verified_clean']}",
     ]
+    if result.vouched:
+        # Distinct from 'verified clean' on purpose: these were not examined
+        # this run. The receipt vouches for them, and the line says whose word
+        # the reader is taking.
+        lines.append(
+            f"  vouched         {len(result.vouched)} "
+            "(a prior receipt still holds; budget spent elsewhere)"
+        )
     if result.unestablished:
         lines.append(
             f"  NOT established {len(result.unestablished)} "
@@ -324,7 +362,10 @@ def render(result: AuditRun, *, catalog: str) -> list[str]:
 
 
 def audit(
-    snapshot: CatalogSnapshot, *, budget: int = DEFAULT_BUDGET
+    snapshot: CatalogSnapshot,
+    *,
+    budget: int = DEFAULT_BUDGET,
+    prior: Mapping[str, PriorReceipt] | None = None,
 ) -> tuple[AuditRun, Sequence[str]]:
-    result = CatalogAuditor(snapshot, budget=budget).run()
+    result = CatalogAuditor(snapshot, budget=budget, prior=prior).run()
     return result, render(result, catalog=f"{len(snapshot.entities)} entities")

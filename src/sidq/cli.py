@@ -15,6 +15,8 @@ from urllib.parse import quote
 
 from sidq.agent import (
     CatalogAuditor,
+    PriorReceipt,
+    recall,
     receipts_for,
     render,
     render_writeback,
@@ -324,6 +326,14 @@ def _parser() -> argparse.ArgumentParser:
         action="store_true",
         help="write a receipt back for every asset examined (off by default)",
     )
+    audit_parser.add_argument(
+        "--resume",
+        action="store_true",
+        help=(
+            "read the receipts previous runs wrote back and skip assets whose "
+            "receipt still holds, so the budget reaches assets no run has seen"
+        ),
+    )
     audit_parser.add_argument("--json", action="store_true", dest="as_json")
     verify_parser = commands.add_parser(
         "verify",
@@ -414,7 +424,31 @@ def _audit(arguments: Any) -> int:
     if snapshot is None:
         return 2
 
-    result = CatalogAuditor(snapshot, budget=arguments.budget).run()
+    prior: dict[str, PriorReceipt] = {}
+    if arguments.resume:
+        # The memory lives in the catalog, so resuming is a read like any other.
+        # If the receipts cannot be read, the prior stays empty and everything
+        # is examined afresh — forgetting costs budget, never correctness.
+        caller = StdioMCPReceiptToolCaller()
+        try:
+            policy_hash = PolicyEngine(None).decide((), commit_sha="").policy_hash
+            prior = recall(
+                [entity.urn for entity in snapshot.entities],
+                caller,
+                current_policy_hash=policy_hash,
+            )
+        except Exception as error:  # noqa: BLE001 - MCP transports raise several types
+            print(
+                f"sidq: could not read prior receipts, re-examining everything: "
+                f"{error}",
+                file=sys.stderr,
+            )
+        finally:
+            close = getattr(caller, "close", None)
+            if callable(close):
+                close()
+
+    result = CatalogAuditor(snapshot, budget=arguments.budget, prior=prior).run()
     lines = list(render(result, catalog=arguments.server))
 
     if arguments.write_receipts:

@@ -30,6 +30,15 @@ its own verdict. A fourth step asks about an asset the audit never reached and g
 bounded run records what it could not afford to read instead of passing it over in
 silence. Assets in that state get no receipt at all.
 
+The audit also resumes — through the catalog, not beside it. `sidq audit
+--resume` reads the receipts previous runs wrote back and skips every asset whose
+receipt still holds under the current policy hash, so the whole budget flows to
+assets no run has reached. Coverage converges run over run under a budget that
+never changed, and any Sidq instance resumes where any other stopped, because the
+state is the catalog itself. The judgment is recomputed by the reader each time —
+a stale, blocked, or unreadable receipt puts the asset back in the queue — and a
+skipped asset is reported as `vouched`, never as verified by this run.
+
 A second agent, `sidq repair`, decides what to do about each finding — and reports
 what it cannot fix. Proposals come from catalog evidence only, and nothing is
 offered for writing until the deterministic engine has re-run against the catalog

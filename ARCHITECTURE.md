@@ -46,13 +46,25 @@ git diff (SQL / dbt)
 3. **GitHub PR bot** — a deterministic comment: verdict, the rule that fired, blast radius,
    receipt link. Judges can picture installing it tomorrow.
 
+## The agents, and the memory they share
+
+`sidq audit` spends an explicit budget worst-first and names what it did not
+reach. `sidq repair` proposes only what the engine re-proves, and refuses the
+rest with reasons. And the receipts they write are not just output — they are
+the memory: `sidq audit --resume` reads them back, skips every asset whose
+receipt still holds under the current policy hash, and spends the whole budget
+on assets no run has seen. Coverage converges under a fixed budget, and any
+Sidq instance resumes where any other stopped, because the state lives in the
+catalog itself. No sidecar database, no daemon — the write-back is also the
+coordination layer.
+
 ## Rubric mapping
 
 | Criterion | Our answer |
 |---|---|
 | Depth of DataHub use **incl. write-back** | reads schema + lineage + governance + assertions; writes an attested receipt that a *different* agent reads back through our MCP tool |
 | Technical execution | deterministic end-to-end on the judges' own quickstart; fixture-backed tests; byte-identical verdicts for identical inputs |
-| Originality | inverts the category — verification-first, source-agnostic; and Gate 0 catches the catalog lying about live reality at PR time, with no daemon |
+| Originality | inverts the category — verification-first, source-agnostic; Gate 0 catches the catalog lying about live reality at PR time, with no daemon; and receipts double as shared agent memory, so bounded audits converge to full coverage |
 | Real-world usefulness | a CI gate plus an agent guardrail — the daily pain of every data platform team |
 | Submission quality | public demo repo with real sealed PRs judges can read without installing anything |
 | Bonus | upstream `datahub-verify` skill |
