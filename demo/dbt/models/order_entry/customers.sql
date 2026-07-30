@@ -7,6 +7,7 @@ select
     country_id,
     credit_limit,
     cust_email,
+    cust_email as customer_email,
     cust_first_name,
     cust_last_name,
     customer_class,
