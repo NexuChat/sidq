@@ -11,8 +11,8 @@ Python 3.12.3
 Docker version 29.4.3, build 055a478
 Docker Compose version v5.1.3
 acryl-datahub==1.6.0.16
-mcp-server-datahub==0.6.0
-mcp>=1.29,<3   # tested on 2.0.0; the pin was 1.29.0 and drifted
+mcp-server-datahub==0.6.0   # in an isolated uv-tool env — not the project venv
+mcp>=2,<3      # the server code imports the mcp 2.x module layout
 pytest==9.1.1
 ruff==0.16.0
 sqlglot==30.14.0
@@ -36,12 +36,18 @@ python3 -m venv .venv
   pip==26.1.2 \
   setuptools==81.0.0
 .venv/bin/python -m pip install \
-  --editable '.[dev]' \
-  acryl-datahub==1.6.0.16 \
-  mcp-server-datahub==0.6.0
+  --editable '.[dev,bench]' \
+  acryl-datahub==1.6.0.16
+
+# The MCP server is deliberately NOT installed into this venv. Sidq's client
+# needs mcp>=2, while mcp-server-datahub's fastmcp still imports mcp 1.x
+# internals — a same-venv install crashes on startup (verified 2026-07-30:
+# `ImportError: cannot import name 'request_ctx'`). The server gets its own
+# isolated environment instead, and Sidq resolves it from PATH:
+uv tool install mcp-server-datahub==0.6.0   # or: pipx install mcp-server-datahub==0.6.0
 
 .venv/bin/python -m pip list --format=freeze |
-  grep -E '^(acryl-datahub|mcp|mcp-server-datahub|pytest|ruff|sqlglot|PyYAML)=='
+  grep -E '^(acryl-datahub|mcp|pytest|ruff|sqlglot|PyYAML)=='
 ```
 
 Observed version output:
@@ -49,12 +55,14 @@ Observed version output:
 ```text
 acryl-datahub==1.6.0.16
 mcp==2.0.0
-mcp-server-datahub==0.6.0
 pytest==9.1.1
 PyYAML==6.0.3
-ruff==0.16.0
+ruff==0.16.1
 sqlglot==30.14.0
 ```
+
+`mcp-server-datahub 0.6.0` lives in its own uv-tool environment, not in this
+freeze — see the note above for why the separation is load-bearing.
 
 ## 2. DataHub OSS quickstart
 

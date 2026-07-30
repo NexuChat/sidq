@@ -7,11 +7,18 @@ license = { text = "Apache-2.0" }
 dependencies = [
     "sqlglot",  # SQL parsing for the schema gate — deterministic, no LLM
     "pyyaml",   # restricted policy and asset-map loading
-    "mcp",      # official MCP client, talks to mcp-server-datahub
+    # Official MCP client, talks to mcp-server-datahub. The floor is 2 because
+    # the server imports the `mcp_types` module layout; a fresh install resolved
+    # 1.29.0 once and could not import — the constraint now states what the code
+    # actually requires.
+    "mcp>=2,<3",
 ]
 
 [project.optional-dependencies]
 dev = ["mypy", "pytest", "ruff", "types-PyYAML"]
+# `make regen` retrains the pre-flight ladder to prove the published negative
+# result still holds; that needs scikit-learn but none of the LoRA stack.
+bench = ["scikit-learn>=1.5"]
 advisory = ["transformers>=5.0", "torch>=2.5"]
 # Kept out of the default install: these packages and the model weights are
 # only required for the CPU LoRA experiment in scripts/train_lora.py.

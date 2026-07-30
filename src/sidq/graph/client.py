@@ -10,7 +10,6 @@ from collections.abc import Callable, Mapping, Sequence
 from concurrent.futures import Future
 from dataclasses import dataclass
 from dataclasses import field as dataclass_field
-from pathlib import Path as FilePath
 from typing import Any, Protocol, runtime_checkable
 
 
@@ -237,12 +236,13 @@ class StdioMCPToolCaller:
     def __init__(
         self, command: str | None = None, *, gms_url: str | None = None
     ) -> None:
-        self._command = command or str(
-            FilePath(__file__).resolve().parents[3]
-            / ".venv"
-            / "bin"
-            / "mcp-server-datahub"
-        )
+        # Resolved from PATH, exactly like the receipt writer's caller. The old
+        # default pointed into this repository's own venv, which assumed the
+        # server can share the client's environment — it cannot: the client
+        # needs mcp>=2 while the server's fastmcp still imports the mcp 1.x
+        # internals, so a same-venv install crashes on startup. The server runs
+        # from its own isolated install (`uv tool install mcp-server-datahub`).
+        self._command = command or "mcp-server-datahub"
         self._gms_url = gms_url or os.environ.get(
             "DATAHUB_GMS_URL", "http://localhost:8080"
         )
