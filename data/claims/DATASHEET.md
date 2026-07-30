@@ -2,7 +2,7 @@
 
 ## Honest composition
 
-This release has **2,582 rows** (2,054 train / 528 eval). Its class mix is 50.00% positive / 35.01% negative / 14.99% hard-negative; the global identical-sentence cap is three.
+This release has **2,576 rows** (2,048 train / 528 eval). Its class mix is 50.00% positive / 35.01% negative / 14.99% hard-negative; the global identical-sentence cap is three.
 
 Distinct sentences: **2,377 / 2,582 (92.06%)**. The distinct count is the meaningful corpus size, not the raw row count.
 
@@ -42,7 +42,7 @@ The source data contain negatives and hard-negatives only in raw-v3. Therefore c
 
 ## Raw-pool accounting
 
-Admitted extractable candidates: 79,172; 6,338 raw-v6 metadata-only rows were excluded before this count. Detailed pre-release counts: 79,172 extractable rows, 31,760 distinct pairs after filtering and pair deduplication, 30,942 rows after the sentence cap, and 2,582 released rows. The exact before/after filter counts are recorded in `refilter-v6-report.json`.
+Admitted extractable candidates: 79,172; 6,338 raw-v6 metadata-only rows were excluded before this count. Detailed pre-release counts: 79,172 extractable rows, 31,760 distinct pairs after filtering and pair deduplication, 30,942 rows after the sentence cap, and 2,576 released rows. The exact before/after filter counts are recorded in `refilter-v6-report.json`.
 
 ## Licence and mining result
 
