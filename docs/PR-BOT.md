@@ -265,4 +265,4 @@ Only the deterministic policy findings in this section affect the merge decision
 
 ---
 
-Reproducibility: <code>policy_hash=baa612f729a56ff7497718cc3cf77cd9142967cb4ec0e075c2b3495eeb2f2927</code> · <code>commit_sha=d3f3bd2f4fe31837867592162ccea08859be6947</code> · run <code>sidq check --diff d3f3bd2f4fe31837867592162ccea08859be6947^..d3f3bd2f4fe31837867592162ccea08859be6947 --json</code>
+Reproducibility: <code>policy_hash=baa612f729a56ff7497718cc3cf77cd9142967cb4ec0e075c2b3495eeb2f2927</code> · <code>commit_sha=72ef257d4d12b7887b1f3081dee723c27b2addc8</code> · run <code>sidq check --diff 72ef257d4d12b7887b1f3081dee723c27b2addc8^..72ef257d4d12b7887b1f3081dee723c27b2addc8 --json</code>
