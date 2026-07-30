@@ -55,6 +55,8 @@ class AuditRun:
     deferred: list[Target] = field(default_factory=list)
     verified: list[str] = field(default_factory=list)
     order: list[Target] = field(default_factory=list)
+    # Evidence kept per asset so a receipt can be built later without re-auditing.
+    evidence_by_urn: dict[str, list[Evidence]] = field(default_factory=dict)
 
     @property
     def covered(self) -> int:
@@ -137,7 +139,9 @@ class CatalogAuditor:
                 result.deferred.append(target)
                 continue
             result.examined.append(target.urn)
-            for item in self._examine(target):
+            collected = self._examine(target)
+            result.evidence_by_urn[target.urn] = collected
+            for item in collected:
                 if item.kind.endswith("_unverifiable"):
                     result.unverifiable.append(item)
                 else:
