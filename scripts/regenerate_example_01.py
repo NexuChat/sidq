@@ -59,7 +59,7 @@ HASH_CITING = ("README.md", "docs/PR-BOT.md")
 RELATION = "b2fd91.order_entry_db.order_entry.customers"
 SOURCE_PATH = "models/order_entry/customers.sql"
 CONTRACT_COLUMNS = ("cust_email",)
-COMMIT_SHA = "d3f3bd2f4fe31837867592162ccea08859be6947"
+COMMIT_SHA = "72ef257d4d12b7887b1f3081dee723c27b2addc8"
 
 # Evidence carries a DataHub UI link built from this variable, which defaults to
 # localhost. A published artifact must point at the host a judge can actually
