@@ -365,3 +365,31 @@ def test_the_ladder_was_split_by_model_not_by_row() -> None:
     assert rungs["train_rows"] and rungs["test_rows"]
     # Every held-out name is a dbt model path, not a row id.
     assert all(name.endswith(".sql") for name in rungs["holdout_models"])
+
+
+def test_the_readme_audit_section_agrees_with_the_published_evidence() -> None:
+    """The one-command pitch must quote the guarded number, not a live-run one.
+
+    The README now describes a live `sidq audit` run beside the recorded audit,
+    and the two legitimately differ — the live catalog carries the demo project as
+    well as the sample. The contradiction count is identical in both and is the
+    figure the pitch leans on, so that one is pinned here; the unowned count is
+    explained in prose rather than quoted as a headline, because a number that
+    moves with catalog contents cannot be a claim.
+    """
+    entry = _summary()["lineage_field_missing"]
+    text = README.read_text(encoding="utf-8")
+
+    assert f"all {entry['findings']} `lineage_field_missing` contradictions" in text
+    # The scope difference must stay explained, not quietly dropped.
+    assert "Same check, different catalog contents." in text
+
+
+def test_the_readme_leads_with_something_a_judge_can_run() -> None:
+    """The first actionable thing must be a command, not an installation."""
+    text = README.read_text(encoding="utf-8")
+
+    assert "## Try it in one command" in text
+    assert "sidq audit" in text
+    # Writing to someone else's catalog must never read as the default.
+    assert "It is off by\ndefault" in text or "off by default" in text
