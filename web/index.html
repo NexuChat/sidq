@@ -402,6 +402,81 @@
       }
 
 
+
+      /* ---- before/after strip ---- */
+      .ba {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1px;
+        margin-top: 48px;
+        border: 1px solid var(--rule);
+        background: var(--rule);
+      }
+
+      .ba > div {
+        padding: 24px 28px;
+        background: var(--ink);
+      }
+
+      .ba .t {
+        margin-bottom: 10px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.16em;
+        color: var(--paper-dim);
+      }
+
+      .ba p {
+        margin: 0;
+        font-family: var(--display);
+        font-size: clamp(17px, 1.5vw, 22px);
+        line-height: 1.4;
+      }
+
+      .ba .without p { color: var(--soft); }
+      .ba .with p { color: var(--paper); }
+
+      /* ---- ops FAQ ---- */
+      .ops {
+        padding: clamp(80px, 11vw, 150px) 0 0;
+      }
+
+      .ops dl {
+        margin: 0;
+        border-top: 1px solid var(--paper-dim);
+      }
+
+      .ops .qa {
+        display: grid;
+        grid-template-columns: minmax(150px, 0.28fr) 1fr;
+        gap: 20px;
+        padding: 22px 0;
+        border-bottom: 1px solid var(--rule);
+      }
+
+      .ops dt {
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--acid);
+      }
+
+      .ops dd {
+        margin: 0;
+        max-width: 980px;
+        color: var(--paper-dim);
+        font-size: clamp(0.78rem, 1vw, 0.92rem);
+        line-height: 1.65;
+      }
+
+      .ops dd strong { color: var(--paper); }
+
+      @media (max-width: 780px) {
+        .ba { grid-template-columns: 1fr; }
+        .ops .qa { grid-template-columns: 1fr; gap: 8px; }
+      }
+
       /* ---- orientation rail ---- */
       .rail {
         position: fixed;
@@ -792,6 +867,7 @@
       <a href="#s03">03</a>
       <a href="#s04">04</a>
       <a href="#s05">05</a>
+      <a href="#s06">06</a>
     </nav>
     <header class="masthead shell">
       <a class="wordmark" href="#top" aria-label="Sidq صدق — back to top">
@@ -889,6 +965,17 @@
               <span>Column lineage is proven through the BI field; chart and dashboard hops are entity-level.</span>
               <span>Source: <code>examples/01-blocked-pii-dashboard/verdict.json</code></span>
               <span>Commit: <code>5addb753788935d4d1aa6a9483c28c6fc124e5c7</code></span>
+
+          <div class="ba">
+            <div class="without">
+              <div class="t">Without Sidq</div>
+              <p>The change merges. Sixteen consumers and a live dashboard break quietly, and the agent that caused it never knows.</p>
+            </div>
+            <div class="with">
+              <div class="t">With Sidq</div>
+              <p>The change is refused in CI with the evidence attached — and a receipt in the catalog tells every next agent why.</p>
+            </div>
+          </div>
             </div>
           </div>
         </div>
@@ -975,6 +1062,35 @@
             <pre id="run-output" hidden></pre>
           </div>
         </div>
+      </section>
+
+      <section class="ops shell" id="s06" aria-labelledby="ops-title">
+        <div class="trace-heading">
+          <div class="eyebrow">06 / Operations</div>
+          <h2 id="ops-title">The questions a platform team asks.</h2>
+        </div>
+        <dl>
+          <div class="qa">
+            <dt>Data privacy</dt>
+            <dd><strong>Metadata only, nothing leaves.</strong> Reads schemas, lineage, tags — never row data. Self-hosted, Apache-2.0, no LLM in the loop; the only writes are receipts you opt into, in your own catalog.</dd>
+          </div>
+          <div class="qa">
+            <dt>Reliability</dt>
+            <dd><strong>Byte-identical verdicts.</strong> Same input + policy ⇒ same output, pinned by <code>policy_hash</code> and <code>commit_sha</code>. 412 CI-enforced tests guard every claim on this page — re-derive and compare, don't trust.</dd>
+          </div>
+          <div class="qa">
+            <dt>Model drift</dt>
+            <dd><strong>No model, no drift — by construction.</strong> We trained a classifier, it tied a 3-line rule, we shipped the rule and published the negative result. Policy changes rotate the hash and invalidate old receipts explicitly.</dd>
+          </div>
+          <div class="qa">
+            <dt>Monitoring</dt>
+            <dd><strong>Receipts are the dashboard.</strong> <code>sidq.*</code> properties are queryable in DataHub search: verified / stale / blocked / never-examined is one query, and each resumed run reports coverage converging.</dd>
+          </div>
+          <div class="qa">
+            <dt>Cost</dt>
+            <dd><strong>Zero API fees, explicit compute.</strong> Open source, self-hosted, no per-token bill. MCP time is budgeted per run — and work done once is never re-paid while its receipt holds.</dd>
+          </div>
+        </dl>
       </section>
 
       <nav class="links shell" aria-label="Project links">

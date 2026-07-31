@@ -36,6 +36,19 @@ and confirm the printed hash matches the committed one. That single check
 establishes the property everything else rests on: the decision is reproducible
 and no model participated in it.
 
+
+## The questions a platform team will ask
+
+**Data privacy.** Sidq reads metadata only — schemas, lineage, tags, owners — never row data. Audits are read-only by default; the only writes are the receipts you explicitly opt into, and they land in *your* catalog. Self-hosted, Apache-2.0, and because the judged path contains no LLM, nothing about your catalog ever leaves your infrastructure.
+
+**Reliability of results.** Every verdict is deterministic: same input, same policy, byte-identical output, identified by `policy_hash` + `commit_sha`. 412 tests guard the engine, and CI-enforced guards pin every number this README claims. You do not trust the tool; you re-derive its answer (`make gate-demo`) and compare hashes.
+
+**Model drift.** There is no model in the judged path, so there is nothing to drift — by construction. We tried a classifier, it tied a three-line rule on held-out data, and we shipped the rule and published the negative result (`docs/PREFLIGHT-RESULTS.md`). *Policy* drift is handled explicitly: changing the policy changes `policy_hash`, which invalidates every receipt written under the old one.
+
+**Monitoring.** The receipts are the monitoring surface: `sidq.*` properties are queryable through DataHub search, so "how many assets are verified / stale / blocked / never examined" is one query, and the converging audit's `vouched / NOT examined` counts give you coverage per run. `sidq verify <urn>` is a health check any pipeline can call.
+
+**Cost.** Apache-2.0, self-hosted, zero API fees — no LLM in the loop means no per-token bill. The measurable cost is MCP call time (column lineage ≈ 0.116s per column, budgeted explicitly), and the resumable audit amortizes it: work done once is never re-paid while its receipt holds.
+
 ## The problem is already in the sample
 
 We scanned DataHub's own shipped `showcase-ecommerce` sample using read-only catalog metadata. It contains **285 internal contradictions across 67 datasets**, plus **29 consumed-but-unowned assets**. This is not a claim that DataHub's source systems are broken. It is a narrower, hand-checkable finding: the catalog contains claims that contradict other claims visible in the catalog. A curated, officially shipped sample already contains this much inconsistency; nothing in the sample checks for it before an agent builds on it.
