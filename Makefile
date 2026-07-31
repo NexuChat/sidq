@@ -8,7 +8,6 @@ AUDIT_BUDGET ?= 5
 # The most-consumed asset in DataHub's own showcase-ecommerce sample, so the
 # budget above always reaches it and the readback below always has a receipt.
 RECEIPT_URN ?= urn:li:dataset:(urn:li:dataPlatform:snowflake,b2fd91.order_entry_db.order_entry.customers,PROD)
-UNAUDITED_URN ?= urn:li:dataset:(urn:li:dataPlatform:snowflake,b2fd91.order_entry_db.order_entry.warehouses,PROD)
 
 REPAIR_BUDGET ?= 15
 
@@ -75,9 +74,13 @@ print('POLICY   :', v['policy_hash'])"
 #
 # Step 3 is the point. A writer that reports its own success proves nothing; the
 # receipt is only worth something because an unrelated process finds it and
-# reaches the same conclusion. Step 4 is the other half: an asset the audit never
-# reached must come back NOT VERIFIED, because "we did not check" and "we checked
-# and it passed" are the two answers this project exists to keep apart.
+# reaches the same conclusion. Step 4 is the other half: an asset carrying no
+# receipt must come back NOT VERIFIED, because "we did not check" and "we
+# checked and it passed" are the two answers this project exists to keep apart.
+# That asset is chosen at run time, not frozen in a variable: the resuming
+# audit converges, so any URN written down here would eventually be reached,
+# receipted, and turned into a lie — which is exactly how the previous frozen
+# choice failed a fresh-clone rehearsal on 2026-07-31.
 live-loop: | $(VENV)/bin/python
 	@echo "== 1+2. read via official MCP, decide, write receipts via official MCP =="
 	@DATAHUB_GMS_URL=$(DATAHUB_GMS_URL) DATAHUB_TELEMETRY_ENABLED=false \
@@ -88,10 +91,18 @@ live-loop: | $(VENV)/bin/python
 	@DATAHUB_GMS_URL=$(DATAHUB_GMS_URL) DATAHUB_TELEMETRY_ENABLED=false \
 	  $(VENV)/bin/sidq verify '$(RECEIPT_URN)' 2>/dev/null
 	@echo
-	@echo "== 4. and an asset the audit never reached is NOT reported as clean =="
-	@DATAHUB_GMS_URL=$(DATAHUB_GMS_URL) DATAHUB_TELEMETRY_ENABLED=false \
-	  $(VENV)/bin/sidq verify '$(UNAUDITED_URN)' 2>/dev/null; \
-	  status=$$?; [ $$status -eq 1 ] || { echo "expected NOT VERIFIED, got exit $$status"; exit 1; }
+	@echo "== 4. and an asset carrying no receipt is NOT reported as clean =="
+	@urn=$$(DATAHUB_GMS_URL=$(DATAHUB_GMS_URL) DATAHUB_TELEMETRY_ENABLED=false \
+	  $(VENV)/bin/python scripts/find_unreceipted.py 2>/dev/null); \
+	  [ -n "$$urn" ] || { echo "could not choose an asset to ask about"; exit 1; }; \
+	  if [ "$$urn" = "ALL_COVERED" ]; then \
+	    echo "every dataset in the search page already carries a receipt —"; \
+	    echo "the resumable audit has converged; nothing is left to be silent about"; \
+	  else \
+	    DATAHUB_GMS_URL=$(DATAHUB_GMS_URL) DATAHUB_TELEMETRY_ENABLED=false \
+	    $(VENV)/bin/sidq verify "$$urn" 2>/dev/null; \
+	    status=$$?; [ $$status -eq 1 ] || { echo "expected NOT VERIFIED, got exit $$status"; exit 1; }; \
+	  fi
 
 # The audit that resumes. Run one spends the budget worst-first and writes
 # receipts; run two reads those receipts back and spends the *same* budget on

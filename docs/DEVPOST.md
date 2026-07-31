@@ -25,10 +25,11 @@ The whole loop runs over the official DataHub MCP server in one command,
 `make live-loop`: the agent reads with `search`, `get_entities`,
 `list_schema_fields`, and `get_lineage`; the policy decides; the receipt is written
 with the MCP mutation tools; and a *separate process* reads it back and recomputes
-its own verdict. A fourth step asks about an asset the audit never reached and gets
-`NOT VERIFIED`, because MCP returns column lineage only per named column, so a
-bounded run records what it could not afford to read instead of passing it over in
-silence. Assets in that state get no receipt at all.
+its own verdict. A fourth step asks about an asset carrying no receipt — chosen at
+run time, since the resuming audit eventually reaches any asset named in advance —
+and gets `NOT VERIFIED`: a bounded run records what it could not afford to read
+instead of passing it over in silence, and assets in that state get no receipt at
+all.
 
 The audit also resumes — through the catalog, not beside it. `sidq audit
 --resume` reads the receipts previous runs wrote back and skips every asset whose

@@ -243,12 +243,15 @@ make live-loop
 ```
 
 It audits over official MCP, writes receipts back over official MCP, then reads
-one back from a separate process and reports on a fourth asset the audit never
-reached. The run recorded on 2026-07-30 examined 5 assets, wrote 5 receipts,
-returned `VERIFIED` for `order_entry.customers`, and `NOT VERIFIED — no receipt on
-this asset` for `order_entry.warehouses`.
+one back from a separate process and asks about a fourth asset that carries no
+receipt — discovered at run time by `scripts/find_unreceipted.py`, because the
+resuming audit eventually receipts any asset a recipe could name in advance. The
+run recorded on 2026-07-30 examined 5 assets, wrote 5 receipts, returned
+`VERIFIED` for `order_entry.customers`, and `NOT VERIFIED — no receipt on this
+asset` for the discovered asset. Once every dataset carries a receipt, the step
+reports convergence instead.
 
-`AUDIT_BUDGET`, `RECEIPT_URN`, and `UNAUDITED_URN` are overridable, and the budget
+`AUDIT_BUDGET` and `RECEIPT_URN` are overridable, and the budget
 matters: field lineage costs one MCP call per column (0.116s each against the
 local DataHub), so raising it raises the runtime roughly linearly.
 

@@ -14,7 +14,7 @@ Four commands, in order of how much they need. The first needs nothing at all.
 |---|---|---|---|---|
 | 1 | `make gate-demo` | nothing — no DataHub, no network, no credentials | The published `BLOCK` verdict is re-derived from the committed graph recording, byte-identical, with the same `policy_hash`. Hand-editing an artifact fails this. | ~2s |
 | 2 | `make check` | nothing | 414 tests, lint, format, types — everything CI runs, including the guards on every claim this README makes. | ~15s |
-| 3 | `make live-loop` | a running DataHub ([`docs/SETUP.md`](docs/SETUP.md)) | The whole agent loop over the **official MCP server only**: read → decide → write a receipt → a *separate process* reads it back → an asset the audit never reached returns `NOT VERIFIED`. | ~60s |
+| 3 | `make live-loop` | a running DataHub ([`docs/SETUP.md`](docs/SETUP.md)) | The whole agent loop over the **official MCP server only**: read → decide → write a receipt → a *separate process* reads it back → an asset carrying no receipt returns `NOT VERIFIED`. | ~60s |
 | 4 | `make repair-demo` | the same DataHub | The repair agent proposes a fix from catalog evidence, re-runs the deterministic engine against the catalog that fix *would* create, and shows what it proved and what it refused. | ~40s |
 
 Nothing above is a recording. If you have no DataHub, run 1 and 2 — they are the
@@ -142,9 +142,12 @@ Four steps, one process boundary in the middle of them:
    official MCP mutation tools.
 3. **Read it back from a separate process**, which recomputes staleness and
    reaches its own verdict. A writer that reports its own success proves nothing.
-4. **Ask about an asset the audit never reached** — and get `NOT VERIFIED`, not
-   silence. "We did not check" and "we checked and it passed" are the two answers
-   this project exists to keep apart.
+4. **Ask about an asset carrying no receipt** — chosen at run time, because the
+   resuming audit eventually reaches any asset a script could name in advance —
+   and get `NOT VERIFIED`, not silence. "We did not check" and "we checked and
+   it passed" are the two answers this project exists to keep apart. When every
+   dataset carries a receipt, the step reports convergence instead: nothing is
+   left to be silent about.
 
 Step 4 is enforced in the code, not just in the demo. MCP returns column lineage
 only when asked for one named column, so field lineage costs one call per column
