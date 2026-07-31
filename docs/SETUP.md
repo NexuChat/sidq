@@ -29,7 +29,7 @@ The CLI and quickstart images intentionally have different versions. With
 ## 1. Python environment
 
 ```bash
-cd /home/dev/sidq
+cd sidq
 
 python3 -m venv .venv
 .venv/bin/python -m pip install --upgrade \

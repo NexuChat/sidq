@@ -14,7 +14,21 @@ REPAIR_BUDGET ?= 15
 
 .PHONY: check regen regen-check gate-demo live-loop converge-demo repair-demo repair-reset demo-up demo-ingest demo-break demo-restore demo-down
 
-check:
+# The runbook's first row promises a clone and `make` are enough, and until
+# 2026-07-31 that promise was false: a fresh clone had no virtualenv and the
+# first command a judge types died with a path error. This rule keeps the
+# promise — the first target that needs the venv builds it, once, with exactly
+# the dev extras `make check` runs. Order-only (`|`) everywhere below, so an
+# existing venv is never rebuilt behind anyone's back. The live rows still
+# need DataHub and the isolated MCP server from docs/SETUP.md; that boundary
+# is theirs, not this rule's.
+$(VENV)/bin/python:
+	@echo "first run: building $(VENV) (about a minute) =="
+	python3 -m venv $(VENV)
+	$(VENV)/bin/python -m pip install --quiet --upgrade pip
+	$(VENV)/bin/python -m pip install --quiet --editable '.[dev]'
+
+check: | $(VENV)/bin/python
 	$(VENV)/bin/ruff check .
 	$(VENV)/bin/ruff format --check .
 	$(VENV)/bin/mypy src/
@@ -24,13 +38,13 @@ check:
 # no longer matches the engine. Editing the policy is the usual cause: it changes
 # the policy hash, which every published artifact quotes. Run `make regen` and
 # commit the result — never hand-edit the artifacts back into agreement.
-regen:
+regen: | $(VENV)/bin/python
 	$(VENV)/bin/python scripts/regenerate_example_01.py
 	$(VENV)/bin/python scripts/measure_reconcile.py
 	$(VENV)/bin/python scripts/train_preflight.py
 	$(VENV)/bin/python scripts/eval_preflight.py
 
-regen-check:
+regen-check: | $(VENV)/bin/python
 	$(VENV)/bin/python scripts/regenerate_example_01.py --check
 	$(VENV)/bin/python scripts/measure_reconcile.py --check
 	$(VENV)/bin/python scripts/train_preflight.py --check
@@ -41,7 +55,7 @@ regen-check:
 # opens did not work. It runs the flagship change through the real engine against
 # the committed graph recording and prints the verdict, so it produces the same
 # answer on any machine with no DataHub, no network, and no credentials.
-gate-demo:
+gate-demo: | $(VENV)/bin/python
 	@$(VENV)/bin/python scripts/regenerate_example_01.py --check
 	@echo
 	@$(VENV)/bin/python -c "import json;v=json.load(open('examples/01-blocked-pii-dashboard/verdict.json'));\
@@ -64,7 +78,7 @@ print('POLICY   :', v['policy_hash'])"
 # reaches the same conclusion. Step 4 is the other half: an asset the audit never
 # reached must come back NOT VERIFIED, because "we did not check" and "we checked
 # and it passed" are the two answers this project exists to keep apart.
-live-loop:
+live-loop: | $(VENV)/bin/python
 	@echo "== 1+2. read via official MCP, decide, write receipts via official MCP =="
 	@DATAHUB_GMS_URL=$(DATAHUB_GMS_URL) DATAHUB_TELEMETRY_ENABLED=false \
 	  $(VENV)/bin/sidq audit --via-mcp --budget $(AUDIT_BUDGET) --write-receipts 2>/dev/null; \
@@ -84,7 +98,7 @@ live-loop:
 # assets run one never reached. No state file is written anywhere in between —
 # the memory is the catalog itself, so this is two agents cooperating through
 # receipts alone. Watch the `vouched` line appear and `NOT examined` fall.
-converge-demo:
+converge-demo: | $(VENV)/bin/python
 	@echo "== run 1: spend the budget worst-first, write receipts =="
 	@DATAHUB_GMS_URL=$(DATAHUB_GMS_URL) DATAHUB_TELEMETRY_ENABLED=false \
 	  $(VENV)/bin/sidq audit --via-mcp --budget $(AUDIT_BUDGET) --write-receipts 2>/dev/null; \
@@ -100,17 +114,17 @@ converge-demo:
 # and keeps what survives. On the showcase sample the interesting part is what it
 # refuses: tagging just the column named in the finding resolves that finding and
 # immediately creates a new one downstream, so the proposal it offers instead
-# covers the whole field-lineage closure — 7 columns across dbt, Snowflake and
+# covers the whole field-lineage closure — 6 columns across dbt, Snowflake and
 # Looker, in one MCP call.
 #
 # Dry run. `sidq repair --via-mcp --apply` writes it; `make repair-reset` restores
 # the sample afterwards so the demonstration can be run again.
-repair-demo:
+repair-demo: | $(VENV)/bin/python
 	@DATAHUB_GMS_URL=$(DATAHUB_GMS_URL) DATAHUB_TELEMETRY_ENABLED=false \
 	  $(VENV)/bin/sidq repair --via-mcp --budget $(REPAIR_BUDGET) 2>/dev/null; \
 	  status=$$?; [ $$status -le 1 ] || { echo "repair could not read the catalog"; exit 1; }
 
-repair-reset:
+repair-reset: | $(VENV)/bin/python
 	@DATAHUB_GMS_URL=$(DATAHUB_GMS_URL) DATAHUB_TELEMETRY_ENABLED=false \
 	  $(VENV)/bin/python scripts/reset_repair_demo.py 2>/dev/null
 
