@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sidq — the audit that resumes</title>
+<link rel="stylesheet" href="board.css">
+</head>
+<body>
+  <div class="bar"></div>
+  <header class="mast">
+    <div class="word">Sidq<span>صدق</span></div>
+    <div class="eyebrow">03 / The agents — memory</div>
+  </header>
+  <main style="display:grid;grid-template-columns:0.9fr 1.1fr;gap:90px;align-items:center;padding:120px 84px 0">
+    <div>
+      <h2 style="font-size:84px;line-height:.95">The audit that resumes.</h2>
+      <p style="margin-top:44px;color:var(--dim);font-size:22px;line-height:1.65;max-width:640px">
+        The receipts one run writes are the memory the next run reads. Assets whose
+        receipt still holds are <strong style="color:var(--paper)">vouched</strong>, the
+        budget reaches assets no run has seen, and coverage
+        <strong style="color:var(--paper)">converges under a budget that never changed</strong>.
+      </p>
+      <p style="margin-top:36px;color:var(--acid);font-size:19px;letter-spacing:.08em;text-transform:uppercase;line-height:1.7">
+        The catalog is the ledger — any Sidq instance<br>resumes where any other stopped.
+      </p>
+    </div>
+    <div style="border:1px solid var(--rule);background:var(--ink2)">
+      <div style="display:flex;gap:10px;align-items:center;padding:20px 26px;border-bottom:1px solid var(--rule)">
+        <span style="width:13px;height:13px;border-radius:50%;background:var(--rule)"></span>
+        <span style="width:13px;height:13px;border-radius:50%;background:var(--rule)"></span>
+        <span style="width:13px;height:13px;border-radius:50%;background:var(--rule)"></span>
+        <span style="margin-left:16px;color:var(--dim);font-size:15px;letter-spacing:.12em">MAKE CONVERGE-DEMO — LIVE, OFFICIAL MCP ONLY</span>
+      </div>
+      <pre style="padding:34px 40px 40px;font-family:var(--mono);font-size:20.5px;line-height:1.75;color:var(--paper)"><span style="color:var(--acid)">$ make converge-demo</span>
+<span style="color:var(--soft)">== run 1: spend the budget worst-first, write receipts ==</span>
+  examined          5
+  findings          4
+  NOT examined      45   <span style="color:var(--dim)">(budget reached)</span>
+  receipts written  5 of 5
+
+<span style="color:var(--soft)">== run 2: same budget — the receipts vouch ==</span>
+  examined          5    <span style="color:var(--dim)">← different assets</span>
+<span style="color:var(--acid)">  vouched           22   (a prior receipt still holds;
+                         budget spent elsewhere)</span>
+  NOT examined      23   <span style="color:var(--dim)">← was 45</span></pre>
+    </div>
+  </main>
+  <footer class="foot">
+    <span>No state file, no sidecar, no daemon — receipts alone</span>
+    <span>sidq audit --resume</span>
+  </footer>
+</body>
+</html>
