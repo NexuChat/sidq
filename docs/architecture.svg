@@ -1,0 +1,131 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1760 900" role="img" aria-label="Sidq architecture: a change or agent question passes five evidence gates, one policy engine decides, a receipt is written into DataHub, and the next audit resumes from those receipts.">
+  <title>Sidq — evidence, policy, receipt, and a catalog that remembers</title>
+  <defs>
+    <marker id="head-signal" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#ff503d"/>
+    </marker>
+    <marker id="head-acid" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#d9ff57"/>
+    </marker>
+  </defs>
+
+  <style>
+    .display { font-family: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif; }
+    .mono    { font-family: "IBM Plex Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace; }
+    .eyebrow { font-size: 12px; font-weight: 700; letter-spacing: 2.2px; fill: #a7a39a; }
+    .title   { font-size: 25px; fill: #f1eee7; }
+    .line    { font-size: 13.5px; fill: #a7a39a; }
+    .line-strong { font-size: 13.5px; fill: #f1eee7; }
+    .accent-signal { fill: #ff503d; }
+    .accent-acid   { fill: #d9ff57; }
+    .flow-label { font-size: 11.5px; letter-spacing: 1.6px; fill: #a7a39a; }
+  </style>
+
+  <!-- canvas -->
+  <rect x="0" y="0" width="1760" height="900" fill="#0a0a09"/>
+  <rect x="0" y="0" width="10" height="900" fill="#ff503d"/>
+  <rect x="0.5" y="0.5" width="1759" height="899" fill="none" stroke="#34332f"/>
+
+  <!-- header -->
+  <text class="mono eyebrow" x="64" y="76">SIDQ — DATAHUB-NATIVE VERIFICATION / 2026</text>
+  <text class="display" x="62" y="136" font-size="46" fill="#f1eee7">Is the graph lying?  <tspan font-style="italic" fill="#ff503d">Evidence before confidence.</tspan></text>
+  <text class="mono" x="1696" y="76" font-size="13" fill="#d9ff57" text-anchor="end">صدق</text>
+  <line x1="48" y1="172" x2="1712" y2="172" stroke="#34332f"/>
+
+  <!-- ===================== panel 1: change ===================== -->
+  <g>
+    <rect x="48" y="228" width="276" height="360" fill="#11110f" stroke="#34332f"/>
+    <text class="mono eyebrow" x="72" y="266">01 / A CHANGE, OR A QUESTION</text>
+    <text class="display title" x="72" y="308">Before anything</text>
+    <text class="display title" x="72" y="338">trusts the graph</text>
+    <text class="mono line-strong" x="72" y="384">git diff · SQL / dbt model</text>
+    <text class="mono line" x="72" y="408">or an agent about to rely</text>
+    <text class="mono line" x="72" y="428">on catalog context</text>
+    <text class="mono line-strong" x="72" y="470">resolver:</text>
+    <text class="mono line" x="72" y="492">changed file → dataset URN</text>
+    <text class="mono line" x="72" y="512">+ the exact touched fields</text>
+    <text class="mono line" x="72" y="556">surfaces: CLI · PR bot · MCP</text>
+  </g>
+
+  <!-- ===================== panel 2: gates ===================== -->
+  <g>
+    <rect x="396" y="228" width="276" height="360" fill="#11110f" stroke="#34332f"/>
+    <text class="mono eyebrow" x="420" y="266">02 / GATES — EVIDENCE ONLY</text>
+    <text class="display title" x="420" y="308">Five gates collect.</text>
+    <text class="display title" x="420" y="338">None decides.</text>
+    <text class="mono line" x="420" y="384"><tspan class="line-strong">reality  </tspan> graph ⟷ live source</text>
+    <text class="mono line" x="420" y="408"><tspan class="line-strong">schema   </tspan> fields really exist</text>
+    <text class="mono line" x="420" y="432"><tspan class="line-strong">blast    </tspan> downstream impact</text>
+    <text class="mono line" x="420" y="456"><tspan class="line-strong">governance</tspan> PII · owners</text>
+    <text class="mono line" x="420" y="480"><tspan class="line-strong">self-contradiction</tspan></text>
+    <text class="mono line" x="420" y="500">  stored claim vs stored claim</text>
+    <text class="mono line-strong" x="420" y="544">evidence, never verdicts —</text>
+    <text class="mono line" x="420" y="564">unverifiable ≠ clean</text>
+  </g>
+
+  <!-- ===================== panel 3: policy ===================== -->
+  <g>
+    <rect x="744" y="228" width="276" height="360" fill="#11110f" stroke="#34332f"/>
+    <text class="mono eyebrow" x="768" y="266">03 / POLICY — ONE DECIDER</text>
+    <text class="display" x="768" y="322" font-size="30" fill="#f1eee7">PASS</text>
+    <text class="display" x="768" y="360" font-size="30" fill="#d9ff57">WARN</text>
+    <text class="display" x="768" y="416" font-size="44" font-style="italic" font-weight="700" fill="#ff503d">BLOCK</text>
+    <text class="mono line" x="768" y="460">policy.yaml → policy_hash</text>
+    <text class="mono line" x="768" y="484">same input ⇒ byte-identical</text>
+    <text class="mono line" x="768" y="508">graph failure ⇒ fail-closed</text>
+    <text class="mono line-strong" x="768" y="552">no LLM in the judged path —</text>
+    <text class="mono line" x="768" y="572">only deterministic findings block</text>
+  </g>
+
+  <!-- ===================== panel 4: receipt ===================== -->
+  <g>
+    <rect x="1092" y="228" width="276" height="360" fill="#11110f" stroke="#34332f"/>
+    <text class="mono eyebrow" x="1116" y="266">04 / RECEIPT — WRITTEN BACK</text>
+    <text class="display title" x="1116" y="308">Proof, left where</text>
+    <text class="display title" x="1116" y="338">agents read</text>
+    <text class="mono line" x="1116" y="384">official MCP mutation tools</text>
+    <text class="mono line-strong" x="1116" y="408">sidq.* properties + badge</text>
+    <text class="mono line" x="1116" y="432">verdict · policy_hash</text>
+    <text class="mono line" x="1116" y="452">commit_sha · checked_at</text>
+    <text class="mono line-strong" x="1116" y="496">a separate process reads it</text>
+    <text class="mono line" x="1116" y="518">staleness recomputed by the</text>
+    <text class="mono line" x="1116" y="538">reader — never stored, never</text>
+    <text class="mono line" x="1116" y="558">trusted from the catalog</text>
+  </g>
+
+  <!-- ===================== panel 5: memory ===================== -->
+  <g>
+    <rect x="1440" y="228" width="272" height="360" fill="#11110f" stroke="#34332f"/>
+    <rect x="1440" y="228" width="4" height="360" fill="#d9ff57"/>
+    <text class="mono eyebrow" x="1466" y="266" fill="#d9ff57">05 / MEMORY — THE NEW LOOP</text>
+    <text class="display title" x="1466" y="308">The audit that</text>
+    <text class="display title" x="1466" y="338">resumes</text>
+    <text class="mono line-strong" x="1466" y="384">audit --resume reads the</text>
+    <text class="mono line-strong" x="1466" y="404">receipts previous runs left</text>
+    <text class="mono line" x="1466" y="440">still holds  ⇒ vouched</text>
+    <text class="mono line" x="1466" y="464">stale · BLOCK ⇒ re-examined</text>
+    <text class="mono line" x="1466" y="488">absent       ⇒ examined</text>
+    <text class="mono line-strong" x="1466" y="530">the budget reaches assets</text>
+    <text class="mono line-strong" x="1466" y="550">no run has seen — coverage</text>
+    <text class="mono line-strong" x="1466" y="570">converges, run over run</text>
+  </g>
+
+  <!-- ===================== flow arrows ===================== -->
+  <g stroke="#ff503d" stroke-width="1.5">
+    <line x1="324" y1="408" x2="388" y2="408" marker-end="url(#head-signal)"/>
+    <line x1="672" y1="408" x2="736" y2="408" marker-end="url(#head-signal)"/>
+    <line x1="1020" y1="408" x2="1084" y2="408" marker-end="url(#head-signal)"/>
+    <line x1="1368" y1="408" x2="1432" y2="408" marker-end="url(#head-signal)"/>
+  </g>
+  <!-- ===================== the memory loop ===================== -->
+  <g fill="none" stroke="#d9ff57" stroke-width="1.5">
+    <path d="M 1576 588 L 1576 668 L 534 668 L 534 596" marker-end="url(#head-acid)"/>
+  </g>
+  <text class="mono" x="1055" y="655" font-size="12.5" letter-spacing="1.2" fill="#d9ff57" text-anchor="middle">THE CATALOG IS THE LEDGER — ANY SIDQ INSTANCE RESUMES WHERE ANY OTHER STOPPED</text>
+
+  <!-- footer -->
+  <line x1="48" y1="742" x2="1712" y2="742" stroke="#34332f"/>
+  <text class="mono" x="64" y="790" font-size="12" letter-spacing="1.6" fill="#a7a39a">DETERMINISTIC · FAIL-CLOSED · NO LLM IN THE JUDGED PATH · APACHE-2.0</text>
+  <text class="mono" x="64" y="820" font-size="12" letter-spacing="1.6" fill="#a7a39a">READS AND WRITES ONLY THROUGH THE OFFICIAL DATAHUB MCP SERVER</text>
+  <text class="display" x="1712" y="812" font-size="34" font-weight="700" letter-spacing="-1.5" fill="#f1eee7" text-anchor="end">Sidq <tspan fill="#d9ff57" font-size="16">صدق</tspan></text>
+</svg>

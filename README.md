@@ -4,6 +4,8 @@
 
 > Everyone is building agents that read the metadata graph and trust it blindly. Sidq is the only one asking whether the graph is lying — and it stops the agent before it builds on the lie.
 
+![How Sidq decides: a change or agent question passes five evidence gates, one policy engine emits PASS, WARN or BLOCK, a receipt is written back into DataHub, and the next audit resumes from those receipts — the catalog is the ledger.](docs/architecture.svg)
+
 Sidq is a DataHub-native verification layer for agents and data-code changes. It checks whether catalog context is truthful before an agent relies on it, then applies an explicit policy and leaves evidence that the next agent can read.
 
 ## Judge runbook

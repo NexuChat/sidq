@@ -14,6 +14,8 @@ DataHub MCP already does context-aware SQL generation; Vanna, Wren AI and dbt Co
 generate. **Nobody gates.** No tool blocks a failing generated change before it merges, and
 none writes a verification receipt back to the metadata graph that a later agent reads.
 
+![The Sidq loop: change → gates → policy → receipt → memory, with the catalog as the shared ledger](docs/architecture.svg)
+
 ## The flow
 
 ```
