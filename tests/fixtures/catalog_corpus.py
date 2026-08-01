@@ -137,11 +137,14 @@ def chinese_finance() -> Corpus:
 def platform_casing_trap() -> Corpus:
     """The same column crossing Snowflake, dbt, and Looker with different casing.
 
-    Snowflake upper-cases, dbt lower-cases, Looker often title-cases. An engine
-    comparing field paths as exact strings will report a contradiction here that
-    a human would call a naming convention. Nothing is planted: the correct
-    behaviour is a matter of documented policy, and this fixture exists so the
-    behaviour is measured rather than assumed.
+    Snowflake upper-cases, dbt lower-cases, Looker often title-cases, and
+    DataHub links such representations as siblings. An engine comparing field
+    paths as exact strings reports a contradiction here that a human calls a
+    naming convention — which is what this catalog once proved, and what the
+    platform-aware comparison in `_field_present` now prevents.
+
+    Nothing is planted, and that is the assertion: crossing three platforms with
+    three casing conventions must produce silence.
     """
     snow = _entity("snowflake", "DW.CUSTOMERS", ("CUSTOMER_ID", "EMAIL"))
     dbt = _entity("dbt", "dw.customers", ("customer_id", "email"))
@@ -155,10 +158,10 @@ def platform_casing_trap() -> Corpus:
     return Corpus(
         "platform_casing_trap",
         CatalogSnapshot((snow, dbt, look), edges),
-        planted_field_missing=1,  # EMAIL is genuinely absent from looker's schema
+        planted_field_missing=0,  # casing is a convention, not a contradiction
         planted_orphans=0,
         planted_unowned=0,
-        note="documents the exact-string comparison boundary across platforms",
+        note="three platforms, three casing conventions, nothing wrong",
     )
 
 
@@ -187,12 +190,20 @@ def nested_struct_paths() -> Corpus:
             curated.urn,
             "id",
         ),
-        # planted: the nested source claims a flat target field that is absent
+        # `user.email` resolves to the leaf `email`, which the target does have —
+        # nested notation is a representation, not a claim about a missing field.
         LineageEdge(
             raw.urn,
             "[version=2.0].[type=struct].[type=struct].user.[type=string].email",
             curated.urn,
             "user.email",
+        ),
+        # planted: this leaf exists nowhere in the target schema
+        LineageEdge(
+            raw.urn,
+            "[version=2.0].[type=struct].[type=string].id",
+            curated.urn,
+            "[version=2.0].[type=struct].[type=string].session_token",
         ),
     )
     return Corpus(
@@ -201,7 +212,7 @@ def nested_struct_paths() -> Corpus:
         planted_field_missing=1,
         planted_orphans=0,
         planted_unowned=0,
-        note="DataHub nested field-path syntax",
+        note="DataHub nested field-path syntax; leaf resolution versus a real miss",
     )
 
 

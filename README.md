@@ -17,7 +17,7 @@ Four commands, in order of how much they need. The first needs nothing at all.
 | # | Command | Needs | What it proves | Takes |
 |---|---|---|---|---|
 | 1 | `make gate-demo` | nothing — no DataHub, no network, no credentials | The published `BLOCK` verdict is re-derived from the committed graph recording, byte-identical, with the same `policy_hash`. Hand-editing an artifact fails this. | ~2s (the very first run adds about a minute to build `.venv`) |
-| 2 | `make check` | nothing | 457 tests, lint, format, types — everything CI runs, including the guards on every claim this README makes. | ~15s |
+| 2 | `make check` | nothing | 464 tests, lint, format, types — everything CI runs, including the guards on every claim this README makes. | ~15s |
 | 3 | `make live-loop` | a running DataHub ([`docs/SETUP.md`](docs/SETUP.md)) | The whole agent loop over the **official MCP server only**: read → decide → write a receipt → a *separate process* reads it back → an asset carrying no receipt returns `NOT VERIFIED`. | ~60s |
 | 4 | `make repair-demo` | the same DataHub | The repair agent proposes a fix from catalog evidence, re-runs the deterministic engine against the catalog that fix *would* create, and shows what it proved and what it refused. | ~40s |
 
@@ -164,6 +164,28 @@ planted in it, so the tests assert both halves: each planted contradiction is
 found, and nothing unplanted is invented. The second half is the one that
 catches drift toward noise — an engine that reports something on every catalog
 is not verifying, it is guessing confidently.
+
+Researching how real catalogs actually name things went further, and turned up
+the false positive that mattered most. DataHub links a dbt model and its
+Snowflake table as *siblings* — one table, two representations — but Snowflake
+stores identifiers upper-cased and dbt lower-cases them. A lineage edge crossing
+that boundary read as `CUSTOMER_ID` missing from a schema containing
+`customer_id`: a contradiction reported where a human sees a convention, which
+is the worst thing a verification tool can do. Field comparison now resolves the
+spellings a catalog legitimately uses for one column — exact, case-folded, and
+the leaf of a nested `[version=2.0].[type=struct]…` path — and nothing further,
+because loosening beyond that would start excusing real contradictions. The
+published 285 are unchanged by it, which is the check that mattered: the
+`BILLING_ADDRESS_LINE1` claim is absent in every spelling.
+
+Beyond the hand-written catalogs, Hypothesis generates them: assets, fields, and
+edges drawn at random across eight platforms and five scripts, with edges that
+may name fields nothing has and URNs the catalog does not contain. It asserts
+invariants rather than answers — the budget accounts for every asset, `clean`
+and `unestablished` never overlap, only examined assets carry receipts, no
+finding names an invented asset, and the same catalog always produces the same
+run. Roughly half the generated catalogs produce real findings, so the
+properties are not vacuous; none has broken an invariant.
 
 That corpus immediately earned its place. Doc-rot detection matched column
 references with `[a-z][a-z0-9]*_[a-z0-9_]+`, which cannot see an Arabic,

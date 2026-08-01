@@ -455,7 +455,7 @@ def _lineage_field_missing(
             )
             continue
         fields = {field.path for field in target.fields}
-        if edge.target_field not in fields:
+        if not _field_present(edge.target_field, fields):
             evidence.append(
                 Evidence(
                     "lineage_field_missing",
@@ -468,6 +468,44 @@ def _lineage_field_missing(
                 )
             )
     return _unique(evidence)
+
+
+def _field_present(claimed: str, schema_paths: set[str]) -> bool:
+    """Is this claimed column really absent, or only spelled another way?
+
+    Exact-string comparison was the whole check, and on one catalog that was
+    right. Across platforms it is not: Snowflake stores identifiers upper-cased,
+    dbt lower-cases them, and DataHub links the two as *siblings* — the same
+    table, two representations. A lineage edge crossing that boundary then reads
+    as `CUSTOMER_ID` missing from a schema that has `customer_id`, and the tool
+    reports a contradiction where a human sees a naming convention. Researching
+    real catalog conventions is what surfaced it; a sibling pair reproduces it in
+    three lines.
+
+    So a claim is absent only when it survives every spelling a catalog
+    legitimately uses for the same column: exact, case-folded, and — for the
+    nested `[version=2.0].[type=struct]...name` paths that JSON, Avro, and
+    Parquet schemas produce — the leaf name the path ends in. Anything beyond
+    that stays a finding, because loosening further would start excusing real
+    contradictions, which is the more expensive mistake.
+    """
+    if claimed in schema_paths:
+        return True
+    folded = {path.casefold() for path in schema_paths}
+    if claimed.casefold() in folded:
+        return True
+    leaf = _leaf_name(claimed)
+    return bool(leaf) and leaf in {_leaf_name(path) for path in folded}
+
+
+def _leaf_name(path: str) -> str:
+    """The final segment of a field path, with DataHub's type annotations gone."""
+    without_types = [
+        part
+        for part in path.split(".")
+        if not (part.startswith("[") and part.endswith("]"))
+    ]
+    return without_types[-1].casefold() if without_types else ""
 
 
 def _orphan_lineage(
