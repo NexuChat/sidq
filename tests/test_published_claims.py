@@ -497,31 +497,73 @@ def test_the_operations_runbook_covers_probe_release_and_rollback() -> None:
         "/healthz",
         "/readyz",
         "systemctl restart sidq-landing",
-        "git switch --detach",
+        "/opt/sidq/releases/<SHA>",
+        "/opt/sidq/current",
+        "ln -sfn",
+        "mv -Tf",
+        ".sidq-dev-lock",
         "git rev-parse HEAD",
+        "git status --porcelain",
+        'git archive "$release_sha"',
+        "chown -R root:root",
+        "chmod -R a-w,a+rX",
         "curl --fail",
     ):
         assert required in runbook
+
+    release = runbook.split("## Release", 1)[1].split("## Configuration and logs", 1)[0]
+    rollback = runbook.split("## Rollback", 1)[1]
+    for procedure in (release, rollback):
+        switch_at = procedure.index("ln -sfn")
+        touch_at = procedure.index("touch /opt/sidq/runtime/venv/.sidq-dev-lock")
+        freshness_at = procedure.index("-nt /opt/sidq/current/requirements-dev.lock")
+        before_restart, restart, _ = procedure.partition(
+            "systemctl restart sidq-landing"
+        )
+        assert restart
+        assert procedure.count("cmp --silent") >= 3
+        assert procedure.rindex("cmp --silent") < switch_at < touch_at < freshness_at
+        assert freshness_at < len(before_restart)
+        for prerequisite in ("requirements-dev.lock", "pyproject.toml", "uv.lock"):
+            assert prerequisite in procedure[:switch_at]
+            assert f"-nt /opt/sidq/current/{prerequisite}" in before_restart
+        assert "STOP" in procedure[:switch_at]
+        assert "docs/SETUP.md" in procedure[:switch_at]
+
+    assert "previous_release=$(readlink -f /opt/sidq/current)" in release
+    assert "runtime_compatible_release=$(readlink -f /opt/sidq/current)" in rollback
+    for prerequisite in ("requirements-dev.lock", "pyproject.toml", "uv.lock"):
+        assert f'"$release_dir/{prerequisite}"' in release
+        assert f'"$previous_release/{prerequisite}"' in release
+        assert f'"$target_release/{prerequisite}"' in rollback
+        assert f'"$runtime_compatible_release/{prerequisite}"' in rollback
 
 
 def test_the_video_runbook_fits_the_limit_and_leads_with_the_handoff() -> None:
     video = (ROOT / "docs/VIDEO.md").read_text()
     normalized_video = " ".join(video.lower().split())
 
-    assert "Target length: 2:45" in video
-    assert "write" in video.lower() and "independent read" in video.lower()
-    assert "DataHub" in video and "Agent B" in video
-    assert "receipt" in video.lower() and "VERIFIED" in video
-    assert "Do not speed up terminal output" in video
-    assert "dynamic" in video.lower()
-    assert "captions" in video.lower()
-    for receipt_context in (
-        "semantic entity",
-        "complete one-hop lineage",
-        "policy",
-        "age",
-    ):
-        assert receipt_context in normalized_video
+    assert "175.317 seconds" in video
+    assert "under three minutes" in normalized_video
+    assert "English narration with burned English subtitles" in video
+    assert "ILLUSTRATION" in video
+    assert "LIVE CAPTURE" in video
+    for visible_capture_detail in ("address bar", "cursor", "cut wait labels"):
+        assert visible_capture_detail in normalized_video
+    assert "independent receipt read" in normalized_video
+    assert "`VERIFIED`" in video
+    assert "`gate-demo`" in video and "`BLOCK`" in video
+    assert "do not depict a live catalog mutation or a live datahub ui session" in (
+        normalized_video
+    )
+    assert "not presented as a live mutation" in normalized_video
+
+    upload_action = (
+        "- [ ] verify the uploaded public video is viewable without sign-in and add "
+        "its public url to the submission."
+    )
+    assert upload_action in normalized_video
+    assert "- [x] verify the uploaded public video" not in normalized_video
 
 
 def test_the_browser_qa_record_covers_every_live_journey_and_viewport() -> None:

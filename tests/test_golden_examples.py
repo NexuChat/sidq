@@ -400,9 +400,9 @@ def test_the_published_comment_order_is_a_deliberate_reorder_not_production_orde
 def test_the_published_comment_heading_matches_every_sealed_branch() -> None:
     """The four sealed demo branches are judge-facing; main must not drift from them.
 
-    Skips rather than passes when the clone has no local demo branches — CI and a
-    judge's fresh checkout fetch only main, and asserting against branches that
-    were never fetched would either fail spuriously or, worse, pass vacuously.
+    Skips rather than passes when the clone has no demo remote-tracking refs — a
+    judge's fresh checkout may fetch only main, and asserting against branches
+    that were never fetched would either fail spuriously or, worse, pass vacuously.
     """
     heading = next(
         line
@@ -411,7 +411,12 @@ def test_the_published_comment_heading_matches_every_sealed_branch() -> None:
     )
 
     completed = subprocess.run(
-        ["git", "branch", "--list", "demo/*", "--format=%(refname:short)"],
+        [
+            "git",
+            "for-each-ref",
+            "--format=%(refname)",
+            "refs/remotes/origin/demo/",
+        ],
         capture_output=True,
         text=True,
         check=True,
@@ -420,7 +425,8 @@ def test_the_published_comment_heading_matches_every_sealed_branch() -> None:
     branches = [name for name in completed.stdout.split() if name]
     if not branches:
         pytest.skip(
-            "no local demo/* branches in this clone; fetch them to run this guard"
+            "no origin/demo/* remote-tracking refs in this clone; fetch them to run "
+            "this guard"
         )
     assert len(branches) == 4, f"expected four demo branches, found {branches}"
 

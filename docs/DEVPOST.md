@@ -273,8 +273,7 @@ decision explicit and reproducible.
   was deliberately excluded because its redistribution licence could not be
   confirmed.
 - The repository is Apache-2.0 licensed.
-- The final video export must use no copyrighted music. Use silence or a
-  permissively licensed track with attribution.
+- The local final uses English narration over silence and contains no music.
 
 Use this exact AI/pre-existing-work disclosure in the corresponding Devpost
 field:
@@ -287,25 +286,36 @@ field:
 
 ## Submission checklist
 
-- [ ] Repository link is public and opens without authentication.
-- [ ] Live project and live DataHub links return HTTP 200 from a logged-out browser.
+- [x] Repository link is public and opens without authentication.
+- [x] Live project and live DataHub links return HTTP 200 from a logged-out browser.
 - [ ] Public video link is viewable without sign-in and is under three minutes.
 - [ ] The AI coding-assistant disclosure is pasted exactly and the pre-existing
   third-party data disclosure is included.
 - [ ] The Devpost Testing instructions field visible to judges contains working
   `<READER_USERNAME>` / `<READER_PASSWORD>` replacements for a Reader-only
   account; no credential is copied into public fields or committed files.
-- [ ] The Reader account has been tested to confirm that metadata write controls
+- [x] The Reader account has been tested to confirm that metadata write controls
   are unavailable.
 - [ ] Optional: If pursuing a $50 Most Valuable Feedback bonus prize, submit
   the organizer's feedback form and retain its confirmation; the form is not
   required for project submission.
-- [ ] Evidence links above open at the submitted repository revision.
-- [ ] `make gate-demo` and `make check` were run from that revision; paste only
+- [x] Evidence links above open at the submitted repository revision.
+- [x] `make gate-demo` and `make check` were run from that revision; paste only
   their actual results into the final submission.
-- [ ] The 285 findings are described as concentrated in 5 assets after examining
+- [x] The 285 findings are described as concentrated in 5 assets after examining
   67 datasets, not as spread across 67 datasets.
-- [ ] Receipt writeback is described as optional and off by default.
+- [x] Receipt writeback is described as optional and off by default.
+
+## Owner-only remaining actions
+
+- [ ] Upload the English-narration final with burned English subtitles to public
+  YouTube, Vimeo, or Youku, verify logged-out playback, and replace
+  `<PUBLIC_VIDEO_URL>` in the Devpost submission.
+- [ ] Paste the Reader credentials privately into Devpost Testing instructions,
+  replace both placeholders there only, and paste the exact disclosure above into
+  its corresponding field.
+- [ ] Press **Submit**. Optionally complete the organizer's feedback form if
+  pursuing its separate bonus.
 
 ## Optional opportunities (not submission requirements)
 
