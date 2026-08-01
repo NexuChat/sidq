@@ -166,7 +166,14 @@ def simulate(snapshot: CatalogSnapshot, proposal: Proposal) -> CatalogSnapshot:
         else entity
         for entity in snapshot.entities
     )
-    return CatalogSnapshot(entities, snapshot.edges, snapshot.field_lineage_resolved)
+    return CatalogSnapshot(
+        entities,
+        snapshot.edges,
+        # The simulated catalog is exactly as complete as the one it was built
+        # from: a repair changes tags, never which assets exist.
+        entities_complete=snapshot.entities_complete,
+        field_lineage_resolved=snapshot.field_lineage_resolved,
+    )
 
 
 def _apply_to_entity(

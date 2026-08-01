@@ -410,17 +410,65 @@ def test_an_orphan_edge_is_reported_not_silently_dropped() -> None:
 
     An orphan's subject is the *missing* URN, so a filter keyed on the target's
     own URN could never match it: the gate found the contradiction and the agent
-    threw it away. An independent code review caught it, and this is the guard —
-    a real asset with an edge into nothing must surface as `orphan_lineage`.
+    threw it away. This is the guard — a real asset with an edge into nothing
+    must surface as `orphan_lineage` when the catalog view is whole.
     """
     real = _ds("has_orphan_edge")
     ghost = "urn:li:dataset:(urn:li:dataPlatform:dbt,gone,PROD)"
     snapshot = CatalogSnapshot((real,), (LineageEdge(real.urn, "id", ghost, "id"),))
 
-    result = _audit(snapshot)
+    class Scoped:
+        def catalog_snapshot(self):
+            return snapshot
 
-    kinds = {item.kind for item in result.findings}
-    assert "orphan_lineage" in kinds, "the orphan finding was dropped again"
-    orphan = next(i for i in result.findings if i.kind == "orphan_lineage")
-    assert orphan.subject == ghost
-    assert orphan.detail["edge"]["source_dataset"] == real.urn
+    from sidq.gates.self_contradiction import SelfContradictionGate
+
+    findings = SelfContradictionGate().collect((), Scoped())
+    orphans = [item for item in findings if item.kind == "orphan_lineage"]
+
+    assert orphans, "the orphan finding was dropped again"
+    assert orphans[0].subject == ghost
+    assert orphans[0].detail["edge"]["source_dataset"] == real.urn
+
+
+def test_a_bounded_catalog_view_never_manufactures_orphans() -> None:
+    """Paging is the reader's boundary, not the catalog's contradiction.
+
+    MCP `search` returns one page. Every edge leaving that page points at an
+    asset that exists and is simply outside the window — and calling those
+    dangling produced 651 findings on a catalog with none. A bounded view now
+    reports what it could not adjudicate instead.
+    """
+    a, b = _ds("in_page"), _ds("out_of_page")
+    edges = (LineageEdge(a.urn, "id", b.urn, "id"),)
+    page = CatalogSnapshot((a,), edges, entities_complete=False)
+
+    class Scoped:
+        def catalog_snapshot(self):
+            return page
+
+    from sidq.gates.self_contradiction import SelfContradictionGate
+
+    findings = SelfContradictionGate().collect((), Scoped())
+    orphans = [f for f in findings if f.kind == "orphan_lineage"]
+
+    assert not orphans
+    unverifiable = [f for f in findings if f.kind == "orphan_lineage_unverifiable"]
+    assert unverifiable, "a bounded view must say what it could not adjudicate"
+
+
+def test_a_complete_catalog_view_still_reports_a_real_orphan() -> None:
+    """The honesty above must not become blindness."""
+    real = _ds("real")
+    ghost = "urn:li:dataset:(urn:li:dataPlatform:dbt,gone,PROD)"
+    whole = CatalogSnapshot((real,), (LineageEdge(real.urn, "id", ghost, "id"),))
+
+    class Scoped:
+        def catalog_snapshot(self):
+            return whole
+
+    from sidq.gates.self_contradiction import SelfContradictionGate
+
+    findings = SelfContradictionGate().collect((), Scoped())
+
+    assert [f for f in findings if f.kind == "orphan_lineage"]

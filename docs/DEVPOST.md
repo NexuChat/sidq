@@ -63,6 +63,21 @@ catalog metadata. Scanning all 67 datasets surfaced 285 internal field-lineage c
 concentrated in 5 assets. This is a narrower claim than saying the source systems are broken: the
 contradictory claims are visible inside the catalog itself.
 
+
+## What each check compares
+
+Field identity is resolved rather than string-matched: a column crossing
+platforms carries the spelling each imposes (Snowflake upper-cases, dbt
+lower-cases, JSON and Avro arrive as `[version=2.0].[type=struct]…` paths), and
+Sidq resolves those to one identity so a naming convention is never reported as
+a contradiction. Protection is recognised by meaning, not by label — a column
+inherited from a `PII` source and marked `GDPR`, `HIPAA` or `Confidential`
+satisfies the check, while a bare `not_pii` denial does not. Deprecation is read
+both ways DataHub records it, the first-class aspect and the custom-property
+form. And a bounded view says so: MCP `search` returns one page, so dangling
+edges are adjudicated only against a complete view and the rest are reported
+`unverifiable` — a paged reader's boundary is not the catalog's contradiction.
+
 ## How it was built
 
 The engine is deterministic Python. Gates collect structured evidence. The policy

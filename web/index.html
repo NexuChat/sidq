@@ -1076,11 +1076,11 @@
           </div>
           <div class="qa">
             <dt>Reliability</dt>
-            <dd><strong>Byte-identical verdicts.</strong> Same input + policy ⇒ same output, pinned by <code>policy_hash</code> and <code>commit_sha</code>. 412 CI-enforced tests guard every claim on this page — re-derive and compare, don't trust.</dd>
+            <dd><strong>Byte-identical verdicts.</strong> Same input + policy ⇒ same output, pinned by <code>policy_hash</code> and <code>commit_sha</code>. A CI-enforced suite guards every claim on this page — re-derive and compare, don't trust.</dd>
           </div>
           <div class="qa">
             <dt>Model drift</dt>
-            <dd><strong>No model, no drift — by construction.</strong> We trained a classifier, it tied a 3-line rule, we shipped the rule and published the negative result. Policy changes rotate the hash and invalidate old receipts explicitly.</dd>
+            <dd><strong>No model, no drift — by construction.</strong> A trained classifier could not beat a three-line deterministic rule, so the rule shipped and the measurement was published. Policy changes rotate the hash and invalidate old receipts explicitly.</dd>
           </div>
           <div class="qa">
             <dt>Monitoring</dt>

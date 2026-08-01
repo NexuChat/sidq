@@ -131,6 +131,10 @@ class CatalogAuditor:
         # Empty means amnesia, and amnesia is the safe default: nothing is ever
         # skipped on the strength of a receipt nobody read.
         self._prior = dict(prior or {})
+        # Every URN the catalog actually contains. Slicing hides most of them
+        # from the gate, so this is what tells a genuine dangling edge apart
+        # from the edge of the window.
+        self._known_urns = {entity.urn for entity in snapshot.entities}
 
     # -- perception ------------------------------------------------------
 
@@ -288,10 +292,16 @@ class CatalogAuditor:
                 entity for entity in self._snapshot.entities if entity.urn in neighbours
             ),
             related,
+            # A slice is a window on the catalog by construction: everything past
+            # this target's immediate neighbourhood is absent from it. Declaring
+            # that keeps the agent's own framing from being read as the catalog's
+            # dangling edges — orphans are adjudicated against the whole entity
+            # set below, never against the slice.
+            entities_complete=False,
             # Carried, not defaulted. Dropping it would let slicing quietly turn a
             # bounded read into a complete one, and every asset whose lineage was
             # never fetched would come back looking clean.
-            self._snapshot.field_lineage_resolved,
+            field_lineage_resolved=self._snapshot.field_lineage_resolved,
         )
 
         # Keep only what this target is answerable for. Subject-prefix matching
@@ -310,6 +320,14 @@ class CatalogAuditor:
             if item.subject.startswith(target.urn):
                 return True
             if item.kind != "orphan_lineage":
+                return False
+            # An orphan is real only when the endpoint is missing from the *whole*
+            # catalog. The gate sees one target's slice, where every asset beyond
+            # the immediate neighbourhood is absent by construction — so slicing
+            # alone manufactures orphans by the hundred. Checking against the full
+            # entity set is what separates a genuine dangling edge from the
+            # boundary of the window the agent chose to look through.
+            if item.subject in self._known_urns:
                 return False
             edge = item.detail.get("edge") or {}
             return target.urn in (

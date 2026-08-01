@@ -55,3 +55,15 @@ backup.sql
 .mcp.json
 **/session-*.json
 **/transcript-*.jsonl
+
+# Assistant and orchestration state. None of it is part of the project, and a
+# stray CLAUDE.md or .codex/ in a public repository is noise at best.
+.claude/
+CLAUDE.md
+AGENTS.md
+.codex/
+.codex-*/
+.maestro/
+.cursor/
+.aider*
+.windsurf/

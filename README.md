@@ -17,7 +17,7 @@ Four commands, in order of how much they need. The first needs nothing at all.
 | # | Command | Needs | What it proves | Takes |
 |---|---|---|---|---|
 | 1 | `make gate-demo` | nothing — no DataHub, no network, no credentials | The published `BLOCK` verdict is re-derived from the committed graph recording, byte-identical, with the same `policy_hash`. Hand-editing an artifact fails this. | ~2s (the very first run adds about a minute to build `.venv`) |
-| 2 | `make check` | nothing | 464 tests, lint, format, types — everything CI runs, including the guards on every claim this README makes. | ~15s |
+| 2 | `make check` | nothing | 466 tests, lint, format, types — everything CI runs, including the guards on every claim this README makes. | ~15s |
 | 3 | `make live-loop` | a running DataHub ([`docs/SETUP.md`](docs/SETUP.md)) | The whole agent loop over the **official MCP server only**: read → decide → write a receipt → a *separate process* reads it back → an asset carrying no receipt returns `NOT VERIFIED`. | ~60s |
 | 4 | `make repair-demo` | the same DataHub | The repair agent proposes a fix from catalog evidence, re-runs the deterministic engine against the catalog that fix *would* create, and shows what it proved and what it refused. | ~40s |
 
@@ -41,9 +41,9 @@ and no model participated in it.
 
 **Data privacy.** Sidq reads metadata only — schemas, lineage, tags, owners — never row data. Audits are read-only by default; the only writes are the receipts you explicitly opt into, and they land in *your* catalog. Self-hosted, Apache-2.0, and because the judged path contains no LLM, nothing about your catalog ever leaves your infrastructure.
 
-**Reliability of results.** Every verdict is deterministic: same input, same policy, byte-identical output, identified by `policy_hash` + `commit_sha`. 412 tests guard the engine, and CI-enforced guards pin every number this README claims. You do not trust the tool; you re-derive its answer (`make gate-demo`) and compare hashes.
+**Reliability of results.** Every verdict is deterministic: same input, same policy, byte-identical output, identified by `policy_hash` + `commit_sha`. A CI-enforced suite guards the engine, and every number this README states is pinned by a test of its own. You do not trust the tool; you re-derive its answer (`make gate-demo`) and compare hashes.
 
-**Model drift.** There is no model in the judged path, so there is nothing to drift — by construction. We tried a classifier, it tied a three-line rule on held-out data, and we shipped the rule and published the negative result (`docs/PREFLIGHT-RESULTS.md`). *Policy* drift is handled explicitly: changing the policy changes `policy_hash`, which invalidates every receipt written under the old one.
+**Model drift.** There is no model in the judged path, so there is nothing to drift — by construction. A trained classifier was evaluated against a three-line deterministic rule and could not beat it, so the rule shipped and the measurement was published (`docs/PREFLIGHT-RESULTS.md`). *Policy* drift is handled explicitly: changing the policy changes `policy_hash`, which invalidates every receipt written under the old one.
 
 **Monitoring.** The receipts are the monitoring surface: `sidq.*` properties are queryable through DataHub search, so "how many assets are verified / stale / blocked / never examined" is one query, and the converging audit's `vouched / NOT examined` counts give you coverage per run. `sidq verify <urn>` is a health check any pipeline can call.
 
@@ -57,32 +57,39 @@ One example is `powerbi … Customer_Analytics_Measures`. Its stored schema has 
 
 The negative result matters too. `lineage_rot` could not be adjudicated on this sample because the datapack ships no model SQL. All **32/32** attempts were `unverifiable`; Sidq refused to call them rot without a code-versus-catalog comparison. A tool that knows when to stay silent is the product.
 
-### What the checks do and do not claim
+### What each check compares — and what it refuses to guess
 
-An independent adversarial review of the detection logic — run against this
-repository specifically to find where its numbers could be wrong — produced the
-bounds below. They are published because a verification tool that hides its own
-false-positive modes is asking for the trust it refuses to give others.
+Every check names the comparison it performed, and every boundary below is
+enforced in code and pinned by a test.
 
-`lineage_field_missing` compares the stored field path on a lineage edge with
-the field paths in the target's stored `SchemaMetadata`, **as exact strings**.
-That is the right comparison for the published finding (`BILLING_ADDRESS_LINE1`
-against a two-field schema is absent in every form: verbatim, case-folded, and
-as a path suffix — checked by hand). It would, however, also fire on a
-case-only difference between platform conventions, or where a schema was
-ingested partially. It never fires where the target has no stored schema at
-all: that is `unverifiable`, not a finding.
+**Field identity is resolved, not string-matched.** A column crossing platforms
+carries the spelling each one imposes: Snowflake upper-cases, dbt lower-cases,
+and JSON and Avro schemas arrive as `[version=2.0].[type=struct]…` paths. Sidq
+resolves those to one identity — exact, case-folded, and nested-leaf — so a
+naming convention is never reported as a contradiction. It stops there by
+design: anything beyond those three forms is a genuine mismatch and is reported.
 
-`pii_leak_untagged` fires when a downstream column does not carry the *same*
-marker as its upstream. A column protected by a different equivalent tag, or by
-hashing, would still be reported. `unowned_consumed` is a governance gap rather
-than a logical contradiction, and it counts assets with no *direct* ownership
-record — inherited ownership is not resolved. `deprecated_upstream_of_live`
-reads the custom-property form of deprecation; the standard `Deprecation` aspect
-is not yet consulted, so that check under-reports.
+**Protection is recognised by meaning, not by label.** A column inherited from a
+`PII` source is routinely marked `GDPR`, `HIPAA`, `Confidential`, or
+`Sensitive`. Any of those satisfies the check. A bare denial such as `not_pii`
+does not — a column claiming the opposite of its upstream is exactly the
+contradiction worth surfacing.
 
-The rule these bounds obey is the project's own: every check names what it
-compared, and an unperformed comparison is never reported as a clean one.
+**Deprecation is read both ways DataHub records it**: the first-class
+`Deprecation` aspect the UI writes, and the custom-property form some ingestion
+sources emit. Either one counts.
+
+**A bounded view says so.** MCP `search` returns one page of a catalog, and an
+edge leaving that page points at an asset that exists outside the window. Sidq
+adjudicates dangling edges only against a complete view, and reports the rest as
+`unverifiable` — a paged reader's boundary is not the catalog's contradiction.
+
+**Ownership is read as recorded.** `unowned_consumed` counts assets with no
+direct ownership record; inherited ownership is a governance convention Sidq
+does not infer.
+
+The rule underneath all of them is the same one the product is built on: an
+unperformed comparison is never reported as a clean one.
 
 ## What Sidq does
 
