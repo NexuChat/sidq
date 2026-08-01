@@ -450,3 +450,45 @@ def test_the_contradiction_count_and_its_concentration_are_both_true() -> None:
     assert "285 internal contradictions" in readme
     assert "concentrated in **5 assets**" in readme
     assert "contradictions across 67 datasets" not in readme
+
+
+# ---------------------------------------------------------------------------
+# Cross-references. A document we point a judge at must exist, or the pointer is
+# a broken promise on the surface whose whole argument is that claims are checked.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("document", ("README.md", "docs/PREFLIGHT-RESULTS.md"))
+def test_every_document_we_point_at_exists(document: str) -> None:
+    path = ROOT / document
+    text = path.read_text(encoding="utf-8")
+    referenced = set(re.findall(r"[(`](docs/[\w./-]+\.md|[\w-]+\.md)[)`]", text))
+    missing = sorted(
+        name
+        for name in referenced
+        if not (ROOT / name).exists() and not (path.parent / name).exists()
+    )
+
+    assert not missing, f"{document} points at: {', '.join(missing)}"
+
+
+def test_the_speed_claim_and_the_measurement_agree() -> None:
+    """The README's speed sentence is the summary of a document; both must say it.
+
+    `PREFLIGHT-RESULTS.md` reports a tie on accuracy, and a tie is the kind of
+    result that quietly invites a model back in. The speed measurement is what
+    makes the tie a decision — so the claim has to travel with the evidence
+    rather than living alone in a summary nobody regenerates.
+    """
+    cost = ROOT / "docs" / "DECISION-COST.md"
+    assert cost.exists(), "the speed measurement must be published, not just run"
+
+    text = cost.read_text(encoding="utf-8")
+    assert "three orders of magnitude" in text
+    # The friendliest framing for the model is published too, or the comparison
+    # is a selected one.
+    assert "amortised over" in text
+
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    assert "three orders of magnitude slower" in readme
+    assert "docs/DECISION-COST.md" in readme

@@ -199,6 +199,15 @@ def _measured_lines(rungs: dict) -> list[str]:
             "the most sophisticated, so a tie resolves downward."
         ),
         "",
+        (
+            "A tie here is a tie on *accuracy only*, and this document measures "
+            "nothing else. The other dimension is settled in "
+            "[`DECISION-COST.md`](DECISION-COST.md): at the shape a gate really "
+            "has — one change at a time — the rule decides three orders of "
+            "magnitude faster than the model that ties it, and it is still ahead "
+            "when the model is given its friendliest possible framing."
+        ),
+        "",
         "| §6 criterion | outcome |",
         "| --- | --- |",
         (

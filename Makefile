@@ -11,7 +11,7 @@ RECEIPT_URN ?= urn:li:dataset:(urn:li:dataPlatform:snowflake,b2fd91.order_entry_
 
 REPAIR_BUDGET ?= 15
 
-.PHONY: check regen regen-check gate-demo live-loop converge-demo swarm-demo repair-demo repair-reset demo-up demo-ingest demo-break demo-restore demo-down
+.PHONY: check regen regen-check decision-cost gate-demo live-loop converge-demo swarm-demo repair-demo repair-reset demo-up demo-ingest demo-break demo-restore demo-down
 
 # The runbook's first row promises a clone and `make` are enough, and until
 # 2026-07-31 that promise was false: a fresh clone had no virtualenv and the
@@ -48,6 +48,13 @@ regen-check: | $(VENV)/bin/python
 	$(VENV)/bin/python scripts/measure_reconcile.py --check
 	$(VENV)/bin/python scripts/train_preflight.py --check
 	$(VENV)/bin/python scripts/eval_preflight.py --check
+
+# What one decision costs. Deliberately NOT in `regen`/`regen-check`: a timing
+# is not byte-reproducible, and a document guarded by a byte comparison it can
+# never satisfy would fail `make check` on a machine under load. The published
+# claim is an order of magnitude for the same reason.
+decision-cost: | $(VENV)/bin/python
+	$(VENV)/bin/python scripts/measure_decision_cost.py --write
 
 # The command the landing page tells a judge to run. It existed only on the page
 # until 2026-07-30, which meant the one instruction on the first surface a judge

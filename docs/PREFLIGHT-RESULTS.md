@@ -23,6 +23,8 @@ Those rows contain **1,507 distinct training diffs and 607 distinct test diffs**
 
 The cheapest rung that meets the bar is **L0.75 pre-checks and a two-term rule**: 0 missed blocks out of 5,921, and 0 false alarms. §4 asks for the cheapest, not the most sophisticated, so a tie resolves downward.
 
+A tie here is a tie on *accuracy only*, and this document measures nothing else. The other dimension is settled in [`DECISION-COST.md`](DECISION-COST.md): at the shape a gate really has — one change at a time — the rule decides three orders of magnitude faster than the model that ties it, and it is still ahead when the model is given its friendliest possible framing.
+
 | §6 criterion | outcome |
 | --- | --- |
 | 1. false-negative rate ≤ 1% | **met** — 0.00%. |

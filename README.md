@@ -17,7 +17,7 @@ Four commands, in order of how much they need. The first needs nothing at all.
 | # | Command | Needs | What it proves | Takes |
 |---|---|---|---|---|
 | 1 | `make gate-demo` | nothing — no DataHub, no network, no credentials | The published `BLOCK` verdict is re-derived from the committed graph recording, byte-identical, with the same `policy_hash`. Hand-editing an artifact fails this. | ~2s (the very first run adds about a minute to build `.venv`) |
-| 2 | `make check` | nothing | 522 tests, lint, format, types — everything CI runs, including the guards on every claim this README makes. | ~15s |
+| 2 | `make check` | nothing | 525 tests, lint, format, types — everything CI runs, including the guards on every claim this README makes. | ~15s |
 | 3 | `make live-loop` | a running DataHub ([`docs/SETUP.md`](docs/SETUP.md)) | The whole agent loop over the **official MCP server only**: read → decide → write a receipt → a *separate process* reads it back → an asset carrying no receipt returns `NOT VERIFIED`. | ~60s |
 | 4 | `make repair-demo` | the same DataHub | The repair agent proposes a fix from catalog evidence, re-runs the deterministic engine against the catalog that fix *would* create, and shows what it proved and what it refused. | ~40s |
 
@@ -43,11 +43,11 @@ and no model participated in it.
 
 **Reliability of results.** Every verdict is deterministic: same input, same policy, byte-identical output, identified by `policy_hash` + `commit_sha`. A CI-enforced suite guards the engine, and every number this README states is pinned by a test of its own. You do not trust the tool; you re-derive its answer (`make gate-demo`) and compare hashes.
 
-**Model drift.** There is no model in the judged path, so there is nothing to drift — by construction. A trained classifier was evaluated against a three-line deterministic rule and could not beat it, so the rule shipped and the measurement was published (`docs/PREFLIGHT-RESULTS.md`). *Policy* drift is handled explicitly: changing the policy changes `policy_hash`, which invalidates every receipt written under the old one.
+**Model drift.** There is no model in the judged path, so there is nothing to drift — by construction. A trained classifier was evaluated against a three-line deterministic rule and could not beat it on accuracy, and at the shape a gate really has — one change at a time — it decides three orders of magnitude slower (`docs/DECISION-COST.md`). So the rule shipped, and both measurements were published (`docs/PREFLIGHT-RESULTS.md`). *Policy* drift is handled explicitly: changing the policy changes `policy_hash`, which invalidates every receipt written under the old one.
 
 **Monitoring.** The receipts are the monitoring surface: `sidq.*` properties are queryable through DataHub search, so "how many assets are verified / stale / blocked / never examined" is one query, and the converging audit's `vouched / NOT examined` counts give you coverage per run. `sidq verify <urn>` is a health check any pipeline can call.
 
-**Cost.** Apache-2.0, self-hosted, zero API fees — no LLM in the loop means no per-token bill. The measurable cost is MCP call time (column lineage ≈ 0.116s per column, budgeted explicitly), and the resumable audit amortizes it: work done once is never re-paid while its receipt holds.
+**Cost.** Apache-2.0, self-hosted, zero API fees — no LLM in the loop means no per-token bill. The decision itself is free: the shipped rule reaches a verdict in tens of nanoseconds, so what a run actually costs is MCP call time (column lineage ≈ 0.116s per column, budgeted explicitly) — and the resumable audit amortizes that: work done once is never re-paid while its receipt holds.
 
 ## The problem is already in the sample
 
