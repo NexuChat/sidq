@@ -43,7 +43,7 @@
 
   <!-- ===================== panel 1: change ===================== -->
   <g>
-    <rect x="48" y="228" width="276" height="360" fill="#11110f" stroke="#34332f"/>
+    <rect x="48" y="228" width="276" height="418" fill="#11110f" stroke="#34332f"/>
     <text class="mono eyebrow" x="72" y="266">01 / A CHANGE, OR A QUESTION</text>
     <text class="display title" x="72" y="308">Before anything</text>
     <text class="display title" x="72" y="338">trusts the graph</text>
@@ -54,11 +54,13 @@
     <text class="mono line" x="72" y="492">changed file → dataset URN</text>
     <text class="mono line" x="72" y="512">+ the exact touched fields</text>
     <text class="mono line" x="72" y="556">surfaces: CLI · PR bot · MCP</text>
+    <text class="mono line" x="72" y="600">nothing is trusted before</text>
+    <text class="mono line" x="72" y="620">it is checked</text>
   </g>
 
   <!-- ===================== panel 2: gates ===================== -->
   <g>
-    <rect x="396" y="228" width="276" height="360" fill="#11110f" stroke="#34332f"/>
+    <rect x="396" y="228" width="276" height="418" fill="#11110f" stroke="#34332f"/>
     <text class="mono eyebrow" x="420" y="266">02 / GATES — EVIDENCE ONLY</text>
     <text class="display title" x="420" y="308">Five gates collect.</text>
     <text class="display title" x="420" y="338">None decides.</text>
@@ -70,11 +72,13 @@
     <text class="mono line" x="420" y="500">  stored claim vs stored claim</text>
     <text class="mono line-strong" x="420" y="544">evidence, never verdicts —</text>
     <text class="mono line" x="420" y="564">unverifiable ≠ clean</text>
+    <text class="mono line" x="420" y="600">an unperformed check is</text>
+    <text class="mono line" x="420" y="620">never a clean one</text>
   </g>
 
   <!-- ===================== panel 3: policy ===================== -->
   <g>
-    <rect x="744" y="228" width="276" height="360" fill="#11110f" stroke="#34332f"/>
+    <rect x="744" y="228" width="276" height="418" fill="#11110f" stroke="#34332f"/>
     <text class="mono eyebrow" x="768" y="266">03 / POLICY — ONE DECIDER</text>
     <text class="display" x="768" y="322" font-size="30" fill="#f1eee7">PASS</text>
     <text class="display" x="768" y="360" font-size="30" fill="#d9ff57">WARN</text>
@@ -84,11 +88,13 @@
     <text class="mono line" x="768" y="508">graph failure ⇒ fail-closed</text>
     <text class="mono line-strong" x="768" y="552">no LLM in the judged path —</text>
     <text class="mono line" x="768" y="572">only deterministic findings block</text>
+    <text class="mono line" x="768" y="608">the same input always</text>
+    <text class="mono line" x="768" y="628">reaches the same verdict</text>
   </g>
 
   <!-- ===================== panel 4: receipt ===================== -->
   <g>
-    <rect x="1092" y="228" width="276" height="360" fill="#11110f" stroke="#34332f"/>
+    <rect x="1092" y="228" width="276" height="418" fill="#11110f" stroke="#34332f"/>
     <text class="mono eyebrow" x="1116" y="266">04 / RECEIPT — WRITTEN BACK</text>
     <text class="display title" x="1116" y="308">Proof, left where</text>
     <text class="display title" x="1116" y="338">agents read</text>
@@ -100,12 +106,14 @@
     <text class="mono line" x="1116" y="518">staleness recomputed by the</text>
     <text class="mono line" x="1116" y="538">reader — never stored, never</text>
     <text class="mono line" x="1116" y="558">trusted from the catalog</text>
+    <text class="mono line" x="1116" y="600">a writer that reports its</text>
+    <text class="mono line" x="1116" y="620">own success proves nothing</text>
   </g>
 
   <!-- ===================== panel 5: memory ===================== -->
   <g>
-    <rect x="1440" y="228" width="272" height="360" fill="#11110f" stroke="#34332f"/>
-    <rect x="1440" y="228" width="4" height="360" fill="#d9ff57"/>
+    <rect x="1440" y="228" width="272" height="418" fill="#11110f" stroke="#34332f"/>
+    <rect x="1440" y="228" width="4" height="418" fill="#d9ff57"/>
     <text class="mono eyebrow" x="1466" y="266" fill="#d9ff57">05 / MEMORY — THE NEW LOOP</text>
     <text class="display title" x="1466" y="308">The audit that</text>
     <text class="display title" x="1466" y="338">resumes</text>
@@ -114,9 +122,12 @@
     <text class="mono line" x="1466" y="440">still holds  ⇒ vouched</text>
     <text class="mono line" x="1466" y="464">stale · BLOCK ⇒ re-examined</text>
     <text class="mono line" x="1466" y="488">absent       ⇒ examined</text>
-    <text class="mono line-strong" x="1466" y="530">the budget reaches assets</text>
-    <text class="mono line-strong" x="1466" y="550">no run has seen — coverage</text>
-    <text class="mono line-strong" x="1466" y="570">converges, run over run</text>
+    <text class="mono line-strong" x="1466" y="524">the budget reaches assets</text>
+    <text class="mono line-strong" x="1466" y="544">no run has seen — coverage</text>
+    <text class="mono line-strong" x="1466" y="564">converges, run over run</text>
+    <text class="mono line" x="1466" y="592">and across space too: many</text>
+    <text class="mono line" x="1466" y="610">workers, one catalog, no</text>
+    <text class="mono line" x="1466" y="628">coordinator</text>
   </g>
 
   <!-- ===================== flow arrows ===================== -->
@@ -128,14 +139,14 @@
   </g>
   <!-- ===================== the memory loop ===================== -->
   <g fill="none" stroke="#d9ff57" stroke-width="1.5">
-    <path d="M 1576 588 L 1576 668 L 534 668 L 534 596" marker-end="url(#head-acid)"/>
+    <path d="M 1576 662 L 1576 706 L 534 706 L 534 654" marker-end="url(#head-acid)"/>
   </g>
-  <text class="mono" x="1055" y="655" font-size="12.5" letter-spacing="1.2" fill="#d9ff57" text-anchor="middle">THE CATALOG IS THE LEDGER — ANY SIDQ INSTANCE RESUMES WHERE ANY OTHER STOPPED</text>
+  <text class="mono" x="1055" y="696" font-size="12.5" letter-spacing="1.2" fill="#d9ff57" text-anchor="middle">THE CATALOG IS THE LEDGER — ANY SIDQ INSTANCE RESUMES WHERE ANY OTHER STOPPED</text>
 
   <!-- footer -->
-  <line x1="48" y1="742" x2="1712" y2="742" stroke="#34332f"/>
-  <text class="mono" x="64" y="790" font-size="12" letter-spacing="1.6" fill="#a7a39a">DETERMINISTIC · FAIL-CLOSED · NO LLM IN THE JUDGED PATH · APACHE-2.0</text>
-  <text class="mono" x="64" y="820" font-size="12" letter-spacing="1.6" fill="#a7a39a">READS AND WRITES ONLY THROUGH THE OFFICIAL DATAHUB MCP SERVER</text>
+  <line x1="48" y1="756" x2="1712" y2="756" stroke="#34332f"/>
+  <text class="mono" x="64" y="800" font-size="12" letter-spacing="1.6" fill="#a7a39a">DETERMINISTIC · FAIL-CLOSED · NO LLM IN THE JUDGED PATH · APACHE-2.0</text>
+  <text class="mono" x="64" y="830" font-size="12" letter-spacing="1.6" fill="#a7a39a">READS AND WRITES ONLY THROUGH THE OFFICIAL DATAHUB MCP SERVER</text>
   <text class="display" x="1712" y="812" font-size="34" font-weight="700" letter-spacing="-1.5" fill="#f1eee7" text-anchor="end">Sidq <tspan fill="#d9ff57" font-size="16">صدق</tspan></text>
 </svg>
 </div>
