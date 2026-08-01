@@ -22,8 +22,10 @@ data/lora/*.log
 data/lora/*.pid
 data/lora/progress.json
 
-# large mining intermediates and benchmark data (not shipped)
-data/benchmark/
+# Large benchmark intermediates stay local; the tiny published GPU measurement
+# below is judge-facing evidence and is intentionally versioned.
+data/benchmark/*
+!data/benchmark/decision-cost-gpu.json
 data/claims/raw-*/
 data/claims/mine.log
 data/claims/repos-to-clone.jsonl
