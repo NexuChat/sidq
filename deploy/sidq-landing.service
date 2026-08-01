@@ -33,6 +33,15 @@ LockPersonality=true
 RestrictSUIDSGID=true
 CapabilityBoundingSet=
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+# A resource ceiling, not a restart schedule. Every runnable command already has
+# a 240s timeout and is killed by process group, so a runaway is bounded before
+# systemd needs to act; these bound the *host* if one ever escapes that. The
+# ceiling is set well above the observed peak (~210M) because a judge hitting an
+# OOM kill mid-audit is a worse failure than the one being defended against.
+# Deliberately no RuntimeMaxSec: with Restart=always it would only guarantee the
+# page is down for a moment every interval, which buys nothing here.
+MemoryMax=1G
+CPUQuota=200%
 
 [Install]
 WantedBy=multi-user.target

@@ -317,7 +317,9 @@ def test_the_landing_page_can_only_run_read_only_commands() -> None:
     contains nothing which writes. This asserts the property directly, so adding a
     mutating entry breaks the build instead of quietly shipping a public write.
     """
-    from web.server import RUNNABLE
+    from web import server
+
+    RUNNABLE = server.RUNNABLE
 
     for name, (_, argv) in RUNNABLE.items():
         joined = " ".join(argv)
@@ -333,6 +335,80 @@ def test_the_landing_page_can_only_run_read_only_commands() -> None:
         if "regen" in joined:
             # `regen --check` verifies; bare `regen` rewrites committed files.
             assert "--check" in argv, f"{name} rewrites artifacts: {joined}"
+
+
+def test_a_runaway_command_cannot_return_unbounded_output(monkeypatch) -> None:
+    """The endpoint is public, so its response size is bounded by the server."""
+    from web import server
+
+    class Endless:
+        returncode = 0
+
+        def communicate(self, timeout):
+            assert timeout == server.TIMEOUT_SECONDS
+            return "x" * (server.MAX_OUTPUT_BYTES + 1), ""
+
+    monkeypatch.setattr(server.subprocess, "Popen", lambda *a, **k: Endless())
+
+    output = server._run("gate-demo")["output"]
+
+    assert isinstance(output, str)
+    assert output.endswith(server.TRUNCATION_MARKER)
+    assert len(output.encode("utf-8")) <= server.MAX_OUTPUT_BYTES
+
+
+def _stub_handler(server, monkeypatch, responses, path: str):
+    handler = server.Handler.__new__(server.Handler)
+    handler.path = path
+    handler.client_address = ("192.0.2.1", 12345)
+    monkeypatch.setattr(
+        handler, "_json", lambda status, payload: responses.append((status, payload))
+    )
+    return handler
+
+
+def test_replaying_the_same_command_is_refused_with_a_retry_hint(monkeypatch) -> None:
+    from web import server
+
+    responses: list = []
+    monkeypatch.setattr(server, "_run", lambda name: {"command": name})
+    monkeypatch.setattr(server.time, "monotonic", lambda: 100.0)
+    server._last_run_finished.clear()
+
+    handler = _stub_handler(server, monkeypatch, responses, "/run/gate-demo")
+    handler.do_POST()
+    handler.do_POST()
+    server._last_run_finished.clear()
+
+    assert responses[0][0] == 200
+    assert responses[1] == (
+        429,
+        {"error": "run cooldown active — try again later", "retry_after": 30},
+    )
+
+
+def test_the_cooldown_does_not_punish_a_reader_trying_the_next_button(
+    monkeypatch,
+) -> None:
+    """The page offers three buttons and a reader clicks them in sequence.
+
+    A per-client cooldown would make the second click fail, which costs a judge
+    the demonstration and buys nothing: `_lock` already permits one run at a
+    time regardless of who asks. The key is (client, command) for that reason,
+    and the first version of this keyed on the client alone.
+    """
+    from web import server
+
+    responses: list = []
+    monkeypatch.setattr(server, "_run", lambda name: {"command": name})
+    monkeypatch.setattr(server.time, "monotonic", lambda: 100.0)
+    server._last_run_finished.clear()
+
+    _stub_handler(server, monkeypatch, responses, "/run/gate-demo").do_POST()
+    _stub_handler(server, monkeypatch, responses, "/run/repair").do_POST()
+    server._last_run_finished.clear()
+
+    assert [status for status, _ in responses] == [200, 200]
 
 
 def test_the_landing_page_run_buttons_name_commands_that_exist() -> None:
