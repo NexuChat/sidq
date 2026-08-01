@@ -126,6 +126,12 @@ Sidq has three surfaces:
 - A GitHub PR bot that renders the decision, provenance, evidence, impact paths, and reproduction command.
 - A stdio MCP server, `sidq-mcp`, with `verify_context`, `check_change`, and `search_verified`.
 
+The repository includes a cross-agent `datahub-verify` skill, installable with
+`npx skills add NexuChat/sidq --skill datahub-verify`. It is also under public
+upstream review at
+[datahub-project/datahub-skills#76](https://github.com/datahub-project/datahub-skills/pull/76).
+That link is a contribution in review, not a claim of merge or endorsement.
+
 The blocking path contains no model calls. The optional documentation reader may
 extend `WARN` coverage after deterministic rules abstain, but it can never grant
 permission or produce `BLOCK`; its exact model revision, head fingerprint and

@@ -20,7 +20,7 @@ Four commands, in order of how much they need. The first needs nothing at all.
 | # | Command | Needs | What it proves | Takes |
 |---|---|---|---|---|
 | 1 | `make gate-demo` | nothing — no DataHub, no network, no credentials | The published `BLOCK` verdict is re-derived from the committed graph recording, byte-identical, with the same `policy_hash`. Hand-editing an artifact fails this. | ~2s (the very first run adds about a minute to build `.venv`) |
-| 2 | `make check` | nothing | 598 tests, lint, format, types — everything CI runs, including the guards on every claim this README makes. | ~60s |
+| 2 | `make check` | nothing | 599 tests, lint, format, types — everything CI runs, including the guards on every claim this README makes. | ~60s |
 | 3 | `make live-loop` | a running DataHub ([`docs/SETUP.md`](docs/SETUP.md)) | The whole agent loop over the **official MCP server only**: read → decide → write a receipt → a *separate process* reads it back → an asset carrying no receipt returns `NOT VERIFIED`. | ~60s |
 | 4 | `make repair-demo` | the same DataHub | The repair agent proposes a fix from catalog evidence, re-runs the deterministic engine against the catalog that fix *would* create, and shows what it proved and what it refused. | ~40s |
 
@@ -422,6 +422,18 @@ writes SQL, and stops when the answer is that the catalog cannot be trusted.
 | `search_verified(query)` | Which matching assets have fresh, truthful catalog evidence? |
 
 `search_verified` distinguishes `verified`, `unverified`, `stale`, `unverifiable`, and `rejected`; a failed graph lookup is `GRAPH_UNAVAILABLE`, not an empty search result. MCP responses use canonical JSON, so identical inputs and verification state produce byte-identical output. See [`docs/MCP-SERVER.md`](docs/MCP-SERVER.md) for the client configuration and wire examples.
+
+The repository also ships an installable Agent Skill that makes this verification
+sequence the agent's operating rule:
+
+```bash
+npx skills add NexuChat/sidq --skill datahub-verify
+```
+
+The same skill is proposed to DataHub's official skills repository in
+[datahub-project/datahub-skills#76](https://github.com/datahub-project/datahub-skills/pull/76).
+The pull request is public review evidence, not a claim that DataHub has merged or
+endorsed it.
 
 ### 3. CLI
 

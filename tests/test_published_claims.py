@@ -515,6 +515,13 @@ def test_the_browser_qa_record_covers_every_live_journey_and_viewport() -> None:
     assert "5/5" in qa and "HTTP 200" in qa
 
 
+def test_the_upstream_skill_contribution_is_linked_on_judge_surfaces() -> None:
+    contribution = "https://github.com/datahub-project/datahub-skills/pull/76"
+
+    assert contribution in README.read_text()
+    assert contribution in (ROOT / "docs/DEVPOST.md").read_text()
+
+
 def test_liveness_is_dependency_free_and_names_the_exact_demo_surface() -> None:
     from web import server
 
