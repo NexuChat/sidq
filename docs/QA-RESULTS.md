@@ -60,6 +60,12 @@ catalog-write flag.
   clone, `make gate-demo` exited 0 and reproduced the expected `BLOCK` verdict.
 - The workflow now fetches `demo/*` as remote-tracking refs so the demo-ref guard
   runs in CI instead of skipping.
+- The authoritative latest-main status is the [main-branch CI workflow
+  view](https://github.com/NexuChat/sidq/actions/workflows/ci.yml?query=branch%3Amain).
+  The final workflow pins the official `actions/setup-python` v7 Node 24 release
+  by full commit SHA to remove the Node 20 deprecation annotation. The workflow
+  view is authoritative for the submitted revision; exact run results are
+  verified after each push.
 - Previous [GitHub Actions CI run
   30710463507](https://github.com/NexuChat/sidq/actions/runs/30710463507) passed
   before that workflow fix with 761 passed, 3 skipped, and 82.29% branch
