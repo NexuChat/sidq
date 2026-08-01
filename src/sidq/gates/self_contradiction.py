@@ -26,7 +26,14 @@ _CHECKS = (
 _FIELD_URN = re.compile(
     r"^urn:li:schemaField:\((urn:li:dataset:\(urn:li:dataPlatform:[^,]+,[^,]+,[^)]+\)),(.+)\)$"
 )
-_SNAKE_CASE = r"[a-z][a-z0-9]*_[a-z0-9_]+"
+# A column reference inside prose. Written for Unicode from the start: the
+# ASCII-only form this replaced could not see a single Arabic, Chinese,
+# Japanese, or Cyrillic column name, so doc rot in any non-English catalog was
+# invisible — the check ran and found nothing, which is the exact failure this
+# project exists to catch. `\w` under Python's default Unicode semantics covers
+# every script; the underscore requirement stays, because it is what
+# distinguishes a column name from an ordinary word in a sentence.
+_SNAKE_CASE = r"\w+_\w+"
 _COLUMN_REFERENCE = re.compile(
     rf"\b(?:column|field)\s+[`\"']?({_SNAKE_CASE})[`\"']?\b", re.IGNORECASE
 )

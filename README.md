@@ -17,7 +17,7 @@ Four commands, in order of how much they need. The first needs nothing at all.
 | # | Command | Needs | What it proves | Takes |
 |---|---|---|---|---|
 | 1 | `make gate-demo` | nothing — no DataHub, no network, no credentials | The published `BLOCK` verdict is re-derived from the committed graph recording, byte-identical, with the same `policy_hash`. Hand-editing an artifact fails this. | ~2s (the very first run adds about a minute to build `.venv`) |
-| 2 | `make check` | nothing | 439 tests, lint, format, types — everything CI runs, including the guards on every claim this README makes. | ~15s |
+| 2 | `make check` | nothing | 457 tests, lint, format, types — everything CI runs, including the guards on every claim this README makes. | ~15s |
 | 3 | `make live-loop` | a running DataHub ([`docs/SETUP.md`](docs/SETUP.md)) | The whole agent loop over the **official MCP server only**: read → decide → write a receipt → a *separate process* reads it back → an asset carrying no receipt returns `NOT VERIFIED`. | ~60s |
 | 4 | `make repair-demo` | the same DataHub | The repair agent proposes a fix from catalog evidence, re-runs the deterministic engine against the catalog that fix *would* create, and shows what it proved and what it refused. | ~40s |
 
@@ -154,6 +154,22 @@ field-level contradictions, and an engine that invented some would be worse than
 one that found none. The governance count did move, from 29 to 37 unowned
 consumed assets, which is what an honest check should do when real unowned
 assets are added.
+
+Beyond DataHub's own packs, the engine is held to catalogs generated for
+domains and languages it never grew up in — hospitals in Arabic, banks in
+Chinese, a factory in German, a public registry in Cyrillic, Japanese retail,
+nested `[version=2.0].[type=struct]` field paths, and the casing conventions
+Snowflake, dbt, and Looker each impose. Every generated catalog states what was
+planted in it, so the tests assert both halves: each planted contradiction is
+found, and nothing unplanted is invented. The second half is the one that
+catches drift toward noise — an engine that reports something on every catalog
+is not verifying, it is guessing confidently.
+
+That corpus immediately earned its place. Doc-rot detection matched column
+references with `[a-z][a-z0-9]*_[a-z0-9_]+`, which cannot see an Arabic,
+Japanese, or Cyrillic column name at all: on every non-English catalog the check
+ran, found nothing, and the silence read as health. It is Unicode-aware now, and
+pinned by a test in four scripts.
 
 Alongside that, 24 adversarial fixtures hold the engine to the only property
 that matters on a strange catalog — cycles, self-loops, 200-hop chains, 500-way
