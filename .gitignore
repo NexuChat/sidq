@@ -10,6 +10,7 @@ dist/
 .mypy_cache/
 .coverage
 htmlcov/
+output/playwright/
 
 # local model-training outputs
 data/lora/adapter/
@@ -72,3 +73,4 @@ AGENTS.md
 # with `scripts/train_claim_reader.py --embed`. The head they produce is what
 # ships, and it is 31 KB.
 data/claims/reader/*-embeddings.npz
+catboost_info/
