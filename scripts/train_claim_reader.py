@@ -108,6 +108,38 @@ def embed() -> None:
         print(f"{split}: {len(rows)} rows -> {vectors.shape}")
 
 
+def rule_baseline() -> dict[str, float]:
+    """The deterministic reader, scored exactly like the trained one.
+
+    Published because "the model beats the rules" is a claim, and a claim needs
+    the two candidates measured the same way on the same held-out rows. It is
+    also the honest counterweight to `docs/DECISION-COST.md`: on *deciding* a
+    verdict the rule wins outright, and it would be selective reporting to show
+    that comparison and not this one.
+    """
+    from sidq.claims.extractor import RuleBasedExtractor
+
+    reader = RuleBasedExtractor()
+    proposable = set(PROPOSABLE)
+    made = correct = could = 0
+    for row in _rows("eval"):
+        supplied = row.get("input") or {}
+        truth = _label(row)
+        could += int(truth in proposable)
+        claim = reader.extract(
+            supplied.get("sentence", ""), supplied.get("column_name", ""), {}
+        )
+        if claim is None or claim.type not in proposable:
+            continue
+        made += 1
+        correct += int(claim.type == truth)
+    return {
+        "proposals": float(made),
+        "precision": (correct / made) if made else 0.0,
+        "recall": (correct / could) if could else 0.0,
+    }
+
+
 def fit(threshold_target: float) -> dict:
     """Train both heads, keep the better one, and choose an operating point.
 
@@ -143,6 +175,7 @@ def fit(threshold_target: float) -> dict:
         "eval_rows": len(eval_y),
         "labels": list(LABELS),
         "proposable": list(PROPOSABLE),
+        "rule_baseline": rule_baseline(),
         "candidates": {},
     }
 

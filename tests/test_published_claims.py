@@ -558,3 +558,24 @@ def test_the_reader_only_ever_proposes_fully_specified_claim_types() -> None:
 
     assert tuple(report["proposable"]) == shipped._PROPOSABLE
     assert set(shipped._PROPOSABLE) == {"unique", "not_null"}
+
+
+def test_the_rules_versus_model_comparison_quotes_the_same_report() -> None:
+    """Both sides of that table are scored in one run; the document must match it.
+
+    The comparison is the project's own argument turned on itself — the same
+    corpus, the same code path, and a rule that wins one task and loses the
+    other. It is only worth publishing while the numbers are the measured ones.
+    """
+    report = json.loads(
+        (ROOT / "data" / "claims" / "reader" / "report.json").read_text()
+    )
+    text = (ROOT / "docs" / "CLAIM-READER.md").read_text(encoding="utf-8")
+
+    baseline = report["rule_baseline"]
+    assert f"{baseline['precision']:.1%}" in text
+    assert f"{baseline['recall']:.1%}" in text
+    assert f"| {int(baseline['proposals'])} |" in text
+    # The rule losing this task is the whole point of the section; if it ever
+    # wins, the document argues for something that is no longer true.
+    assert baseline["precision"] < report["operating_point"]["precision"]

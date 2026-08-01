@@ -46,6 +46,49 @@ proposal compiles into a query that tests something the documentation never
 said, and a finding from that query would be a fabricated one. The operating
 threshold is the lowest that clears 95% precision on held-out data.
 
+## Rules or a model — measured, on the same rows
+
+`docs/DECISION-COST.md` shows a three-line rule beating a classifier by three
+orders of magnitude. Showing that comparison and not this one would be
+selective, so both are scored by the same code path in the same run.
+
+| reading a documented sentence | proposals | precision | recall |
+| --- | ---: | ---: | ---: |
+| the deterministic reader | 23 | 17.4% | 3.4% |
+| the trained reader | 72 | **95.8%** | **58.0%** |
+
+The rules are not badly written; they are being asked for something regular
+expressions do not do. Their nineteen mistakes divide into three kinds, and one
+of them matters much more than the others:
+
+- **Ten drop a qualifier.** "Alternative titles must be unique **within a
+  step**" is read as globally unique. That is the dangerous failure — it tests a
+  stronger claim than the documentation made, and the disagreement it would
+  report is one nobody wrote down. The trained reader made this mistake zero
+  times.
+- **Seven are a convention, not an error.** "Primary key." is read as `unique`
+  where the corpus labels it `not_null`. A primary key is both.
+- **Two fell for a hard negative**, which is what hard negatives are for.
+
+The trained reader's four mistakes are all in the other direction: sentences the
+corpus labels as claiming nothing, where it proposed uniqueness — "Unique
+identifier of the template". Over-reading a genuinely uniqueness-shaped sentence
+is the cheaper way to be wrong, and the boundary makes it cheaper still.
+
+**So neither candidate is stronger; each is stronger at one task, and the two
+tasks are the two sides of the boundary.**
+
+| | deciding a verdict | reading a sentence |
+| --- | --- | --- |
+| accuracy | identical — the rule ties the classifier | not close — 95.8% against 17.4% |
+| speed | rule wins by ~2,700× | rule is faster and it does not matter |
+| what ships | **the rule** | **the model** |
+
+Speed decides only where accuracy ties. On verdicts it ties, so the nanoseconds
+settle it. On prose it does not tie, so they are irrelevant: a reader that is
+twenty-five microseconds faster and covers a seventeenth as much is not the
+cheaper option, it is the one that does not do the job.
+
 ## What it will not propose
 
 Only `unique` and `not_null` — the two claim types fully specified by their type

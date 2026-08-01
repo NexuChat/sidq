@@ -36,5 +36,10 @@
     "unique",
     "not_null"
   ],
+  "rule_baseline": {
+    "precision": 0.17391304347826086,
+    "proposals": 23.0,
+    "recall": 0.03361344537815126
+  },
   "train_rows": 2048
 }

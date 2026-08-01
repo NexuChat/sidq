@@ -67,3 +67,8 @@ AGENTS.md
 .cursor/
 .aider*
 .windsurf/
+
+# Cached embeddings for the claim reader: 6.6 MB, regenerable from the corpus
+# with `scripts/train_claim_reader.py --embed`. The head they produce is what
+# ships, and it is 31 KB.
+data/claims/reader/*-embeddings.npz
