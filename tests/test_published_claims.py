@@ -492,3 +492,27 @@ def test_the_speed_claim_and_the_measurement_agree() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     assert "three orders of magnitude slower" in readme
     assert "docs/DECISION-COST.md" in readme
+
+
+def test_the_gpu_objection_is_answered_with_a_measurement() -> None:
+    """ "You benchmarked a CPU" is the first thing anyone will say about that claim.
+
+    It is answered by running the same fitted weights on real CUDA hardware, and
+    the evidence is committed rather than described — including the one framing
+    where the GPU genuinely wins, which is the row a selective report would drop.
+    """
+    evidence = json.loads(
+        (ROOT / "data" / "benchmark" / "decision-cost-gpu.json").read_text()
+    )
+    for key in ("gpu", "torch", "rows", "rule_ns", "roundtrip_ns", "batch_ns"):
+        assert key in evidence, f"the GPU evidence lost {key}"
+
+    document = (ROOT / "docs" / "DECISION-COST.md").read_text(encoding="utf-8")
+    assert evidence["gpu"] in document
+    assert "faster**" in document, (
+        "the batch row is the framing that favours the GPU; publishing the "
+        "comparison without it would be the selective reporting this refuses"
+    )
+    # The honest framing must stay the headline: a decision is not delivered
+    # until it has crossed back to the host.
+    assert evidence["roundtrip_ns"] > evidence["resident_ns"] > evidence["rule_ns"]
