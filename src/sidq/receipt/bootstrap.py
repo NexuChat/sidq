@@ -47,6 +47,15 @@ PROPERTY_DEFINITIONS = (
     PropertyDefinition(
         "evidence_url", "URL or DataHub document URN containing full receipt evidence."
     ),
+    # Swarm identity. A solo audit writes neither, so their presence is itself
+    # the statement that several cooperating workers produced this receipt —
+    # and the ledger reads them back to say which worker covered what.
+    PropertyDefinition(
+        "swarm_run", "Identifier of the cooperative audit run that wrote this receipt."
+    ),
+    PropertyDefinition(
+        "worker_id", "Which worker of that run examined the asset and wrote this."
+    ),
 )
 
 

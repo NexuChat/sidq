@@ -22,7 +22,7 @@ _PLATFORM = "urn:li:dataPlatform:dbt"
 
 
 def _urn(name: str) -> str:
-    return f"urn:li:dataset:(urn:{_PLATFORM},warehouse.{name},PROD)"
+    return f"urn:li:dataset:({_PLATFORM},warehouse.{name},PROD)"
 
 
 class _FakeMCPGraph:

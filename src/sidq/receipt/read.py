@@ -141,18 +141,27 @@ def _entities_by_urn(raw: Any) -> dict[str, Mapping[str, Any]]:
 
 
 def _single_entity(raw: Any, requested_urn: str) -> Mapping[str, Any]:
+    """The entity that IS the requested asset — never merely the first returned.
+
+    This used to fall back to the first entity in the response when no URN
+    matched, which handed the catalog a way to answer a question it was not
+    asked: return asset B's receipt when A was requested, and `verify A` prints
+    VERIFIED on the strength of B's evidence. A tool built to stop agents
+    trusting the graph cannot itself trust the graph to reply about the right
+    asset. An unmatched response is treated as no receipt, which reads as
+    NOT VERIFIED — the safe answer.
+    """
     if isinstance(raw, Mapping):
         nested = raw.get("entities") or raw.get("result")
         if isinstance(nested, Sequence) and not isinstance(nested, (str, bytes)):
             raw = nested
-        elif raw.get("urn") == requested_urn or "structuredProperties" in raw:
+        elif raw.get("urn") == requested_urn:
             return raw
+        else:
+            return {}
     if isinstance(raw, Sequence) and not isinstance(raw, (str, bytes)):
         for item in raw:
             if isinstance(item, Mapping) and item.get("urn") == requested_urn:
-                return item
-        for item in raw:
-            if isinstance(item, Mapping):
                 return item
     return {}
 
@@ -267,6 +276,11 @@ def holds(status: Mapping[str, Any]) -> tuple[bool, str]:
     verdict = status.get("verdict")
     if not verdict:
         return False, "no receipt on this asset"
+    if verdict not in {"PASS", "WARN", "BLOCK"}:
+        # The engine emits exactly three verdicts. Anything else was not written
+        # by this engine, so it vouches for nothing — a catalog cannot invent a
+        # fourth verdict and have it read as approval.
+        return False, f"receipt records an unrecognised verdict ({verdict})"
     if status.get("stale"):
         return False, f"receipt is stale: {status.get('stale_reason') or 'unknown'}"
     if verdict == "BLOCK":

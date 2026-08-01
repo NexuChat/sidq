@@ -17,7 +17,7 @@ Four commands, in order of how much they need. The first needs nothing at all.
 | # | Command | Needs | What it proves | Takes |
 |---|---|---|---|---|
 | 1 | `make gate-demo` | nothing — no DataHub, no network, no credentials | The published `BLOCK` verdict is re-derived from the committed graph recording, byte-identical, with the same `policy_hash`. Hand-editing an artifact fails this. | ~2s (the very first run adds about a minute to build `.venv`) |
-| 2 | `make check` | nothing | 466 tests, lint, format, types — everything CI runs, including the guards on every claim this README makes. | ~15s |
+| 2 | `make check` | nothing | 481 tests, lint, format, types — everything CI runs, including the guards on every claim this README makes. | ~15s |
 | 3 | `make live-loop` | a running DataHub ([`docs/SETUP.md`](docs/SETUP.md)) | The whole agent loop over the **official MCP server only**: read → decide → write a receipt → a *separate process* reads it back → an asset carrying no receipt returns `NOT VERIFIED`. | ~60s |
 | 4 | `make repair-demo` | the same DataHub | The repair agent proposes a fix from catalog evidence, re-runs the deterministic engine against the catalog that fix *would* create, and shows what it proved and what it refused. | ~40s |
 
@@ -268,6 +268,52 @@ and the run can only afford a subset. Every asset outside that budget is recorde
 as unresolved, reported as `NOT established` rather than `verified clean`, and
 **gets no receipt at all** — because the policy treats unverifiable evidence as
 informational, so an unexamined asset would otherwise have been stamped `PASS`.
+
+### Many auditors, one catalog, no coordinator
+
+`--resume` makes cooperation work across *time*: a later run reads what an
+earlier one wrote. The same mechanism works across *space* — several auditor
+processes on the same catalog at the same moment, with no message bus, no lock
+service, no leader, and no shared filesystem. The only thing they share is
+DataHub.
+
+```bash
+make swarm-demo    # four workers, one killed mid-run, then the ledger
+```
+
+Each worker re-reads a receipt immediately before examining its asset and
+writes one immediately after deciding, so the window in which two can collide
+is a single examination rather than a whole run. Each enters the same
+consequence-ranked plan at a worker-specific offset, so four processes do not
+start on the same asset — no negotiation, just different starting points, with
+the receipts steering the rest.
+
+The promise is **at-least-once, never exactly-once**: MCP offers no claim or
+compare-and-set primitive, so two workers reaching the same unreceipted asset
+in the same instant will both examine it. That is safe, because the engine is
+deterministic and both write the same verdict — and it is *measured*, because
+the ledger counts collisions rather than hiding them.
+
+The demo kills a worker on purpose. Its unfinished assets were never assigned
+to it — nothing is — so the survivors pick them up as ordinary work. A fifth
+process that audited nothing then reads DataHub alone and prints who covered
+what:
+
+```
+Swarm ledger — run swarm-1785554991
+  assets in catalog     50
+  receipted before      0
+  receipted after       27  (+27)
+
+Contribution per worker, read from the receipts themselves:
+  alpha                    3
+  beta                     1
+  gamma                    1
+
+  duplicate examinations  0
+```
+
+DataHub is not the input to this loop, nor its output. It is the shared state.
 
 ### The repair agent — it proves its fixes before it writes them
 

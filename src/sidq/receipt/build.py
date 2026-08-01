@@ -76,6 +76,13 @@ def build_receipt(
 
     if verdict.decision not in {"PASS", "WARN", "BLOCK"}:
         raise ValueError(f"unsupported Sidq verdict: {verdict.decision}")
+    # The subject comes from a catalog response, and a receipt is a write. A
+    # malformed or redirected URN must never reach a mutation tool, so the shape
+    # is checked here — once, at the boundary where a decision becomes a change.
+    if not urn.startswith("urn:li:dataset:(urn:li:dataPlatform:") or not urn.endswith(
+        ")"
+    ):
+        raise ValueError(f"refusing to write a receipt to a non-dataset URN: {urn}")
     timestamp = (checked_at or datetime.now(UTC)).astimezone(UTC).replace(microsecond=0)
     fired = tuple(
         sorted(

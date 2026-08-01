@@ -472,3 +472,81 @@ def test_a_complete_catalog_view_still_reports_a_real_orphan() -> None:
     findings = SelfContradictionGate().collect((), Scoped())
 
     assert [f for f in findings if f.kind == "orphan_lineage"]
+
+
+def test_a_receipt_for_a_different_asset_never_vouches() -> None:
+    """The catalog must not be able to answer a question it was not asked.
+
+    The reader used to fall back to the first entity in a response when no URN
+    matched. A catalog could then return asset B's receipt when A was requested
+    and `verify A` would print VERIFIED on B's evidence. A tool built to stop
+    agents trusting the graph cannot itself trust the graph to reply about the
+    right asset.
+    """
+    from sidq.receipt.read import get_verification_status, holds
+
+    asked = "urn:li:dataset:(urn:li:dataPlatform:dbt,wanted,PROD)"
+    other = "urn:li:dataset:(urn:li:dataPlatform:dbt,someone.else,PROD)"
+
+    def prop(name: str, value: str) -> dict:
+        return {
+            "structuredProperty": {"urn": f"urn:li:structuredProperty:sidq.{name}"},
+            "values": [{"stringValue": value}],
+        }
+
+    def wrong_asset(name: str, arguments: dict) -> dict:
+        return {
+            "entities": [
+                {
+                    "urn": other,
+                    "structuredProperties": {
+                        "properties": [
+                            prop("verdict", "PASS"),
+                            prop("checked_at", "2026-08-01T00:00:00Z"),
+                            prop("policy_hash", "sha256:p"),
+                        ]
+                    },
+                }
+            ]
+        }
+
+    status = get_verification_status(asked, wrong_asset)
+    vouches, reason = holds(status)
+
+    assert vouches is False
+    assert reason == "no receipt on this asset"
+
+
+def test_a_verdict_the_engine_cannot_emit_vouches_for_nothing() -> None:
+    """Three verdicts exist. A catalog cannot invent a fourth and be believed."""
+    from sidq.receipt.read import holds
+
+    for invented in ("VERIFIED", "OK", "APPROVED", "pass", "SAFE"):
+        vouches, reason = holds({"verdict": invented, "stale": False})
+        assert vouches is False, f"{invented} was believed"
+        assert "unrecognised verdict" in reason
+
+
+def test_a_receipt_is_refused_for_anything_that_is_not_a_dataset_urn() -> None:
+    """A subject arrives from a catalog response, and a receipt is a write."""
+    import pytest
+
+    from sidq.models import Verdict
+    from sidq.receipt.build import build_receipt
+
+    verdict = Verdict(
+        decision="PASS",
+        reason_code=None,
+        findings=(),
+        touched=(),
+        commit_sha="abc",
+        policy_hash="sha256:p",
+    )
+    for hostile in (
+        "urn:li:corpuser:admin",
+        "not-a-urn",
+        "urn:li:dataset:(urn:li:dataPlatform:dbt,x,PROD",
+        "",
+    ):
+        with pytest.raises(ValueError, match="non-dataset URN"):
+            build_receipt(hostile, verdict)

@@ -23,6 +23,7 @@ from sidq.agent import (
     write_receipts,
 )
 from sidq.agent.auditor import DEFAULT_BUDGET
+from sidq.agent.swarm import SwarmWorker, observe, render_worker
 from sidq.gates.base import Gate
 from sidq.gates.blast import BlastRadiusGate
 from sidq.gates.doc_rot import DocRotGate
@@ -41,7 +42,12 @@ from sidq.graph.client import (
 from sidq.graph.live_source import LiveSourceClient
 from sidq.models import Evidence, Verdict
 from sidq.policy.engine import PolicyEngine, load_policy
-from sidq.receipt.read import get_verification_status, holds, render_verification
+from sidq.receipt.read import (
+    get_verification_status,
+    get_verification_statuses,
+    holds,
+    render_verification,
+)
 from sidq.receipt.write import StdioMCPReceiptToolCaller
 from sidq.repair import (
     UNREPAIRABLE,
@@ -341,6 +347,62 @@ def _parser() -> argparse.ArgumentParser:
         help="seconds to wait on the catalog before reporting it unreachable",
     )
     audit_parser.add_argument("--json", action="store_true", dest="as_json")
+    swarm_parser = commands.add_parser(
+        "swarm",
+        help="audit as one worker of a swarm, cooperating only through receipts",
+    )
+    swarm_parser.add_argument(
+        "--worker-id",
+        required=True,
+        help="this worker's identity, recorded on every receipt it writes",
+    )
+    swarm_parser.add_argument(
+        "--swarm-run",
+        required=True,
+        help="the run all workers of this swarm share, so a ledger can be read back",
+    )
+    swarm_parser.add_argument(
+        "--server", default="http://localhost:8080", help="DataHub GMS URL"
+    )
+    swarm_parser.add_argument(
+        "--budget", type=int, default=DEFAULT_BUDGET, help="assets this worker examines"
+    )
+    swarm_parser.add_argument(
+        "--lineage-budget",
+        type=int,
+        default=0,
+        help=(
+            "assets whose column lineage the shared read resolves; defaults to "
+            "four times --budget because a swarm's workers rotate across the plan "
+            "and collectively cover far more ground than any one of them"
+        ),
+    )
+    swarm_parser.add_argument(
+        "--via-mcp",
+        action="store_true",
+        help="read the catalog through the official DataHub MCP server, not the SDK",
+    )
+    swarm_parser.add_argument(
+        "--timeout",
+        type=float,
+        default=15.0,
+        help="seconds to wait on the catalog before reporting it unreachable",
+    )
+    swarm_parser.add_argument("--json", action="store_true", dest="as_json")
+
+    ledger_parser = commands.add_parser(
+        "swarm-ledger",
+        help="read a swarm's work back out of the catalog, trusting no worker's word",
+    )
+    ledger_parser.add_argument("--swarm-run", required=True)
+    ledger_parser.add_argument(
+        "--server", default="http://localhost:8080", help="DataHub GMS URL"
+    )
+    ledger_parser.add_argument("--budget", type=int, default=DEFAULT_BUDGET)
+    ledger_parser.add_argument("--via-mcp", action="store_true")
+    ledger_parser.add_argument("--timeout", type=float, default=15.0)
+    ledger_parser.add_argument("--json", action="store_true", dest="as_json")
+
     verify_parser = commands.add_parser(
         "verify",
         help="read one asset's receipt back from DataHub and judge whether it holds",
@@ -541,6 +603,84 @@ def _repair(arguments: Any) -> int:
     return 1 if remaining else 0
 
 
+def replace_budget(arguments: Any, budget: int) -> Any:
+    """A shallow view of the parsed arguments with a different read budget."""
+    from copy import copy
+
+    widened = copy(arguments)
+    widened.budget = budget
+    return widened
+
+
+def _swarm(arguments: Any) -> int:
+    """One worker of a swarm: read fresh, decide, write now, move on.
+
+    Nothing here coordinates with the other workers. They are separate
+    processes, possibly on separate machines, and the only thing they share is
+    the catalog — so cooperation is whatever the receipts already in it say.
+    """
+    # Each worker enters the shared plan at its own offset, so the read must
+    # resolve column lineage well past one worker's own budget — otherwise a
+    # rotated worker lands on assets nothing fetched lineage for, correctly
+    # reports that it could not establish anything, and writes no receipt. The
+    # honesty rule is right; the read was simply too narrow for a swarm.
+    lineage = arguments.lineage_budget or arguments.budget * 4
+    snapshot = _read_snapshot(replace_budget(arguments, lineage))
+    if snapshot is None:
+        return 2
+
+    caller = StdioMCPReceiptToolCaller()
+    try:
+        result = SwarmWorker(
+            snapshot,
+            worker_id=arguments.worker_id,
+            swarm_run=arguments.swarm_run,
+            tool_caller=caller,
+            budget=arguments.budget,
+            commit_sha=commit_sha_for_ref("HEAD"),
+        ).run()
+    finally:
+        close = getattr(caller, "close", None)
+        if callable(close):
+            close()
+
+    if arguments.as_json:
+        sys.stdout.buffer.write(canonical_json(result.summary()) + b"\n")
+    else:
+        print("\n".join(render_worker(result)))
+    return 1 if result.findings else 0
+
+
+def _swarm_ledger(arguments: Any) -> int:
+    """What the swarm did, read from the catalog rather than from the workers.
+
+    A swarm that reported its own success would be the self-attestation this
+    project refuses, so the ledger asks DataHub and nobody else.
+    """
+    snapshot = _read_snapshot(arguments)
+    if snapshot is None:
+        return 2
+
+    urns = [entity.urn for entity in snapshot.entities]
+    caller = StdioMCPReceiptToolCaller()
+    try:
+        statuses = get_verification_statuses(urns, caller)
+    except Exception as error:  # noqa: BLE001 - MCP transports raise several types
+        print(f"sidq: could not read the ledger: {error}", file=sys.stderr)
+        return 2
+    finally:
+        close = getattr(caller, "close", None)
+        if callable(close):
+            close()
+
+    report = observe(urns, statuses, swarm_run=arguments.swarm_run)
+    if arguments.as_json:
+        sys.stdout.buffer.write(canonical_json(report.summary()) + b"\n")
+    else:
+        print("\n".join(report.render()))
+    return 0
+
+
 def _verify(arguments: Any) -> int:
     """Read a receipt back through official MCP, in whatever process runs this.
 
@@ -588,6 +728,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _verify(arguments)
     if arguments.command == "repair":
         return _repair(arguments)
+    if arguments.command == "swarm":
+        return _swarm(arguments)
+    if arguments.command == "swarm-ledger":
+        return _swarm_ledger(arguments)
     if arguments.command == "explain":
         policy = load_policy()
         rule = next(

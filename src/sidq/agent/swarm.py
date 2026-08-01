@@ -197,6 +197,32 @@ class SwarmWorker:
         run.written.append(urn)
 
 
+def render_worker(run: WorkerRun) -> list[str]:
+    """One worker's shift, said plainly — including whose word it took."""
+    summary = run.summary()
+    lines = [
+        f"Swarm worker {run.worker_id} — run {run.swarm_run}",
+        "",
+        f"  examined          {summary['examined']}",
+        f"  receipts written  {summary['receipts_written']}",
+        f"  findings          {summary['findings']}",
+    ]
+    if run.vouched_by_peer:
+        peers = sorted({peer for _, peer in run.vouched_by_peer})
+        lines.append(
+            f"  vouched by peers  {len(run.vouched_by_peer)} "
+            f"({', '.join(peers)}) — their receipts held, so this worker moved on"
+        )
+    if run.vouched_unattributed:
+        lines.append(
+            f"  vouched (earlier) {len(run.vouched_unattributed)} "
+            "(a receipt from before this swarm still holds)"
+        )
+    if run.write_failures:
+        lines.append(f"  write failures    {len(run.write_failures)}")
+    return lines
+
+
 @dataclass(frozen=True, slots=True)
 class SwarmReport:
     """What an observer can prove by reading DataHub alone."""
@@ -208,6 +234,17 @@ class SwarmReport:
     by_worker: dict[str, int]
     duplicates: list[str]
     recovered: list[str]
+
+    def summary(self) -> dict[str, object]:
+        return {
+            "swarm_run": self.swarm_run,
+            "total_assets": self.total_assets,
+            "receipted_before": self.receipted_before,
+            "receipted_after": self.receipted_after,
+            "by_worker": dict(sorted(self.by_worker.items())),
+            "duplicates": len(self.duplicates),
+            "recovered": len(self.recovered),
+        }
 
     def render(self) -> list[str]:
         gained = self.receipted_after - self.receipted_before

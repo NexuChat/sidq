@@ -11,7 +11,7 @@ RECEIPT_URN ?= urn:li:dataset:(urn:li:dataPlatform:snowflake,b2fd91.order_entry_
 
 REPAIR_BUDGET ?= 15
 
-.PHONY: check regen regen-check gate-demo live-loop converge-demo repair-demo repair-reset demo-up demo-ingest demo-break demo-restore demo-down
+.PHONY: check regen regen-check gate-demo live-loop converge-demo swarm-demo repair-demo repair-reset demo-up demo-ingest demo-break demo-restore demo-down
 
 # The runbook's first row promises a clone and `make` are enough, and until
 # 2026-07-31 that promise was false: a fresh clone had no virtualenv and the
@@ -119,6 +119,39 @@ converge-demo: | $(VENV)/bin/python
 	@DATAHUB_GMS_URL=$(DATAHUB_GMS_URL) DATAHUB_TELEMETRY_ENABLED=false \
 	  $(VENV)/bin/sidq audit --via-mcp --budget $(AUDIT_BUDGET) --write-receipts --resume 2>/dev/null; \
 	  status=$$?; [ $$status -le 1 ] || { echo "audit could not read the catalog"; exit 1; }
+
+# Four auditors, one catalog, no coordinator. They are separate processes with
+# no IPC between them: the only thing they share is DataHub, and the only way
+# they cooperate is by reading the receipts each other writes.
+#
+# One is killed deliberately mid-run. Its unfinished assets were never assigned
+# to it — nothing is — so the survivors pick them up as ordinary work, and a
+# fifth process that reads only DataHub prints who did what.
+SWARM_BUDGET ?= 6
+swarm-demo: | $(VENV)/bin/python
+	@run=swarm-$$(date +%s); \
+	echo "== four workers start together — no coordinator, no IPC, run $$run =="; \
+	pids=""; \
+	for w in alpha beta gamma delta; do \
+	  DATAHUB_GMS_URL=$(DATAHUB_GMS_URL) DATAHUB_TELEMETRY_ENABLED=false \
+	    $(VENV)/bin/sidq swarm --via-mcp --worker-id $$w --swarm-run $$run \
+	    --budget $(SWARM_BUDGET) --lineage-budget 40 >/tmp/sidq-swarm-$$w.log 2>&1 & \
+	  pids="$$pids $$!"; \
+	  echo "  started $$w"; \
+	done; \
+	victim=$$(echo $$pids | awk '{print $$4}'); \
+	sleep 30; \
+	if kill -9 $$victim 2>/dev/null; then echo; echo "  >> killed delta mid-run — its unfinished assets were never assigned to it"; fi; \
+	wait 2>/dev/null || true; \
+	echo; \
+	for w in alpha beta gamma; do \
+	  grep -vE "^INFO|Starting MCP|ExperimentalWarning|from datahub|^\\s*$$" /tmp/sidq-swarm-$$w.log | tail -7; \
+	  echo; \
+	done; \
+	echo "== the ledger, read from DataHub by a process that audited nothing =="; \
+	DATAHUB_GMS_URL=$(DATAHUB_GMS_URL) DATAHUB_TELEMETRY_ENABLED=false \
+	  $(VENV)/bin/sidq swarm-ledger --via-mcp --swarm-run $$run --budget 60 2>/dev/null
+
 
 # The repair agent, on live DataHub. It proposes only from catalog evidence, then
 # re-runs the deterministic engine against the catalog each repair *would* create
