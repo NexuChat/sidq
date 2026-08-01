@@ -11,7 +11,7 @@ RECEIPT_URN ?= urn:li:dataset:(urn:li:dataPlatform:snowflake,b2fd91.order_entry_
 
 REPAIR_BUDGET ?= 15
 
-.PHONY: check regen regen-check decision-cost gate-demo live-loop converge-demo swarm-demo repair-demo repair-reset demo-up demo-ingest demo-break demo-restore demo-down
+.PHONY: check regen regen-check decision-cost claims-demo gate-demo live-loop converge-demo swarm-demo repair-demo repair-reset demo-up demo-ingest demo-break demo-restore demo-down
 
 # The runbook's first row promises a clone and `make` are enough, and until
 # 2026-07-31 that promise was false: a fresh clone had no virtualenv and the
@@ -159,6 +159,26 @@ swarm-demo: | $(VENV)/bin/python
 	DATAHUB_GMS_URL=$(DATAHUB_GMS_URL) DATAHUB_TELEMETRY_ENABLED=false \
 	  $(VENV)/bin/sidq swarm-ledger --via-mcp --swarm-run $$run --budget 60 2>/dev/null
 
+
+# The one command where a model is allowed to participate, and the shape of that
+# participation is the point. Documentation is read from the catalog through the
+# official MCP server, each documented sentence is turned into a claim, the claim
+# is compiled to read-only SQL and run against the live source, and the row count
+# that comes back is what the deterministic engine judges.
+#
+# `--reader` adds the trained multilingual reader on the sentences the regular
+# expressions declined. It proposes what to test; it never decides what is true,
+# and a claim it proposes that could not be tested is dropped rather than
+# reported. Drop the flag and the same command runs on rules alone.
+CLAIMS_SOURCE ?= host=localhost port=55432 dbname=warehouse user=sidq password=sidq
+CLAIMS_URNS ?= \
+  'urn:li:dataset:(urn:li:dataPlatform:postgres,sidq-demo.warehouse.raw.orders,PROD)' \
+  'urn:li:dataset:(urn:li:dataPlatform:postgres,sidq-demo.warehouse.raw.customers,PROD)' \
+  'urn:li:dataset:(urn:li:dataPlatform:postgres,sidq-demo.warehouse.raw.order_items,PROD)'
+claims-demo: | $(VENV)/bin/python
+	@DATAHUB_GMS_URL=$(DATAHUB_GMS_URL) DATAHUB_TELEMETRY_ENABLED=false \
+	  $(VENV)/bin/sidq claims $(CLAIMS_URNS) --source "$(CLAIMS_SOURCE)" --reader 2>/dev/null; \
+	  status=$$?; [ $$status -le 1 ] || { echo "claims could not read the catalog or the source"; exit 1; }
 
 # The repair agent, on live DataHub. It proposes only from catalog evidence, then
 # re-runs the deterministic engine against the catalog each repair *would* create

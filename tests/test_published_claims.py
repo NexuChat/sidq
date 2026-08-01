@@ -516,3 +516,45 @@ def test_the_gpu_objection_is_answered_with_a_measurement() -> None:
     # The honest framing must stay the headline: a decision is not delivered
     # until it has crossed back to the host.
     assert evidence["roundtrip_ns"] > evidence["resident_ns"] > evidence["rule_ns"]
+
+
+# ---------------------------------------------------------------------------
+# The documentation reader. Its numbers are a published claim like any other,
+# and the committed evaluation report is what they have to keep matching.
+# ---------------------------------------------------------------------------
+
+
+def test_the_reader_document_quotes_the_report_it_was_trained_from() -> None:
+    """Retraining moves these numbers; the document must move with them."""
+    report = json.loads(
+        (ROOT / "data" / "claims" / "reader" / "report.json").read_text()
+    )
+    text = (ROOT / "docs" / "CLAIM-READER.md").read_text(encoding="utf-8")
+
+    point = report["operating_point"]
+    assert f"{point['precision']:.1%}" in text
+    assert f"{point['recall']:.1%}" in text
+    assert f"{report['train_rows']:,} rows" in text
+    assert report["embedding_model"] in text
+    assert report["chosen"] == "logistic regression", (
+        "the shipped head changed; docs/CLAIM-READER.md explains why the linear "
+        "one was chosen and must be rewritten before a different one ships"
+    )
+
+
+def test_the_reader_only_ever_proposes_fully_specified_claim_types() -> None:
+    """A classifier produces a label, not arguments.
+
+    `accepted_values` needs its value list and `relationships` needs its target.
+    Proposing one without them would compile a query testing something nobody
+    documented, so the trainer and the shipped reader must agree on the same
+    two-item allow-list — separately defined, hence separately checked.
+    """
+    from sidq.claims import reader as shipped
+
+    report = json.loads(
+        (ROOT / "data" / "claims" / "reader" / "report.json").read_text()
+    )
+
+    assert tuple(report["proposable"]) == shipped._PROPOSABLE
+    assert set(shipped._PROPOSABLE) == {"unique", "not_null"}

@@ -77,6 +77,28 @@ catalog metadata. Scanning all 67 datasets surfaced 285 internal field-lineage c
 concentrated in 5 assets. This is a narrower claim than saying the source systems are broken: the
 contradictory claims are visible inside the catalog itself.
 
+The new `sidq claims` command takes the same evidence boundary into field
+descriptions. It reads a dataset's field descriptions from DataHub through the
+official MCP server, turns each documented sentence into a testable claim,
+compiles that claim to read-only SQL, runs it against the live PostgreSQL source,
+and lets the deterministic policy engine judge the row counts that come back. A
+model may decide what to test; only the engine may decide what is true. The
+deterministic reader runs first and the model is consulted only on sentences it
+declined; a model-proposed claim that could not be tested contributes nothing and
+is dropped, so it can never cause a `BLOCK`.
+
+The reader is a linear head over `microsoft/harrier-oss-v1-270m`, a multilingual
+embedding model covering 94+ languages, trained on 2,048 rows and evaluated on a
+held-out 528. At its operating point it reaches 95.8% precision and 58.0% recall
+on 72 proposals, and proposes only the argument-free `unique` and `not_null`
+claim types. A gradient-boosted head had the same precision within noise and 16
+points worse recall, while adding a training stack to inference. In the live
+demo, 6 documented fields produce 4 claims — 3 by rules and 1 by the trained
+reader — while 2 sentences are declined by both; one violation is found because
+`status` is documented as "One of: pending, paid, fulfilled" while 12 rows are
+`refunded`, giving a `WARN` verdict. Details are in
+[`docs/CLAIM-READER.md`](CLAIM-READER.md).
+
 
 ## What each check compares
 

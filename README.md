@@ -17,7 +17,7 @@ Four commands, in order of how much they need. The first needs nothing at all.
 | # | Command | Needs | What it proves | Takes |
 |---|---|---|---|---|
 | 1 | `make gate-demo` | nothing — no DataHub, no network, no credentials | The published `BLOCK` verdict is re-derived from the committed graph recording, byte-identical, with the same `policy_hash`. Hand-editing an artifact fails this. | ~2s (the very first run adds about a minute to build `.venv`) |
-| 2 | `make check` | nothing | 526 tests, lint, format, types — everything CI runs, including the guards on every claim this README makes. | ~15s |
+| 2 | `make check` | nothing | 553 tests, lint, format, types — everything CI runs, including the guards on every claim this README makes. | ~15s |
 | 3 | `make live-loop` | a running DataHub ([`docs/SETUP.md`](docs/SETUP.md)) | The whole agent loop over the **official MCP server only**: read → decide → write a receipt → a *separate process* reads it back → an asset carrying no receipt returns `NOT VERIFIED`. | ~60s |
 | 4 | `make repair-demo` | the same DataHub | The repair agent proposes a fix from catalog evidence, re-runs the deterministic engine against the catalog that fix *would* create, and shows what it proved and what it refused. | ~40s |
 
@@ -84,6 +84,27 @@ edge leaving that page points at an asset that exists outside the window. Sidq
 adjudicates dangling edges only against a complete view, and reports the rest as
 `unverifiable` — a paged reader's boundary is not the catalog's contradiction.
 
+**Documented claims are tested against the live source.** `sidq claims` reads a
+dataset's field descriptions from DataHub through the official MCP server, turns
+each documented sentence into a testable claim, compiles that claim to read-only
+SQL, runs it against the live PostgreSQL source, and lets the deterministic policy
+engine judge the row counts that come back. The boundary has two sides: a model
+may decide what to test; only the engine may decide what is true. The deterministic
+reader runs first and the model is consulted only on sentences it declined; a
+model-proposed claim that could not be tested contributes nothing and is dropped,
+so it can never cause a `BLOCK`.
+
+The reader is a linear head over `microsoft/harrier-oss-v1-270m`, a multilingual
+embedding model covering 94+ languages. Trained on 2,048 rows and evaluated on a
+held-out 528, it reaches 95.8% precision and 58.0% recall at its operating point
+on 72 proposals. It proposes only `unique` and `not_null`, the two claim types
+that need no arguments. A gradient-boosted head had the same precision within
+noise and 16 points worse recall, while adding a training stack to inference.
+In the live demo, 6 documented fields produce 4 claims — 3 by rules and 1 by the
+trained reader — while 2 sentences are declined by both. One violation is found:
+`status` is documented as "One of: pending, paid, fulfilled" while 12 rows are
+`refunded`; the verdict is `WARN`. Details are in [`docs/CLAIM-READER.md`](docs/CLAIM-READER.md).
+
 **Ownership is read as recorded.** `unowned_consumed` counts assets with no
 direct ownership record; inherited ownership is a governance convention Sidq
 does not infer.
@@ -102,7 +123,8 @@ Sidq separates evidence collection from judgment:
    - `constraint_reconciliation`: catalog constraint claims versus what the source enforces. The database is the authority on what it enforces; the catalog is a claim about it, and disagreement is the finding. Measured coverage and the honest abstention rate are published in [`docs/RECONCILE-COVERAGE.md`](docs/RECONCILE-COVERAGE.md).
    - catalog self-contradictions such as a lineage target field missing from its stored target schema.
 2. **Change gates** resolve changed SQL/dbt files to DataHub assets, check referenced datasets and fields, calculate downstream blast radius and paths, and apply governance evidence such as PII, ownership, and deprecation where available.
-3. **The policy engine** turns evidence into exactly `PASS`, `WARN`, or `BLOCK`. A graph failure is fail-closed: it becomes evidence and cannot grant permission.
+3. **Documentation claims** read field descriptions through the official DataHub MCP server, compile them to read-only SQL, run them against the live PostgreSQL source, and pass the returned row counts to the policy engine.
+4. **The policy engine** turns evidence into exactly `PASS`, `WARN`, or `BLOCK`. A graph failure is fail-closed: it becomes evidence and cannot grant permission.
 
 The boundary is explicit. The deterministic findings are the only findings that can produce `BLOCK`. An advisory finding can produce `WARN` only and can never turn `PASS` into `BLOCK`:
 

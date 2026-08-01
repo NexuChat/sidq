@@ -61,6 +61,10 @@ from sidq.repair import (
 from sidq.resolver import Resolver
 from sidq.serialization import canonical_json
 
+# Named here rather than reaching into the extractor, so `--model` with no value
+# and `ModelExtractor()` cannot drift apart in a help string a judge reads.
+_DEFAULT_CLAIM_MODEL = "ibm/granite4:1b-q4_1"
+
 
 class _UnavailableClient:
     """Fail closed when a CLI caller has not supplied the live integration yet."""
@@ -347,6 +351,57 @@ def _parser() -> argparse.ArgumentParser:
         help="seconds to wait on the catalog before reporting it unreachable",
     )
     audit_parser.add_argument("--json", action="store_true", dest="as_json")
+    claims_parser = commands.add_parser(
+        "claims",
+        help="test what the catalog's documentation asserts against the live source",
+    )
+    claims_parser.add_argument(
+        "urn", nargs="+", help="dataset URNs whose documentation should be tested"
+    )
+    claims_parser.add_argument(
+        "--server", default="http://localhost:8080", help="DataHub GMS URL"
+    )
+    claims_parser.add_argument(
+        "--source",
+        required=True,
+        help="read-only PostgreSQL connection string for the live source",
+    )
+    claims_parser.add_argument(
+        "--model",
+        nargs="?",
+        const=_DEFAULT_CLAIM_MODEL,
+        help=(
+            "also read sentences the deterministic reader declined, using a local "
+            "Ollama model. It proposes what to test and never what is true: a "
+            "claim it proposes still has to survive read-only SQL against the "
+            "source, and one that cannot be tested is dropped, not reported."
+        ),
+    )
+    claims_parser.add_argument(
+        "--reader",
+        action="store_true",
+        help=(
+            "also read declined sentences with the trained multilingual reader "
+            "in data/claims/reader/. Measured on a held-out split rather than "
+            "asserted: see docs/CLAIM-READER.md. Needs `pip install 'sidq[reader]'`."
+        ),
+    )
+    claims_parser.add_argument(
+        "--min-confidence",
+        type=float,
+        default=0.0,
+        help="ignore model proposals below this confidence (rules are always 1.0)",
+    )
+    claims_parser.add_argument(
+        "--budget", type=int, default=50, help="how many claims to test at most"
+    )
+    claims_parser.add_argument(
+        "--timeout",
+        type=float,
+        default=15.0,
+        help="seconds to wait on the catalog before reporting it unreachable",
+    )
+    claims_parser.add_argument("--json", action="store_true", dest="as_json")
     swarm_parser = commands.add_parser(
         "swarm",
         help="audit as one worker of a swarm, cooperating only through receipts",
@@ -495,6 +550,108 @@ def _read_snapshot(arguments: Any) -> CatalogSnapshot | None:
     except Exception as error:  # noqa: BLE001 - the client raises several types
         print(f"sidq: could not read the catalog: {error}", file=sys.stderr)
         return None
+
+
+def _claims(arguments: Any) -> int:
+    """Test what the catalog's documentation asserts against the live source.
+
+    This is the one command where a model is allowed to participate, and the
+    shape of that participation is the point: it proposes *what to test* on the
+    sentences the deterministic reader would not commit to, and the verdict
+    still comes from row counts returned by read-only SQL. `--model` is opt-in;
+    without it the command runs on rules alone and produces the same verdicts,
+    only from fewer sentences.
+    """
+    import json
+
+    from sidq.claims.attest import DocumentationAttester, datasets_from, render
+    from sidq.claims.verify import ClaimVerifier
+    from sidq.graph.live_source import PostgresLiveSourceClient
+
+    try:
+        import psycopg
+    except ModuleNotFoundError:
+        print(
+            "sidq: this command reads a live PostgreSQL source; install the extra "
+            "with `pip install 'sidq[live]'`",
+            file=sys.stderr,
+        )
+        return 2
+
+    # The documentation is read from the catalog through the official MCP server,
+    # the same surface every other agent command uses. What it is tested against
+    # is a different system entirely — that separation is the check.
+    graph: Any = MCPGraphClient(StdioMCPToolCaller())
+    try:
+        datasets = datasets_from(graph, list(arguments.urn))
+    finally:
+        close = getattr(graph, "close", None)
+        if callable(close):
+            close()
+    if not datasets:
+        print("sidq: none of the named datasets could be read", file=sys.stderr)
+        return 2
+
+    # An unavailable reader is not a failed run. The rule-based reader still
+    # covers every sentence it was ever going to cover, and saying so is more
+    # useful than exiting with nothing done.
+    extra: Any = None
+    if arguments.reader:
+        from sidq.claims.reader import EmbeddingClaimReader
+
+        try:
+            extra = EmbeddingClaimReader()
+        except Exception as error:  # noqa: BLE001 - loading raises several types
+            print(f"sidq: reader unavailable, rules only ({error})", file=sys.stderr)
+    elif arguments.model:
+        from sidq.claims.extractor import ModelExtractor
+
+        try:
+            extra = ModelExtractor(arguments.model)
+        except Exception as error:  # noqa: BLE001 - the runtime raises its own types
+            print(f"sidq: model unavailable, rules only ({error})", file=sys.stderr)
+
+    def connect() -> Any:
+        # Read-only by construction: every compiled claim is a SELECT, and the
+        # session is set read-only as well so a mistake in compilation cannot
+        # become a write against someone's warehouse.
+        connection = psycopg.connect(arguments.source)
+        connection.read_only = True
+        return connection
+
+    live_source = PostgresLiveSourceClient(connect)
+    verifier = ClaimVerifier(live_source, connect)
+    run = DocumentationAttester(
+        verifier, extra=extra, min_confidence=arguments.min_confidence
+    ).run(datasets, budget=arguments.budget)
+
+    evidence = run.evidence()
+    verdict = PolicyEngine(None).decide(evidence, commit_sha=commit_sha_for_ref("HEAD"))
+    if arguments.as_json:
+        print(
+            json.dumps(
+                {
+                    "summary": run.summary(),
+                    "decision": verdict.decision,
+                    "policy_hash": verdict.policy_hash,
+                    "findings": [
+                        {
+                            "urn": item.urn,
+                            "column": item.claim.column,
+                            "origin": item.claim.origin,
+                            "sentence": item.claim.source_sentence,
+                            "status": item.verification.status,
+                            "violating_rows": item.verification.violating_row_count,
+                        }
+                        for item in run.admitted
+                    ],
+                },
+                indent=2,
+            )
+        )
+    else:
+        print("\n".join(render(run, verdict.decision)))
+    return 1 if verdict.decision == "BLOCK" else 0
 
 
 def _audit(arguments: Any) -> int:
@@ -724,6 +881,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     arguments = _parser().parse_args(argv)
     if arguments.command == "audit":
         return _audit(arguments)
+    if arguments.command == "claims":
+        return _claims(arguments)
     if arguments.command == "verify":
         return _verify(arguments)
     if arguments.command == "repair":
