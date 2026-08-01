@@ -830,7 +830,7 @@ def _swarm_ledger(arguments: Any) -> int:
         return 2
 
     urns = [entity.urn for entity in snapshot.entities]
-    caller = StdioMCPReceiptToolCaller()
+    caller = StdioMCPToolCaller()
     try:
         statuses = get_verification_statuses(urns, caller)
     except Exception as error:  # noqa: BLE001 - MCP transports raise several types
@@ -862,7 +862,7 @@ def _verify(arguments: Any) -> int:
     recorded BLOCK. That is the answer, not a failure, so it stays distinct from
     the 2 returned when the catalog could not be read at all.
     """
-    caller = StdioMCPReceiptToolCaller()
+    caller = StdioMCPToolCaller()
     try:
         policy_hash = (
             PolicyEngine(arguments.policy).decide((), commit_sha="").policy_hash

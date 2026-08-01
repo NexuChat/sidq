@@ -361,6 +361,7 @@ def _stub_handler(server, monkeypatch, responses, path: str):
     handler = server.Handler.__new__(server.Handler)
     handler.path = path
     handler.client_address = ("192.0.2.1", 12345)
+    handler.headers = {}
     monkeypatch.setattr(
         handler, "_json", lambda status, payload: responses.append((status, payload))
     )
@@ -422,6 +423,123 @@ def test_the_landing_page_run_buttons_name_commands_that_exist() -> None:
     assert wired <= set(RUNNABLE), (
         f"unknown run targets: {sorted(wired - set(RUNNABLE))}"
     )
+    assert {"handoff", "claims"} <= wired, (
+        "the live page must expose the receipt handoff and measured-doc claims, "
+        "not only the older gate/audit/repair paths"
+    )
+
+
+def test_the_live_handoff_is_a_fixed_read_only_receipt_read() -> None:
+    """The winning demo reads shared memory without granting public writes."""
+    from web.server import RUNNABLE
+
+    _, argv = RUNNABLE["handoff"]
+    assert argv[1:3] == (
+        "verify",
+        "urn:li:dataset:(urn:li:dataPlatform:postgres,sidq.receipt.consumed,DEV)",
+    )
+    assert "--write-receipts" not in argv
+
+
+def test_the_public_server_declares_a_hardened_browser_boundary() -> None:
+    from web.server import SECURITY_HEADERS
+
+    assert SECURITY_HEADERS["X-Content-Type-Options"] == "nosniff"
+    assert SECURITY_HEADERS["X-Frame-Options"] == "DENY"
+    assert "frame-ancestors 'none'" in SECURITY_HEADERS["Content-Security-Policy"]
+    assert "form-action 'none'" in SECURITY_HEADERS["Content-Security-Policy"]
+    assert "camera=()" in SECURITY_HEADERS["Permissions-Policy"]
+
+
+def test_the_published_skill_example_matches_the_verdict_artifact() -> None:
+    """A copy-pasted skill example must not disagree with its evidence file."""
+    verdict = json.loads(
+        (ROOT / "examples/01-blocked-pii-dashboard/verdict.json").read_text()
+    )
+    skill = (ROOT / "skills/datahub-verify/SKILL.md").read_text()
+
+    assert f'"commit_sha": "{verdict["commit_sha"]}"' in skill
+    assert f'"policy_hash": "{verdict["policy_hash"]}"' in skill
+    assert "npx skills add NexuChat/sidq --skill datahub-verify" in skill
+
+
+def test_the_service_unit_enforces_the_runtime_boundary() -> None:
+    """The committed deployment unit is the reproducible production contract."""
+    unit = (ROOT / "deploy/sidq-landing.service").read_text()
+
+    for directive in (
+        "NoNewPrivileges=true",
+        "ProtectSystem=strict",
+        "ProtectHome=read-only",
+        "PrivateTmp=true",
+        "CapabilityBoundingSet=",
+        "MemoryMax=1G",
+        "CPUQuota=200%",
+    ):
+        assert directive in unit
+    assert "ExecStart=" in unit and "web/server.py" in unit
+    assert "EnvironmentFile=-/etc/sidq/landing.env" in unit
+
+
+def test_the_operations_runbook_covers_probe_release_and_rollback() -> None:
+    runbook = (ROOT / "docs/OPERATIONS.md").read_text()
+
+    for required in (
+        "/healthz",
+        "/readyz",
+        "systemctl restart sidq-landing",
+        "git switch --detach",
+        "git rev-parse HEAD",
+        "curl --fail",
+    ):
+        assert required in runbook
+
+
+def test_liveness_is_dependency_free_and_names_the_exact_demo_surface() -> None:
+    from web import server
+
+    payload = server._health_payload()
+
+    assert payload == {
+        "status": "ok",
+        "service": "sidq-landing",
+        "live_demos": sorted(server.RUNNABLE),
+    }
+
+
+@pytest.mark.parametrize(
+    ("datahub_ready", "status", "datahub"),
+    ((True, "ready", "ok"), (False, "degraded", "unavailable")),
+)
+def test_readiness_reports_the_live_catalog_dependency(
+    datahub_ready: bool, status: str, datahub: str
+) -> None:
+    from web import server
+
+    payload = server._readiness_payload(lambda: datahub_ready)
+
+    assert payload == {
+        "status": status,
+        "service": "sidq-landing",
+        "datahub": datahub,
+    }
+
+
+def test_run_endpoints_reject_request_bodies_before_starting_work(monkeypatch) -> None:
+    from web import server
+
+    responses: list = []
+    handler = _stub_handler(server, monkeypatch, responses, "/run/gate-demo")
+    handler.headers = {"Content-Length": "1"}
+    monkeypatch.setattr(
+        server,
+        "_run",
+        lambda name: pytest.fail("a request with a body must not start a command"),
+    )
+
+    handler.do_POST()
+
+    assert responses == [(400, {"error": "request body is not accepted"})]
 
 
 def test_the_contradiction_count_and_its_concentration_are_both_true() -> None:
@@ -668,7 +786,7 @@ def test_architecture_names_the_current_delivery_surfaces_and_mcp_tools() -> Non
 
 
 def test_landing_calls_its_buttons_live_demos_not_all_agents() -> None:
-    """Five agents are described, while exactly three safe demos are exposed."""
+    """Five agent capabilities are backed by exactly five safe live demos."""
 
     landing = (ROOT / "web" / "index.html").read_text(encoding="utf-8")
-    assert "All three live demos run below" in landing
+    assert "All five live demos run below" in landing

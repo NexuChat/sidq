@@ -509,7 +509,12 @@ def test_swarm_ledger_is_read_from_datahub_and_transport_errors_fail_closed(
         render=lambda: ["ledger run-1"], summary=lambda: {"covered": 1}
     )
     monkeypatch.setattr(cli, "_read_snapshot", lambda arguments: snapshot)
-    monkeypatch.setattr(cli, "StdioMCPReceiptToolCaller", caller)
+    monkeypatch.setattr(cli, "StdioMCPToolCaller", caller)
+    monkeypatch.setattr(
+        cli,
+        "StdioMCPReceiptToolCaller",
+        lambda: pytest.fail("ledger reads must not enable mutation tools"),
+    )
     monkeypatch.setattr(
         cli, "get_verification_statuses", lambda urns, transport: {URN: {}}
     )
@@ -536,7 +541,7 @@ def test_verify_reports_receipt_state_from_a_separate_reader(
 ) -> None:
     transport = _Closable()
     status = {"verdict": "PASS" if verified else "BLOCK"}
-    monkeypatch.setattr(cli, "StdioMCPReceiptToolCaller", lambda: transport)
+    monkeypatch.setattr(cli, "StdioMCPToolCaller", lambda: transport)
     monkeypatch.setattr(cli, "get_verification_status", lambda *args, **kwargs: status)
     monkeypatch.setattr(cli, "holds", lambda supplied: (verified, "reason"))
     monkeypatch.setattr(
@@ -551,7 +556,12 @@ def test_verify_reports_receipt_state_from_a_separate_reader(
 def test_verify_json_includes_the_recomputed_status(monkeypatch, capsysbinary) -> None:
     transport = _Closable()
     status = {"verdict": "PASS", "policy_hash": "policy"}
-    monkeypatch.setattr(cli, "StdioMCPReceiptToolCaller", lambda: transport)
+    monkeypatch.setattr(cli, "StdioMCPToolCaller", lambda: transport)
+    monkeypatch.setattr(
+        cli,
+        "StdioMCPReceiptToolCaller",
+        lambda: pytest.fail("receipt reads must not enable mutation tools"),
+    )
     monkeypatch.setattr(cli, "get_verification_status", lambda *args, **kwargs: status)
     monkeypatch.setattr(cli, "holds", lambda supplied: (True, "fresh"))
 
@@ -568,7 +578,7 @@ def test_verify_transport_failure_is_not_reported_as_unverified(
     monkeypatch, capsys
 ) -> None:
     transport = _Closable()
-    monkeypatch.setattr(cli, "StdioMCPReceiptToolCaller", lambda: transport)
+    monkeypatch.setattr(cli, "StdioMCPToolCaller", lambda: transport)
     monkeypatch.setattr(
         cli,
         "get_verification_status",

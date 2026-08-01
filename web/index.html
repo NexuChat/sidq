@@ -636,6 +636,25 @@
         border-left: 1px solid var(--rule);
       }
 
+      .copy.run.featured {
+        flex-basis: 100%;
+        margin-bottom: 4px;
+        padding: 18px 22px;
+        border: 1px solid var(--acid);
+        background: var(--acid);
+        color: var(--ink);
+      }
+
+      .copy.run.featured:hover {
+        background: transparent;
+        color: var(--acid);
+      }
+
+      .copy.run.featured + .copy.run {
+        padding-left: 0;
+        border-left: 0;
+      }
+
       .copy.run[disabled] {
         color: var(--paper-dim);
         cursor: progress;
@@ -649,7 +668,8 @@
         border: 1px solid var(--rule);
         color: var(--paper);
         font: 0.72rem/1.6 var(--mono);
-        white-space: pre;
+        overflow-wrap: anywhere;
+        white-space: pre-wrap;
         tab-size: 2;
       }
 
@@ -1048,7 +1068,7 @@
           </li>
         </ol>
         <div class="provenance">
-          <span>All three live demos run below, on this host.</span>
+          <span>All five live demos run below, on this host.</span>
           <span>The blocking path contains no model calls. The optional reader can extend WARN coverage; it can never grant permission or produce BLOCK.</span>
         </div>
       </section>
@@ -1066,12 +1086,14 @@
             </div>
             <p id="copy-status" aria-live="polite">One command. A local graph. The same deterministic verdict.</p>
             <div class="command-row run-row">
-              <button class="copy run" type="button" data-run="gate-demo">Run it here — offline verdict</button>
-              <button class="copy run" type="button" data-run="audit">Run it here — live catalog audit</button>
-              <button class="copy run" type="button" data-run="repair">Run it here — repair agent (dry run)</button>
+              <button class="copy run featured" type="button" data-run="handoff" aria-controls="run-output">Prove the agent handoff — read receipt memory</button>
+              <button class="copy run" type="button" data-run="gate-demo" aria-controls="run-output">Offline verdict</button>
+              <button class="copy run" type="button" data-run="audit" aria-controls="run-output">Catalog audit</button>
+              <button class="copy run" type="button" data-run="repair" aria-controls="run-output">Repair agent</button>
+              <button class="copy run" type="button" data-run="claims" aria-controls="run-output">Measured claims</button>
             </div>
-            <p id="run-status" aria-live="polite">Or run any of the three on this machine, now. No clone, no setup.</p>
-            <pre id="run-output" hidden></pre>
+            <p id="run-status" aria-live="polite">Five real paths, one host. Start with the handoff: Agent B reads Agent A's receipt from DataHub and judges whether it still holds.</p>
+            <pre id="run-output" tabindex="-1" hidden></pre>
           </div>
         </div>
       </section>
@@ -1183,6 +1205,7 @@
               runOutput.hidden = true;
             } else {
               runOutput.textContent = `$ ${result.command}\n\n${result.output}`;
+              runOutput.focus({ preventScroll: true });
               runStatus.textContent =
                 result.exit_code === 0
                   ? `${result.description} Exit 0.`

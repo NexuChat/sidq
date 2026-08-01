@@ -22,6 +22,16 @@ This skill complements the official DataHub skills:
 
 Use this skill before those workflows when the question is whether the context is safe to rely on. Verification is a gate and an explanation, not a replacement for the catalog skills.
 
+Install this repository's skill directly from GitHub:
+
+```bash
+npx skills add NexuChat/sidq --skill datahub-verify
+```
+
+The command installs the instruction layer. Sidq itself and the MCP connection
+below remain explicit dependencies; if either is unavailable, report that the
+verification did not run.
+
 ---
 
 ## Connect the MCP server
@@ -81,7 +91,7 @@ The repository example `examples/01-blocked-pii-dashboard/verdict.json` is an ac
 
 ```json
 {
-  "commit_sha": "d3f3bd2f4fe31837867592162ccea08859be6947",
+  "commit_sha": "5addb753788935d4d1aa6a9483c28c6fc124e5c7",
   "decision": "BLOCK",
   "findings": [
     {
@@ -104,7 +114,7 @@ The repository example `examples/01-blocked-pii-dashboard/verdict.json` is an ac
       "severity": "block"
     }
   ],
-  "policy_hash": "09047cb616bbff703b8156594009b39cbf2531ba0d53050e3d3e17e81eed9356"
+  "policy_hash": "baa612f729a56ff7497718cc3cf77cd9142967cb4ec0e075c2b3495eeb2f2927"
 }
 ```
 

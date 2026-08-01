@@ -210,10 +210,12 @@ decision explicit and reproducible.
 ## Try it
 
 Project link: https://sidq.mlki.app — the page is executable, not a screenshot.
-Its **Run it here** buttons run the offline verdict reproduction and the live MCP
-catalog audit on the host and print the real output. The runnable set is a closed
-table of fixed argument lists with no request input, and it contains no command
-that can write to a catalog.
+Its **Run it here** buttons execute five demonstrations on the host and print the
+real output: the offline verdict reproduction, live MCP catalog audit, dry-run
+repair, independent receipt handoff, and measured documentation claims. The
+runnable set is a closed table of fixed argument lists with no request input, and
+it contains no command that can write to a catalog. `/healthz` proves that the
+landing process is alive; `/readyz` separately reports the live DataHub dependency.
 
 Live DataHub: https://datahub.mlki.app
 

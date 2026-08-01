@@ -15,6 +15,8 @@ Environment=PATH=/home/dev/.local/bin:/usr/local/bin:/usr/bin:/bin
 Environment=SIDQ_LANDING_PORT=8766
 Environment=DATAHUB_GMS_URL=http://localhost:8080
 Environment=DATAHUB_TELEMETRY_ENABLED=false
+# Optional operator-owned overrides. The repository never carries credentials.
+EnvironmentFile=-/etc/sidq/landing.env
 ExecStart=/home/dev/sidq-public/.venv/bin/python /home/dev/sidq-public/web/server.py
 Restart=always
 RestartSec=3s
@@ -22,7 +24,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 # ProtectHome=read-only is load-bearing rather than boilerplate now that the
-# page can run commands: both entries in the runnable table are read-only, and
+# page can run commands: all entries in the runnable table are read-only, and
 # this is what makes that a property of the sandbox instead of a promise in a
 # docstring. A command that tried to write would fail here.
 ProtectHome=read-only
