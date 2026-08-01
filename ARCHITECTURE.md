@@ -37,16 +37,18 @@ git diff (SQL / dbt)
 [S]  SIDQ RECEIPT    attested, queryable, written back onto the affected assets
 ```
 
-## Three surfaces, one engine
+## Three delivery surfaces, one engine
 
-1. **MCP server (ours)** — `check_change(diff|sql)` and `get_verification_status(urn)`.
-   Any coding agent asks permission *before* proposing data code; any analytics agent
-   checks an asset's last verdict *before* querying it. This is what makes the receipt
-   consumed by a third party rather than by ourselves.
-2. **CLI** — `sidq check --diff HEAD~1..HEAD`. The engine's interface; every other
-   surface consumes its JSON.
+1. **MCP server (ours)** — exactly three agent tools: `check_change(diff|sql)`,
+   `verify_context(urn)`, and `search_verified(query)`. A coding agent asks permission
+   *before* proposing data code; an analytics agent verifies context before trusting it;
+   another agent can select only assets carrying fresh receipts. This is what makes the
+   receipt consumed by a third party rather than by ourselves.
+2. **CLI** — the full operator surface: `sidq check`, `audit`, `repair`, `swarm`,
+   `claims`, and `verify`. Every command returns deterministic human output or canonical
+   JSON from the same evidence and policy engine.
 3. **GitHub PR bot** — a deterministic comment: verdict, the rule that fired, blast radius,
-   receipt link. Judges can picture installing it tomorrow.
+   receipt link, and exact reproduction command. Judges can picture installing it tomorrow.
 
 ## The agents, and the memory they share
 

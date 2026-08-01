@@ -536,6 +536,7 @@ def test_the_reader_document_quotes_the_report_it_was_trained_from() -> None:
     assert f"{point['recall']:.1%}" in text
     assert f"{report['train_rows']:,} rows" in text
     assert report["embedding_model"] in text
+    assert report["embedding_revision"] in text
     assert report["chosen"] == "logistic regression", (
         "the shipped head changed; docs/CLAIM-READER.md explains why the linear "
         "one was chosen and must be rewritten before a different one ships"
@@ -579,3 +580,95 @@ def test_the_rules_versus_model_comparison_quotes_the_same_report() -> None:
     # The rule losing this task is the whole point of the section; if it ever
     # wins, the document argues for something that is no longer true.
     assert baseline["precision"] < report["operating_point"]["precision"]
+
+
+# ---------------------------------------------------------------------------
+# The model and privacy boundary. `sidq claims` widened the product after the
+# operations copy was written; these guards keep the old, narrower claims from
+# silently surviving on the two surfaces a judge reads first.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("document", ("README.md", "web/index.html"))
+def test_privacy_copy_scopes_catalog_reads_and_live_source_checks(
+    document: str,
+) -> None:
+    """Catalog audits are metadata-only; source attestation is a distinct opt-in.
+
+    Saying the whole product "never reads row data" became false when
+    `sidq claims` began running bounded read-only SQL against a live source. The
+    stronger, useful property is that query results stay local and never become
+    model input, while the ordinary catalog audit remains metadata-only.
+    """
+    text = (ROOT / document).read_text(encoding="utf-8")
+    lowered = text.lower()
+
+    assert "catalog audits read metadata only" in lowered
+    assert "sidq claims" in text
+    assert "read-only sql" in lowered
+    assert "query results never enter a model" in lowered
+    assert "sidq reads metadata only" not in lowered
+    assert "metadata only, nothing leaves" not in lowered
+
+
+@pytest.mark.parametrize("document", ("README.md", "web/index.html"))
+def test_model_drift_copy_names_the_optional_reader_boundary(document: str) -> None:
+    """The optional reader may change warnings, but it can never grant or block.
+
+    The previous copy collapsed two claims: the blocking path has no model, but
+    the optional documentation reader does. Its revision and head are pinned so
+    warning coverage is attributable instead of drifting invisibly.
+    """
+    text = (ROOT / document).read_text(encoding="utf-8").lower()
+
+    assert "no model can block" in text
+    assert "optional documentation reader" in text
+    assert "pinned revision" in text
+    assert "head fingerprint" in text
+    assert "no model, no drift" not in text
+
+
+def test_every_architecture_surface_contains_the_same_svg() -> None:
+    """One edited diagram must not leave the landing page or gallery stale."""
+    canonical = (ROOT / "docs" / "architecture.svg").read_text(encoding="utf-8")
+    web = (ROOT / "web" / "architecture.svg").read_text(encoding="utf-8")
+    gallery = (ROOT / "docs" / "gallery" / "src" / "03-architecture.html").read_text(
+        encoding="utf-8"
+    )
+    embedded = gallery[gallery.index("<svg") : gallery.index("</svg>") + len("</svg>")]
+
+    assert web == canonical
+    assert embedded == canonical.strip()
+
+
+def test_architecture_draws_the_model_outside_the_judged_path() -> None:
+    """The picture must answer the model question without a paragraph."""
+    diagram = (ROOT / "docs" / "architecture.svg").read_text(encoding="utf-8")
+
+    for label in (
+        "OPTIONAL PROSE READER",
+        "READ-ONLY SOURCE CHECK",
+        "DATAHUB — CONTEXT + LEDGER",
+        "NO MODEL CAN BLOCK",
+    ):
+        assert label in diagram
+    assert (
+        "READS AND WRITES ONLY THROUGH THE OFFICIAL DATAHUB MCP SERVER" not in diagram
+    )
+
+
+def test_architecture_names_the_current_delivery_surfaces_and_mcp_tools() -> None:
+    """The architecture must not advertise the retired two-tool MCP contract."""
+
+    architecture = (ROOT / "ARCHITECTURE.md").read_text(encoding="utf-8")
+    assert "Three delivery surfaces, one engine" in architecture
+    for tool in ("check_change", "verify_context", "search_verified"):
+        assert f"`{tool}" in architecture
+    assert "get_verification_status" not in architecture
+
+
+def test_landing_calls_its_buttons_live_demos_not_all_agents() -> None:
+    """Five agents are described, while exactly three safe demos are exposed."""
+
+    landing = (ROOT / "web" / "index.html").read_text(encoding="utf-8")
+    assert "All three live demos run below" in landing

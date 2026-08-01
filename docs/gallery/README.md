@@ -13,15 +13,9 @@ google-chrome --headless=new --disable-gpu --window-size=1920,1080 \
 ```
 
 `src/03-architecture.html` embeds a copy of `docs/architecture.svg` taken at
-generation time. After editing the SVG, rebuild that source first:
+generation time. After editing the canonical SVG, synchronize both the landing
+page copy and the gallery source first:
 
 ```bash
-python3 - <<'EOF'
-svg = open('docs/architecture.svg').read()
-html = open('docs/gallery/src/03-architecture.html').read()
-start = html.index('<svg'); end = html.index('</svg>') + len('</svg>')
-open('docs/gallery/src/03-architecture.html', 'w').write(
-    html[:start] + svg[svg.index('<svg'):svg.index('</svg>') + len('</svg>')] + html[end:]
-)
-EOF
+python3 scripts/sync_architecture.py
 ```

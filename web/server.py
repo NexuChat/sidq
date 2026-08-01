@@ -4,12 +4,13 @@ The page used to be static: it printed a verdict and a command, and a judge who
 wanted to know whether either was real had to clone the repository. That is a fair
 criticism of a submission whose entire claim is "do not take our word for it".
 
-So this serves the same page and adds two endpoints that run the real commands on
-the real machine. There is no input to either. The runnable set is a fixed table
+So this serves the same page and adds three endpoints that run the real commands on
+the real machine. There is no input to any. The runnable set is a fixed table
 of fixed argument lists — no parameter from the request reaches it, no shell is
 involved, and a request naming anything outside the table is rejected before any
-process starts. Both commands are read-only: one re-derives a published verdict
-offline, the other audits the live catalog. Neither can write to a catalog, and
+process starts. All commands are read-only: one re-derives a published verdict
+offline, one audits the live catalog, and one proposes repairs without applying
+them. None can write to a catalog, and
 the mutating commands (`--write-receipts`, `repair --apply`) are deliberately
 absent from the table rather than guarded inside it.
 
