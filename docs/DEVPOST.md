@@ -59,8 +59,8 @@ check the receipt. The status becomes stale when the asset changes, the receipt 
 past the configured window, or the policy hash changes.
 
 Finally, we audited DataHub’s shipped `showcase-ecommerce` sample using read-only
-catalog metadata. The audit found 285 internal field-lineage contradictions across
-67 datasets. This is a narrower claim than saying the source systems are broken: the
+catalog metadata. Scanning all 67 datasets surfaced 285 internal field-lineage contradictions,
+concentrated in 5 assets. This is a narrower claim than saying the source systems are broken: the
 contradictory claims are visible inside the catalog itself.
 
 ## How it was built

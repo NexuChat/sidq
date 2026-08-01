@@ -50,12 +50,20 @@ def _summary() -> dict[str, dict[str, int]]:
 
 
 def test_the_headline_contradiction_count_matches_the_evidence() -> None:
-    """ "285 internal contradictions across 67 datasets" is the README's first claim."""
+    """The README's first claim must name what was examined and what was found.
+
+    It used to say "285 contradictions across 67 datasets", and that guard
+    enforced the phrasing — but 67 is the number examined, not the number
+    affected, and a reader hears "spread over 67". Hand-checking the evidence
+    against the live catalog is what caught it. Both numbers still have to
+    appear; what changed is that they can no longer be conflated.
+    """
     entry = _summary()["lineage_field_missing"]
     text = README.read_text(encoding="utf-8")
 
     assert f"{entry['findings']} internal contradictions" in text
-    assert f"across {entry['datasets_examined']} datasets" in text
+    assert f"**{entry['datasets_examined']} datasets**" in text
+    assert "contradictions across 67 datasets" not in text
 
 
 def test_the_unowned_asset_count_matches_the_evidence() -> None:
@@ -338,3 +346,31 @@ def test_the_landing_page_run_buttons_name_commands_that_exist() -> None:
     assert wired <= set(RUNNABLE), (
         f"unknown run targets: {sorted(wired - set(RUNNABLE))}"
     )
+
+
+def test_the_contradiction_count_and_its_concentration_are_both_true() -> None:
+    """285 is the finding count; 5 is where they live. Conflating them misleads.
+
+    The README once read "285 contradictions across 67 datasets", which a reader
+    naturally hears as "spread over 67". They are not: 67 is what was examined,
+    and every one of the 285 lands on five PowerBI measure assets. Hand-checking
+    the published evidence is what caught it, and this pins both halves so the
+    wording cannot drift back.
+    """
+    report = json.loads(
+        (ROOT / "examples/03-catalog-truth-report/report.json").read_text()
+    )
+    findings = [
+        item
+        for item in report["evidence"]
+        if item.get("kind") == "lineage_field_missing"
+    ]
+    affected = {item["subject"].partition("#")[0] for item in findings}
+
+    assert len(findings) == 285
+    assert len(affected) == 5
+
+    readme = (ROOT / "README.md").read_text()
+    assert "285 internal contradictions" in readme
+    assert "concentrated in **5 assets**" in readme
+    assert "contradictions across 67 datasets" not in readme
