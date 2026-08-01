@@ -2,17 +2,32 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
 import subprocess
 import textwrap
 import threading
+from html.parser import HTMLParser
 from pathlib import Path
+from urllib.parse import parse_qs, urlsplit
 
 import pytest
 
 ROOT = Path(__file__).parents[1]
+
+
+class _StaticAssetParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.references: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        del tag
+        for name, value in attrs:
+            if name in {"href", "src"} and value is not None:
+                self.references.append(value)
 
 
 def _handler(server, monkeypatch, responses, path: str, *, peer: str = "127.0.0.1"):
@@ -657,13 +672,13 @@ def test_landing_uses_a_hardened_external_script_and_progress_text() -> None:
 
     assert "username:" not in html.lower()
     assert "password:" not in html.lower()
-    assert '<script src="app.js" defer></script>' in html
+    assert '<script src="app.js?v=d9263c3ee817720b" defer></script>' in html
     assert "X-Sidq-Demo" in script
     assert "/capability" in script and "X-Sidq-Capability" in script
     assert "setInterval" in script and "elapsed" in script
     assert "textContent" in script
     assert "innerHTML" not in script
-    assert '<link rel="stylesheet" href="styles.css">' in html
+    assert '<link rel="stylesheet" href="styles.css?v=3c4f127fefdadc8f">' in html
     assert "<style" not in html
     assert "style=" not in html
     assert not re.search(r"<script(?![^>]+\bsrc=)", html)
@@ -674,6 +689,31 @@ def test_landing_uses_a_hardened_external_script_and_progress_text() -> None:
     csp = SECURITY_HEADERS["Content-Security-Policy"]
     assert "script-src 'self'" in csp and "script-src 'self' 'unsafe-inline'" not in csp
     assert "style-src 'self'" in csp and "style-src 'self' 'unsafe-inline'" not in csp
+
+
+def test_landing_external_static_assets_are_content_addressed() -> None:
+    web_root = ROOT / "web"
+    parser = _StaticAssetParser()
+    parser.feed((web_root / "index.html").read_text(encoding="utf-8"))
+
+    assets: list[tuple[str, Path]] = []
+    for reference in parser.references:
+        parsed = urlsplit(reference)
+        asset = web_root / parsed.path.lstrip("/")
+        if not parsed.scheme and not parsed.netloc and asset.is_file():
+            assets.append((reference, asset))
+
+    assert {asset.name for _, asset in assets} >= {
+        "app.js",
+        "architecture.svg",
+        "styles.css",
+    }
+    for reference, asset in assets:
+        version = parse_qs(urlsplit(reference).query).get("v")
+        expected = hashlib.sha256(asset.read_bytes()).hexdigest()[:16]
+
+        assert version == [expected], reference
+        assert re.fullmatch(r"[0-9a-f]{16}", version[0])
 
 
 def test_deployment_keeps_raw_services_local_and_secrets_out_of_units() -> None:
