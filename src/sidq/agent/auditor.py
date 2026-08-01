@@ -293,11 +293,34 @@ class CatalogAuditor:
             # never fetched would come back looking clean.
             self._snapshot.field_lineage_resolved,
         )
+
+        # Keep only what this target is answerable for. Subject-prefix matching
+        # covers the asset itself and its columns (`urn#field`), and that is the
+        # right rule for every finding whose subject is a real asset — a source
+        # must not inherit its neighbour's broken schema.
+        #
+        # One kind escapes it. An orphan edge's subject is the URN that is
+        # *missing* from the catalog, so it can never prefix-match any target,
+        # and the filter silently discarded every orphan the gate produced: the
+        # check ran, found a real contradiction, and the agent threw it away. An
+        # independent review of the detection logic caught it. Orphans are
+        # therefore attributed to the real endpoint that claims the dangling
+        # edge, which is the asset a reader can actually act on.
+        def _concerns_target(item: Evidence) -> bool:
+            if item.subject.startswith(target.urn):
+                return True
+            if item.kind != "orphan_lineage":
+                return False
+            edge = item.detail.get("edge") or {}
+            return target.urn in (
+                edge.get("source_dataset"),
+                edge.get("target_dataset"),
+            )
+
         return [
             item
             for item in self._gate.collect((), _Scoped(slice_))
-            if item.subject.startswith(target.urn)
-            or any(item.subject.startswith(urn) for urn in (target.urn,))
+            if _concerns_target(item)
         ]
 
 

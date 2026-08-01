@@ -17,7 +17,7 @@ Four commands, in order of how much they need. The first needs nothing at all.
 | # | Command | Needs | What it proves | Takes |
 |---|---|---|---|---|
 | 1 | `make gate-demo` | nothing — no DataHub, no network, no credentials | The published `BLOCK` verdict is re-derived from the committed graph recording, byte-identical, with the same `policy_hash`. Hand-editing an artifact fails this. | ~2s (the very first run adds about a minute to build `.venv`) |
-| 2 | `make check` | nothing | 438 tests, lint, format, types — everything CI runs, including the guards on every claim this README makes. | ~15s |
+| 2 | `make check` | nothing | 439 tests, lint, format, types — everything CI runs, including the guards on every claim this README makes. | ~15s |
 | 3 | `make live-loop` | a running DataHub ([`docs/SETUP.md`](docs/SETUP.md)) | The whole agent loop over the **official MCP server only**: read → decide → write a receipt → a *separate process* reads it back → an asset carrying no receipt returns `NOT VERIFIED`. | ~60s |
 | 4 | `make repair-demo` | the same DataHub | The repair agent proposes a fix from catalog evidence, re-runs the deterministic engine against the catalog that fix *would* create, and shows what it proved and what it refused. | ~40s |
 
@@ -56,6 +56,33 @@ We scanned DataHub's own shipped `showcase-ecommerce` sample using read-only cat
 One example is `powerbi … Customer_Analytics_Measures`. Its stored schema has exactly two fields: `Value` and `Customer LTV`. It nevertheless carries **58 column-lineage edges**, **57 of which target fields that do not exist** in that schema. The complete evidence is in [`docs/TRUTH-REPORT.md`](docs/TRUTH-REPORT.md) and [`examples/03-catalog-truth-report/report.json`](examples/03-catalog-truth-report/report.json).
 
 The negative result matters too. `lineage_rot` could not be adjudicated on this sample because the datapack ships no model SQL. All **32/32** attempts were `unverifiable`; Sidq refused to call them rot without a code-versus-catalog comparison. A tool that knows when to stay silent is the product.
+
+### What the checks do and do not claim
+
+An independent adversarial review of the detection logic — run against this
+repository specifically to find where its numbers could be wrong — produced the
+bounds below. They are published because a verification tool that hides its own
+false-positive modes is asking for the trust it refuses to give others.
+
+`lineage_field_missing` compares the stored field path on a lineage edge with
+the field paths in the target's stored `SchemaMetadata`, **as exact strings**.
+That is the right comparison for the published finding (`BILLING_ADDRESS_LINE1`
+against a two-field schema is absent in every form: verbatim, case-folded, and
+as a path suffix — checked by hand). It would, however, also fire on a
+case-only difference between platform conventions, or where a schema was
+ingested partially. It never fires where the target has no stored schema at
+all: that is `unverifiable`, not a finding.
+
+`pii_leak_untagged` fires when a downstream column does not carry the *same*
+marker as its upstream. A column protected by a different equivalent tag, or by
+hashing, would still be reported. `unowned_consumed` is a governance gap rather
+than a logical contradiction, and it counts assets with no *direct* ownership
+record — inherited ownership is not resolved. `deprecated_upstream_of_live`
+reads the custom-property form of deprecation; the standard `Deprecation` aspect
+is not yet consulted, so that check under-reports.
+
+The rule these bounds obey is the project's own: every check names what it
+compared, and an unperformed comparison is never reported as a clean one.
 
 ## What Sidq does
 

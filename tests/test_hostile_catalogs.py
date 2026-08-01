@@ -403,3 +403,24 @@ def test_a_zero_or_negative_budget_examines_nothing_and_admits_it() -> None:
         assert result.examined == []
         assert len(result.deferred) == 4
         assert result.summary()["deferred"] == 4
+
+
+def test_an_orphan_edge_is_reported_not_silently_dropped() -> None:
+    """The auditor once discarded every orphan finding the gate produced.
+
+    An orphan's subject is the *missing* URN, so a filter keyed on the target's
+    own URN could never match it: the gate found the contradiction and the agent
+    threw it away. An independent code review caught it, and this is the guard —
+    a real asset with an edge into nothing must surface as `orphan_lineage`.
+    """
+    real = _ds("has_orphan_edge")
+    ghost = "urn:li:dataset:(urn:li:dataPlatform:dbt,gone,PROD)"
+    snapshot = CatalogSnapshot((real,), (LineageEdge(real.urn, "id", ghost, "id"),))
+
+    result = _audit(snapshot)
+
+    kinds = {item.kind for item in result.findings}
+    assert "orphan_lineage" in kinds, "the orphan finding was dropped again"
+    orphan = next(i for i in result.findings if i.kind == "orphan_lineage")
+    assert orphan.subject == ghost
+    assert orphan.detail["edge"]["source_dataset"] == real.urn
