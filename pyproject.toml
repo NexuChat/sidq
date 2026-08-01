@@ -15,7 +15,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["mypy", "pytest", "ruff", "types-PyYAML"]
+dev = ["mypy", "numpy>=2,<3", "pytest", "pytest-cov", "ruff", "types-PyYAML"]
 # `make regen` retrains the pre-flight ladder to prove the published negative
 # result still holds; that needs scikit-learn but none of the LoRA stack.
 bench = ["scikit-learn>=1.5"]
@@ -25,7 +25,7 @@ bench = ["scikit-learn>=1.5"]
 live = ["psycopg[binary]>=3.1"]
 # The trained documentation reader. The head itself is committed and needs only
 # numpy; this extra is the multilingual embedding model that produces its input.
-reader = ["sentence-transformers>=5.0", "transformers>=4.50"]
+reader = ["numpy>=2,<3", "sentence-transformers>=5.0", "transformers>=4.50"]
 advisory = ["transformers>=5.0", "torch>=2.5"]
 # Kept out of the default install: these packages and the model weights are
 # only required for the CPU LoRA experiment in scripts/train_lora.py.
@@ -54,6 +54,16 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+
+[tool.coverage.run]
+branch = true
+source = ["sidq"]
+
+[tool.coverage.report]
+fail_under = 80
+precision = 1
+show_missing = true
+skip_covered = true
 
 [tool.ruff.format]
 exclude = [

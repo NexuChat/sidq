@@ -31,7 +31,7 @@ check: | $(VENV)/bin/python
 	$(VENV)/bin/ruff check .
 	$(VENV)/bin/ruff format --check .
 	$(VENV)/bin/mypy src/
-	$(VENV)/bin/pytest -q
+	$(VENV)/bin/pytest -q --cov=sidq --cov-report=term-missing:skip-covered
 
 # Published artifacts are generated, and `make check` fails when a committed copy
 # no longer matches the engine. Editing the policy is the usual cause: it changes
