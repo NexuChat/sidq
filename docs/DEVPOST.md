@@ -40,6 +40,20 @@ state is the catalog itself. The judgment is recomputed by the reader each time 
 a stale, blocked, or unreadable receipt puts the asset back in the queue — and a
 skipped asset is reported as `vouched`, never as verified by this run.
 
+The same mechanism works across space, not only time. Several auditor processes
+can work one catalog simultaneously with no message bus, no lock service, no
+leader and no shared filesystem — `make swarm-demo` runs four, kills one
+deliberately mid-run, and nothing is stranded because nothing was ever
+assigned: the survivors take the dead worker's assets as ordinary work. Each
+worker re-reads a receipt immediately before examining an asset and writes one
+immediately after deciding, and enters the shared consequence-ranked plan at an
+offset derived from its own id, so four processes never begin on the same
+asset. The promise is at-least-once rather than exactly-once, because MCP has
+no compare-and-set primitive — collisions are safe under a deterministic engine
+and are counted rather than hidden. A fifth process that audited nothing then
+reads DataHub alone and reports which worker covered what. DataHub is not the
+input to that loop, nor its output; it is the shared state.
+
 A second agent, `sidq repair`, decides what to do about each finding — and reports
 what it cannot fix. Proposals come from catalog evidence only, and nothing is
 offered for writing until the deterministic engine has re-run against the catalog
