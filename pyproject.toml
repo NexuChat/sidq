@@ -19,6 +19,13 @@ dev = ["mypy", "pytest", "ruff", "types-PyYAML"]
 # `make regen` retrains the pre-flight ladder to prove the published negative
 # result still holds; that needs scikit-learn but none of the LoRA stack.
 bench = ["scikit-learn>=1.5"]
+# `sidq claims` tests documentation against a live PostgreSQL source. The driver
+# is an extra rather than a dependency because every other command reads only
+# metadata and must stay installable with no database client at all.
+live = ["psycopg[binary]>=3.1"]
+# The trained documentation reader. The head itself is committed and needs only
+# numpy; this extra is the multilingual embedding model that produces its input.
+reader = ["sentence-transformers>=5.0", "transformers>=4.50"]
 advisory = ["transformers>=5.0", "torch>=2.5"]
 # Kept out of the default install: these packages and the model weights are
 # only required for the CPU LoRA experiment in scripts/train_lora.py.
@@ -77,4 +84,10 @@ disallow_untyped_defs = true
 # promises a judge.
 [[tool.mypy.overrides]]
 module = ["datahub.*"]
+ignore_missing_imports = true
+
+# The PostgreSQL driver ships with the `live` extra only, so a default dev
+# environment type-checks the code that imports it without installing it.
+[[tool.mypy.overrides]]
+module = ["psycopg.*"]
 ignore_missing_imports = true
