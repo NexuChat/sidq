@@ -47,6 +47,10 @@ PROPERTY_DEFINITIONS = (
     PropertyDefinition(
         "evidence_url", "URL or DataHub document URN containing full receipt evidence."
     ),
+    PropertyDefinition(
+        "context_hash",
+        "SHA-256 hash of the semantic entity and complete one-hop lineage context.",
+    ),
     # Swarm identity. A solo audit writes neither, so their presence is itself
     # the statement that several cooperating workers produced this receipt —
     # and the ledger reads them back to say which worker covered what.

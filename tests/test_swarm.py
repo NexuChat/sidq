@@ -16,9 +16,10 @@ decides.
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from threading import Barrier, Lock, Thread
 
 from sidq.agent.auditor import Target
-from sidq.agent.swarm import SwarmWorker, observe, rotate_for
+from sidq.agent.swarm import SwarmWorker, WorkerRun, observe, rotate_for
 from sidq.gates.self_contradiction import CatalogEntity, CatalogField, CatalogSnapshot
 from sidq.models import Verdict
 from sidq.policy.engine import PolicyEngine
@@ -58,12 +59,16 @@ class FakeDataHub:
         arguments = dict(arguments)
         self.calls.append((name, arguments))
         if name == "get_entities":
+            return {"entities": [self._entity(urn) for urn in arguments["urns"]]}
+        if name == "get_lineage":
+            direction = "upstreams" if arguments["upstream"] else "downstreams"
             return {
-                "entities": [
-                    self._entity(urn)
-                    for urn in arguments["urns"]
-                    if urn in self._receipts
-                ]
+                direction: {
+                    "total": 0,
+                    "returned": 0,
+                    "hasMore": False,
+                    "searchResults": [],
+                }
             }
         if name == "save_document":
             return {"urn": "urn:li:document:fake-doc"}
@@ -78,13 +83,14 @@ class FakeDataHub:
     def _entity(self, urn: str) -> dict:
         return {
             "urn": urn,
+            "datasetProperties": {"lastModified": "2026-08-02T10:00:00+00:00"},
             "structuredProperties": {
                 "properties": [
                     {
                         "structuredProperty": {"urn": key},
                         "values": [{"stringValue": value} for value in values],
                     }
-                    for key, values in self._receipts[urn].items()
+                    for key, values in self._receipts.get(urn, {}).items()
                 ]
             },
         }
@@ -339,12 +345,12 @@ def test_a_read_failure_is_treated_as_unknown_not_as_clean() -> None:
     assert result.examined == [entity.urn]
     assert result.vouched_by_peer == []
     assert result.vouched_unattributed == []
-    # The write went through the underlying hub even though every read on this
-    # worker's own turn failed — reading and writing are separate calls.
+    # A write cannot mint a fresh receipt when its own decision context read fails.
     status = get_verification_status(
         entity.urn, hub, current_policy_hash=POLICY_HASH, now=NOW
     )
-    assert status["verdict"] == "PASS"
+    assert status["verdict"] is None
+    assert result.write_failures == [(entity.urn, "ConnectionError")]
 
 
 def test_a_write_failure_is_recorded_and_the_run_continues() -> None:
@@ -381,51 +387,170 @@ def test_a_write_failure_is_recorded_and_the_run_continues() -> None:
 # observe(): the ledger read from the catalog, not from what a worker claims.
 
 
-def test_observe_attributes_each_receipt_and_counts_only_this_run() -> None:
+def test_observe_attributes_current_receipts_and_counts_block_as_examined() -> None:
     """The observer is a separate process by design, so it must earn every
     number from the receipts alone: crediting a receipt to the wrong worker,
     or counting an older swarm run's receipts as this run's coverage, would
     let a swarm's report claim work nobody did this shift."""
     urns = ["urn:a", "urn:b", "urn:c", "urn:d"]
     statuses = {
-        "urn:a": {"verdict": "PASS", "swarm_run": "swarm-2", "worker_id": "worker-1"},
-        "urn:b": {"verdict": "PASS", "swarm_run": "swarm-2", "worker_id": "worker-2"},
-        # A receipt from an earlier swarm run: still counts as receipted, but
+        "urn:a": {
+            "verdict": "PASS",
+            "stale": False,
+            "swarm_run": "swarm-2",
+            "worker_id": "worker-1",
+        },
+        "urn:b": {
+            "verdict": "PASS",
+            "stale": False,
+            "swarm_run": "swarm-2",
+            "worker_id": "worker-2",
+        },
+        # A receipt from an earlier swarm run: still counts as current, but
         # must not be credited to this run's per-worker tally.
-        "urn:c": {"verdict": "PASS", "swarm_run": "swarm-1", "worker_id": "worker-1"},
-        # urn:d has no status at all — never receipted, by anyone, ever.
+        "urn:c": {
+            "verdict": "PASS",
+            "stale": False,
+            "swarm_run": "swarm-1",
+            "worker_id": "worker-1",
+        },
+        # A current refusal is still evidence that this worker examined the asset.
+        "urn:d": {
+            "verdict": "BLOCK",
+            "stale": False,
+            "swarm_run": "swarm-2",
+            "worker_id": "worker-2",
+        },
     }
 
-    report = observe(
-        urns,
-        statuses,
-        swarm_run="swarm-2",
-        before=["urn:a"],
-        duplicates=["urn:b"],
-        recovered=["urn:d"],
-    )
+    report = observe(urns, statuses, swarm_run="swarm-2")
 
     assert report.total_assets == 4
-    assert report.receipted_before == 1
-    assert report.receipted_after == 3
-    assert report.by_worker == {"worker-1": 1, "worker-2": 1}
-    assert report.duplicates == ["urn:b"]
-    assert report.recovered == ["urn:d"]
+    assert report.current_receipts == 4
+    assert report.by_worker == {"worker-1": 1, "worker-2": 2}
 
 
-def test_observe_render_names_duplicates_and_recovered_work() -> None:
-    """At-least-once is the promise, never exactly-once: a report that hid its
-    collisions, or a worker's death, would be claiming a guarantee the
-    platform cannot give."""
+def test_observe_counts_only_current_valid_receipts() -> None:
+    report = observe(
+        ["urn:holding", "urn:stale", "urn:blocked"],
+        {
+            "urn:holding": {
+                "verdict": "PASS",
+                "stale": False,
+                "swarm_run": "swarm-2",
+                "worker_id": "worker-1",
+            },
+            "urn:stale": {
+                "verdict": "PASS",
+                "stale": True,
+                "stale_reason": "metadata changed",
+                "swarm_run": "swarm-2",
+                "worker_id": "worker-2",
+            },
+            "urn:blocked": {
+                "verdict": "BLOCK",
+                "stale": False,
+                "swarm_run": "swarm-2",
+                "worker_id": "worker-3",
+            },
+        },
+        swarm_run="swarm-2",
+    )
+
+    assert report.current_receipts == 2
+    assert report.by_worker == {"worker-1": 1, "worker-3": 1}
+
+
+def test_observe_cannot_certify_freshness_when_stale_marker_is_missing_or_malformed() -> (
+    None
+):
+    report = observe(
+        ["urn:missing", "urn:malformed"],
+        {
+            "urn:missing": {"verdict": "PASS"},
+            "urn:malformed": {"verdict": "PASS", "stale": "false"},
+        },
+        swarm_run="swarm-2",
+    )
+
+    assert report.current_receipts == 0
+
+
+def test_observe_render_contains_only_current_catalog_facts() -> None:
     report = observe(
         ["urn:a"],
-        {"urn:a": {"verdict": "PASS", "swarm_run": "swarm-2", "worker_id": "worker-1"}},
+        {
+            "urn:a": {
+                "verdict": "PASS",
+                "stale": False,
+                "swarm_run": "swarm-2",
+                "worker_id": "worker-1",
+            }
+        },
         swarm_run="swarm-2",
-        duplicates=["urn:a", "urn:a"],
-        recovered=["urn:b"],
     )
 
     lines = "\n".join(report.render())
+    summary = report.summary()
 
-    assert "duplicate examinations  2" in lines
-    assert "recovered after a worker died  1" in lines
+    assert "current valid receipts  1 of 1" in lines
+    assert "receipted before" not in lines
+    assert "duplicate" not in lines
+    assert "recovered" not in lines
+    assert "receipted_before" not in summary
+    assert "duplicates" not in summary
+    assert "recovered" not in summary
+
+
+def test_interleaved_workers_can_both_examine_but_latest_receipt_cannot_prove_duplicate() -> (
+    None
+):
+    entity = _dataset("collision", owners=("urn:li:corpuser:a",))
+    hub = FakeDataHub()
+    barrier = Barrier(2)
+    lock = Lock()
+    initial_reads = 0
+
+    def colliding_hub(name: str, arguments: dict) -> object:
+        nonlocal initial_reads
+        if name == "get_entities":
+            with lock:
+                is_initial = initial_reads < 2
+                if is_initial:
+                    initial_reads += 1
+                    response = {
+                        "entities": [hub._entity(urn) for urn in arguments["urns"]]
+                    }
+            if is_initial:
+                barrier.wait()
+                return response
+        return hub(name, arguments)
+
+    runs: dict[str, WorkerRun] = {}
+
+    def work(worker: str) -> None:
+        runs[worker] = SwarmWorker(
+            CatalogSnapshot((entity,)),
+            worker_id=worker,
+            swarm_run="swarm-collision",
+            tool_caller=colliding_hub,
+            budget=1,
+            now=lambda: NOW,
+        ).run()
+
+    threads = [Thread(target=work, args=(worker,)) for worker in ("one", "two")]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=5)
+
+    assert all(not thread.is_alive() for thread in threads)
+    assert all(run.examined == [entity.urn] for run in runs.values())
+    assert all(run.written == [entity.urn] for run in runs.values())
+
+    status = get_verification_status(
+        entity.urn, hub, current_policy_hash=POLICY_HASH, now=NOW
+    )
+    report = observe([entity.urn], {entity.urn: status}, swarm_run="swarm-collision")
+    assert report.current_receipts == 1
+    assert sum(report.by_worker.values()) == 1

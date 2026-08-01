@@ -2,6 +2,7 @@ DEMO_COMPOSE := docker compose -f demo/docker-compose.yml
 DEMO_INGEST_IMAGE := acryldata/datahub-ingestion:v1.5.0.6
 
 VENV ?= .venv
+BENCH_VENV ?= .venv-bench
 
 DATAHUB_GMS_URL ?= http://localhost:8080
 AUDIT_BUDGET ?= 5
@@ -11,7 +12,7 @@ RECEIPT_URN ?= urn:li:dataset:(urn:li:dataPlatform:snowflake,b2fd91.order_entry_
 
 REPAIR_BUDGET ?= 15
 
-.PHONY: check regen regen-check decision-cost claims-demo gate-demo live-loop converge-demo swarm-demo repair-demo repair-reset demo-up demo-ingest demo-break demo-restore demo-down
+.PHONY: check lock regen regen-check decision-cost claims-demo gate-demo live-loop converge-demo swarm-demo repair-demo repair-reset demo-up demo-ingest demo-break demo-restore demo-down
 
 # The runbook's first row promises a clone and `make` are enough, and until
 # 2026-07-31 that promise was false: a fresh clone had no virtualenv and the
@@ -21,47 +22,64 @@ REPAIR_BUDGET ?= 15
 # existing venv is never rebuilt behind anyone's back. The live rows still
 # need DataHub and the isolated MCP server from docs/SETUP.md; that boundary
 # is theirs, not this rule's.
-$(VENV)/bin/python:
+$(VENV)/.sidq-dev-lock: requirements-dev.lock pyproject.toml uv.lock
 	@echo "first run: building $(VENV) (about a minute) =="
-	python3 -m venv $(VENV)
-	$(VENV)/bin/python -m pip install --quiet --upgrade pip
-	$(VENV)/bin/python -m pip install --quiet --editable '.[dev]'
+	test -x $(VENV)/bin/python || python3 -m venv $(VENV)
+	$(VENV)/bin/python -m pip install --quiet --require-hashes -r requirements-dev.lock
+	$(VENV)/bin/python -m pip install --quiet --no-build-isolation --no-deps --editable .
+	touch $@
 
-check: | $(VENV)/bin/python
+$(BENCH_VENV)/.sidq-bench-lock: requirements-bench.lock pyproject.toml uv.lock
+	@echo "first run: building $(BENCH_VENV) for reproducible benchmarks =="
+	test -x $(BENCH_VENV)/bin/python || python3 -m venv $(BENCH_VENV)
+	$(BENCH_VENV)/bin/python -m pip install --quiet --require-hashes -r requirements-bench.lock
+	touch $@
+
+check: | $(VENV)/.sidq-dev-lock
 	$(VENV)/bin/ruff check .
 	$(VENV)/bin/ruff format --check .
 	$(VENV)/bin/mypy src/
 	$(VENV)/bin/pytest -q --cov=sidq --cov-report=term-missing:skip-covered
 
+# Resolve from pyproject metadata, never from an ambient environment. Install uv,
+# run this target, and commit uv.lock plus all five exported hash-locked inputs.
+lock:
+	uv lock --python 3.12
+	uv export --locked --no-emit-project --output-file requirements.lock
+	uv export --locked --extra action --no-emit-project --output-file requirements-action.lock
+	uv export --locked --extra bench --no-emit-project --output-file requirements-bench.lock
+	uv export --locked --extra dev --no-emit-project --output-file requirements-dev.lock
+	uv export --locked --extra reader --extra live --no-emit-project --output-file requirements-landing.lock
+
 # Published artifacts are generated, and `make check` fails when a committed copy
 # no longer matches the engine. Editing the policy is the usual cause: it changes
 # the policy hash, which every published artifact quotes. Run `make regen` and
 # commit the result — never hand-edit the artifacts back into agreement.
-regen: | $(VENV)/bin/python
+regen: | $(VENV)/.sidq-dev-lock $(BENCH_VENV)/.sidq-bench-lock
 	$(VENV)/bin/python scripts/regenerate_example_01.py
 	$(VENV)/bin/python scripts/measure_reconcile.py
-	$(VENV)/bin/python scripts/train_preflight.py
-	$(VENV)/bin/python scripts/eval_preflight.py
+	$(BENCH_VENV)/bin/python scripts/train_preflight.py
+	$(BENCH_VENV)/bin/python scripts/eval_preflight.py
 
-regen-check: | $(VENV)/bin/python
+regen-check: | $(VENV)/.sidq-dev-lock $(BENCH_VENV)/.sidq-bench-lock
 	$(VENV)/bin/python scripts/regenerate_example_01.py --check
 	$(VENV)/bin/python scripts/measure_reconcile.py --check
-	$(VENV)/bin/python scripts/train_preflight.py --check
-	$(VENV)/bin/python scripts/eval_preflight.py --check
+	$(BENCH_VENV)/bin/python scripts/train_preflight.py --check
+	$(BENCH_VENV)/bin/python scripts/eval_preflight.py --check
 
 # What one decision costs. Deliberately NOT in `regen`/`regen-check`: a timing
 # is not byte-reproducible, and a document guarded by a byte comparison it can
 # never satisfy would fail `make check` on a machine under load. The published
 # claim is an order of magnitude for the same reason.
-decision-cost: | $(VENV)/bin/python
+decision-cost: | $(VENV)/.sidq-dev-lock
 	$(VENV)/bin/python scripts/measure_decision_cost.py --write
 
 # The command the landing page tells a judge to run. It existed only on the page
 # until 2026-07-30, which meant the one instruction on the first surface a judge
 # opens did not work. It runs the flagship change through the real engine against
 # the committed graph recording and prints the verdict, so it produces the same
-# answer on any machine with no DataHub, no network, and no credentials.
-gate-demo: | $(VENV)/bin/python
+# answer after the locked first-run bootstrap, with no DataHub or credentials.
+gate-demo: | $(VENV)/.sidq-dev-lock
 	@$(VENV)/bin/python scripts/regenerate_example_01.py --check
 	@echo
 	@$(VENV)/bin/python -c "import json;v=json.load(open('examples/01-blocked-pii-dashboard/verdict.json'));\
@@ -88,7 +106,7 @@ print('POLICY   :', v['policy_hash'])"
 # audit converges, so any URN written down here would eventually be reached,
 # receipted, and turned into a lie — which is exactly how the previous frozen
 # choice failed a fresh-clone rehearsal on 2026-07-31.
-live-loop: | $(VENV)/bin/python
+live-loop: | $(VENV)/.sidq-dev-lock
 	@echo "== 1+2. read via official MCP, decide, write receipts via official MCP =="
 	@DATAHUB_GMS_URL=$(DATAHUB_GMS_URL) DATAHUB_TELEMETRY_ENABLED=false \
 	  $(VENV)/bin/sidq audit --via-mcp --budget $(AUDIT_BUDGET) --write-receipts 2>/dev/null; \
@@ -116,7 +134,7 @@ live-loop: | $(VENV)/bin/python
 # assets run one never reached. No state file is written anywhere in between —
 # the memory is the catalog itself, so this is two agents cooperating through
 # receipts alone. Watch the `vouched` line appear and `NOT examined` fall.
-converge-demo: | $(VENV)/bin/python
+converge-demo: | $(VENV)/.sidq-dev-lock
 	@echo "== run 1: spend the budget worst-first, write receipts =="
 	@DATAHUB_GMS_URL=$(DATAHUB_GMS_URL) DATAHUB_TELEMETRY_ENABLED=false \
 	  $(VENV)/bin/sidq audit --via-mcp --budget $(AUDIT_BUDGET) --write-receipts 2>/dev/null; \
@@ -135,7 +153,7 @@ converge-demo: | $(VENV)/bin/python
 # to it — nothing is — so the survivors pick them up as ordinary work, and a
 # fifth process that reads only DataHub prints who did what.
 SWARM_BUDGET ?= 6
-swarm-demo: | $(VENV)/bin/python
+swarm-demo: | $(VENV)/.sidq-dev-lock
 	@run=swarm-$$(date +%s); \
 	echo "== four workers start together — no coordinator, no IPC, run $$run =="; \
 	pids=""; \
@@ -175,9 +193,10 @@ CLAIMS_URNS ?= \
   'urn:li:dataset:(urn:li:dataPlatform:postgres,sidq-demo.warehouse.raw.orders,PROD)' \
   'urn:li:dataset:(urn:li:dataPlatform:postgres,sidq-demo.warehouse.raw.customers,PROD)' \
   'urn:li:dataset:(urn:li:dataPlatform:postgres,sidq-demo.warehouse.raw.order_items,PROD)'
-claims-demo: | $(VENV)/bin/python
+claims-demo: export CLAIMS_SOURCE := $(CLAIMS_SOURCE)
+claims-demo: | $(VENV)/.sidq-dev-lock
 	@DATAHUB_GMS_URL=$(DATAHUB_GMS_URL) DATAHUB_TELEMETRY_ENABLED=false \
-	  $(VENV)/bin/sidq claims $(CLAIMS_URNS) --source "$(CLAIMS_SOURCE)" --reader 2>/dev/null; \
+	  $(VENV)/bin/sidq claims $(CLAIMS_URNS) --reader 2>/dev/null; \
 	  status=$$?; [ $$status -le 1 ] || { echo "claims could not read the catalog or the source"; exit 1; }
 
 # The repair agent, on live DataHub. It proposes only from catalog evidence, then
@@ -190,12 +209,12 @@ claims-demo: | $(VENV)/bin/python
 #
 # Dry run. `sidq repair --via-mcp --apply` writes it; `make repair-reset` restores
 # the sample afterwards so the demonstration can be run again.
-repair-demo: | $(VENV)/bin/python
+repair-demo: | $(VENV)/.sidq-dev-lock
 	@DATAHUB_GMS_URL=$(DATAHUB_GMS_URL) DATAHUB_TELEMETRY_ENABLED=false \
 	  $(VENV)/bin/sidq repair --via-mcp --budget $(REPAIR_BUDGET) 2>/dev/null; \
 	  status=$$?; [ $$status -le 1 ] || { echo "repair could not read the catalog"; exit 1; }
 
-repair-reset: | $(VENV)/bin/python
+repair-reset: | $(VENV)/.sidq-dev-lock
 	@DATAHUB_GMS_URL=$(DATAHUB_GMS_URL) DATAHUB_TELEMETRY_ENABLED=false \
 	  $(VENV)/bin/python scripts/reset_repair_demo.py 2>/dev/null
 

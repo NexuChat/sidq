@@ -9,12 +9,33 @@ from sidq.graph.client import (
     DatasetInfo,
     GraphResponseError,
     LineagePath,
+    LineageResult,
     MCPGraphClient,
+    _mcp_subprocess_environment,
     _tool_response_payload,
 )
+from sidq.graph.fixtures import RecordingGraphClient, ReplayGraphClient, _lineage
 
 URN = "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.orders,PROD)"
 DOWNSTREAM = "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.dashboard,PROD)"
+
+
+def test_read_only_mcp_subprocess_environment_is_closed(monkeypatch) -> None:
+    monkeypatch.setenv("DATAHUB_GMS_TOKEN", "reader-token")
+    monkeypatch.setenv("CLAIMS_SOURCE", "postgresql://reader:secret@warehouse/db")
+    monkeypatch.setenv("GITHUB_TOKEN", "github-secret")
+    monkeypatch.setenv("UNRELATED_SECRET", "ambient-secret")
+
+    environment = _mcp_subprocess_environment("https://catalog.example.test")
+
+    assert environment["DATAHUB_GMS_URL"] == "https://catalog.example.test"
+    assert environment["DATAHUB_GMS_TOKEN"] == "reader-token"
+    assert environment["DATAHUB_TELEMETRY_ENABLED"] == "false"
+    assert environment["LOGURU_LEVEL"] == "WARNING"
+    assert "PATH" in environment
+    assert "CLAIMS_SOURCE" not in environment
+    assert "GITHUB_TOKEN" not in environment
+    assert "UNRELATED_SECRET" not in environment
 
 
 def test_mcp_2_tool_result_uses_snake_case_response_fields() -> None:
@@ -223,6 +244,14 @@ def test_get_dataset_treats_a_non_mapping_transport_reply_as_not_found() -> None
     assert client.get_dataset(URN) is None
 
 
+def test_get_dataset_rejects_an_entity_that_does_not_identify_its_urn() -> None:
+    client = MCPGraphClient(
+        lambda name, arguments: {"entities": [{"name": "orders", "tags": []}]}
+    )
+
+    assert client.get_dataset(URN) is None
+
+
 def test_get_dataset_skips_schema_fields_that_have_no_usable_path() -> None:
     def caller(name: str, arguments: dict[str, object]) -> object:
         if name == "get_entities":
@@ -281,6 +310,177 @@ def test_get_downstream_requests_a_single_fixed_size_page_not_a_pagination_loop(
 
     assert len(calls) == 1
     assert calls[0]["max_results"] == 100
+
+
+def test_get_downstream_preserves_bounded_response_completeness() -> None:
+    client = MCPGraphClient(
+        lambda name, arguments: {
+            "downstreams": {
+                "total": 143,
+                "returned": 100,
+                "searchResults": [{"entity": {"urn": DOWNSTREAM}}],
+            },
+            "metadata": {"queryType": "table-lineage"},
+        }
+    )
+
+    result = client.get_downstream(URN, 3)
+
+    assert result.total == 143
+    assert result.returned == 100
+    assert result.complete is False
+
+
+def test_get_downstream_marks_a_fully_returned_response_complete() -> None:
+    client = MCPGraphClient(
+        lambda name, arguments: {
+            "downstreams": {
+                "total": 1,
+                "returned": 1,
+                "hasMore": False,
+                "searchResults": [{"entity": {"urn": DOWNSTREAM}}],
+            },
+            "metadata": {"queryType": "table-lineage"},
+        }
+    )
+
+    result = client.get_downstream(URN, 3)
+
+    assert result.total == result.returned == 1
+    assert result.complete is True
+
+
+def test_get_downstream_accepts_the_official_zero_lineage_shape() -> None:
+    result = MCPGraphClient(
+        lambda name, arguments: {
+            "downstreams": {
+                "total": 0,
+                "facets": [{"field": "degree", "aggregations": []}],
+            }
+        }
+    ).get_downstream(URN, 3)
+
+    assert result.urns == ()
+    assert result.total == result.returned == 0
+    assert result.complete is True
+
+
+@pytest.mark.parametrize(
+    "downstreams",
+    [
+        {"total": 0, "returned": 0},
+        {"total": 0, "searchResults": []},
+        {"total": 0, "hasMore": False},
+        {"total": 0, "has_more": False},
+        {"total": False},
+        {"total": 1, "facets": []},
+    ],
+)
+def test_get_downstream_rejects_near_misses_of_the_official_empty_shape(
+    downstreams: dict[str, object],
+) -> None:
+    client = MCPGraphClient(lambda name, arguments: {"downstreams": downstreams})
+
+    try:
+        result = client.get_downstream(URN, 3)
+    except GraphResponseError:
+        return
+    assert result.complete is False
+
+
+@pytest.mark.parametrize(
+    "continuation",
+    [
+        {"hasMore": True},
+        {"has_more": True},
+        {"hasMore": "false"},
+        {},
+    ],
+)
+def test_get_downstream_requires_an_explicit_false_continuation_marker(
+    continuation: dict[str, object],
+) -> None:
+    result = MCPGraphClient(
+        lambda name, arguments: {
+            "downstreams": {
+                "total": 1,
+                "returned": 1,
+                "searchResults": [{"entity": {"urn": DOWNSTREAM}}],
+                **continuation,
+            }
+        }
+    ).get_downstream(URN, 3)
+
+    assert result.complete is False
+
+
+@pytest.mark.parametrize(
+    "search_results",
+    [
+        [{"entity": {}}],
+        [
+            {"entity": {"urn": DOWNSTREAM}},
+            {"entity": {"urn": DOWNSTREAM}},
+        ],
+    ],
+)
+def test_get_downstream_requires_a_unique_usable_urn_for_every_returned_result(
+    search_results: list[dict[str, object]],
+) -> None:
+    count = len(search_results)
+    client = MCPGraphClient(
+        lambda name, arguments: {
+            "downstreams": {
+                "total": count,
+                "returned": count,
+                "searchResults": search_results,
+            },
+            "metadata": {"queryType": "table-lineage"},
+        }
+    )
+
+    assert client.get_downstream(URN, 3).complete is False
+
+
+def test_recorded_lineage_replays_completeness_without_laundering_truncation(
+    tmp_path,
+) -> None:
+    truncated = LineageResult(
+        urns=(DOWNSTREAM,), total=143, returned=100, complete=False
+    )
+
+    class Graph:
+        def get_downstream(
+            self, urn: str, depth: int, column: str | None = None
+        ) -> LineageResult:
+            return truncated
+
+    RecordingGraphClient(Graph(), tmp_path).get_downstream(URN, 3)
+
+    assert ReplayGraphClient(tmp_path).get_downstream(URN, 3) == truncated
+
+
+def test_legacy_bounded_fixture_without_completeness_fails_closed() -> None:
+    result = _lineage({"urns": [DOWNSTREAM], "total": 143, "returned": 100})
+
+    assert result.total == 143
+    assert result.returned == 100
+    assert result.complete is False
+
+
+@pytest.mark.parametrize("explicit_complete", [None, True])
+def test_replayed_lineage_counts_must_match_the_recorded_urns(
+    explicit_complete: bool | None,
+) -> None:
+    raw: dict[str, object] = {
+        "urns": [DOWNSTREAM],
+        "total": 100,
+        "returned": 100,
+    }
+    if explicit_complete is not None:
+        raw["complete"] = explicit_complete
+
+    assert _lineage(raw).complete is False
 
 
 @pytest.mark.parametrize(

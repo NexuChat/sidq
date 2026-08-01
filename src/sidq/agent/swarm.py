@@ -19,9 +19,9 @@ duration of one examination.
 **What is promised, precisely.** At-least-once, never exactly-once. MCP offers
 no claim or compare-and-set primitive, so two workers that reach the same
 unreceipted asset within the same instant will both examine it. That is safe —
-the engine is deterministic, so both write the same verdict — and it is
-*measured*: the observer counts duplicates and prints them. A swarm that hid
-its collisions would be claiming a guarantee the platform cannot give.
+the engine is deterministic, so both write the same verdict. DataHub exposes
+the latest receipt, not an append-only examination history, so the observer
+does not claim it can count collisions after the fact.
 
 **Why the work splits at all.** Each worker sorts the consequence-ranked plan
 with a worker-seeded rotation, so four workers enter the same ordering at four
@@ -229,46 +229,30 @@ class SwarmReport:
 
     swarm_run: str
     total_assets: int
-    receipted_before: int
-    receipted_after: int
+    current_receipts: int
     by_worker: dict[str, int]
-    duplicates: list[str]
-    recovered: list[str]
 
     def summary(self) -> dict[str, object]:
         return {
             "swarm_run": self.swarm_run,
             "total_assets": self.total_assets,
-            "receipted_before": self.receipted_before,
-            "receipted_after": self.receipted_after,
+            "current_receipts": self.current_receipts,
+            "current_run_receipts": sum(self.by_worker.values()),
             "by_worker": dict(sorted(self.by_worker.items())),
-            "duplicates": len(self.duplicates),
-            "recovered": len(self.recovered),
         }
 
     def render(self) -> list[str]:
-        gained = self.receipted_after - self.receipted_before
         lines = [
             f"Swarm ledger — run {self.swarm_run or '(none)'}",
             "",
-            f"  assets in catalog     {self.total_assets}",
-            f"  receipted before      {self.receipted_before}",
-            f"  receipted after       {self.receipted_after}  (+{gained})",
+            f"  assets in catalog        {self.total_assets}",
+            f"  current valid receipts  {self.current_receipts} of {self.total_assets}",
+            f"  from this swarm run     {sum(self.by_worker.values())}",
             "",
-            "Contribution per worker, read from the receipts themselves:",
+            "Current receipts from this run, by worker:",
         ]
         for worker, count in sorted(self.by_worker.items()):
             lines.append(f"  {worker:<24} {count}")
-        lines.append("")
-        lines.append(
-            f"  duplicate examinations  {len(self.duplicates)}  "
-            "(at-least-once is the promise; collisions are counted, not hidden)"
-        )
-        if self.recovered:
-            lines.append(
-                f"  recovered after a worker died  {len(self.recovered)} "
-                "(nothing was assigned, so nothing was stranded)"
-            )
         return lines
 
 
@@ -277,9 +261,6 @@ def observe(
     statuses: Mapping[str, Mapping[str, object]],
     *,
     swarm_run: str,
-    before: Sequence[str] = (),
-    duplicates: Sequence[str] = (),
-    recovered: Sequence[str] = (),
 ) -> SwarmReport:
     """Build the ledger from receipts alone — no worker is asked what it did.
 
@@ -287,12 +268,12 @@ def observe(
     success would be exactly the self-attestation this project refuses.
     """
     by_worker: dict[str, int] = {}
-    receipted_after = 0
+    current_receipts = 0
     for urn in urns:
         status = statuses.get(urn) or {}
-        if not status.get("verdict"):
+        if not _is_current_receipt(status):
             continue
-        receipted_after += 1
+        current_receipts += 1
         if str(status.get("swarm_run") or "") != swarm_run:
             continue
         worker = str(status.get("worker_id") or "unattributed")
@@ -300,9 +281,13 @@ def observe(
     return SwarmReport(
         swarm_run=swarm_run,
         total_assets=len(urns),
-        receipted_before=len(before),
-        receipted_after=receipted_after,
+        current_receipts=current_receipts,
         by_worker=by_worker,
-        duplicates=list(duplicates),
-        recovered=list(recovered),
+    )
+
+
+def _is_current_receipt(status: Mapping[str, object]) -> bool:
+    return (
+        status.get("verdict") in {"PASS", "WARN", "BLOCK"}
+        and status.get("stale") is False
     )

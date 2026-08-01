@@ -1,0 +1,4 @@
+mcp-server-datahub==0.6.0
+# The DataHub SDK requires setuptools<82. Keep this known residual dependency
+# isolated here; SECURITY.md documents why its vulnerable sdist path is unreachable.
+acryl-datahub==1.6.0.16

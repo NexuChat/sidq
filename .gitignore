@@ -1,6 +1,6 @@
 __pycache__/
 *.py[cod]
-.venv/
+.venv*/
 venv/
 *.egg-info/
 build/
@@ -26,6 +26,9 @@ data/lora/progress.json
 # below is judge-facing evidence and is intentionally versioned.
 data/benchmark/*
 !data/benchmark/decision-cost-gpu.json
+!data/benchmark/labelled-regression.jsonl.gz
+!data/benchmark/preflight-rungs.json
+!data/benchmark/README.md
 data/claims/raw-*/
 data/claims/mine.log
 data/claims/repos-to-clone.jsonl

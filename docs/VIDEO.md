@@ -1,76 +1,105 @@
 # Final three-minute film runbook
 
-Target length: 2:45. Record the public landing page and a terminal at 1440x900.
-Use the real hosted buttons; do not substitute screenshots or pre-rendered output.
+Target length: 2:45. Record a terminal, the live DataHub UI, and the public Sidq
+page at 1440x900. This sequence demonstrates write → DataHub inspection →
+independent read; do not substitute screenshots or pre-rendered output.
 
 ## 00:00-00:20 — the problem
 
-**Picture:** Open `https://sidq.mlki.app`, hold on the thesis, then scroll through
-the one-picture architecture.
+**Picture:** Open `https://sidq.mlki.app`, hold on the thesis, then show the
+one-picture architecture.
 
-**Voice:** “Agents increasingly read metadata graphs before they write data code.
-But the graph can be stale, internally contradictory, or missing the evidence an
-agent needs. Sidq asks the question before the agent acts: is this context true?”
+**Voice:** “Agents increasingly read metadata graphs before they act. But the
+graph can be stale, internally contradictory, or missing the evidence an agent
+needs. Sidq asks the question first: is this context supported?”
 
-## 00:20-00:55 — the winning moment
+## 00:20-00:55 — Agent A writes a real receipt
 
-**Picture:** Scroll to **Do not take our word for it**. Click **Prove the agent
-handoff — read receipt memory**. Keep the real response visible long enough to
-read `VERIFIED`, `checked at`, the policy hash, and the evidence document.
+**Picture:** In a terminal already configured for the live MCP server, run:
 
-**Voice:** “Agent A verified an asset and left a receipt in DataHub. Agent B is a
-separate reader with no private handoff state. It reads the receipt from the
-catalog, recomputes policy, schema, and age freshness, and returns VERIFIED. The
-catalog is not just input or output. It is durable, queryable memory for every
-agent.”
+```bash
+.venv/bin/python examples/02-receipt-consumed/write_receipt.py
+```
 
-## 00:55-01:25 — refusal with evidence
+Keep the returned `success: true`, `verdict`, `checked_at`, `policy_hash`, and
+`evidence_url` visible. This is the only write in the film and must use the
+disposable `sidq.receipt.consumed` asset.
+
+**Voice:** “Agent A runs the deterministic policy and writes its receipt through
+DataHub's official MCP mutation tools. The response acknowledges structured
+properties, a visible status tag, and an evidence document.”
+
+## 00:55-01:25 — inspect what DataHub persisted
+
+**Picture:** Open the disposable dataset in `https://datahub.mlki.app` with the
+Reader account. Show the `sidq:verified` tag and the `sidq.*` properties. Open the
+evidence document, and visually match its policy hash to the terminal output.
+
+**Voice:** “Now inspect DataHub itself, not the writer's response. The catalog
+persisted a queryable verdict, commit, time, policy hash, verifier, and evidence
+document. Reader access is enough to inspect all of it.”
+
+## 01:25-01:55 — Agent B performs an independent read
+
+**Picture:** Return to `https://sidq.mlki.app`. Click **Prove the agent handoff —
+read receipt memory**. Keep `VERIFIED`, `checked at`, the same policy hash, and the
+evidence document visible.
+
+**Voice:** “Agent B is a separate process with no private handoff state. It reads
+the persisted receipt, verifies the same semantic entity and its complete one-hop
+lineage context, and independently recomputes policy and age freshness before it
+returns VERIFIED. The catalog is durable, queryable memory between agents.”
+
+## 01:55-02:25 — refusal with reproducible evidence
 
 **Picture:** Click **Offline verdict**. Hold on `BLOCK`, `pii_exposure`, the 16
-consumers, commit SHA, and policy hash. Scroll back to the visual lineage path.
+consumers, commit SHA, and policy hash. Briefly show the column-level lineage path.
 
-**Voice:** “For a real data-code change, Sidq follows the changed column through
-dbt, Snowflake, Looker, and a live dashboard. PII reaches sixteen downstream
-consumers, so the deterministic policy blocks the proposal. Same graph recording,
-same policy, same commit: byte-identical verdict. No model participates in this
-permission decision.”
+**Voice:** “Receipts do not grant blind trust. For a data-code change, Sidq follows
+the changed PII column into sixteen downstream consumers and blocks the proposal.
+The committed graph recording, policy, and commit re-derive the same deterministic
+verdict. No model participates in permission.”
 
-## 01:25-01:55 — the catalog contradicts itself
+## 02:25-02:45 — close with scope and proof
 
-**Picture:** Show the sample statistics, then click **Catalog audit** and keep the
-finding summary visible.
+**Picture:** Show the GitHub link, CI badge, DataHub link, and the evidence links.
+End on “Evidence before confidence.”
 
-**Voice:** “This is not a synthetic claim. A read-only audit of DataHub's shipped
-showcase examined all 67 datasets and found 285 internal lineage contradictions,
-concentrated in five assets, plus consumed assets with no owner. Where source SQL
-was absent, Sidq said unverifiable. It never converted missing evidence into a
-green check.”
+**Voice:** “Sidq is Apache-2.0 and usable from CLI, CI, or MCP. The repository
+ships hash-locked dependencies, complete compact regression evidence, and the
+commands that re-run its claims. Make context provable before an agent acts.”
 
-## 01:55-02:20 — useful action, bounded authority
+## Dynamic-output rules
 
-**Picture:** Click **Repair agent**, then show the proven six-column closure and
-the ‘nothing was written’ line. Click **Measured claims** and show the WARN.
-
-**Voice:** “The repair agent rejects plausible fixes that move the leak and offers
-only the closure the same engine can re-prove. The public demo is dry-run only.
-Sidq can also compile field documentation to bounded read-only SQL: models may
-propose what to test, but only measured evidence can influence a warning.”
-
-## 02:20-02:45 — close with proof
-
-**Picture:** Show the five buttons, the GitHub link, CI badge, and live DataHub
-link. End on “Evidence before confidence.”
-
-**Voice:** “Sidq is Apache-2.0, DataHub-native, and usable from CLI, CI, or MCP.
-The public page runs five real read-only paths, the repository carries every
-verdict and benchmark it quotes, and CI re-derives the claims. Do not make the
-agent smarter. Make its context provable.”
-
-## Recording rules
-
+- Receipt time, policy hash, evidence document URN, and tool wording are dynamic.
+  Narrate what each field means; never paste an older value over a fresh run.
+- A current run may legitimately show a different hash from the historical
+  transcript in `examples/02-receipt-consumed/README.md` after policy changes.
+- Stop recording if the write is rejected, DataHub does not show the new receipt,
+  or Agent B does not independently return `VERIFIED` for the same receipt.
+- Do not call the fixture-backed offline verdict a live-graph result.
 - Do not speed up terminal output or hide waits with cuts that imply an instant run.
-- Use no copyrighted music. Silence is acceptable.
-- Keep the cursor visible for every live click.
-- Record a fresh handoff receipt immediately before filming so `checked at` is current.
-- Re-run `make gate-demo` and `make check` before capture; stop if either fails.
-- The Devpost video must remain public and no longer than three minutes.
+
+## Captions checklist
+
+- [ ] Captions say “fixture replay” over the offline verdict and “live DataHub”
+  over the receipt write, inspection, and read.
+- [ ] `Agent A: write`, `DataHub: persisted evidence`, and `Agent B: independent
+  read` appear as three distinct captions.
+- [ ] Dynamic values in captions match the captured run exactly.
+- [ ] The 285 catalog findings, if mentioned, are described as concentrated in 5
+  assets after examining 67 datasets.
+- [ ] Writeback is described as explicit and optional; the public landing buttons
+  are described as read-only.
+- [ ] Captions identify model-proposed documentation checks as advisory `WARN`
+  evidence, never as blocking verdicts.
+
+## Recording checklist
+
+- [ ] Use no copyrighted music. Silence is acceptable.
+- [ ] Keep the cursor visible for every live click.
+- [ ] Re-run `make gate-demo` and `make check` before capture; stop if either fails.
+- [ ] Verify the Reader credentials are shared only through the Devpost Testing
+  instructions field visible to judges, not a public project field.
+- [ ] Verify the final public video is viewable without sign-in and remains under
+  three minutes.

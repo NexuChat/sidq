@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 from typing import Any
 
@@ -10,6 +11,10 @@ import pytest
 
 from sidq.claims import reader as reader_module
 from sidq.claims.reader import EmbeddingClaimReader
+
+_CANONICAL_HEAD_PATH = (
+    Path(__file__).resolve().parents[1] / "data/claims/reader/head.npz"
+)
 
 
 class _FakeEmbedder:
@@ -170,3 +175,13 @@ def test_reader_identity_fingerprints_every_runtime_input(tmp_path: Path) -> Non
     assert identity["revision"] == reader_module._MODEL_REVISION
     assert identity["head_sha256"]
     assert identity["threshold"] == 0.5
+
+
+def test_default_reader_uses_a_packaged_copy_of_the_canonical_head() -> None:
+    reader = EmbeddingClaimReader(embedder=_FakeEmbedder([1.0]))
+
+    packaged_head = Path(reader_module.__file__).with_name("head.npz")
+    canonical_bytes = _CANONICAL_HEAD_PATH.read_bytes()
+
+    assert packaged_head.read_bytes() == canonical_bytes
+    assert reader.identity["head_sha256"] == hashlib.sha256(canonical_bytes).hexdigest()

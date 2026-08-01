@@ -32,7 +32,7 @@ _MODEL_NAME = "microsoft/harrier-oss-v1-270m"
 # artifact changing, which is precisely the kind of invisible drift Sidq exists
 # to make attributable.
 _MODEL_REVISION = "31de22b673913c7d658c0f03f792d77c2dcf8ebd"
-_DEFAULT_HEAD_PATH = Path(__file__).resolve().parents[3] / "data/claims/reader/head.npz"
+_DEFAULT_HEAD_PATH = Path(__file__).with_name("head.npz")
 
 
 class _Embedder(Protocol):

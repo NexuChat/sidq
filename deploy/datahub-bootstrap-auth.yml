@@ -1,0 +1,64 @@
+services:
+  datahub-gms-quickstart:
+    environment:
+      METADATA_SERVICE_AUTH_ENABLED: "false"
+    ports: !override []
+    volumes: !override []
+
+  frontend-quickstart:
+    environment:
+      METADATA_SERVICE_AUTH_ENABLED: "false"
+      AUTH_JAAS_ENABLED: "true"
+      AUTH_NATIVE_ENABLED: "true"
+      UI_INGESTION_DEFAULT_CLI_VERSION: ${UI_INGESTION_DEFAULT_CLI_VERSION}
+    depends_on:
+      datahub-gms-quickstart:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:9002/ >/dev/null"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+    network_mode: service:datahub-gms-quickstart
+    networks: !override []
+    ports: !override []
+    volumes: !override []
+
+  datahub-auth-bootstrap:
+    image: acryldata/datahub-ingestion:${DATAHUB_VERSION}
+    profiles: ["bootstrap"]
+    depends_on:
+      datahub-gms-quickstart:
+        condition: service_healthy
+      frontend-quickstart:
+        condition: service_healthy
+    network_mode: service:datahub-gms-quickstart
+    entrypoint: ["datahub"]
+    command: ["--help"]
+    environment:
+      DATAHUB_GMS_URL: http://127.0.0.1:8080
+      DATAHUB_TELEMETRY_ENABLED: "false"
+      HOME: /tmp
+    read_only: true
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,noexec,size=16m
+    cap_drop: ["ALL"]
+    security_opt:
+      - no-new-privileges:true
+    restart: "no"
+
+  mysql:
+    ports: !override []
+
+  kafka-broker:
+    ports: !override []
+
+  opensearch:
+    ports: !override []
+
+  datahub-actions-quickstart:
+    volumes: !override []
+
+  system-update-quickstart:
+    restart: "no"
+    volumes: !override []

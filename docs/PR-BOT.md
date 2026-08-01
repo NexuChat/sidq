@@ -16,7 +16,8 @@ a connectivity failure can never silently become fixture-backed evidence.
 
 ## Install in a repository
 
-The runner needs Python 3.12 or newer and a checkout of the pull-request files.
+The shipped CI contract is tested on Python 3.12 and needs a checkout of the
+pull-request files.
 Pin both third-party actions and Sidq itself to full commit SHAs:
 
 ```yaml
@@ -48,13 +49,14 @@ jobs:
         with:
           token: ${{ github.token }}
           mode: live
+          datahub-mcp-command: /path/to/mcp-server-datahub
 ```
 
 Use a runner that can reach `DATAHUB_GMS_URL`. A GitHub-hosted runner cannot
 reach a DataHub instance bound only to a laptop or private Docker network. In
-live mode the action installs the pinned official
-`mcp-server-datahub==0.6.0`; set `datahub-mcp-command` when the runner provides
-the executable another way.
+live mode `datahub-mcp-command` is required and must name a preinstalled official
+MCP server. This keeps the composite action from performing an unreviewed network
+install outside its hash-locked environment.
 
 For fixture replay:
 
@@ -111,7 +113,13 @@ has created the neutral check; `BLOCK` fails the action step.
 | `fixture-dir` | shipped demo fixtures | Recorded graph fixture directory |
 | `policy` | Sidq default policy | Policy path relative to `repo-root` |
 | `repo-root` | `.` | Checkout to inspect, relative to `GITHUB_WORKSPACE` |
-| `datahub-mcp-command` | installed official server | Custom MCP executable path |
+| `datahub-mcp-command` | required in live mode | Preinstalled official MCP executable path |
+| `publish-results` | `true` | Set `false` for read-only validation that prints the full verdict without creating a comment or check |
+
+`publish-results: false` still reads the PR Files API and runs the selected engine
+mode. It only removes the two publication calls, which makes it suitable for the
+ordinary no-secret `pull_request` CI workflow. The write-capable
+`pull_request_target` demo remains isolated on the trusted base checkout.
 
 With an empty `policy` input, the action reads the default policy from the
 pinned Sidq action checkout. A custom policy must be a file below `repo-root`;
@@ -265,4 +273,4 @@ Only the deterministic policy findings in this section affect the merge decision
 
 ---
 
-Reproducibility: <code>policy_hash=baa612f729a56ff7497718cc3cf77cd9142967cb4ec0e075c2b3495eeb2f2927</code> · <code>commit_sha=5addb753788935d4d1aa6a9483c28c6fc124e5c7</code> · run <code>sidq check --diff 5addb753788935d4d1aa6a9483c28c6fc124e5c7^..5addb753788935d4d1aa6a9483c28c6fc124e5c7 --json</code>
+Reproducibility: <code>policy_hash=996f3b0c7409189c4a79b0ff5f601b4d1cceb9b5e1375f1fbcb47702b9722d51</code> · <code>commit_sha=5addb753788935d4d1aa6a9483c28c6fc124e5c7</code> · run <code>sidq check --diff 5addb753788935d4d1aa6a9483c28c6fc124e5c7^..5addb753788935d4d1aa6a9483c28c6fc124e5c7 --json</code>

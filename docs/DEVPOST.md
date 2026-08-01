@@ -1,5 +1,52 @@
 # Devpost submission copy
 
+## Submission fields
+
+**Project name:** Sidq
+
+**Tagline:** Evidence before confidence for DataHub agents and data-code changes.
+
+**Primary challenge:** Agents That Do Real Work — Sidq reads DataHub through
+MCP, acts on its evidence, writes optional receipts back, and lets the next
+agent inherit a verifiable decision.
+
+**Repository:** https://github.com/NexuChat/sidq
+
+**Live project:** https://sidq.mlki.app
+
+**Live DataHub:** https://datahub.mlki.app
+
+**Public video:** <PUBLIC_VIDEO_URL>
+
+**Testing instructions** *(paste into the Devpost Testing instructions field
+visible to judges; never into the public description, repository, video, issue,
+or screenshot)*:
+
+```text
+Open https://datahub.mlki.app and sign in with the read-only Reader account.
+Role: Reader (no metadata mutation permission)
+Username: <READER_USERNAME>
+Password: <READER_PASSWORD>
+
+Then open https://sidq.mlki.app. Run "Prove the agent handoff" first, inspect
+the referenced receipt and evidence document in DataHub, and run "Offline
+verdict" to re-derive the committed BLOCK result. The public buttons are fixed,
+read-only demonstrations and accept no request payload.
+```
+
+Replace both placeholders in Devpost immediately before submission. Do not
+replace them in this file. The account supplied to judges must have the Reader
+role only; verify in DataHub that it cannot edit tags, properties, ownership, or
+documentation.
+
+**Evidence links:**
+
+- Reproducible verdict: [`examples/01-blocked-pii-dashboard/verdict.json`](../examples/01-blocked-pii-dashboard/verdict.json)
+- Catalog audit and 285/67/5 scope: [`docs/TRUTH-REPORT.md`](TRUTH-REPORT.md)
+- Public QA record: [`docs/QA-RESULTS.md`](QA-RESULTS.md)
+- Dependency and local setup: [`docs/SETUP.md`](SETUP.md)
+- Third-party data provenance: [`data/claims/ATTRIBUTION.md`](../data/claims/ATTRIBUTION.md)
+
 ## What it does
 
 Sidq is a DataHub-native verification layer for data-code changes and agents. It
@@ -33,26 +80,32 @@ all.
 
 The audit also resumes — through the catalog, not beside it. `sidq audit
 --resume` reads the receipts previous runs wrote back and skips every asset whose
-receipt still holds under the current policy hash, so the whole budget flows to
-assets no run has reached. Coverage converges run over run under a budget that
-never changed, and any Sidq instance resumes where any other stopped, because the
-state is the catalog itself. The judgment is recomputed by the reader each time —
-a stale, blocked, or unreadable receipt puts the asset back in the queue — and a
-skipped asset is reported as `vouched`, never as verified by this run.
+receipt still holds under the current policy, semantic context, and age, so the
+whole budget flows to assets no run has reached. Coverage converges run over run
+under a budget that never changed, and any Sidq instance resumes where any other
+stopped, because the state is the catalog itself. The judgment is recomputed by
+the reader each time — a stale, blocked, or unreadable receipt puts the asset back
+in the queue — and a skipped asset is reported as `vouched`, never as verified by
+this run.
 
 The same mechanism works across space, not only time. Several auditor processes
 can work one catalog simultaneously with no message bus, no lock service, no
-leader and no shared filesystem — `make swarm-demo` runs four, kills one
-deliberately mid-run, and nothing is stranded because nothing was ever
-assigned: the survivors take the dead worker's assets as ordinary work. Each
-worker re-reads a receipt immediately before examining an asset and writes one
-immediately after deciding, and enters the shared consequence-ranked plan at an
-offset derived from its own id, so four processes never begin on the same
-asset. The promise is at-least-once rather than exactly-once, because MCP has
-no compare-and-set primitive — collisions are safe under a deterministic engine
-and are counted rather than hidden. A fifth process that audited nothing then
-reads DataHub alone and reports which worker covered what. DataHub is not the
-input to that loop, nor its output; it is the shared state.
+leader and no shared filesystem. Each worker re-reads a receipt immediately
+before examining an asset and writes one immediately after deciding. That
+read-before-write sequence narrows the race window but cannot remove it. Each
+worker also enters the shared consequence-ranked plan at an offset derived from
+its own id, so four processes do not begin on the same asset.
+
+The promise is **at-least-once, never exactly-once**: MCP has no claim or
+compare-and-set primitive, so two workers can still examine the same unreceipted
+asset. Deterministic duplicate work is safe because both reach the same verdict,
+but DataHub exposes the latest receipt rather than an append-only history, so the
+observer cannot count collisions after the fact. `make swarm-demo` kills one
+worker deliberately; because nothing is assigned, its unreceipted work remains
+eligible for any survivor. That is operational behavior, not a measured recovery
+total. The separate observer can prove current recognizable non-stale receipts,
+current-run receipts, and latest worker attribution only. DataHub is not merely
+an input or output to that loop; it is the shared state.
 
 A second agent, `sidq repair`, decides what to do about each finding — and reports
 what it cannot fix. Proposals come from catalog evidence only, and nothing is
@@ -66,16 +119,25 @@ downstream. The proposal it offers instead covers the whole field-lineage closur
 proves. Four of the six checks produce no proposal at all, each with its reason
 recorded, because an agent with an answer for all six would be inventing four.
 
-Sidq also writes a receipt back to DataHub through the official MCP mutation tools.
+When writeback is explicitly enabled, Sidq attempts a receipt through the official
+MCP mutation tools; writeback is off by default and a rejected mutation is reported
+rather than treated as stored evidence.
+
 The receipt has queryable `sidq.*` properties, a visible `sidq:verified` or
 `sidq:blocked` tag, and a human-readable evidence document. A separate reader can
-check the receipt. The status becomes stale when the asset changes, the receipt ages
-past the configured window, or the policy hash changes.
+check the receipt. Staleness covers the current semantic entity metadata plus
+complete one-hop upstream and downstream lineage. Sidq's own receipt properties,
+badges, and evidence documents are excluded so a successful write does not
+invalidate itself. Missing, partial, or error context is stale (fail-closed), and
+a policy-hash mismatch invalidates immediately. The CLI default maximum age is 7
+days. The hosted public handoff alone uses 45 days solely to span judging through
+August 31, 2026; any context or policy change still invalidates immediately.
 
 Finally, we audited DataHub’s shipped `showcase-ecommerce` sample using read-only
-catalog metadata. Scanning all 67 datasets surfaced 285 internal field-lineage contradictions,
-concentrated in 5 assets. This is a narrower claim than saying the source systems are broken: the
-contradictory claims are visible inside the catalog itself.
+catalog metadata. After examining all 67 datasets, the audit surfaced 285 internal
+field-lineage contradictions concentrated in 5 assets. This is a narrower claim
+than saying the source systems are broken: the contradictory claims are visible
+inside the catalog itself.
 
 The new `sidq claims` command takes the same evidence boundary into field
 descriptions. It reads a dataset's field descriptions from DataHub through the
@@ -141,7 +203,7 @@ next agent.
 
 ## Technologies
 
-- Python 3.12 or newer.
+- Python 3.12 (the minor version exercised by CI).
 - DataHub and the official `mcp-server-datahub` MCP server.
 - MCP over stdio for the Sidq server and receipt path.
 - `sqlglot` for deterministic SQL parsing and field extraction.
@@ -211,7 +273,48 @@ decision explicit and reproducible.
   was deliberately excluded because its redistribution licence could not be
   confirmed.
 - The repository is Apache-2.0 licensed.
-- The video uses no copyrighted music. It uses silence or a permissively licensed track with attribution.
+- The final video export must use no copyrighted music. Use silence or a
+  permissively licensed track with attribution.
+
+Use this exact AI/pre-existing-work disclosure in the corresponding Devpost
+field:
+
+> AI coding assistants were used to help implement, test, review, and document
+> Sidq. Sidq's project code was created during the submission period. The entry
+> also includes pre-existing third-party public data and recorded DataHub sample
+> metadata, not pre-existing Sidq code; sources, versions, commits, and licences
+> are listed in the repository attribution and datasheet files.
+
+## Submission checklist
+
+- [ ] Repository link is public and opens without authentication.
+- [ ] Live project and live DataHub links return HTTP 200 from a logged-out browser.
+- [ ] Public video link is viewable without sign-in and is under three minutes.
+- [ ] The AI coding-assistant disclosure is pasted exactly and the pre-existing
+  third-party data disclosure is included.
+- [ ] The Devpost Testing instructions field visible to judges contains working
+  `<READER_USERNAME>` / `<READER_PASSWORD>` replacements for a Reader-only
+  account; no credential is copied into public fields or committed files.
+- [ ] The Reader account has been tested to confirm that metadata write controls
+  are unavailable.
+- [ ] Optional: If pursuing a $50 Most Valuable Feedback bonus prize, submit
+  the organizer's feedback form and retain its confirmation; the form is not
+  required for project submission.
+- [ ] Evidence links above open at the submitted repository revision.
+- [ ] `make gate-demo` and `make check` were run from that revision; paste only
+  their actual results into the final submission.
+- [ ] The 285 findings are described as concentrated in 5 assets after examining
+  67 datasets, not as spread across 67 datasets.
+- [ ] Receipt writeback is described as optional and off by default.
+
+## Optional opportunities (not submission requirements)
+
+- Join the DataHub Community Slack `#agent-hackathon` channel to ask questions,
+  share progress, and connect with other builders.
+- To enter the community swag raffle, join `#agent-hackathon`, then either star
+  the DataHub repository or post about the hackathon on LinkedIn and tag
+  `@DataHub`. Reply to the channel's pinned raffle post with the screenshot or
+  link by August 9 at 11:59pm PT.
 
 ## Try it
 
@@ -223,16 +326,19 @@ runnable set is a closed table of fixed argument lists with no request input, an
 it contains no command that can write to a catalog. `/healthz` proves that the
 landing process is alive; `/readyz` separately reports the live DataHub dependency.
 
-Live DataHub: https://datahub.mlki.app
-
-Published demo credentials for the live DataHub: username `datahub`, password
-`datahub`.
+Live DataHub: https://datahub.mlki.app. Reader-only judge credentials belong in
+the Devpost Testing instructions field above; this public file contains
+placeholders only.
 
 Local reproduction:
 
 ```bash
-make demo-up && make demo-ingest && make demo-break && .venv/bin/sidq check --file demo/dbt/models/customer_revenue.sql --json
+make gate-demo
 ```
+
+That command reproduces the committed fixture verdict. A live local graph is a
+separate setup, not implied by the one-command path; follow [`docs/SETUP.md`](SETUP.md)
+before running `make live-loop` or the source-drift demonstration.
 
 The repository also includes the worked verdicts, receipt proof, and catalog truth
 report under `examples/`.

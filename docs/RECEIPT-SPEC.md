@@ -36,6 +36,7 @@ structured properties first; they are searchable and the custom-properties path 
 | `sidq.commit_sha` | string | the exact commit the verdict was computed on |
 | `sidq.checked_at` | string | ISO-8601 UTC |
 | `sidq.policy_hash` | string | sha256 of the policy file actually used |
+| `sidq.context_hash` | string | sha256 of semantic entity metadata plus complete immediate lineage |
 | `sidq.rules_fired` | string, multiple | rule ids, sorted |
 | `sidq.verifier` | string | `sidq@<version>` |
 | `sidq.evidence_url` | string | link to the PR comment / document |
@@ -56,17 +57,27 @@ Our MCP tool returns, for the asset's latest receipt:
   "commit_sha": "9f2c1ab",
   "checked_at": "2026-08-02T11:04:00Z",
   "policy_hash": "sha256:...",
+  "context_hash": "sha256:...",
   "rules_fired": [],
   "stale": true,
-  "stale_reason": "asset schema changed after the last verification"
+  "stale_reason": "asset decision context changed"
 }
 ```
 
 **Receipts expire — this is the point.** `stale` is computed, never stored:
 
-- the asset's schema `lastModified` in the graph is newer than `checked_at`, **or**
-- `checked_at` is older than the configured max age (default 7 days), **or**
-- the current `policy_hash` differs from the one recorded on the receipt.
+- a policy-hash mismatch invalidates immediately, **or**
+- the current semantic entity metadata or complete one-hop upstream and downstream
+  lineage differs from the recorded context hash, **or**
+- missing, partial, or error context is stale (fail-closed), **or**
+- `checked_at` is missing or invalid, **or**
+- `checked_at` is older than the configured limit. The CLI default maximum age is
+  7 days.
+
+Sidq's own receipt properties, badges, and evidence documents are excluded from
+the context hash so a receipt does not invalidate itself. The hosted public
+handoff alone uses 45 days solely to span judging through August 31, 2026; any
+context or policy change still invalidates immediately.
 
 So an analytics agent asking "is this asset verified?" gets a real answer — *"verified at
 commit 9f2c1ab, but it has changed since"* — instead of a badge that means nothing. A
@@ -82,8 +93,10 @@ receipt is decorative and criterion #1 is only half won.
 
 ## 5. Hard rules
 
-- The receipt is written **after** the verdict, never as part of computing it. No feedback loops.
-- A `BLOCK` verdict writes a receipt too. Recording a refusal is the whole thesis — writing
+- Writeback is attempted **after** the verdict, never as part of computing it. Only
+  an accepted mutation becomes a receipt. No feedback loops.
+- In an opted-in writeback run, a `BLOCK` verdict is eligible for a receipt too.
+  Recording a refusal is the whole thesis — writing
   only on success would be vanity.
 - Sidq holds write permission for the `sidq.*` namespace and its own tags **only**.
   Say so in the README; a gate that can rewrite arbitrary metadata is a liability, and

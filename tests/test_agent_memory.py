@@ -19,6 +19,7 @@ from sidq.gates.self_contradiction import (
     CatalogSnapshot,
     LineageEdge,
 )
+from sidq.receipt.read import decision_context_hash
 
 NOW = datetime(2026, 8, 2, 12, 0, 0, tzinfo=UTC)
 
@@ -162,8 +163,9 @@ def _receipt_entity(urn: str, verdict: str, *, policy_hash: str = "sha256:p") ->
             "values": [{"stringValue": value}],
         }
 
-    return {
+    entity = {
         "urn": urn,
+        "datasetProperties": {"lastModified": "2026-08-02T10:00:00+00:00"},
         "structuredProperties": {
             "properties": [
                 prop("verdict", verdict),
@@ -171,6 +173,24 @@ def _receipt_entity(urn: str, verdict: str, *, policy_hash: str = "sha256:p") ->
                 prop("policy_hash", policy_hash),
             ]
         },
+    }
+    context_hash = decision_context_hash(urn, entity, _empty_lineage)
+    entity["structuredProperties"]["properties"].append(
+        prop("context_hash", context_hash)
+    )
+    return entity
+
+
+def _empty_lineage(name: str, arguments: dict) -> dict:
+    assert name == "get_lineage"
+    direction = "upstreams" if arguments["upstream"] else "downstreams"
+    return {
+        direction: {
+            "total": 0,
+            "returned": 0,
+            "hasMore": False,
+            "searchResults": [],
+        }
     }
 
 
@@ -182,7 +202,8 @@ def test_recall_judges_each_receipt_now_rather_than_trusting_it() -> None:
     }
 
     def caller(name: str, arguments: dict) -> dict:
-        assert name == "get_entities"
+        if name == "get_lineage":
+            return _empty_lineage(name, arguments)
         found = [entities[urn] for urn in arguments["urns"] if urn in entities]
         return {"entities": found}
 
@@ -201,6 +222,8 @@ def test_recall_fails_closed_on_a_policy_change_and_on_age() -> None:
     entities = {urn: _receipt_entity(urn, "PASS", policy_hash="sha256:old")}
 
     def caller(name: str, arguments: dict) -> dict:
+        if name == "get_lineage":
+            return _empty_lineage(name, arguments)
         return {"entities": [entities[u] for u in arguments["urns"] if u in entities]}
 
     repoliced = recall([urn], caller, current_policy_hash="sha256:new", now=NOW)

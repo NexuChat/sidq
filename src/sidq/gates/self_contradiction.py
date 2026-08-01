@@ -367,6 +367,8 @@ def _mcp_table_edges(graph: Any, urn: str, depth: int) -> list[LineageEdge]:
         result = graph.get_downstream(urn, depth)
     except Exception:  # noqa: BLE001 - a lineage gap is absence, not a crash
         return []
+    if not getattr(result, "complete", True):
+        raise _Unverifiable(f"table lineage response is incomplete for {urn}")
     targets = getattr(result, "urns", ()) if result is not None else ()
     return [LineageEdge(urn, None, str(target), None) for target in targets or ()]
 
@@ -387,10 +389,39 @@ def _mcp_field_edges(
             result = graph.get_downstream(entity.urn, depth, field.path)
         except Exception as error:
             raise _Unverifiable(f"column lineage failed for {field.path}") from error
+        if not getattr(result, "complete", True):
+            raise _Unverifiable(f"column lineage was incomplete for {field.path}")
+        if getattr(result, "granularity", "table") != "column":
+            raise _Unverifiable(
+                f"column lineage lacked column granularity for {field.path}"
+            )
         columns = getattr(result, "columns", {}) if result is not None else {}
         if not isinstance(columns, Mapping):
             raise _Unverifiable(f"column lineage was unreadable for {field.path}")
-        for target, target_fields in columns.items():
+        targets = tuple(str(target) for target in getattr(result, "urns", ()) or ())
+        target_fields_by_urn = {
+            str(target): fields for target, fields in columns.items()
+        }
+        if targets:
+            if set(target_fields_by_urn) != set(targets):
+                raise _Unverifiable(
+                    f"column lineage did not map every target for {field.path}"
+                )
+            if any(
+                not isinstance(target_fields_by_urn[target], Sequence)
+                or isinstance(target_fields_by_urn[target], (str, bytes))
+                or not target_fields_by_urn[target]
+                or any(
+                    not isinstance(target_field, str) or not target_field
+                    for target_field in target_fields_by_urn[target]
+                )
+                for target in targets
+            ):
+                raise _Unverifiable(
+                    f"column lineage had empty target fields for {field.path}"
+                )
+        for target in targets:
+            target_fields = target_fields_by_urn[target]
             edges.extend(
                 LineageEdge(entity.urn, field.path, str(target), str(target_field))
                 for target_field in target_fields or ()

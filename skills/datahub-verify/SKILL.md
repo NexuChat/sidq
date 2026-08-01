@@ -114,7 +114,7 @@ The repository example `examples/01-blocked-pii-dashboard/verdict.json` is an ac
       "severity": "block"
     }
   ],
-  "policy_hash": "baa612f729a56ff7497718cc3cf77cd9142967cb4ec0e075c2b3495eeb2f2927"
+  "policy_hash": "996f3b0c7409189c4a79b0ff5f601b4d1cceb9b5e1375f1fbcb47702b9722d51"
 }
 ```
 

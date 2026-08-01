@@ -63,6 +63,9 @@ class LineageResult:
     columns: Mapping[str, tuple[str, ...]] = dataclass_field(default_factory=dict)
     tags: Mapping[str, tuple[str, ...]] = dataclass_field(default_factory=dict)
     granularity: str = "table"
+    total: int | None = None
+    returned: int | None = None
+    complete: bool = True
 
 
 @runtime_checkable
@@ -275,12 +278,7 @@ class StdioMCPToolCaller:
         from mcp import ClientSession
         from mcp.client.stdio import StdioServerParameters, stdio_client
 
-        env = {
-            **os.environ,
-            "DATAHUB_GMS_URL": self._gms_url,
-            "DATAHUB_TELEMETRY_ENABLED": "false",
-            "LOGURU_LEVEL": "WARNING",
-        }
+        env = _mcp_subprocess_environment(self._gms_url)
         async with (
             stdio_client(StdioServerParameters(command=self._command, env=env)) as (
                 read,
@@ -309,6 +307,21 @@ class StdioMCPToolCaller:
             self._requests.put(None)
             self._thread.join(timeout=5)
         self._thread = None
+
+
+def _mcp_subprocess_environment(gms_url: str) -> dict[str, str]:
+    """Return only the environment needed by the read-only DataHub MCP child."""
+    environment = {
+        "DATAHUB_GMS_URL": gms_url,
+        "DATAHUB_TELEMETRY_ENABLED": "false",
+        "HOME": "/tmp",
+        "LANG": os.environ.get("LANG", "C.UTF-8"),
+        "LOGURU_LEVEL": "WARNING",
+        "PATH": os.environ.get("PATH", "/usr/local/bin:/usr/bin:/bin"),
+    }
+    if token := os.environ.get("DATAHUB_GMS_TOKEN"):
+        environment["DATAHUB_GMS_TOKEN"] = token
+    return environment
 
 
 def _tool_response_payload(response: Any, *, name: str = "tool") -> Any:
@@ -500,9 +513,10 @@ def _first_entity(value: Any, urn: str) -> Mapping[str, Any] | None:
     ):
         return document
     for entity in _items(value):
-        if "error" not in entity and _string(
-            entity, "urn", "entity_urn", "entityUrn"
-        ) in (None, urn):
+        if (
+            "error" not in entity
+            and _string(entity, "urn", "entity_urn", "entityUrn") == urn
+        ):
             return entity
     return None
 
@@ -564,8 +578,13 @@ def _parse_lineage(value: Any, *, requested_column: str | None) -> LineageResult
     downstreams = document.get("downstreams")
     if not isinstance(downstreams, Mapping):
         raise GraphResponseError("get_lineage response is missing a downstreams object")
-    search_results = downstreams.get("searchResults")
-    if not isinstance(search_results, list):
+    official_empty = _is_official_empty_lineage(downstreams)
+    raw_search_results = downstreams.get("searchResults")
+    if official_empty:
+        search_results: list[Any] = []
+    elif isinstance(raw_search_results, list):
+        search_results = raw_search_results
+    else:
         raise GraphResponseError(
             "get_lineage response is missing a downstreams.searchResults list"
         )
@@ -600,6 +619,27 @@ def _parse_lineage(value: Any, *, requested_column: str | None) -> LineageResult
         if (urn := _string(_mapping(item.get("entity")), "urn"))
     }
     metadata = _mapping(document.get("metadata"))
+    total = downstreams.get("total")
+    returned = 0 if official_empty else downstreams.get("returned")
+    total = total if isinstance(total, int) and not isinstance(total, bool) else None
+    returned = (
+        returned
+        if isinstance(returned, int) and not isinstance(returned, bool)
+        else None
+    )
+    has_more = (
+        False
+        if official_empty
+        else downstreams.get("hasMore", downstreams.get("has_more"))
+    )
+    complete = (
+        total is not None
+        and returned is not None
+        and has_more is False
+        and total == returned == len(search_results)
+        and len(urns) == len(search_results)
+        and len(set(urns)) == len(urns)
+    )
     granularity = (
         "column" if metadata.get("queryType") == "column-level-lineage" else "table"
     )
@@ -610,6 +650,22 @@ def _parse_lineage(value: Any, *, requested_column: str | None) -> LineageResult
         columns=columns,
         tags=tags,
         granularity=granularity if granularity in {"column", "table"} else "table",
+        total=total,
+        returned=returned,
+        complete=complete,
+    )
+
+
+def _is_official_empty_lineage(value: Mapping[str, Any]) -> bool:
+    total = value.get("total")
+    return (
+        isinstance(total, int)
+        and not isinstance(total, bool)
+        and total == 0
+        and all(
+            key not in value
+            for key in ("searchResults", "returned", "hasMore", "has_more")
+        )
     )
 
 

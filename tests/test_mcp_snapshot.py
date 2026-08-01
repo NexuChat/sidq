@@ -34,11 +34,13 @@ class _FakeMCPGraph:
         table_lineage: dict[str, tuple[str, ...]],
         column_lineage: dict[tuple[str, str], dict[str, tuple[str, ...]]] | None = None,
         fail_columns_for: frozenset[str] = frozenset(),
+        complete: bool = True,
     ) -> None:
         self._datasets = datasets
         self._table = table_lineage
         self._columns = column_lineage or {}
         self._fail = fail_columns_for
+        self._complete = complete
         self.column_calls: list[tuple[str, str]] = []
 
     def _search(self, query: str) -> Any:
@@ -54,7 +56,11 @@ class _FakeMCPGraph:
         del depth
         if column is None:
             targets = self._table.get(urn, ())
-            return LineageResult(urns=targets, columns=dict.fromkeys(targets, ()))
+            return LineageResult(
+                urns=targets,
+                columns=dict.fromkeys(targets, ()),
+                complete=self._complete,
+            )
         if urn in self._fail:
             raise RuntimeError("lineage tool refused")
         self.column_calls.append((urn, column))
@@ -62,6 +68,7 @@ class _FakeMCPGraph:
             urns=tuple(self._columns.get((urn, column), {})),
             columns=self._columns.get((urn, column), {}),
             granularity="column",
+            complete=self._complete,
         )
 
 
@@ -105,6 +112,13 @@ def test_from_mcp_rejects_a_client_without_the_mcp_read_surface() -> None:
         CatalogSnapshot.from_mcp(object())
 
 
+def test_from_mcp_rejects_truncated_lineage_instead_of_minting_a_partial_snapshot() -> (
+    None
+):
+    with pytest.raises(Exception, match="incomplete"):
+        CatalogSnapshot.from_mcp(_graph(complete=False), field_lineage_budget=10)
+
+
 def test_column_lineage_is_only_fetched_for_the_budgeted_assets() -> None:
     """Field lineage costs one call per column, so a budget of zero spends none."""
     graph = _graph()
@@ -138,6 +152,31 @@ def test_an_asset_whose_columns_failed_is_not_recorded_as_resolved() -> None:
     graph = _graph(fail_columns_for=frozenset({_urn("orders")}))
 
     snapshot = CatalogSnapshot.from_mcp(graph, field_lineage_budget=10)
+
+    assert _urn("orders") not in (snapshot.field_lineage_resolved or frozenset())
+    assert any(edge.target_urn == _urn("mart") for edge in snapshot.edges)
+
+
+def test_unmapped_column_targets_are_not_recorded_as_resolved() -> None:
+    base = _graph()
+
+    class UnmappedGraph:
+        _search = base._search
+        get_dataset = base.get_dataset
+
+        def get_downstream(
+            self, urn: str, depth: int, column: str | None = None
+        ) -> LineageResult:
+            if column is not None and urn == _urn("orders"):
+                return LineageResult(
+                    urns=(_urn("mart"),),
+                    columns={},
+                    granularity="column",
+                    complete=True,
+                )
+            return base.get_downstream(urn, depth, column)
+
+    snapshot = CatalogSnapshot.from_mcp(UnmappedGraph(), field_lineage_budget=10)
 
     assert _urn("orders") not in (snapshot.field_lineage_resolved or frozenset())
     assert any(edge.target_urn == _urn("mart") for edge in snapshot.edges)

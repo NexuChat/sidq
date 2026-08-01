@@ -12,6 +12,7 @@ from dataclasses import replace
 from typing import Any
 
 from .build import Receipt
+from .read import _single_entity, decision_context_hash
 
 ToolCaller = Callable[[str, Mapping[str, Any]], Any]
 
@@ -73,13 +74,7 @@ class StdioMCPReceiptToolCaller:
         from mcp import ClientSession
         from mcp.client.stdio import StdioServerParameters, stdio_client
 
-        environment = {
-            **os.environ,
-            "DATAHUB_GMS_URL": self._gms_url,
-            "DATAHUB_TELEMETRY_ENABLED": "false",
-            "TOOLS_IS_MUTATION_ENABLED": "true",
-            "LOGURU_LEVEL": "WARNING",
-        }
+        environment = _mcp_subprocess_environment(self._gms_url)
         parameters = StdioServerParameters(
             command=self._command, args=list(self._args), env=environment
         )
@@ -120,6 +115,22 @@ class StdioMCPReceiptToolCaller:
         self._thread = None
 
 
+def _mcp_subprocess_environment(gms_url: str) -> dict[str, str]:
+    """Return only the environment needed by the receipt-writing MCP child."""
+    environment = {
+        "DATAHUB_GMS_URL": gms_url,
+        "DATAHUB_TELEMETRY_ENABLED": "false",
+        "HOME": "/tmp",
+        "LANG": os.environ.get("LANG", "C.UTF-8"),
+        "LOGURU_LEVEL": "WARNING",
+        "PATH": os.environ.get("PATH", "/usr/local/bin:/usr/bin:/bin"),
+        "TOOLS_IS_MUTATION_ENABLED": "true",
+    }
+    if token := os.environ.get("DATAHUB_GMS_TOKEN"):
+        environment["DATAHUB_GMS_TOKEN"] = token
+    return environment
+
+
 def _text_messages(contents: Sequence[object]) -> list[str]:
     """Return text payloads while safely ignoring non-text MCP content blocks."""
     return [
@@ -137,17 +148,25 @@ def write_receipt(receipt: Receipt, tool_caller: ToolCaller) -> dict[str, Any]:
     a receipt that did not already have an externally supplied evidence URL.
     """
 
+    entity = _single_entity(
+        tool_caller("get_entities", {"urns": [receipt.urn]}), receipt.urn
+    )
+    context_hash = decision_context_hash(receipt.urn, entity, tool_caller)
+    prepared = replace(receipt, context_hash=context_hash)
     saved = tool_caller(
         "save_document",
         {
             "document_type": "Decision",
-            "title": f"Sidq {receipt.verdict} receipt for {receipt.urn}",
-            "content": receipt.evidence_markdown(),
-            "related_assets": [receipt.urn],
+            "title": f"Sidq {prepared.verdict} receipt for {prepared.urn}",
+            "content": prepared.evidence_markdown(),
+            "related_assets": [prepared.urn],
         },
     )
-    evidence_url = receipt.evidence_url or _document_reference(saved)
-    persisted = replace(receipt, evidence_url=evidence_url)
+    document_reference = _document_reference(saved)
+    if not document_reference:
+        raise RuntimeError("save_document did not return a valid document URN")
+    evidence_url = prepared.evidence_url or document_reference
+    persisted = replace(prepared, evidence_url=evidence_url)
     structured = tool_caller(
         "add_structured_properties",
         {
@@ -175,6 +194,11 @@ def _document_reference(result: Any) -> str:
 
     if isinstance(result, Mapping):
         urn = result.get("urn")
-        if isinstance(urn, str) and urn:
+        if (
+            isinstance(urn, str)
+            and urn.startswith("urn:li:document:")
+            and len(urn) > len("urn:li:document:")
+            and not any(character.isspace() for character in urn)
+        ):
             return urn
     return ""

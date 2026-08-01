@@ -2,8 +2,9 @@
 name = "sidq"
 version = "0.1.0"
 description = "DataHub-native pre-merge gate for data code, with attested Sidq receipts"
-requires-python = ">=3.12"
-license = { text = "Apache-2.0" }
+requires-python = ">=3.12,<3.13"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 dependencies = [
     "sqlglot",  # SQL parsing for the schema gate — deterministic, no LLM
     "pyyaml",   # restricted policy and asset-map loading
@@ -15,6 +16,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# CI, Make, and the composite action install Sidq with --no-build-isolation, so
+# their environments must already contain the patched build backend.
 dev = [
     "hypothesis",
     "mypy",
@@ -23,8 +26,10 @@ dev = [
     "pytest",
     "pytest-cov",
     "ruff",
+    "setuptools>=83",
     "types-PyYAML",
 ]
+action = ["setuptools>=83", "wheel"]
 # `make regen` retrains the pre-flight ladder to prove the published negative
 # result still holds; that needs scikit-learn but none of the LoRA stack.
 bench = ["scikit-learn>=1.5"]
@@ -54,11 +59,14 @@ sidq = "sidq.cli:main"
 sidq-mcp = "sidq.mcp_server:main"
 
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=83"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+sidq = ["claims/head.npz", "policy/default_policy.yaml"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

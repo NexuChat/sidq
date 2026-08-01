@@ -9,6 +9,7 @@ import subprocess
 import sys
 from collections.abc import Sequence
 from dataclasses import replace
+from datetime import timedelta
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote
@@ -302,6 +303,16 @@ def _human(verdict: Verdict) -> str:
     return "\n".join([f"Sidq: {verdict.decision}", line, separator, *body])
 
 
+def _nonnegative_int(value: str) -> int:
+    try:
+        parsed = int(value)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError("must be a nonnegative integer") from error
+    if parsed < 0:
+        raise argparse.ArgumentTypeError("must be a nonnegative integer")
+    return parsed
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="sidq")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -363,8 +374,10 @@ def _parser() -> argparse.ArgumentParser:
     )
     claims_parser.add_argument(
         "--source",
-        required=True,
-        help="read-only PostgreSQL connection string for the live source",
+        help=(
+            "read-only PostgreSQL connection string for the live source "
+            "(defaults to CLAIMS_SOURCE)"
+        ),
     )
     reader_mode = claims_parser.add_mutually_exclusive_group()
     reader_mode.add_argument(
@@ -465,6 +478,12 @@ def _parser() -> argparse.ArgumentParser:
     )
     verify_parser.add_argument("urn", help="the dataset URN to read a receipt for")
     verify_parser.add_argument("--policy")
+    verify_parser.add_argument(
+        "--max-age-days",
+        type=_nonnegative_int,
+        default=7,
+        help="maximum receipt age in days (default: 7)",
+    )
     verify_parser.add_argument("--json", action="store_true", dest="as_json")
     repair_parser = commands.add_parser(
         "repair",
@@ -565,6 +584,14 @@ def _claims(arguments: Any) -> int:
     """
     import json
 
+    source = arguments.source or os.environ.get("CLAIMS_SOURCE")
+    if not source or not source.strip():
+        print(
+            "sidq: claims requires --source or the CLAIMS_SOURCE environment variable",
+            file=sys.stderr,
+        )
+        return 2
+
     from sidq.claims.attest import DocumentationAttester, datasets_from, render
     from sidq.claims.verify import ClaimVerifier
     from sidq.graph.live_source import PostgresLiveSourceClient
@@ -616,7 +643,7 @@ def _claims(arguments: Any) -> int:
         # Read-only by construction: every compiled claim is a SELECT, and the
         # session is set read-only as well so a mistake in compilation cannot
         # become a write against someone's warehouse.
-        connection = psycopg.connect(arguments.source)
+        connection = psycopg.connect(source)
         connection.read_only = True
         return connection
 
@@ -702,6 +729,7 @@ def _audit(arguments: Any) -> int:
 
     result = CatalogAuditor(snapshot, budget=arguments.budget, prior=prior).run()
     lines = list(render(result, catalog=arguments.server))
+    outcomes: list[Any] = []
 
     if arguments.write_receipts:
         # Opt-in, because this mutates a catalog the operator may not own. The
@@ -722,7 +750,8 @@ def _audit(arguments: Any) -> int:
         sys.stdout.buffer.write(canonical_json(result.summary()) + b"\n")
     else:
         print("\n".join(lines))
-    return 1 if result.findings else 0
+    write_failed = any(not item.written for item in outcomes)
+    return 1 if result.findings or write_failed else 0
 
 
 def _repair(arguments: Any) -> int:
@@ -739,8 +768,30 @@ def _repair(arguments: Any) -> int:
     result = CatalogAuditor(snapshot, budget=arguments.budget).run()
     plan = prove(snapshot, propose_all(result.findings, snapshot))
     lines = render_plan(plan, dry_run=not arguments.apply)
+    outcomes: list[Any] = []
 
-    remaining = unfixed(result.findings, plan)
+    if arguments.apply:
+        caller = StdioMCPReceiptToolCaller()
+        try:
+            outcomes = apply_repairs(plan, caller, dry_run=False)
+        finally:
+            close = getattr(caller, "close", None)
+            if callable(close):
+                close()
+
+    remaining = list(unfixed(result.findings, plan))
+    failed_repairs = {
+        (item.proposal.finding_kind, item.proposal.subject)
+        for item in outcomes
+        if not item.applied
+    }
+    remaining_keys = {(item.kind, item.subject) for item in remaining}
+    remaining.extend(
+        item
+        for item in result.findings
+        if (item.kind, item.subject) in failed_repairs
+        and (item.kind, item.subject) not in remaining_keys
+    )
     if remaining:
         # Named, not counted away. The repairable checks are the minority, and a
         # report that showed only what it could fix would read as if the rest were
@@ -755,20 +806,32 @@ def _repair(arguments: Any) -> int:
                 lines.append(f"    no mechanical repair: {reason}")
 
     if arguments.apply:
-        caller = StdioMCPReceiptToolCaller()
-        try:
-            outcomes = apply_repairs(plan, caller, dry_run=False)
-        finally:
-            close = getattr(caller, "close", None)
-            if callable(close):
-                close()
         lines.extend(("", *render_applied(outcomes)))
 
     if arguments.as_json:
-        sys.stdout.buffer.write(canonical_json(plan.summary()) + b"\n")
+        output = plan.summary()
+        if arguments.apply:
+            written = sum(1 for item in outcomes if item.applied)
+            output = {
+                **output,
+                "remaining": {
+                    "count": len(remaining),
+                    "kinds": {
+                        kind: sum(1 for item in remaining if item.kind == kind)
+                        for kind in sorted({item.kind for item in remaining})
+                    },
+                },
+                "writes": {
+                    "attempted": len(outcomes),
+                    "failed": len(outcomes) - written,
+                    "written": written,
+                },
+            }
+        sys.stdout.buffer.write(canonical_json(output) + b"\n")
     else:
         print("\n".join(lines))
-    return 1 if remaining else 0
+    write_failed = any(not item.applied for item in outcomes)
+    return 1 if remaining or write_failed else 0
 
 
 def replace_budget(arguments: Any, budget: int) -> Any:
@@ -816,7 +879,7 @@ def _swarm(arguments: Any) -> int:
         sys.stdout.buffer.write(canonical_json(result.summary()) + b"\n")
     else:
         print("\n".join(render_worker(result)))
-    return 1 if result.findings else 0
+    return 1 if result.findings or result.write_failures else 0
 
 
 def _swarm_ledger(arguments: Any) -> int:
@@ -868,7 +931,10 @@ def _verify(arguments: Any) -> int:
             PolicyEngine(arguments.policy).decide((), commit_sha="").policy_hash
         )
         status = get_verification_status(
-            arguments.urn, caller, current_policy_hash=policy_hash
+            arguments.urn,
+            caller,
+            current_policy_hash=policy_hash,
+            max_age=timedelta(days=arguments.max_age_days),
         )
     except Exception as error:  # noqa: BLE001 - MCP transports raise several types
         print(f"sidq: could not read the receipt: {error}", file=sys.stderr)

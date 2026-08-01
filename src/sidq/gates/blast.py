@@ -5,7 +5,13 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 
 from sidq.gates.base import graph_unavailable
-from sidq.graph.client import DatasetInfo, GraphClient, LineagePath, LineageResult
+from sidq.graph.client import (
+    DatasetInfo,
+    GraphClient,
+    GraphResponseError,
+    LineagePath,
+    LineageResult,
+)
 from sidq.models import Evidence, TouchedAsset
 
 
@@ -23,9 +29,29 @@ class BlastRadiusGate:
             column = _changed_column(asset)
             try:
                 result = graph.get_downstream(asset.urn, self._depth, column=column)
-                # A response which cannot honestly claim column granularity gets a table retry.
+                if not result.complete:
+                    raise GraphResponseError("lineage response is incomplete")
                 if column is not None and result.granularity != "column":
-                    result = graph.get_downstream(asset.urn, self._depth, column=None)
+                    raise GraphResponseError(
+                        "column change requires column-level lineage"
+                    )
+                if column is not None and result.urns:
+                    columns = (
+                        result.columns if isinstance(result.columns, Mapping) else {}
+                    )
+                    if set(columns) != set(result.urns) or any(
+                        not isinstance(target_fields, Sequence)
+                        or isinstance(target_fields, (str, bytes))
+                        or not target_fields
+                        or any(
+                            not isinstance(target_field, str) or not target_field
+                            for target_field in target_fields
+                        )
+                        for target_fields in columns.values()
+                    ):
+                        raise GraphResponseError(
+                            "column lineage did not map every downstream target"
+                        )
                 result = _with_bi_consumers(graph, result)
                 paths = _paths(graph, asset.urn, result, column)
                 details = _details(graph, asset.urn, result, paths, self._depth)
@@ -65,6 +91,8 @@ def _with_bi_consumers(graph: GraphClient, result: LineageResult) -> LineageResu
         if "looker" not in urn or ".explore." not in urn:
             continue
         consumers = graph.get_downstream(urn, 2)
+        if not consumers.complete:
+            raise GraphResponseError("BI consumer lineage response is incomplete")
         extra_urns.extend(consumers.urns)
         consumer_types = (
             consumers.entity_types
@@ -91,6 +119,9 @@ def _with_bi_consumers(graph: GraphClient, result: LineageResult) -> LineageResu
             **extra_tags,
         },
         granularity=result.granularity,
+        total=result.total,
+        returned=result.returned,
+        complete=result.complete,
     )
 
 

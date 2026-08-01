@@ -227,6 +227,8 @@ class _Supplied:
 
 def unfixed(findings: Sequence[Evidence], plan: RepairPlan) -> list[Evidence]:
     """Findings still standing after the plan — the honest remainder."""
+    if not plan.jointly_verified:
+        return list(findings)
     repaired = {
         (outcome.proposal.finding_kind, outcome.proposal.subject)
         for outcome in plan.proven

@@ -12,6 +12,7 @@ without any network is that the prose and the committed artifact still agree.
 
 from __future__ import annotations
 
+import gzip
 import json
 import re
 import subprocess
@@ -34,14 +35,14 @@ ROOT = Path(__file__).parents[1]
 # passing them would have been the more convenient lie, and `make check` — which
 # the README hands to a judge — would have reported four green results for
 # assertions nothing verified.
-_CORPUS = ROOT / "data" / "benchmark" / "labelled.jsonl"
-needs_corpus = pytest.mark.skipif(
-    not _CORPUS.exists(),
-    reason=f"{_CORPUS.relative_to(ROOT)} is not committed; regenerate it with "
-    "scripts/generate_mutations.py + scripts/label_mutations.py to run this guard",
-)
+_CORPUS = ROOT / "data" / "benchmark" / "labelled-regression.jsonl.gz"
 README = ROOT / "README.md"
 TRUTH_REPORT = ROOT / "examples" / "03-catalog-truth-report" / "report.json"
+
+
+def _regression_rows() -> list[dict]:
+    with gzip.open(_CORPUS, mode="rt", encoding="utf-8") as handle:
+        return [json.loads(line) for line in handle if line.strip()]
 
 
 def _summary() -> dict[str, dict[str, int]]:
@@ -114,24 +115,22 @@ def test_the_unverifiable_negative_result_is_still_honest() -> None:
 # ---------------------------------------------------------------------------
 
 
-@needs_corpus
 def test_the_preflight_result_matches_the_corpus_it_reports_on() -> None:
     """A published negative result is still a claim, and must stay true."""
     assert eval_preflight.render(
-        eval_preflight.evaluate(eval_preflight.load())
+        eval_preflight.evaluate(_regression_rows())
     ) == eval_preflight.DOCUMENT.read_text(encoding="utf-8"), (
         "docs/PREFLIGHT-RESULTS.md is stale; rerun scripts/eval_preflight.py"
     )
 
 
-@needs_corpus
 def test_the_corpus_input_contract_has_no_verdict_leak() -> None:
     """§3's leak rule, enforced mechanically rather than by reviewer vigilance.
 
     A feature built from the verdict would score beautifully and be worthless —
     the failure mode §3 calls hardest to notice after the fact.
     """
-    result = eval_preflight.evaluate(eval_preflight.load())
+    result = eval_preflight.evaluate(_regression_rows())
 
     assert result["leaked_keys"] == []
     assert result["unexpected_keys"] == []
@@ -146,7 +145,6 @@ def test_preflight_is_not_advertised_as_shipped_while_it_is_not() -> None:
     assert "not shipped" in results.lower()
 
 
-@needs_corpus
 def test_a_non_model_rung_still_ties_the_best_model() -> None:
     """The published conclusion rests on this, so it is asserted, not narrated.
 
@@ -190,7 +188,6 @@ def test_the_published_deliverable_is_the_cheapest_rung_that_meets_the_bar() -> 
     )
 
 
-@needs_corpus
 def test_the_ladder_was_split_by_model_not_by_row() -> None:
     """§3: a row-wise split measures memorisation and reports a useless number."""
     rungs = eval_preflight.load_rungs()
@@ -361,7 +358,15 @@ def _stub_handler(server, monkeypatch, responses, path: str):
     handler = server.Handler.__new__(server.Handler)
     handler.path = path
     handler.client_address = ("192.0.2.1", 12345)
-    handler.headers = {}
+    handler.headers = {
+        "Host": "sidq.mlki.app",
+        "Origin": "https://sidq.mlki.app",
+        "Sec-Fetch-Site": "same-origin",
+        server.DEMO_REQUEST_HEADER: server.DEMO_REQUEST_HEADER_VALUE,
+        server.CAPABILITY_HEADER: server._issue_capability(
+            None, path.removeprefix("/run/")
+        )[0],
+    }
     monkeypatch.setattr(
         handler, "_json", lambda status, payload: responses.append((status, payload))
     )
@@ -378,6 +383,9 @@ def test_replaying_the_same_command_is_refused_with_a_retry_hint(monkeypatch) ->
 
     handler = _stub_handler(server, monkeypatch, responses, "/run/gate-demo")
     handler.do_POST()
+    handler.headers[server.CAPABILITY_HEADER] = server._issue_capability(
+        None, "gate-demo"
+    )[0]
     handler.do_POST()
     server._last_run_finished.clear()
 
@@ -470,15 +478,16 @@ def test_the_service_unit_enforces_the_runtime_boundary() -> None:
     for directive in (
         "NoNewPrivileges=true",
         "ProtectSystem=strict",
-        "ProtectHome=read-only",
+        "ProtectHome=true",
         "PrivateTmp=true",
         "CapabilityBoundingSet=",
-        "MemoryMax=1G",
+        "MemoryMax=2G",
         "CPUQuota=200%",
     ):
         assert directive in unit
     assert "ExecStart=" in unit and "web/server.py" in unit
-    assert "EnvironmentFile=-/etc/sidq/landing.env" in unit
+    assert "LoadCredential=datahub-reader-token:/etc/sidq/datahub-reader.token" in unit
+    assert "EnvironmentFile=" not in unit
 
 
 def test_the_operations_runbook_covers_probe_release_and_rollback() -> None:
@@ -497,11 +506,22 @@ def test_the_operations_runbook_covers_probe_release_and_rollback() -> None:
 
 def test_the_video_runbook_fits_the_limit_and_leads_with_the_handoff() -> None:
     video = (ROOT / "docs/VIDEO.md").read_text()
+    normalized_video = " ".join(video.lower().split())
 
     assert "Target length: 2:45" in video
-    assert "00:20-00:55" in video and "Agent B" in video
+    assert "write" in video.lower() and "independent read" in video.lower()
+    assert "DataHub" in video and "Agent B" in video
     assert "receipt" in video.lower() and "VERIFIED" in video
     assert "Do not speed up terminal output" in video
+    assert "dynamic" in video.lower()
+    assert "captions" in video.lower()
+    for receipt_context in (
+        "semantic entity",
+        "complete one-hop lineage",
+        "policy",
+        "age",
+    ):
+        assert receipt_context in normalized_video
 
 
 def test_the_browser_qa_record_covers_every_live_journey_and_viewport() -> None:
@@ -513,6 +533,173 @@ def test_the_browser_qa_record_covers_every_live_journey_and_viewport() -> None:
         assert journey in qa
     assert "AccessLint" in qa and "0 violations" in qa
     assert "5/5" in qa and "HTTP 200" in qa
+
+
+def test_pull_request_ci_executes_the_local_action_without_publish_authority() -> None:
+    workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text()
+
+    assert "pull_request:" in workflow
+    assert "contents: read" in workflow
+    assert "uses: ./" in workflow
+    assert "publish-results: false" in workflow
+    assert "persist-credentials: false" in workflow
+    assert "secrets." not in workflow
+
+
+def test_write_capable_demo_action_stays_on_the_trusted_base_checkout() -> None:
+    workflow = (ROOT / ".github" / "workflows" / "sidq-demo.yml").read_text()
+
+    assert "pull_request_target:" in workflow
+    assert "ref: ${{ github.event.pull_request.base.sha }}" in workflow
+    assert "persist-credentials: false" in workflow
+    assert "uses: ./" in workflow
+
+
+def test_dependency_lock_is_consumed_and_has_an_explicit_update_command() -> None:
+    lock = ROOT / "requirements-dev.lock"
+    assert lock.is_file()
+    text = lock.read_text(encoding="utf-8")
+    assert "--hash=sha256:" in text
+    assert "sidq==" not in text
+
+    workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text()
+    makefile = (ROOT / "Makefile").read_text()
+    action = (ROOT / "action.yml").read_text()
+    assert "--require-hashes -r requirements-dev.lock" in workflow
+    assert "--require-hashes -r requirements-dev.lock" in makefile
+    assert "--require-hashes" in action and "requirements-action.lock" in action
+    assert "--no-build-isolation" in action
+    assert '"mcp-server-datahub==0.6.0"' not in action
+    assert "live mode requires datahub-mcp-command" in action
+    assert "lock:" in makefile and "uv lock" in makefile and "uv export" in makefile
+
+
+def test_clean_clone_carries_the_preflight_regression_evidence() -> None:
+    assert _CORPUS.is_file()
+    assert _CORPUS.stat().st_size < 1_000_000
+    assert (ROOT / "data" / "benchmark" / "preflight-rungs.json").is_file()
+    rows = _regression_rows()
+    assert len(rows) == 20_666
+    assert eval_preflight.evaluate(rows)["distinct_labels"] == 3
+
+
+def test_judge_copy_does_not_overstate_reproducibility_or_exclusivity() -> None:
+    readme = README.read_text(encoding="utf-8")
+    landing = (ROOT / "web" / "index.html").read_text(encoding="utf-8")
+
+    assert "the only one asking" not in readme
+    assert (
+        "no network"
+        not in readme.split("## Judge runbook", 1)[1].split("## The questions", 1)[0]
+    )
+    assert "guards on every claim this README makes" not in readme
+    assert "every number this README states is pinned" not in readme
+    assert "carries each verdict back" not in readme
+    assert "every claim" not in landing.lower()
+
+
+def test_submission_copy_does_not_publish_a_stale_video_or_deny_catalog_io() -> None:
+    readme = README.read_text(encoding="utf-8")
+    devpost = (ROOT / "docs" / "DEVPOST.md").read_text(encoding="utf-8")
+
+    assert "The 2:26 film" not in readme
+    assert "youtu.be/5izxVeQ11dY" not in readme
+    assert "**Public video:** <PUBLIC_VIDEO_URL>" in devpost
+    assert "not the input to that loop, nor its output" not in devpost
+
+
+def test_receipt_docs_define_the_fail_closed_semantic_staleness_boundary() -> None:
+    readme = README.read_text(encoding="utf-8")
+    devpost = (ROOT / "docs" / "DEVPOST.md").read_text(encoding="utf-8")
+    receipt_spec = (ROOT / "docs" / "RECEIPT-SPEC.md").read_text(encoding="utf-8")
+
+    assert "pinned by a test in four scripts" not in readme
+    for surface in (readme, devpost, receipt_spec):
+        normalized = " ".join(surface.lower().split())
+        assert "semantic entity metadata" in normalized
+        assert "complete one-hop upstream and downstream lineage" in normalized
+        assert (
+            "sidq's own receipt properties, badges, and evidence documents"
+            in normalized
+        )
+        assert "missing, partial, or error context is stale" in normalized
+        assert "policy-hash mismatch invalidates immediately" in normalized
+        assert "default maximum age is 7 days" in normalized
+
+    for judge_surface in (readme, devpost):
+        normalized = " ".join(judge_surface.lower().split())
+        assert "hosted public handoff alone uses 45 days" in normalized
+        assert "through august 31, 2026" in normalized
+        assert "context or policy change still invalidates immediately" in normalized
+
+
+def test_swarm_docs_match_latest_receipt_observability() -> None:
+    surfaces = (
+        README.read_text(encoding="utf-8"),
+        (ROOT / "docs" / "DEVPOST.md").read_text(encoding="utf-8"),
+    )
+
+    for surface in surfaces:
+        normalized = " ".join(surface.lower().split())
+        for stale_claim in (
+            "receipted before",
+            "receipted after",
+            "duplicate examinations",
+            "ledger counts collisions",
+            "collisions are safe under a deterministic engine and are counted",
+            "reports which worker covered what",
+        ):
+            assert stale_claim not in normalized
+        for honest_boundary in (
+            "at-least-once, never exactly-once",
+            "narrows the race window but cannot remove it",
+            "deterministic duplicate work is safe",
+            "current recognizable non-stale receipts",
+            "current-run receipts",
+            "latest worker attribution",
+            "unreceipted work remains eligible",
+            "cannot count collisions after the fact",
+        ):
+            assert honest_boundary in normalized
+
+
+def test_supported_python_copy_matches_the_single_tested_minor() -> None:
+    project = (ROOT / "pyproject.toml").read_text()
+    surfaces = "\n".join(
+        (ROOT / name).read_text()
+        for name in ("README.md", "docs/DEVPOST.md", "docs/PR-BOT.md")
+    )
+
+    assert 'requires-python = ">=3.12,<3.13"' in project
+    assert "Python 3.12 or newer" not in surfaces
+
+
+def test_devpost_has_submission_fields_and_no_committed_demo_password() -> None:
+    text = (ROOT / "docs" / "DEVPOST.md").read_text()
+
+    for required in (
+        "Testing instructions",
+        "Reader",
+        "<READER_USERNAME>",
+        "<READER_PASSWORD>",
+        "visible to judges",
+        "AI coding assistants",
+        "pre-existing",
+        "feedback",
+        "Public video",
+        "Repository",
+        "Live project",
+    ):
+        assert required in text
+    assert "password `datahub`" not in text
+    assert "username `datahub`" not in text
+
+
+def test_committed_judge_docs_do_not_contain_default_reader_credentials() -> None:
+    for path in (ROOT / "README.md", ROOT / "docs" / "DEVPOST.md"):
+        lowered = path.read_text().lower()
+        assert "username `datahub`" not in lowered
+        assert "password `datahub`" not in lowered
 
 
 def test_the_upstream_skill_contribution_is_linked_on_judge_surfaces() -> None:

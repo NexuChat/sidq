@@ -111,6 +111,16 @@ def test_a_clean_catalog_produces_no_findings_and_says_so() -> None:
     assert len(result.verified) == 3
 
 
+def test_a_partial_catalog_cannot_mint_verified_clean_or_pass_receipts() -> None:
+    entity = _dataset("partial", owners=("urn:li:corpuser:a",))
+
+    result = CatalogAuditor(CatalogSnapshot((entity,), entities_complete=False)).run()
+
+    assert result.verified == []
+    assert result.unestablished == [entity.urn]
+    assert receipts_for(result) == []
+
+
 def test_the_agent_never_decides_truth_itself() -> None:
     """Every finding must come from the deterministic gate it delegates to.
 
@@ -225,7 +235,19 @@ def test_one_failed_write_does_not_discard_the_rest() -> None:
 
     def flaky(name: str, arguments: dict) -> dict:
         seen.append(name)
-        if len(seen) == 1:
+        if name == "get_entities":
+            return {"entities": [{"urn": arguments["urns"][0]}]}
+        if name == "get_lineage":
+            direction = "upstreams" if arguments["upstream"] else "downstreams"
+            return {
+                direction: {
+                    "total": 0,
+                    "returned": 0,
+                    "hasMore": False,
+                    "searchResults": [],
+                }
+            }
+        if name == "save_document" and seen.count("save_document") == 1:
             raise RuntimeError("transport reset")
         return {"urn": "urn:li:document:x"}
 

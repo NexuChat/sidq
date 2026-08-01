@@ -17,7 +17,8 @@ _OPERATORS = frozenset(
     {"eq", "ne", "gt", "gte", "lt", "lte", "in", "contains", "empty", "not_empty"}
 )
 _VALUELESS_OPERATORS = frozenset({"empty", "not_empty"})
-_SEVERITIES = frozenset({"block", "warn"})
+_SEVERITIES = frozenset({"block", "warn", "info"})
+_UNHANDLED_EVIDENCE_ACTIONS = frozenset({"block", "info"})
 
 
 class PolicyConfigError(ValueError):
@@ -35,7 +36,7 @@ class Condition:
 class Rule:
     id: str
     evidence_kind: str
-    severity: Literal["block", "warn"]
+    severity: Literal["block", "warn", "info"]
     reason_code: str | None
     message: str
     where: tuple[Condition, ...]
@@ -47,6 +48,7 @@ class Policy:
     settings: Mapping[str, Any]
     rules: tuple[Rule, ...]
     policy_hash: str
+    unhandled_evidence: Literal["block", "info"]
 
 
 class _DetailView(dict[str, Any]):
@@ -137,8 +139,11 @@ def load_policy(path: str | Path | None = None) -> Policy:
     document = _require_mapping(document, "policy")
     if document.get("version") != 1:
         raise PolicyConfigError("policy.version must be 1")
-    if set(document) - {"version", "settings", "rules"}:
+    if set(document) - {"version", "settings", "rules", "unhandled_evidence"}:
         raise PolicyConfigError("policy has unsupported top-level keys")
+    unhandled_evidence = document.get("unhandled_evidence", "info")
+    if unhandled_evidence not in _UNHANDLED_EVIDENCE_ACTIONS:
+        raise PolicyConfigError("policy.unhandled_evidence must be block or info")
     settings = _require_mapping(document.get("settings", {}), "policy.settings")
     rules_raw = document.get("rules")
     if not isinstance(rules_raw, list):
@@ -164,7 +169,7 @@ def load_policy(path: str | Path | None = None) -> Policy:
             )
         severity = rule.get("severity")
         if severity not in _SEVERITIES:
-            raise PolicyConfigError(f"{location}.severity must be block or warn")
+            raise PolicyConfigError(f"{location}.severity must be block, warn, or info")
         reason_code = rule.get("reason_code")
         if reason_code is not None and not isinstance(reason_code, str):
             raise PolicyConfigError(f"{location}.reason_code must be a string")
@@ -197,6 +202,7 @@ def load_policy(path: str | Path | None = None) -> Policy:
         settings=dict(settings),
         rules=tuple(rules),
         policy_hash=hashlib.sha256(raw_bytes).hexdigest(),
+        unhandled_evidence=unhandled_evidence,
     )
 
 
@@ -216,30 +222,29 @@ def _field_value(evidence: Evidence, field: str) -> Any:
 def _matches_condition(evidence: Evidence, condition: Condition) -> bool:
     left = _field_value(evidence, condition.field)
     right = condition.value
-    try:
-        match condition.op:
-            case "eq":
-                return left == right
-            case "ne":
-                return left != right
-            case "gt":
-                return left > right
-            case "gte":
-                return left >= right
-            case "lt":
-                return left < right
-            case "lte":
-                return left <= right
-            case "in":
-                return left in right
-            case "contains":
-                return right in left
-            case "empty":
-                return left is None or len(left) == 0
-            case "not_empty":
-                return left is not None and len(left) > 0
-    except (TypeError, KeyError):
+    if left is None and condition.op not in _VALUELESS_OPERATORS:
         return False
+    match condition.op:
+        case "eq":
+            return left == right
+        case "ne":
+            return left != right
+        case "gt":
+            return left > right
+        case "gte":
+            return left >= right
+        case "lt":
+            return left < right
+        case "lte":
+            return left <= right
+        case "in":
+            return left in right
+        case "contains":
+            return right in left
+        case "empty":
+            return left is None or len(left) == 0
+        case "not_empty":
+            return left is not None and len(left) > 0
     raise AssertionError(f"validated operator was not implemented: {condition.op}")
 
 
@@ -285,10 +290,27 @@ class PolicyEngine:
         reason_code: str | None = None
         has_block = False
         has_warn = False
+        configured_kinds = {rule.evidence_kind for rule in self.policy.rules}
         for evidence_index, item in enumerate(evidence):
             found_match = False
             for rule_index, rule in enumerate(self.policy.rules):
-                if not _matches_rule(item, rule):
+                try:
+                    matches = _matches_rule(item, rule)
+                except (KeyError, TypeError):
+                    findings.append(
+                        Finding(
+                            "policy_evaluation_failed",
+                            "block",
+                            f"Policy could not safely evaluate evidence kind {item.kind}.",
+                            (item,),
+                        )
+                    )
+                    has_block = True
+                    if reason_code is None:
+                        reason_code = "UNVERIFIABLE_CHANGE"
+                    found_match = True
+                    break
+                if not matches:
                     continue
                 found_match = True
                 matched_rule_ids.add((evidence_index, rule_index))
@@ -299,17 +321,39 @@ class PolicyEngine:
                     has_block = True
                     if reason_code is None and rule.reason_code is not None:
                         reason_code = rule.reason_code
-                else:
+                elif rule.severity == "warn":
                     has_warn = True
             if not found_match:
-                findings.append(
-                    Finding(
-                        "informational",
-                        "info",
-                        f"No policy rule matched evidence kind {item.kind}.",
-                        (item,),
+                if item.kind in configured_kinds:
+                    findings.append(
+                        Finding(
+                            "informational",
+                            "info",
+                            f"No policy condition matched evidence kind {item.kind}.",
+                            (item,),
+                        )
                     )
-                )
+                elif self.policy.unhandled_evidence == "block":
+                    findings.append(
+                        Finding(
+                            "unhandled_evidence",
+                            "block",
+                            f"No policy rule handles evidence kind {item.kind}.",
+                            (item,),
+                        )
+                    )
+                    has_block = True
+                    if reason_code is None:
+                        reason_code = "UNVERIFIABLE_CHANGE"
+                else:
+                    findings.append(
+                        Finding(
+                            "informational",
+                            "info",
+                            f"No policy rule handles evidence kind {item.kind}.",
+                            (item,),
+                        )
+                    )
         decision = "BLOCK" if has_block else "WARN" if has_warn else "PASS"
         return Verdict(
             decision=decision,

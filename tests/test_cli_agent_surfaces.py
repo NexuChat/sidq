@@ -79,7 +79,12 @@ def _wire_claims(monkeypatch, *, decision: str = "WARN") -> dict[str, Any]:
     monkeypatch.setattr(cli, "StdioMCPToolCaller", lambda: object())
     monkeypatch.setattr(cli, "MCPGraphClient", lambda _: graph)
     monkeypatch.setattr(attest, "datasets_from", lambda source, urns: [object()])
-    monkeypatch.setattr(psycopg, "connect", lambda dsn: connection)
+
+    def connect(dsn: str) -> _Connection:
+        state["dsn"] = dsn
+        return connection
+
+    monkeypatch.setattr(psycopg, "connect", connect)
 
     class _LiveSource:
         def __init__(self, connect) -> None:
@@ -254,6 +259,32 @@ def test_claims_refuses_an_empty_catalog_read(monkeypatch, capsys) -> None:
     assert "none of the named datasets" in capsys.readouterr().err
 
 
+def test_claims_reads_source_from_environment_when_option_is_absent(
+    monkeypatch, capsys
+) -> None:
+    state = _wire_claims(monkeypatch, decision="PASS")
+    monkeypatch.setenv("CLAIMS_SOURCE", "postgresql://environment-secret")
+
+    assert cli.main(["claims", URN, "--json"]) == 0
+
+    assert state["dsn"] == "postgresql://environment-secret"
+    assert state["connection"].read_only is True
+    assert "environment-secret" not in capsys.readouterr().err
+
+
+def test_claims_fails_closed_without_a_source_and_does_not_echo_secrets(
+    monkeypatch, capsys
+) -> None:
+    monkeypatch.delenv("CLAIMS_SOURCE", raising=False)
+
+    assert cli.main(["claims", URN]) == 2
+
+    captured = capsys.readouterr()
+    assert "--source" in captured.err
+    assert "CLAIMS_SOURCE" in captured.err
+    assert URN not in captured.err
+
+
 def test_claims_reader_modes_are_mutually_exclusive() -> None:
     with pytest.raises(SystemExit):
         cli._parser().parse_args(
@@ -283,6 +314,7 @@ def _arguments(**overrides: Any) -> SimpleNamespace:
         "swarm_run": "run-1",
         "lineage_budget": None,
         "urn": URN,
+        "max_age_days": 7,
     }
     values.update(overrides)
     return SimpleNamespace(**values)
@@ -357,7 +389,11 @@ def test_audit_resumes_writes_receipts_and_names_unreached_failures(
     monkeypatch.setattr(cli, "CatalogAuditor", _Auditor)
     monkeypatch.setattr(cli, "render", lambda run, *, catalog: [f"audit {catalog}"])
     monkeypatch.setattr(cli, "receipts_for", lambda run, *, commit_sha: ["receipt"])
-    monkeypatch.setattr(cli, "write_receipts", lambda receipts, transport: ["written"])
+    monkeypatch.setattr(
+        cli,
+        "write_receipts",
+        lambda receipts, transport: [SimpleNamespace(written=True)],
+    )
     monkeypatch.setattr(cli, "render_writeback", lambda outcomes: ["receipt written"])
     monkeypatch.setattr(cli, "commit_sha_for_ref", lambda ref: "b" * 40)
 
@@ -369,6 +405,46 @@ def test_audit_resumes_writes_receipts_and_names_unreached_failures(
     assert "audit http://datahub" in captured.out
     assert "receipt written" in captured.out
     assert len(callers) == 2 and all(item.closed for item in callers)
+
+
+def test_audit_write_failure_exits_nonzero_without_clean_success(
+    monkeypatch, capsys
+) -> None:
+    result = SimpleNamespace(
+        findings=(),
+        summary=lambda: {"examined": 1, "findings": 0},
+    )
+    transport = _Closable()
+    failed = SimpleNamespace(written=False, detail="PermissionError")
+
+    class _Auditor:
+        def __init__(self, snapshot, *, budget, prior) -> None:
+            pass
+
+        def run(self):
+            return result
+
+    monkeypatch.setattr(cli, "_read_snapshot", lambda arguments: object())
+    monkeypatch.setattr(cli, "CatalogAuditor", _Auditor)
+    monkeypatch.setattr(cli, "render", lambda run, *, catalog: ["audit clean"])
+    monkeypatch.setattr(cli, "StdioMCPReceiptToolCaller", lambda: transport)
+    monkeypatch.setattr(cli, "receipts_for", lambda run, *, commit_sha: ["receipt"])
+    monkeypatch.setattr(cli, "write_receipts", lambda receipts, caller: [failed])
+    monkeypatch.setattr(
+        cli,
+        "render_writeback",
+        lambda outcomes: ["receipts written  0 of 1", "write failures    1"],
+    )
+    monkeypatch.setattr(cli, "commit_sha_for_ref", lambda ref: "b" * 40)
+
+    code = cli._audit(_arguments(write_receipts=True))
+
+    output = capsys.readouterr().out
+    assert code == 1
+    assert "receipts written  0 of 1" in output
+    assert "write failures    1" in output
+    assert "receipts written  1 of 1" not in output
+    assert transport.closed
 
 
 def test_audit_json_is_the_canonical_summary(monkeypatch, capsysbinary) -> None:
@@ -418,7 +494,9 @@ def test_repair_names_what_remains_and_applies_only_the_proven_plan(
     monkeypatch.setattr(
         cli,
         "apply_repairs",
-        lambda supplied, caller, *, dry_run: ["applied"] if not dry_run else [],
+        lambda supplied, caller, *, dry_run: (
+            [SimpleNamespace(applied=True)] if not dry_run else []
+        ),
     )
     monkeypatch.setattr(cli, "render_applied", lambda outcomes: ["applied once"])
 
@@ -457,12 +535,65 @@ def test_repair_json_returns_zero_when_every_finding_is_closed(
 
 
 @pytest.mark.parametrize("as_json", (False, True))
+def test_repair_write_failure_is_truthful_and_exits_nonzero(
+    monkeypatch, capsysbinary, as_json: bool
+) -> None:
+    plan = SimpleNamespace(summary=lambda: {"proven": 1, "rejected": 0})
+    finding = Evidence("pii_leak_untagged", URN, {})
+    proposal = SimpleNamespace(finding_kind=finding.kind, subject=finding.subject)
+    result = SimpleNamespace(findings=(finding,))
+    failed = SimpleNamespace(applied=False, detail="PermissionError", proposal=proposal)
+
+    class _Auditor:
+        def __init__(self, snapshot, *, budget) -> None:
+            pass
+
+        def run(self):
+            return result
+
+    monkeypatch.setattr(cli, "_read_snapshot", lambda arguments: object())
+    monkeypatch.setattr(cli, "CatalogAuditor", _Auditor)
+    monkeypatch.setattr(cli, "propose_all", lambda findings, snapshot: [])
+    monkeypatch.setattr(cli, "prove", lambda snapshot, proposals: plan)
+    monkeypatch.setattr(cli, "render_plan", lambda supplied, *, dry_run: ["plan"])
+    monkeypatch.setattr(cli, "unfixed", lambda findings, supplied: ())
+    monkeypatch.setattr(cli, "StdioMCPReceiptToolCaller", _Closable)
+    monkeypatch.setattr(
+        cli,
+        "apply_repairs",
+        lambda supplied, caller, *, dry_run: [failed],
+    )
+    monkeypatch.setattr(
+        cli,
+        "render_applied",
+        lambda outcomes: ["repairs written   0 of 1", "PermissionError"],
+    )
+
+    assert cli._repair(_arguments(apply=True, as_json=as_json)) == 1
+    output = capsysbinary.readouterr().out
+    if as_json:
+        assert json.loads(output) == {
+            "proven": 1,
+            "rejected": 0,
+            "remaining": {"count": 1, "kinds": {"pii_leak_untagged": 1}},
+            "writes": {"attempted": 1, "failed": 1, "written": 0},
+        }
+    else:
+        assert b"Still standing, unrepaired: 1" in output
+        assert b"pii_leak_untagged" in output
+        assert b"repairs written   0 of 1" in output
+        assert b"PermissionError" in output
+
+
+@pytest.mark.parametrize("as_json", (False, True))
 def test_swarm_worker_closes_transport_and_reports_findings(
     monkeypatch, capsysbinary, as_json: bool
 ) -> None:
     finding = Evidence("unowned_consumed", URN, {})
     result = SimpleNamespace(
-        findings=(finding,), summary=lambda: {"worker": "alpha", "findings": 1}
+        findings=(finding,),
+        write_failures=(),
+        summary=lambda: {"worker": "alpha", "findings": 1},
     )
     transport = _Closable()
     seen: dict[str, Any] = {}
@@ -492,6 +623,44 @@ def test_swarm_worker_closes_transport_and_reports_findings(
         }
     else:
         assert b"worker alpha" in capsysbinary.readouterr().out
+
+
+@pytest.mark.parametrize("as_json", (False, True))
+def test_swarm_write_failures_are_rendered_and_exit_nonzero_without_findings(
+    monkeypatch, capsysbinary, as_json: bool
+) -> None:
+    transport = _Closable()
+    result = SimpleNamespace(
+        findings=(),
+        write_failures=[(URN, "PermissionError")],
+        summary=lambda: {
+            "worker_id": "alpha",
+            "findings": 0,
+            "write_failures": 1,
+        },
+    )
+    monkeypatch.setattr(cli, "_read_snapshot", lambda arguments: object())
+    monkeypatch.setattr(cli, "StdioMCPReceiptToolCaller", lambda: transport)
+    monkeypatch.setattr(cli, "commit_sha_for_ref", lambda ref: "a" * 40)
+    monkeypatch.setattr(
+        cli,
+        "SwarmWorker",
+        lambda *args, **kwargs: SimpleNamespace(run=lambda: result),
+    )
+    monkeypatch.setattr(
+        cli,
+        "render_worker",
+        lambda run: ["findings          0", "write failures    1"],
+    )
+
+    assert cli._swarm(_arguments(as_json=as_json)) == 1
+    output = capsysbinary.readouterr().out
+    if as_json:
+        assert json.loads(output)["write_failures"] == 1
+    else:
+        assert b"findings          0" in output
+        assert b"write failures    1" in output
+    assert transport.closed
 
 
 def test_swarm_ledger_is_read_from_datahub_and_transport_errors_fail_closed(

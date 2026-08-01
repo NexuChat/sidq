@@ -34,26 +34,30 @@ cd sidq
 python3 -m venv .venv
 .venv/bin/python -m pip install --upgrade \
   pip==26.1.2 \
-  setuptools==81.0.0
+  setuptools==83.0.0
 .venv/bin/python -m pip install \
-  --editable '.[dev,bench]' \
-  acryl-datahub==1.6.0.16
+  --editable '.[dev,bench]'
 
 # The MCP server is deliberately NOT installed into this venv. Sidq's client
 # needs mcp>=2, while mcp-server-datahub's fastmcp still imports mcp 1.x
 # internals — a same-venv install crashes on startup (verified 2026-07-30:
 # `ImportError: cannot import name 'request_ctx'`). The server gets its own
 # isolated environment instead, and Sidq resolves it from PATH:
-uv tool install mcp-server-datahub==0.6.0   # or: pipx install mcp-server-datahub==0.6.0
+uv tool install --with acryl-datahub==1.6.0.16 \
+  --with-executables-from acryl-datahub mcp-server-datahub==0.6.0
 
 .venv/bin/python -m pip list --format=freeze |
-  grep -E '^(acryl-datahub|mcp|pytest|ruff|sqlglot|PyYAML)=='
+  grep -E '^(mcp|pytest|ruff|sqlglot|PyYAML)=='
 ```
+
+That tool environment, unlike the project venv, necessarily resolves
+`setuptools==81.0.0` because the DataHub SDK requires `setuptools<82`. The
+remaining `PYSEC-2026-3447` risk and its exact sdist-only non-applicability are
+documented in `SECURITY.md`; the finding is not ignored.
 
 Observed version output:
 
 ```text
-acryl-datahub==1.6.0.16
 mcp==2.0.0
 pytest==9.1.1
 PyYAML==6.0.3
@@ -68,12 +72,12 @@ freeze — see the note above for why the separation is load-bearing.
 
 ```bash
 DATAHUB_TELEMETRY_ENABLED=false \
-  .venv/bin/datahub docker quickstart --version v1.5.0.6
+  datahub docker quickstart --version v1.5.0.6
 
 curl --fail --silent --show-error http://localhost:8080/health
 curl --fail --silent --show-error --output /dev/null http://localhost:9002
 
-.venv/bin/datahub init \
+datahub init \
   --host http://localhost:8080 \
   --username datahub \
   --password datahub \
@@ -106,13 +110,13 @@ Load the experimental datapack once:
 
 ```bash
 DATAHUB_TELEMETRY_ENABLED=false \
-  .venv/bin/datahub datapack load showcase-ecommerce
+  datahub datapack load showcase-ecommerce
 ```
 
 Do not substitute the classic `datahub docker ingest-sample-data` command: the
 demo needs the showcase pack's cross-platform lineage.
 
-The installed `acryl-datahub==1.6.0.16` wheel is missing
+The isolated tool's `acryl-datahub==1.6.0.16` wheel is missing
 `datahub/cli/datapack/resources/DATAPACK_AGENT_CONTEXT.md`, so the group-level
 `datahub datapack --help` fails. The actual
 `datahub datapack load showcase-ecommerce` command is valid (and
@@ -265,8 +269,11 @@ make check          # ruff lint, ruff format, mypy, pytest — what CI runs
 
 Some files in this repository are generated, not written: the flagship verdict in
 `examples/01-blocked-pii-dashboard/`, the PR comment rendered beside it, and
-`docs/RECONCILE-COVERAGE.md`. `make check` fails when a committed copy no longer
-matches what the engine produces.
+`docs/RECONCILE-COVERAGE.md`, `data/benchmark/preflight-rungs.json`, and
+`docs/PREFLIGHT-RESULTS.md`. `make check` fails when a committed copy no longer
+matches what the engine produces. The pre-flight scripts use their own
+hash-locked `requirements-bench.lock` and `.venv-bench`; scikit-learn is not
+installed into the CI/dev, action, or landing environments.
 
 Editing `src/sidq/policy/default_policy.yaml` is the usual trigger, because it
 changes the policy hash that every published artifact quotes. The fix is:
@@ -276,8 +283,10 @@ make regen          # rewrite the generated artifacts from the engine
 make regen-check    # verify the committed copies are current, changing nothing
 ```
 
-Both run fully offline against the committed graph replay snapshot in
-`tests/fixtures/graph/`, so neither needs DataHub or PostgreSQL running.
+Generation reads only committed inputs and needs neither DataHub nor PostgreSQL.
+On first use, Make may download the hash-locked dev and benchmark Python packages;
+after those environments exist, the regeneration itself runs offline against the
+committed graph replay snapshot in `tests/fixtures/graph/`.
 
 **Do not hand-edit a generated artifact back into agreement.** That is how the
 published `policy_hash` drifted out of step with the shipped policy once already,

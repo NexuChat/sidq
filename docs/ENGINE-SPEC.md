@@ -64,7 +64,7 @@ class Evidence:
 @dataclass(frozen=True, slots=True)
 class Finding:
     rule_id: str
-    severity: str                         # "block" | "warn"
+    severity: str                         # "block" | "warn" | "info"
     message: str                          # rendered from the rule template
     evidence: tuple[Evidence, ...]
 
@@ -136,6 +136,7 @@ Several signatures we had guessed were wrong and are now corrected: `search` rej
 
 ```yaml
 version: 1
+unhandled_evidence: block
 settings:
   wide_blast_radius_threshold: 5
 rules:
@@ -164,12 +165,19 @@ rules:
 ```
 
 Supported ops only: `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `in`, `contains`, `empty`, `not_empty`.
-Unknown op or unknown field ⇒ hard config error at load time, not at decision time.
+`where` requires every condition; `where_any` requires at least one. Unknown op,
+unknown field, or unknown `$settings.*` reference ⇒ hard config error at load
+time. A runtime operand type that cannot be compared is
+`policy_evaluation_failed` and blocks rather than bypassing the rule.
 
 Resolution: any `block` ⇒ `BLOCK`; else any `warn` ⇒ `WARN`; else `PASS`.
-`reason_code` comes from the highest-severity rule that declares one.
-Evidence with **no matching rule** is retained in the verdict as informational — visible,
-never silently dropped.
+An `info` rule records an explicit observation without changing a passing
+decision. The first matching block rule that declares a `reason_code` supplies
+it. Evidence whose kind has rules but whose conditions do not match is retained
+as informational. Evidence whose kind has no rule follows `unhandled_evidence`:
+the shipped policy sets it to `block`, so a newly emitted kind cannot silently
+downgrade to PASS. Version-1 custom policies that omit the setting retain the
+legacy `info` behavior; they can opt into the fail-closed contract explicitly.
 
 ## 6. CLI (`cli.py`) — wave 1 exit criterion
 

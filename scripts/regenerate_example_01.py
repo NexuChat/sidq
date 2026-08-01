@@ -52,7 +52,7 @@ COMMENT = EXAMPLE / "pr-comment.md"
 # Every file that quotes the reproduction command. They are prose, so the hash is
 # substituted in place rather than regenerated, but they are covered by a test
 # that fails when any of them disagrees with the verdict.
-HASH_CITING = ("README.md", "docs/PR-BOT.md")
+HASH_CITING = ("README.md", "docs/PR-BOT.md", "skills/datahub-verify/SKILL.md")
 
 # The example's own history, kept explicit so the reconstruction cannot drift
 # into a different scenario than the one that was published.
@@ -153,9 +153,7 @@ def comment() -> str:
     ordered = []
     for target in canonical:
         match = next(
-            finding
-            for finding in remaining
-            if canonical_data(finding) == target
+            finding for finding in remaining if canonical_data(finding) == target
         )
         remaining.remove(match)
         ordered.append(match)
@@ -194,7 +192,10 @@ def main() -> int:
         stale.extend(
             name
             for name in HASH_CITING
-            if f"policy_hash={new_hash}" not in (ROOT / name).read_text(encoding="utf-8")
+            if f"policy_hash={new_hash}"
+            not in (ROOT / name).read_text(encoding="utf-8")
+            and f'"policy_hash": "{new_hash}"'
+            not in (ROOT / name).read_text(encoding="utf-8")
         )
         if stale:
             print("stale; rerun scripts/regenerate_example_01.py:")
@@ -216,7 +217,11 @@ def main() -> int:
     for name in HASH_CITING:
         path = ROOT / name
         text = path.read_text(encoding="utf-8")
-        updated = re.sub(r"policy_hash=[0-9a-f]{64}", f"policy_hash={new_hash}", text)
+        updated = re.sub(
+            r'(policy_hash(?:=|": "))[0-9a-f]{64}',
+            rf"\g<1>{new_hash}",
+            text,
+        )
         # docs/PR-BOT.md embeds the comment verbatim from the sticky marker on, and
         # `tests/test_bot.py` asserts that. Substituting only the hash left the
         # embedded body stale the moment the comment itself changed.

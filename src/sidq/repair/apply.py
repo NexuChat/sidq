@@ -85,7 +85,7 @@ def render_plan(plan: RepairPlan, *, dry_run: bool = True) -> list[str]:
     lines.append(
         "Nothing was written (add --apply to write)."
         if dry_run
-        else "Written through the official DataHub MCP mutation tools."
+        else "Repairs approved for an MCP write attempt."
     )
     return lines
 

@@ -1,6 +1,10 @@
 # Mutation Benchmark
 
-Labelled mutations: 20666. Labels are the fixture engine's verdicts; generator intent is retained only for comparison.
+Labelled mutations: 20666. Labels are the fixture engine's verdicts; generator
+intent is retained only for comparison. This is a deterministic regression
+consistency corpus, not external or human-labelled accuracy evidence. The compact
+complete guard artifact and its provenance are documented in
+[`data/benchmark/README.md`](../data/benchmark/README.md).
 
 ## Confusion table
 

@@ -1,4 +1,5 @@
 version: 1
+unhandled_evidence: block
 settings:
   wide_blast_radius_threshold: 5
 rules:
@@ -187,19 +188,80 @@ rules:
     severity: warn
     message: >-
       A deprecated catalog asset still feeds a live chart or dashboard: {subject}.
-  # The following deliberately have no policy rule and are retained as info:
-  # - unowned_consumed: catalog health for a non-change-scoped asset.
-  # - lineage_unverifiable: catalog-health lineage observation, not a failure to
-  #   inspect the requested change.
-  # - deprecated_upstream_of_live_unverifiable,
-  #   doc_references_missing_column_unverifiable,
-  #   lineage_field_missing_unverifiable, orphan_lineage_unverifiable,
-  #   pii_leak_untagged_unverifiable, and unowned_consumed_unverifiable: the
-  #   complete-catalog audit could not assess unrelated catalog-health checks.
-  # - doc_claim_holds: affirmative verification evidence, which must not change
-  #   a passing decision.
-  # - constraint_missing_in_catalog and constraint_unparseable: informational
-  #   catalog-health observations. The latter is deliberately an abstention.
+  # Informational evidence is explicit: an unrecognized kind fails closed rather
+  # than silently becoming a passing observation.
+  - id: doc_claim_holds
+    match:
+      evidence_kind: doc_claim_holds
+    severity: info
+    message: >-
+      The live source supports the documentation claim for {subject}.
+  - id: constraint_confirmed
+    match:
+      evidence_kind: constraint_confirmed
+    severity: info
+    message: >-
+      The live source enforces the catalog constraint claim for {subject}.
+  - id: constraint_missing_in_catalog
+    match:
+      evidence_kind: constraint_missing_in_catalog
+    severity: info
+    message: >-
+      The live source enforces a constraint not represented in the catalog for {subject}.
+  - id: constraint_unverifiable
+    match:
+      evidence_kind: constraint_unverifiable
+    severity: info
+    message: >-
+      Constraint equivalence could not be established for {subject}; no contradiction is claimed.
+  - id: lineage_unverifiable
+    match:
+      evidence_kind: lineage_unverifiable
+    severity: info
+    message: >-
+      Catalog-health lineage could not be assessed for {subject}.
+  - id: unowned_consumed
+    match:
+      evidence_kind: unowned_consumed
+    severity: info
+    message: >-
+      A non-change-scoped consumed asset has no owner: {subject}.
+  - id: deprecated_upstream_of_live_unverifiable
+    match:
+      evidence_kind: deprecated_upstream_of_live_unverifiable
+    severity: info
+    message: >-
+      Deprecated-upstream catalog health could not be assessed for {subject}.
+  - id: doc_references_missing_column_unverifiable
+    match:
+      evidence_kind: doc_references_missing_column_unverifiable
+    severity: info
+    message: >-
+      Documentation-reference catalog health could not be assessed for {subject}.
+  - id: lineage_field_missing_unverifiable
+    match:
+      evidence_kind: lineage_field_missing_unverifiable
+    severity: info
+    message: >-
+      Field-lineage catalog health could not be assessed for {subject}.
+  - id: orphan_lineage_unverifiable
+    match:
+      evidence_kind: orphan_lineage_unverifiable
+    severity: info
+    message: >-
+      Orphan-lineage catalog health could not be assessed for {subject}.
+  - id: pii_leak_untagged_unverifiable
+    match:
+      evidence_kind: pii_leak_untagged_unverifiable
+    severity: info
+    message: >-
+      PII-lineage catalog health could not be assessed for {subject}.
+  - id: unowned_consumed_unverifiable
+    match:
+      evidence_kind: unowned_consumed_unverifiable
+    severity: info
+    message: >-
+      Consumed-asset ownership could not be assessed for {subject}.
   #
   # partial_blast_radius is a warn, not a block, and the choice is deliberate.
   # A downstream get_dataset can fail for an ordinary reason — chart and dashboard

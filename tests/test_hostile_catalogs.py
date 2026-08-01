@@ -325,10 +325,11 @@ def test_a_receipt_with_a_future_timestamp_still_expires_by_policy_hash() -> Non
         [urn], lambda n, a: payload, current_policy_hash="sha256:new", now=now
     )
 
-    # A future date alone does not expire it — but a policy change always does.
+    # Neither a future date nor an unchanged policy can replace freshness proof.
     assert under_new[urn].holds is False
     assert "policy hash changed" in under_new[urn].reason
-    assert under_old[urn].holds is True  # documented behaviour, not an accident
+    assert under_old[urn].holds is False
+    assert "no decision context hash" in under_old[urn].reason
 
 
 def test_a_receipt_recording_block_never_vouches_however_fresh() -> None:

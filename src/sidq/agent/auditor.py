@@ -319,6 +319,12 @@ class CatalogAuditor:
         def _concerns_target(item: Evidence) -> bool:
             if item.subject.startswith(target.urn):
                 return True
+            if (
+                item.subject == "catalog"
+                and item.kind.endswith("_unverifiable")
+                and not self._snapshot.entities_complete
+            ):
+                return True
             if item.kind != "orphan_lineage":
                 return False
             # An orphan is real only when the endpoint is missing from the *whole*

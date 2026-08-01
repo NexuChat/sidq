@@ -2,30 +2,38 @@
 
 [![CI](https://github.com/NexuChat/sidq/actions/workflows/ci.yml/badge.svg)](https://github.com/NexuChat/sidq/actions/workflows/ci.yml)
 
-> Everyone is building agents that read the metadata graph and trust it blindly. Sidq is the only one asking whether the graph is lying — and it stops the agent before it builds on the lie.
+> Agents read metadata graphs before they act. Sidq asks whether that context is
+> supported by evidence, and can stop an agent before it builds on a contradiction.
 
-**▶ The 2:26 film:** [youtu.be/5izxVeQ11dY](https://youtu.be/5izxVeQ11dY) — every terminal number in it comes from a real run.
-
-Final recording script: [`docs/VIDEO.md`](docs/VIDEO.md). Public browser,
+**Film plan (2:45):** [`docs/VIDEO.md`](docs/VIDEO.md). The submission video URL
+remains unset until that write → DataHub inspection → independent-read sequence is
+recorded and published. Public browser,
 accessibility, interaction, and deployment evidence: [`docs/QA-RESULTS.md`](docs/QA-RESULTS.md).
+Contributions are welcome under [`CONTRIBUTING.md`](CONTRIBUTING.md) and the
+[`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md).
 
-![How Sidq decides: a change or agent question passes five evidence gates, one policy engine emits PASS, WARN or BLOCK, a receipt is written back into DataHub, and the next audit resumes from those receipts — the catalog is the ledger.](docs/architecture.svg)
+![How Sidq decides: a change or agent question passes five evidence gates, one policy engine emits PASS, WARN or BLOCK, optional writeback records accepted receipts in DataHub, and the next audit can resume from those receipts — the catalog is the ledger.](docs/architecture.svg)
 
 Sidq is a DataHub-native verification layer for agents and data-code changes. It checks whether catalog context is truthful before an agent relies on it, then applies an explicit policy and leaves evidence that the next agent can read.
 
 ## Judge runbook
 
-Four commands, in order of how much they need. The first needs nothing at all.
+Four commands, in order of how much runtime infrastructure they need. Rows 1 and
+2 bootstrap a Python 3.12 environment from the committed hash-locked dependency
+file on first use, so that first run needs package-index access.
 
 | # | Command | Needs | What it proves | Takes |
 |---|---|---|---|---|
-| 1 | `make gate-demo` | nothing — no DataHub, no network, no credentials | The published `BLOCK` verdict is re-derived from the committed graph recording, byte-identical, with the same `policy_hash`. Hand-editing an artifact fails this. | ~2s (the very first run adds about a minute to build `.venv`) |
-| 2 | `make check` | nothing | 599 tests, lint, format, types — everything CI runs, including the guards on every claim this README makes. | ~60s |
+| 1 | `make gate-demo` | Python 3.12; package downloads on first use; no DataHub or credentials | The published `BLOCK` verdict is re-derived from the committed graph recording, byte-identical, with the same `policy_hash`. Hand-editing an artifact fails this. | ~2s after bootstrap |
+| 2 | `make check` | Python 3.12; package downloads on first use | 763 tests, lint, format, types — the same code-quality and regression checks CI runs. | ~60s after bootstrap |
 | 3 | `make live-loop` | a running DataHub ([`docs/SETUP.md`](docs/SETUP.md)) | The whole agent loop over the **official MCP server only**: read → decide → write a receipt → a *separate process* reads it back → an asset carrying no receipt returns `NOT VERIFIED`. | ~60s |
 | 4 | `make repair-demo` | the same DataHub | The repair agent proposes a fix from catalog evidence, re-runs the deterministic engine against the catalog that fix *would* create, and shows what it proved and what it refused. | ~40s |
 
-Nothing above is a recording. If you have no DataHub, run 1 and 2 — they are the
-ones that prove determinism, and they need nothing but a clone and `make`.
+Nothing above is pre-rendered output. If you have no DataHub, run 1 and 2: after
+the locked bootstrap they replay committed evidence locally without connecting
+to a catalog or source. Update the lock intentionally with `make lock`; ordinary
+judge bootstrap consumes it and never derives dependencies from an ambient
+environment.
 
 You can also run row 1, a live catalog audit, and row 4's dry run from the
 hosted page without cloning anything: [sidq.mlki.app](https://sidq.mlki.app) has
@@ -49,10 +57,22 @@ inside the live source, returns counts plus at most ten violating samples, and
 never sends them outside your infrastructure. Query results never enter a model;
 the optional reader sees documentation text only. Self-hosted, Apache-2.0.
 
-**Reliability of results.** Every verdict is deterministic: same input, same policy, byte-identical output, identified by `policy_hash` + `commit_sha`. A CI-enforced suite guards the engine, and every number this README states is pinned by a test of its own. You do not trust the tool; you re-derive its answer (`make gate-demo`) and compare hashes.
+**Reliability of results.** The policy verdict is deterministic for the same
+input evidence and policy, identified by `policy_hash` + `commit_sha`. CI guards
+the engine and pins the headline published counts to committed artifacts; links
+beside the remaining measurements identify their evidence and scope. Re-derive
+the flagship answer with `make gate-demo` and compare hashes.
+
+Receipt staleness covers the current semantic entity metadata plus complete
+one-hop upstream and downstream lineage. Sidq's own receipt properties, badges,
+and evidence documents are excluded so a successful write does not invalidate
+itself. Missing, partial, or error context is stale (fail-closed), and a
+policy-hash mismatch invalidates immediately. The CLI default maximum age is 7
+days. The hosted public handoff alone uses 45 days solely to span judging through
+August 31, 2026; any context or policy change still invalidates immediately.
 
 **Model drift.** No model can block or grant permission. The deterministic gate
-beat the classifier on cost at equal accuracy; for one change, the classifier is
+beat the classifier on cost at equal held-out fixture-regression consistency; for one change, the classifier is
 three orders of magnitude slower, so the rule ships in the blocking path
 (`docs/DECISION-COST.md`, `docs/PREFLIGHT-RESULTS.md`). The optional
 documentation reader exists on the other side of that boundary: it may extend
@@ -61,7 +81,12 @@ read-only SQL. It loads a pinned revision and reports its head fingerprint and
 threshold, so warning coverage cannot drift invisibly. *Policy* drift is explicit:
 changing `policy_hash` invalidates receipts written under the old policy.
 
-**Monitoring.** The receipts are the monitoring surface: `sidq.*` properties are queryable through DataHub search, so "how many assets are verified / stale / blocked / never examined" is one query, and the converging audit's `vouched / NOT examined` counts give you coverage per run. `sidq verify <urn>` is a health check any pipeline can call.
+**Monitoring.** The receipts are the monitoring surface: `sidq.*` properties are
+queryable through DataHub search, and `sidq verify <urn>` is a health check any
+pipeline can call. The current ledger observer proves only current recognizable
+non-stale receipts, the subset carrying this swarm's run id as current-run
+receipts, and each latest receipt's latest worker attribution. DataHub stores the
+latest structured-property values, not an append-only examination history.
 
 **Cost.** Apache-2.0, self-hosted, zero API fees. The gate, audit, repair, and
 swarm paths do not call a model; the optional documentation reader runs locally.
@@ -187,9 +212,10 @@ live run here reports 31 because this DataHub also carries the bundled demo
 project. Same check, different catalog contents. The published figure is the one
 scoped to the sample.
 
-`--write-receipts` carries each verdict back into the catalog as a queryable
-`sidq.*` receipt, so the next agent can read what this one concluded. It is off by
-default: an audit does not mutate a catalog unless you ask it to.
+`--write-receipts` attempts a queryable `sidq.*` receipt for each examined asset.
+Accepted writes can be read by the next agent; rejected writes are reported and
+do not become evidence. Writeback is off by default: an audit does not mutate a
+catalog unless you ask it to.
 
 ### Run against catalogs it was never built for
 
@@ -243,8 +269,7 @@ properties are not vacuous; none has broken an invariant.
 That corpus immediately earned its place. Doc-rot detection matched column
 references with `[a-z][a-z0-9]*_[a-z0-9_]+`, which cannot see an Arabic,
 Japanese, or Cyrillic column name at all: on every non-English catalog the check
-ran, found nothing, and the silence read as health. It is Unicode-aware now, and
-pinned by a test in four scripts.
+ran, found nothing, and the silence read as health. It is Unicode-aware now.
 
 Alongside that, 24 adversarial fixtures hold the engine to the only property
 that matters on a strange catalog — cycles, self-loops, 200-hop chains, 500-way
@@ -257,7 +282,8 @@ converts an asset nobody could examine into a clean one.
 
 Those receipts are not only a record; they are state. `--resume` reads them back
 before planning: an asset whose receipt still holds — same policy hash, not aged
-out, schema unchanged since it was written — is skipped, and the whole budget
+out, and the same semantic entity plus complete one-hop lineage context — is
+skipped, and the whole budget
 flows to assets no run has reached. Coverage converges run over run under a
 budget that never changed, and because the memory lives in the catalog rather
 than in a file beside the agent, any Sidq instance resumes where any other
@@ -327,39 +353,26 @@ DataHub.
 make swarm-demo    # four workers, one killed mid-run, then the ledger
 ```
 
-Each worker re-reads a receipt immediately before examining its asset and
-writes one immediately after deciding, so the window in which two can collide
-is a single examination rather than a whole run. Each enters the same
-consequence-ranked plan at a worker-specific offset, so four processes do not
-start on the same asset — no negotiation, just different starting points, with
-the receipts steering the rest.
+Each worker re-reads a receipt immediately before examining its asset and writes
+one immediately after deciding. That read-before-write sequence narrows the race
+window but cannot remove it. Each worker enters the same consequence-ranked plan
+at a worker-specific offset, so four processes do not start on the same asset —
+no negotiation, just different starting points, with the receipts steering the
+rest.
 
 The promise is **at-least-once, never exactly-once**: MCP offers no claim or
 compare-and-set primitive, so two workers reaching the same unreceipted asset
-in the same instant will both examine it. That is safe, because the engine is
-deterministic and both write the same verdict — and it is *measured*, because
-the ledger counts collisions rather than hiding them.
+in the same instant can both examine it. Deterministic duplicate work is safe:
+both reach the same verdict. The latest receipt overwrites earlier structured
+property values, so the observer cannot count collisions after the fact.
 
-The demo kills a worker on purpose. Its unfinished assets were never assigned
-to it — nothing is — so the survivors pick them up as ordinary work. A fifth
-process that audited nothing then reads DataHub alone and prints who covered
-what:
+The demo kills a worker on purpose. Nothing is assigned, so its unreceipted work
+remains eligible for any survivor; this is operational behavior, not a measured
+recovery total. A fifth process that audited nothing reads DataHub alone. From
+the latest structured-property values it can prove current recognizable
+non-stale receipts, current-run receipts, and latest worker attribution only.
 
-```
-Swarm ledger — run swarm-1785554991
-  assets in catalog     50
-  receipted before      0
-  receipted after       27  (+27)
-
-Contribution per worker, read from the receipts themselves:
-  alpha                    3
-  beta                     1
-  gamma                    1
-
-  duplicate examinations  0
-```
-
-DataHub is not the input to this loop, nor its output. It is the shared state.
+DataHub is not merely an input or output to this loop; it is the shared state.
 
 ### The repair agent — it proves its fixes before it writes them
 
@@ -588,4 +601,4 @@ Only the deterministic policy findings in this section affect the merge decision
 
 ---
 
-Reproducibility: <code>policy_hash=baa612f729a56ff7497718cc3cf77cd9142967cb4ec0e075c2b3495eeb2f2927</code> · <code>commit_sha=5addb753788935d4d1aa6a9483c28c6fc124e5c7</code> · run <code>sidq check --diff 5addb753788935d4d1aa6a9483c28c6fc124e5c7^..5addb753788935d4d1aa6a9483c28c6fc124e5c7 --json</code>
+Reproducibility: <code>policy_hash=996f3b0c7409189c4a79b0ff5f601b4d1cceb9b5e1375f1fbcb47702b9722d51</code> · <code>commit_sha=5addb753788935d4d1aa6a9483c28c6fc124e5c7</code> · run <code>sidq check --diff 5addb753788935d4d1aa6a9483c28c6fc124e5c7^..5addb753788935d4d1aa6a9483c28c6fc124e5c7 --json</code>

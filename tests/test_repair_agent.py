@@ -224,6 +224,17 @@ def test_nothing_is_writable_when_joint_verification_fails() -> None:
     assert outcomes == []
 
 
+def test_joint_verification_failure_leaves_individually_proven_findings_unfixed() -> (
+    None
+):
+    snapshot = _pii_chain()
+    finding = _pii_finding(_urn("middle"))
+    plan = prove(snapshot, propose_all([finding], snapshot))
+    broken = type(plan)(plan.proven, plan.rejected, False, "conflict")
+
+    assert unfixed([finding], broken) == [finding]
+
+
 def test_a_dry_run_writes_nothing() -> None:
     snapshot = _pii_chain()
     plan = prove(snapshot, propose_all([_pii_finding(_urn("middle"))], snapshot))

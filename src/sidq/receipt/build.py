@@ -23,6 +23,7 @@ class Receipt:
     verifier: str
     evidence_url: str
     evidence: tuple[dict[str, Any], ...]
+    context_hash: str = ""
     # Swarm identity. Empty for a solo run: a lone auditor has no cooperation to
     # record, and writing an empty worker id would imply one where none existed.
     swarm_run: str = ""
@@ -40,6 +41,7 @@ class Receipt:
             "urn:li:structuredProperty:sidq.rules_fired": list(self.rules_fired),
             "urn:li:structuredProperty:sidq.verifier": [self.verifier],
             "urn:li:structuredProperty:sidq.evidence_url": [self.evidence_url],
+            "urn:li:structuredProperty:sidq.context_hash": [self.context_hash],
             # Written only when a swarm produced this receipt, so a solo audit
             # leaves no trace of cooperation that did not happen.
             **(
