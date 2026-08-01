@@ -17,6 +17,7 @@
   },
   "chosen": "logistic regression",
   "embedding_model": "microsoft/harrier-oss-v1-270m",
+  "embedding_revision": "31de22b673913c7d658c0f03f792d77c2dcf8ebd",
   "eval_rows": 528,
   "labels": [
     "none",

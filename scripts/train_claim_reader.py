@@ -42,6 +42,7 @@ ROOT = Path(__file__).resolve().parents[1]
 CORPUS = ROOT / "data" / "claims"
 ARTIFACTS = ROOT / "data" / "claims" / "reader"
 EMBEDDING_MODEL = "microsoft/harrier-oss-v1-270m"
+EMBEDDING_REVISION = "31de22b673913c7d658c0f03f792d77c2dcf8ebd"
 
 # The label space. `none` is a real class, not a leftover: a documentation
 # sentence that asserts nothing checkable is the common case, and a reader that
@@ -91,7 +92,11 @@ def embed() -> None:
     from sentence_transformers import SentenceTransformer
 
     ARTIFACTS.mkdir(parents=True, exist_ok=True)
-    model = SentenceTransformer(EMBEDDING_MODEL, trust_remote_code=True)
+    model = SentenceTransformer(
+        EMBEDDING_MODEL,
+        revision=EMBEDDING_REVISION,
+        trust_remote_code=True,
+    )
     for split in ("train", "eval"):
         rows = _rows(split)
         vectors = model.encode(
@@ -171,6 +176,7 @@ def fit(threshold_target: float) -> dict:
     proposable = [LABELS.index(name) for name in PROPOSABLE]
     report: dict[str, object] = {
         "embedding_model": EMBEDDING_MODEL,
+        "embedding_revision": EMBEDDING_REVISION,
         "train_rows": len(train_y),
         "eval_rows": len(eval_y),
         "labels": list(LABELS),

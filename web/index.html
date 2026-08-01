@@ -1048,8 +1048,8 @@
           </li>
         </ol>
         <div class="provenance">
-          <span>All three run below, on this host, live.</span>
-          <span>The judged path contains no LLM calls; the same input produces a byte-identical verdict.</span>
+          <span>All three live demos run below, on this host.</span>
+          <span>The blocking path contains no model calls. The optional reader can extend WARN coverage; it can never grant permission or produce BLOCK.</span>
         </div>
       </section>
 
@@ -1084,7 +1084,7 @@
         <dl>
           <div class="qa">
             <dt>Data privacy</dt>
-            <dd><strong>Metadata only, nothing leaves.</strong> Reads schemas, lineage, tags — never row data. Self-hosted, Apache-2.0, no LLM in the loop; the only writes are receipts you opt into, in your own catalog.</dd>
+            <dd><strong>Catalog audits read metadata only.</strong> Receipt writes are explicit opt-ins into your catalog. The separate <code>sidq claims</code> attestation runs bounded read-only SQL inside the source; query results never enter a model or leave your infrastructure. The optional reader sees documentation text only.</dd>
           </div>
           <div class="qa">
             <dt>Reliability</dt>
@@ -1092,7 +1092,7 @@
           </div>
           <div class="qa">
             <dt>Model drift</dt>
-            <dd><strong>No model, no drift — by construction.</strong> A trained classifier could not beat a three-line deterministic rule, so the rule shipped and the measurement was published. Policy changes rotate the hash and invalidate old receipts explicitly.</dd>
+            <dd><strong>No model can block or grant permission.</strong> The deterministic rule ships in the blocking path. The optional documentation reader may extend WARN coverage after rules abstain; it loads a pinned revision and reports its head fingerprint and threshold, so changes are attributable. Policy changes rotate the hash and invalidate old receipts explicitly.</dd>
           </div>
           <div class="qa">
             <dt>Monitoring</dt>
@@ -1100,7 +1100,7 @@
           </div>
           <div class="qa">
             <dt>Cost</dt>
-            <dd><strong>Zero API fees, explicit compute.</strong> Open source, self-hosted, no per-token bill. MCP time is budgeted per run — and work done once is never re-paid while its receipt holds.</dd>
+            <dd><strong>Zero API fees, explicit compute.</strong> Open source and self-hosted. Gate, audit, repair, and swarm do not call a model; the optional reader runs locally. MCP time is budgeted per run — and work done once is never re-paid while its receipt holds.</dd>
           </div>
         </dl>
       </section>

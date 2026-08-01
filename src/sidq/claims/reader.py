@@ -7,6 +7,7 @@ was tested, and the engine still decides whether it holds.
 
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Mapping
 from importlib import import_module
 from pathlib import Path
@@ -26,6 +27,11 @@ _LABELS = (
 )
 _PROPOSABLE = ("unique", "not_null")
 _MODEL_NAME = "microsoft/harrier-oss-v1-270m"
+# This is the exact snapshot used to produce the committed embeddings and head.
+# A moving `main` ref would let warning coverage change without any code or
+# artifact changing, which is precisely the kind of invisible drift Sidq exists
+# to make attributable.
+_MODEL_REVISION = "31de22b673913c7d658c0f03f792d77c2dcf8ebd"
 _DEFAULT_HEAD_PATH = Path(__file__).resolve().parents[3] / "data/claims/reader/head.npz"
 
 
@@ -73,6 +79,17 @@ class EmbeddingClaimReader:
             self._threshold = float(np.asarray(head["threshold"])[0])
         self._embedder = embedder
 
+    @property
+    def identity(self) -> dict[str, object]:
+        """The complete, stable identity of the reader that proposes queries."""
+        return {
+            "kind": "embedding-linear-head",
+            "model": _MODEL_NAME,
+            "revision": _MODEL_REVISION,
+            "head_sha256": hashlib.sha256(self._head_path.read_bytes()).hexdigest(),
+            "threshold": self._threshold,
+        }
+
     def extract(
         self, sentence: str, column: str, schema_context: Mapping[str, Any]
     ) -> Claim | None:
@@ -117,7 +134,11 @@ class EmbeddingClaimReader:
             backend = import_module("sentence_transformers")
             self._embedder = cast(
                 _Embedder,
-                backend.SentenceTransformer(_MODEL_NAME, trust_remote_code=True),
+                backend.SentenceTransformer(
+                    _MODEL_NAME,
+                    revision=_MODEL_REVISION,
+                    trust_remote_code=True,
+                ),
             )
         return self._embedder
 

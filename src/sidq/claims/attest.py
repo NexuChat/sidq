@@ -28,8 +28,10 @@ opinions as evidence. A *rule*-proposed claim that could not be tested is kept,
 because the reading was deterministic and "we could not check this" is a fact
 about the run worth reporting.
 
-So the model can be wrong, slow, differently-versioned, or replaced tomorrow,
-and no verdict moves. The worst a bad model can do is waste a query.
+So the model can be wrong, slow, or replaced tomorrow without ever granting
+permission or producing a block. It may move advisory warning coverage, which is
+why the command reports the exact reader revision and head fingerprint beside
+the findings it proposed.
 """
 
 from __future__ import annotations
@@ -199,7 +201,12 @@ class DocumentationAttester:
         )
 
 
-def render(run: AttestationRun, decision: str | None = None) -> list[str]:
+def render(
+    run: AttestationRun,
+    decision: str | None = None,
+    *,
+    reader_identity: Mapping[str, object] | None = None,
+) -> list[str]:
     """The report, written so the boundary is visible rather than asserted."""
     summary = run.summary()
     by_origin = summary["by_origin"]
@@ -218,6 +225,18 @@ def render(run: AttestationRun, decision: str | None = None) -> list[str]:
         ),
         f"  claims tested       {summary['tested']}",
     ]
+    if reader_identity:
+        model = str(reader_identity.get("model", "unknown"))
+        revision = str(reader_identity.get("revision", ""))[:8]
+        head = str(reader_identity.get("head_sha256", ""))[:8]
+        threshold = reader_identity.get("threshold")
+        model_at_revision = f"{model}@{revision}" if revision else model
+        details = [model_at_revision]
+        if head:
+            details.append(f"head {head}")
+        if threshold is not None:
+            details.append(f"threshold {threshold}")
+        lines.append(f"  proposal reader     {' · '.join(details)}")
     if run.dropped:
         lines.append(
             f"  dropped untested    {len(run.dropped)}  "

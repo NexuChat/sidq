@@ -17,7 +17,7 @@ Four commands, in order of how much they need. The first needs nothing at all.
 | # | Command | Needs | What it proves | Takes |
 |---|---|---|---|---|
 | 1 | `make gate-demo` | nothing — no DataHub, no network, no credentials | The published `BLOCK` verdict is re-derived from the committed graph recording, byte-identical, with the same `policy_hash`. Hand-editing an artifact fails this. | ~2s (the very first run adds about a minute to build `.venv`) |
-| 2 | `make check` | nothing | 554 tests, lint, format, types — everything CI runs, including the guards on every claim this README makes. | ~15s |
+| 2 | `make check` | nothing | 557 tests, lint, format, types — everything CI runs, including the guards on every claim this README makes. | ~60s |
 | 3 | `make live-loop` | a running DataHub ([`docs/SETUP.md`](docs/SETUP.md)) | The whole agent loop over the **official MCP server only**: read → decide → write a receipt → a *separate process* reads it back → an asset carrying no receipt returns `NOT VERIFIED`. | ~60s |
 | 4 | `make repair-demo` | the same DataHub | The repair agent proposes a fix from catalog evidence, re-runs the deterministic engine against the catalog that fix *would* create, and shows what it proved and what it refused. | ~40s |
 
@@ -39,15 +39,32 @@ and no model participated in it.
 
 ## The questions a platform team will ask
 
-**Data privacy.** Sidq reads metadata only — schemas, lineage, tags, owners — never row data. Audits are read-only by default; the only writes are the receipts you explicitly opt into, and they land in *your* catalog. Self-hosted, Apache-2.0, and because the judged path contains no LLM, nothing about your catalog ever leaves your infrastructure.
+**Data privacy.** Catalog audits read metadata only — schemas, lineage, tags,
+owners — and receipt writes are explicit opt-ins into *your* catalog. The
+separate `sidq claims` attestation is also opt-in: it runs bounded read-only SQL
+inside the live source, returns counts plus at most ten violating samples, and
+never sends them outside your infrastructure. Query results never enter a model;
+the optional reader sees documentation text only. Self-hosted, Apache-2.0.
 
 **Reliability of results.** Every verdict is deterministic: same input, same policy, byte-identical output, identified by `policy_hash` + `commit_sha`. A CI-enforced suite guards the engine, and every number this README states is pinned by a test of its own. You do not trust the tool; you re-derive its answer (`make gate-demo`) and compare hashes.
 
-**Model drift.** There is no model in the judged path, so there is nothing to drift — by construction. A trained classifier was evaluated against a three-line deterministic rule and could not beat it on accuracy, and at the shape a gate really has — one change at a time — it decides three orders of magnitude slower. That was then re-measured on a CUDA GPU, where it is *worse*: the arithmetic was never the cost, so faster hardware only adds a round trip to the overhead that is (`docs/DECISION-COST.md`). So the rule shipped, and every measurement was published (`docs/PREFLIGHT-RESULTS.md`). *Policy* drift is handled explicitly: changing the policy changes `policy_hash`, which invalidates every receipt written under the old one.
+**Model drift.** No model can block or grant permission. The deterministic gate
+beat the classifier on cost at equal accuracy; for one change, the classifier is
+three orders of magnitude slower, so the rule ships in the blocking path
+(`docs/DECISION-COST.md`, `docs/PREFLIGHT-RESULTS.md`). The optional
+documentation reader exists on the other side of that boundary: it may extend
+`WARN` coverage only after rules abstain, and every proposal still has to survive
+read-only SQL. It loads a pinned revision and reports its head fingerprint and
+threshold, so warning coverage cannot drift invisibly. *Policy* drift is explicit:
+changing `policy_hash` invalidates receipts written under the old policy.
 
 **Monitoring.** The receipts are the monitoring surface: `sidq.*` properties are queryable through DataHub search, so "how many assets are verified / stale / blocked / never examined" is one query, and the converging audit's `vouched / NOT examined` counts give you coverage per run. `sidq verify <urn>` is a health check any pipeline can call.
 
-**Cost.** Apache-2.0, self-hosted, zero API fees — no LLM in the loop means no per-token bill. The decision itself is free: the shipped rule reaches a verdict in tens of nanoseconds, so what a run actually costs is MCP call time (column lineage ≈ 0.116s per column, budgeted explicitly) — and the resumable audit amortizes that: work done once is never re-paid while its receipt holds.
+**Cost.** Apache-2.0, self-hosted, zero API fees. The gate, audit, repair, and
+swarm paths do not call a model; the optional documentation reader runs locally.
+The deterministic decision takes tens of nanoseconds, so ordinary run cost is
+MCP time (column lineage ≈ 0.116s per column, explicitly budgeted), and resumed
+audits never repay work while its receipt holds.
 
 ## The problem is already in the sample
 
@@ -136,7 +153,11 @@ The boundary is explicit. The deterministic findings are the only findings that 
 }
 ```
 
-The shipped judge path contains no LLM calls. A future model-assisted advisory lane may help with meaning-level checks, but it remains advisory and does not decide policy. The same policy and the same commit produce a byte-identical verdict, identified by `policy_hash` and `commit_sha`.
+The blocking path contains no model calls. The optional documentation reader is
+the measured advisory lane: it can propose a read-only query and can extend
+`WARN` coverage, but it can never grant permission or produce `BLOCK`. The same
+deterministic evidence, policy, and commit produce a byte-identical blocking
+decision, identified by `policy_hash` and `commit_sha`.
 
 ## Try it in one command
 

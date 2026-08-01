@@ -126,9 +126,12 @@ Sidq has three surfaces:
 - A GitHub PR bot that renders the decision, provenance, evidence, impact paths, and reproduction command.
 - A stdio MCP server, `sidq-mcp`, with `verify_context`, `check_change`, and `search_verified`.
 
-The shipped judge path contains no LLM calls. Sidq does not replace an agent. It
-gives an agent a refusal and verification path before it acts, and leaves evidence
-for the next agent.
+The blocking path contains no model calls. The optional documentation reader may
+extend `WARN` coverage after deterministic rules abstain, but it can never grant
+permission or produce `BLOCK`; its exact model revision, head fingerprint and
+threshold are reported with the run. Sidq does not replace an agent. It gives an
+agent a refusal and verification path before it acts, and leaves evidence for the
+next agent.
 
 ## Technologies
 
@@ -137,6 +140,8 @@ for the next agent.
 - MCP over stdio for the Sidq server and receipt path.
 - `sqlglot` for deterministic SQL parsing and field extraction.
 - `PyYAML` for the restricted policy and asset-map formats.
+- NumPy plus a pinned multilingual embedding model for the optional documentation
+  reader; query results never enter that model.
 - PostgreSQL for the controlled live-source drift demo.
 - Docker Compose for the local demo environment.
 - GitHub Actions and the GitHub PR API for the PR bot.

@@ -366,7 +366,8 @@ def _parser() -> argparse.ArgumentParser:
         required=True,
         help="read-only PostgreSQL connection string for the live source",
     )
-    claims_parser.add_argument(
+    reader_mode = claims_parser.add_mutually_exclusive_group()
+    reader_mode.add_argument(
         "--model",
         nargs="?",
         const=_DEFAULT_CLAIM_MODEL,
@@ -377,7 +378,7 @@ def _parser() -> argparse.ArgumentParser:
             "source, and one that cannot be tested is dropped, not reported."
         ),
     )
-    claims_parser.add_argument(
+    reader_mode.add_argument(
         "--reader",
         action="store_true",
         help=(
@@ -624,6 +625,15 @@ def _claims(arguments: Any) -> int:
     run = DocumentationAttester(
         verifier, extra=extra, min_confidence=arguments.min_confidence
     ).run(datasets, budget=arguments.budget)
+    reader_identity: dict[str, object] | None = None
+    if extra is not None:
+        supplied_identity = getattr(extra, "identity", None)
+        if isinstance(supplied_identity, dict):
+            reader_identity = supplied_identity
+        else:
+            model_name = getattr(extra, "model", None)
+            if isinstance(model_name, str):
+                reader_identity = {"kind": "ollama", "model": model_name}
 
     evidence = run.evidence()
     verdict = PolicyEngine(None).decide(evidence, commit_sha=commit_sha_for_ref("HEAD"))
@@ -632,6 +642,7 @@ def _claims(arguments: Any) -> int:
             json.dumps(
                 {
                     "summary": run.summary(),
+                    "proposal_reader": reader_identity,
                     "decision": verdict.decision,
                     "policy_hash": verdict.policy_hash,
                     "findings": [
@@ -650,7 +661,7 @@ def _claims(arguments: Any) -> int:
             )
         )
     else:
-        print("\n".join(render(run, verdict.decision)))
+        print("\n".join(render(run, verdict.decision, reader_identity=reader_identity)))
     return 1 if verdict.decision == "BLOCK" else 0
 
 

@@ -22,6 +22,13 @@ embedding model covering 94+ languages. The input is one field description plus
 the column and table it belongs to; the output is one of six labels — the five
 claim types, or none.
 
+The embedding model is loaded from the pinned revision
+`31de22b673913c7d658c0f03f792d77c2dcf8ebd`, not a moving `main` tag. Every run
+also exposes the committed head fingerprint and its confidence threshold. A
+warning can therefore be attributed to the exact reader that proposed its SQL;
+upgrading either half is an explicit, reviewable artifact change rather than
+silent model drift.
+
 Multilingual is not a bonus feature here. A catalog's descriptions are written
 in whatever language its team speaks, and `tests/fixtures/catalog_corpus.py`
 already exercises eight. A regular expression reads one of them.
@@ -116,7 +123,9 @@ Three independent properties, each enforced in code and pinned by a test in
    a person's attention, not an automatic refusal.
 
 So the worst a wrong reading can do is ask someone to look at a real column.
-The model can be replaced, upgraded, or removed tomorrow and no verdict moves.
+It can change advisory `WARN` coverage, and that is why its revision and head
+fingerprint are reported. It can never grant permission and can never produce a
+`BLOCK`; the blocking decision remains entirely deterministic.
 
 ## The generative attempt, and why it is not what shipped
 

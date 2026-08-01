@@ -8,6 +8,7 @@ from typing import Any
 import numpy as np
 import pytest
 
+from sidq.claims import reader as reader_module
 from sidq.claims.reader import EmbeddingClaimReader
 
 
@@ -119,3 +120,53 @@ def test_reader_confidence_is_the_argmax_probability(tmp_path: Path) -> None:
 
     assert claim is not None
     assert claim.confidence == pytest.approx(np.exp(2.0) / (np.exp(2.0) + 2.0))
+
+
+def test_runtime_loads_the_exact_embedding_revision(
+    monkeypatch, tmp_path: Path
+) -> None:
+    """A moving model tag would make warning coverage drift without attribution."""
+    path = _head(
+        tmp_path / "head.npz",
+        intercept=[0.0, 2.0, 0.0],
+        classes=[0, 1, 2],
+        threshold=0.5,
+    )
+    calls: list[tuple[str, dict[str, Any]]] = []
+
+    class _Backend:
+        @staticmethod
+        def SentenceTransformer(name: str, **kwargs: Any) -> _FakeEmbedder:
+            calls.append((name, kwargs))
+            return _FakeEmbedder([1.0])
+
+    monkeypatch.setattr(reader_module, "import_module", lambda _: _Backend)
+
+    EmbeddingClaimReader(path)._embedder_for_runtime()
+
+    assert calls == [
+        (
+            reader_module._MODEL_NAME,
+            {
+                "revision": reader_module._MODEL_REVISION,
+                "trust_remote_code": True,
+            },
+        )
+    ]
+
+
+def test_reader_identity_fingerprints_every_runtime_input(tmp_path: Path) -> None:
+    """A warning should name the exact reader that proposed its query."""
+    path = _head(
+        tmp_path / "head.npz",
+        intercept=[0.0, 2.0, 0.0],
+        classes=[0, 1, 2],
+        threshold=0.5,
+    )
+
+    identity = EmbeddingClaimReader(path, embedder=_FakeEmbedder([1.0])).identity
+
+    assert identity["model"] == reader_module._MODEL_NAME
+    assert identity["revision"] == reader_module._MODEL_REVISION
+    assert identity["head_sha256"]
+    assert identity["threshold"] == 0.5

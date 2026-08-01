@@ -276,6 +276,30 @@ def test_the_report_names_the_origin_of_every_violation() -> None:
     assert "WARN" in text
 
 
+def test_the_report_names_the_exact_reader_that_proposed_queries() -> None:
+    """Warnings from optional inference must be attributable, not just labelled model."""
+    run = DocumentationAttester(
+        _Verifier(status="violated", rows=4), extra=_Extractor(_model_claim())
+    ).run([_dataset(("status", "Roughly speaking this tends to be populated."))])
+
+    text = "\n".join(
+        render(
+            run,
+            "WARN",
+            reader_identity={
+                "model": "microsoft/harrier-oss-v1-270m",
+                "revision": "31de22b6",
+                "head_sha256": "a1b2c3d4",
+                "threshold": 0.51,
+            },
+        )
+    )
+
+    assert "microsoft/harrier-oss-v1-270m@31de22b6" in text
+    assert "head a1b2c3d4" in text
+    assert "threshold 0.51" in text
+
+
 def test_the_summary_counts_dropped_claims_rather_than_forgetting_them() -> None:
     """Silently discarding them would make a partial run look like a clean one."""
     run = DocumentationAttester(
