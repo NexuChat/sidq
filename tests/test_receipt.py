@@ -7,6 +7,7 @@ import sys
 from concurrent.futures import Future
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from types import ModuleType
 from typing import Self
 
 import anyio
@@ -16,7 +17,12 @@ import pytest
 
 from sidq.models import Evidence, Finding, Verdict
 from sidq.policy.engine import PolicyEngine
-from sidq.receipt.bootstrap import PROPERTY_DEFINITIONS, ensure_sidq_properties
+from sidq.receipt.bootstrap import (
+    PROPERTY_DEFINITIONS,
+    definitions,
+    ensure_sidq_properties,
+    property_urn,
+)
 from sidq.receipt.build import build_receipt
 from sidq.receipt.read import get_verification_status
 from sidq.receipt.write import (
@@ -183,27 +189,119 @@ def test_read_computes_schema_policy_and_age_staleness() -> None:
     assert age_stale["stale_reason"] == "receipt exceeded the maximum verification age"
 
 
-def test_bootstrap_is_idempotent_with_a_graph_double() -> None:
-    # Bootstrap writes through the DataHub SDK, which is an optional integration;
-    # on a clone without it this is an unrunnable check, not a passing one.
-    pytest.importorskip("datahub")
+class _BootstrapValue:
+    def __init__(self, **values: object) -> None:
+        self.__dict__.update(values)
 
-    class Graph:
-        def __init__(self) -> None:
-            self.aspects: dict[str, object] = {}
 
-        def get_aspect(self, urn: str, aspect_type: object) -> object | None:
-            return self.aspects.get(urn)
+class _BootstrapGraph:
+    def __init__(self) -> None:
+        self.aspects: dict[str, object] = {}
+        self.closed = False
 
-        def emit_mcp(self, mcp: object) -> None:
-            self.aspects[mcp.entityUrn] = mcp.aspect
+    def get_aspect(self, urn: str, aspect_type: object) -> object | None:
+        return self.aspects.get(urn)
 
-    graph = Graph()
+    def emit_mcp(self, mcp: object) -> None:
+        self.aspects[mcp.entityUrn] = mcp.aspect
+
+    def close(self) -> None:
+        self.closed = True
+
+
+def _install_fake_datahub_sdk(monkeypatch, graph: _BootstrapGraph) -> list[object]:
+    """Expose only the SDK seam bootstrap consumes, with no optional install."""
+    configs: list[object] = []
+
+    class _Cardinality:
+        SINGLE = "single"
+        MULTIPLE = "multiple"
+
+    class _Urn:
+        make_data_type_urn = staticmethod(lambda name: f"type:{name}")
+        make_entity_type_urn = staticmethod(lambda name: f"entity:{name}")
+
+    modules = {
+        "datahub": ModuleType("datahub"),
+        "datahub.emitter": ModuleType("datahub.emitter"),
+        "datahub.emitter.mcp": ModuleType("datahub.emitter.mcp"),
+        "datahub.ingestion": ModuleType("datahub.ingestion"),
+        "datahub.ingestion.graph": ModuleType("datahub.ingestion.graph"),
+        "datahub.ingestion.graph.client": ModuleType("datahub.ingestion.graph.client"),
+        "datahub.ingestion.graph.config": ModuleType("datahub.ingestion.graph.config"),
+        "datahub.metadata": ModuleType("datahub.metadata"),
+        "datahub.metadata.schema_classes": ModuleType(
+            "datahub.metadata.schema_classes"
+        ),
+        "datahub.metadata.urns": ModuleType("datahub.metadata.urns"),
+    }
+    for package in (
+        "datahub",
+        "datahub.emitter",
+        "datahub.ingestion",
+        "datahub.ingestion.graph",
+        "datahub.metadata",
+    ):
+        modules[package].__path__ = []  # type: ignore[attr-defined]
+
+    modules["datahub.emitter.mcp"].MetadataChangeProposalWrapper = _BootstrapValue
+    schema = modules["datahub.metadata.schema_classes"]
+    schema.PropertyCardinalityClass = _Cardinality
+    schema.PropertyValueClass = _BootstrapValue
+    schema.StructuredPropertyDefinitionClass = _BootstrapValue
+    schema.TagPropertiesClass = _BootstrapValue
+    modules["datahub.metadata.urns"].Urn = _Urn
+    modules["datahub.ingestion.graph.config"].DatahubClientConfig = _BootstrapValue
+
+    def datahub_graph(config: object) -> _BootstrapGraph:
+        configs.append(config)
+        return graph
+
+    modules["datahub.ingestion.graph.client"].DataHubGraph = datahub_graph
+    for name, module in modules.items():
+        monkeypatch.setitem(sys.modules, name, module)
+    return configs
+
+
+def test_bootstrap_is_idempotent_with_a_graph_double(monkeypatch) -> None:
+    graph = _BootstrapGraph()
+    _install_fake_datahub_sdk(monkeypatch, graph)
     first = ensure_sidq_properties(graph)
     second = ensure_sidq_properties(graph)
 
     assert len(first["created"]) == len(PROPERTY_DEFINITIONS) + 2
     assert not second["created"]
+    rules = graph.aspects["urn:li:structuredProperty:sidq.rules_fired"]
+    assert rules.cardinality == "multiple"
+    verdict = graph.aspects["urn:li:structuredProperty:sidq.verdict"]
+    assert [value.value for value in verdict.allowedValues] == ["PASS", "WARN", "BLOCK"]
+
+
+def test_bootstrap_owns_and_closes_the_graph_it_constructs(monkeypatch) -> None:
+    graph = _BootstrapGraph()
+    configs = _install_fake_datahub_sdk(monkeypatch, graph)
+
+    result = ensure_sidq_properties(gms_url="https://catalog.example.test")
+
+    assert result["created"]
+    assert configs[0].server == "https://catalog.example.test"
+    assert graph.closed
+
+
+def test_bootstrap_uses_the_environment_and_rejects_foreign_properties(
+    monkeypatch,
+) -> None:
+    graph = _BootstrapGraph()
+    configs = _install_fake_datahub_sdk(monkeypatch, graph)
+    monkeypatch.setenv("DATAHUB_GMS_URL", "https://catalog.env.test")
+
+    ensure_sidq_properties()
+
+    assert configs[0].server == "https://catalog.env.test"
+    assert property_urn("verdict") == "urn:li:structuredProperty:sidq.verdict"
+    with pytest.raises(ValueError, match="unknown Sidq structured property"):
+        property_urn("foreign")
+    assert tuple(definitions()) == PROPERTY_DEFINITIONS
 
 
 def test_write_receipt_propagates_write_rejection_without_claiming_success() -> None:
