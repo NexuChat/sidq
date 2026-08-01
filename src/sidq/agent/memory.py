@@ -48,6 +48,9 @@ class PriorReceipt:
     urn: str
     holds: bool
     reason: str
+    # Which worker wrote the receipt, when a swarm wrote it. Empty otherwise —
+    # a solo run has nobody to credit, and inventing an id would be a lie.
+    worker_id: str = ""
 
 
 def recall(
@@ -76,5 +79,10 @@ def recall(
     prior: dict[str, PriorReceipt] = {}
     for urn, status in statuses.items():
         still_holds, reason = holds(status)
-        prior[urn] = PriorReceipt(urn=urn, holds=still_holds, reason=reason)
+        prior[urn] = PriorReceipt(
+            urn=urn,
+            holds=still_holds,
+            reason=reason,
+            worker_id=str(status.get("worker_id") or ""),
+        )
     return prior

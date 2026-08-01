@@ -103,6 +103,10 @@ def _status_of(
         "rules_fired": values.get("rules_fired", []),
         "verifier": _one(values, "verifier"),
         "evidence_url": _one(values, "evidence_url"),
+        # Present only on receipts a swarm wrote; a reader uses them to say
+        # *which* worker vouched for an asset it skipped.
+        "swarm_run": _one(values, "swarm_run"),
+        "worker_id": _one(values, "worker_id"),
     }
     stale, reason = _staleness(
         checked_at=result["checked_at"],

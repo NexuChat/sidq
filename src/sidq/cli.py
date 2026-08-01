@@ -334,6 +334,12 @@ def _parser() -> argparse.ArgumentParser:
             "receipt still holds, so the budget reaches assets no run has seen"
         ),
     )
+    audit_parser.add_argument(
+        "--timeout",
+        type=float,
+        default=15.0,
+        help="seconds to wait on the catalog before reporting it unreachable",
+    )
     audit_parser.add_argument("--json", action="store_true", dest="as_json")
     verify_parser = commands.add_parser(
         "verify",
@@ -359,6 +365,12 @@ def _parser() -> argparse.ArgumentParser:
         "--apply",
         action="store_true",
         help="write the proven repairs (off by default; this mutates the catalog)",
+    )
+    repair_parser.add_argument(
+        "--timeout",
+        type=float,
+        default=15.0,
+        help="seconds to wait on the catalog before reporting it unreachable",
     )
     repair_parser.add_argument("--json", action="store_true", dest="as_json")
     return parser
@@ -406,7 +418,17 @@ def _read_snapshot(arguments: Any) -> CatalogSnapshot | None:
         return None
     try:
         return CatalogSnapshot.from_datahub(
-            DataHubGraph(DatahubClientConfig(server=arguments.server))
+            DataHubGraph(
+                DatahubClientConfig(
+                    server=arguments.server,
+                    # The SDK's defaults retry a dead endpoint for minutes. A
+                    # judge who mistypes a port deserves a refusal, not a hang:
+                    # an unreachable catalog is an answer this tool can give in
+                    # seconds, and giving it slowly looks like a broken tool.
+                    timeout_sec=arguments.timeout,
+                    retry_max_times=1,
+                )
+            )
         )
     except Exception as error:  # noqa: BLE001 - the client raises several types
         print(f"sidq: could not read the catalog: {error}", file=sys.stderr)
