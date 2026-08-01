@@ -138,6 +138,30 @@ scoped to the sample.
 `sidq.*` receipt, so the next agent can read what this one concluded. It is off by
 default: an audit does not mutate a catalog unless you ask it to.
 
+### Run against catalogs it was never built for
+
+Every number above comes from the `showcase-ecommerce` sample, so the fair
+question is what happens on a catalog Sidq has never seen. Two of DataHub's
+other shipped sources were loaded on top of it — the `bootstrap` datapack and
+the `demo-data` ingestion source — producing a merged catalog of **103 entities
+and 976 lineage edges across 11 platforms** (postgres, snowflake, dbt, s3,
+tableau, powerbi, hive, looker, hdfs, kafka, and untyped entities).
+
+The engine absorbed it in four seconds, and the result is the part worth
+reporting: the contradiction count did not move. Still 285 `lineage_field_missing`
+and the same concentration — because the added platforms genuinely contain no
+field-level contradictions, and an engine that invented some would be worse than
+one that found none. The governance count did move, from 29 to 37 unowned
+consumed assets, which is what an honest check should do when real unowned
+assets are added.
+
+Alongside that, 24 adversarial fixtures hold the engine to the only property
+that matters on a strange catalog — cycles, self-loops, 200-hop chains, 500-way
+fan-out, Arabic and Chinese and emoji names, edges into assets that do not
+exist, `None` where a type says `str`, and eight malformed receipt payloads,
+none of which vouch for anything. It terminates, it does not raise, and it never
+converts an asset nobody could examine into a clean one.
+
 ### The audit that resumes — the catalog is the agent's memory
 
 Those receipts are not only a record; they are state. `--resume` reads them back
