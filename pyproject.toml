@@ -15,7 +15,15 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["mypy", "numpy>=2,<3", "pytest", "pytest-cov", "ruff", "types-PyYAML"]
+dev = [
+    "hypothesis",
+    "mypy",
+    "numpy>=2,<3",
+    "pytest",
+    "pytest-cov",
+    "ruff",
+    "types-PyYAML",
+]
 # `make regen` retrains the pre-flight ladder to prove the published negative
 # result still holds; that needs scikit-learn but none of the LoRA stack.
 bench = ["scikit-learn>=1.5"]
