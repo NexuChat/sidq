@@ -495,6 +495,26 @@ def test_the_operations_runbook_covers_probe_release_and_rollback() -> None:
         assert required in runbook
 
 
+def test_the_video_runbook_fits_the_limit_and_leads_with_the_handoff() -> None:
+    video = (ROOT / "docs/VIDEO.md").read_text()
+
+    assert "Target length: 2:45" in video
+    assert "00:20-00:55" in video and "Agent B" in video
+    assert "receipt" in video.lower() and "VERIFIED" in video
+    assert "Do not speed up terminal output" in video
+
+
+def test_the_browser_qa_record_covers_every_live_journey_and_viewport() -> None:
+    qa = (ROOT / "docs/QA-RESULTS.md").read_text()
+
+    for viewport in ("375x812", "768x1024", "1440x1000"):
+        assert viewport in qa
+    for journey in ("handoff", "gate-demo", "audit", "repair", "claims"):
+        assert journey in qa
+    assert "AccessLint" in qa and "0 violations" in qa
+    assert "5/5" in qa and "HTTP 200" in qa
+
+
 def test_liveness_is_dependency_free_and_names_the_exact_demo_surface() -> None:
     from web import server
 

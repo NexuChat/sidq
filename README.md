@@ -6,6 +6,9 @@
 
 **▶ The 2:26 film:** [youtu.be/5izxVeQ11dY](https://youtu.be/5izxVeQ11dY) — every terminal number in it comes from a real run.
 
+Final recording script: [`docs/VIDEO.md`](docs/VIDEO.md). Public browser,
+accessibility, interaction, and deployment evidence: [`docs/QA-RESULTS.md`](docs/QA-RESULTS.md).
+
 ![How Sidq decides: a change or agent question passes five evidence gates, one policy engine emits PASS, WARN or BLOCK, a receipt is written back into DataHub, and the next audit resumes from those receipts — the catalog is the ledger.](docs/architecture.svg)
 
 Sidq is a DataHub-native verification layer for agents and data-code changes. It checks whether catalog context is truthful before an agent relies on it, then applies an explicit policy and leaves evidence that the next agent can read.
@@ -17,7 +20,7 @@ Four commands, in order of how much they need. The first needs nothing at all.
 | # | Command | Needs | What it proves | Takes |
 |---|---|---|---|---|
 | 1 | `make gate-demo` | nothing — no DataHub, no network, no credentials | The published `BLOCK` verdict is re-derived from the committed graph recording, byte-identical, with the same `policy_hash`. Hand-editing an artifact fails this. | ~2s (the very first run adds about a minute to build `.venv`) |
-| 2 | `make check` | nothing | 596 tests, lint, format, types — everything CI runs, including the guards on every claim this README makes. | ~60s |
+| 2 | `make check` | nothing | 598 tests, lint, format, types — everything CI runs, including the guards on every claim this README makes. | ~60s |
 | 3 | `make live-loop` | a running DataHub ([`docs/SETUP.md`](docs/SETUP.md)) | The whole agent loop over the **official MCP server only**: read → decide → write a receipt → a *separate process* reads it back → an asset carrying no receipt returns `NOT VERIFIED`. | ~60s |
 | 4 | `make repair-demo` | the same DataHub | The repair agent proposes a fix from catalog evidence, re-runs the deterministic engine against the catalog that fix *would* create, and shows what it proved and what it refused. | ~40s |
 
