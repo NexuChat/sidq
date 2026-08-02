@@ -916,7 +916,7 @@ def test_landing_uses_a_hardened_external_script_and_progress_text() -> None:
     assert "setInterval" in script and "elapsed" in script
     assert "textContent" in script
     assert "innerHTML" not in script
-    assert '<link rel="stylesheet" href="styles.css?v=d827dadad3d44a61">' in html
+    assert '<link rel="stylesheet" href="styles.css?v=59bbeba0de763c4e">' in html
     assert "<style" not in html
     assert "style=" not in html
     assert not re.search(r"<script(?![^>]+\bsrc=)", html)

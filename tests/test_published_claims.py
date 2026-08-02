@@ -1045,4 +1045,4 @@ def test_landing_calls_its_buttons_live_demos_not_all_agents() -> None:
     """Five agent capabilities are backed by exactly five safe live demos."""
 
     landing = (ROOT / "web" / "index.html").read_text(encoding="utf-8")
-    assert "All five live demos run below" in landing
+    assert "All five live proofs are available above" in landing

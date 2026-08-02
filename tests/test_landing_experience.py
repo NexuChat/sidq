@@ -46,31 +46,62 @@ def _landing() -> str:
     return HTML.read_text(encoding="utf-8")
 
 
-def test_install_and_connect_appears_before_the_runnable_demos() -> None:
+def test_landing_leads_with_one_decision_then_the_independent_handoff() -> None:
     html = _landing()
+    hero = html.split('<section class="hero', 1)[1].split("</section>", 1)[0]
 
+    assert 'id="trust-loop"' in html
+    assert 'id="decision"' in html
+    assert 'id="agent-handoff"' in html
     assert 'id="install-connect"' in html
-    assert html.index('id="install-connect"') < html.index('data-run="handoff"')
-    assert "Install &amp; connect" in html
+    assert html.index('id="trust-loop"') < html.index('id="decision"')
+    assert html.index('id="decision"') < html.index('id="agent-handoff"')
+    assert html.index('data-run="handoff"') < html.index('id="install-connect"')
+    assert html.index('id="install-connect"') < html.index('class="deep-dives')
+    assert "Agents trust DataHub before they act." in hero
+    assert "who verifies that DataHub's context is telling the truth?" in hero
+    assert hero.count('class="cta run"') == 1
+    assert 'href="#trust-loop">See how trust is decided ↓</a>' in hero
     assert "One command. A local graph." not in html
-    assert "Start with proof. Add the graph when you are ready." in html
+    assert "Try the proof yourself." in html
     assert "No setup maze." in html
     assert "Dependencies download on the first run" in html
     assert "needs no DataHub or account" in html
     assert "demo-stack" in html and "live-loop" in html and "DataHub" in html
     assert "starts DataHub" not in html
-    for number, target, label in (
-        ("01", "install-connect", "Install and connect"),
-        ("02", "s02", "The system"),
-        ("03", "s03", "Real engine output"),
-        ("04", "s04", "The sample"),
-        ("05", "s05", "The agents"),
-        ("06", "s06", "Live demos"),
-        ("07", "s07", "Operations"),
+    assert 'class="rail"' not in html
+
+
+def test_receipt_handoff_and_mcp_tools_are_distinct_and_truthful() -> None:
+    html = _landing()
+    handoff = html.split('id="agent-handoff"', 1)[1].split("</section>", 1)[0]
+
+    assert "An opted-in audit can write a reproducible receipt to DataHub." in handoff
+    assert "A separate reader checks the graph, policy, and age again." in handoff
+    assert "PASS continues. BLOCK, missing, or stale stops." in handoff
+    assert "three read-only MCP tools" in handoff
+    for tool in ("check_change", "verify_context", "search_verified"):
+        assert f"<code>{tool}</code>" in handoff
+    assert 'data-run="handoff"' in handoff
+    assert "check_change writes" not in handoff
+
+
+def test_general_trust_contract_precedes_the_pii_example() -> None:
+    html = _landing()
+    contract = html.split('id="trust-loop"', 1)[1].split("</section>", 1)[0]
+
+    for stage in (
+        "Context",
+        "Evidence check",
+        "PASS / WARN / BLOCK",
+        "Receipt",
+        "Next agent",
     ):
-        assert (
-            f'<a href="#{target}" aria-label="{number} — {label}">{number}</a>' in html
-        )
+        assert stage in contract
+    for evidence in ("schema", "lineage", "governance", "documented claims"):
+        assert evidence in contract.lower()
+    assert "when configured, the source itself" in contract
+    assert "Missing evidence is named, never silently treated as clean." in contract
 
 
 def test_install_journey_publishes_exact_copyable_commands() -> None:
@@ -112,8 +143,9 @@ def test_install_journey_publishes_exact_copyable_commands() -> None:
 def test_offline_and_connected_commands_are_in_executable_order() -> None:
     html = _landing()
     offline = html.split('<li class="start-step offline">', 1)[1].split("</li>", 1)[0]
-    connected = html.split('<li class="start-step connect">', 1)[1].split("</li>", 1)[0]
-    verified = html.split('<li class="start-step verify">', 1)[1].split("</li>", 1)[0]
+    connected = html.split("<strong>Connect Codex + DataHub</strong>", 1)[1].split(
+        "</details>", 1
+    )[0]
 
     offline_commands = (
         "git clone https://github.com/NexuChat/sidq.git",
@@ -126,33 +158,36 @@ def test_offline_and_connected_commands_are_in_executable_order() -> None:
     )
     assert "make mcp-install" not in offline
     assert connected.index("make mcp-install") < connected.index("codex mcp add sidq")
-    assert "make mcp-smoke" in verified
+    assert connected.index("codex mcp add sidq") < connected.index("make mcp-smoke")
 
 
 def test_skill_smoke_and_config_name_their_required_working_directories() -> None:
     html = _landing()
-    skill = html.split("<strong>Add the workflow skill</strong>", 1)[1].split(
+    skill = html.split("<strong>Workflow skill &amp; safe config</strong>", 1)[1].split(
         "</details>", 1
     )[0]
-    verified = html.split('<li class="start-step verify">', 1)[1].split("</li>", 1)[0]
+    connected = html.split("<strong>Connect Codex + DataHub</strong>", 1)[1].split(
+        "</details>", 1
+    )[0]
 
     assert skill.index("cd /absolute/path/to/data-repository") < skill.index(
         "npx skills add"
     )
-    assert "From the Sidq clone" in verified
-    assert "make mcp-smoke" in verified
+    assert "From the Sidq clone" in connected
+    assert "make mcp-smoke" in connected
     assert "Keep this in the trusted target data repository" in html
     assert "Secret values are absent" in html
 
 
 def test_codex_connection_shows_the_in_client_mcp_check() -> None:
     html = _landing()
-    connected = html.split('<li class="start-step connect">', 1)[1].split("</li>", 1)[0]
-    verified = html.split('<li class="start-step verify">', 1)[1].split("</li>", 1)[0]
+    connected = html.split("<strong>Connect Codex + DataHub</strong>", 1)[1].split(
+        "</details>", 1
+    )[0]
 
     assert "codex mcp add sidq" in connected
-    assert verified.index("codex mcp list") < verified.index("/mcp")
-    assert "Codex → Sidq → DataHub MCP → GMS." in verified
+    assert connected.index("codex mcp list") < connected.index("/mcp")
+    assert "Codex → Sidq → DataHub MCP → GMS." in connected
 
 
 def test_secret_guidance_uses_env_passthrough_and_links_primary_docs() -> None:
@@ -227,19 +262,20 @@ def test_run_status_distinguishes_findings_from_operational_failures() -> None:
     assert "Operational failure" in script
 
 
-def test_primary_journey_has_three_steps_and_hides_optional_depth() -> None:
+def test_primary_setup_shows_one_offline_proof_and_hides_connected_depth() -> None:
     html = _landing()
     install = html.split('id="install-connect"', 1)[1].split(
-        '<section class="picture', 1
+        '<section class="deep-dives', 1
     )[0]
-    journey = ("Replay the proof.", "Attach Sidq to Codex.", "Verify the whole chain.")
 
-    assert install.count('class="start-step ') == 3
-    assert [install.index(step) for step in journey] == sorted(
-        install.index(step) for step in journey
-    )
+    assert install.count('class="start-step offline"') == 1
+    assert "Replay the proof." in install
+    assert "Attach Sidq to Codex." in install
+    assert "Verify the whole chain." in install
     assert install.count("<details>") == 2
     assert "<details open" not in install
+    assert install.index("Replay the proof.") < install.index("<details>")
+    assert install.index("Need DataHub?") < install.index("make mcp-install")
     for removed_clutter in (
         "connected-sequence",
         "install-grid",
