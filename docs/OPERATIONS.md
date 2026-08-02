@@ -396,25 +396,20 @@ if sudo test -e "$next_link" || sudo test -L "$next_link"; then
   echo 'STOP: /opt/sidq/current.next already exists; inspect it first' >&2
   exit 1
 fi
-sudo ln -sfn "releases/$release_sha" "$next_link"
+sudo ln -s "releases/$release_sha" "$next_link"
 sudo mv -Tf "$next_link" /opt/sidq/current
 sudo test "$(readlink -f /opt/sidq/current)" = "$release_dir"
-
-sudo touch /opt/sidq/runtime/venv/.sidq-dev-lock
-sudo test /opt/sidq/runtime/venv/.sidq-dev-lock -nt /opt/sidq/current/requirements-dev.lock \
-  && sudo test /opt/sidq/runtime/venv/.sidq-dev-lock -nt /opt/sidq/current/pyproject.toml \
-  && sudo test /opt/sidq/runtime/venv/.sidq-dev-lock -nt /opt/sidq/current/uv.lock \
-  && sudo test /opt/sidq/runtime/venv/.sidq-dev-lock -nt \
-    /opt/sidq/current/requirements-landing.lock \
-  && sudo systemctl restart sidq-landing
+sudo systemctl restart sidq-landing
 ```
 
 The byte comparisons must succeed before the symlink moves. A mismatch means the
-existing runtime is not evidence for the new release: stop without touching the
-marker or restarting, follow **Rebuild the production runtime** with
-`runtime_release="$release_dir"`, and rerun the release procedure. The later
-timestamp check only protects Make's marker contract; it is not a substitute
-for the recorded-input content comparisons.
+existing runtime is not evidence for the new release: stop without restarting,
+follow **Rebuild the production runtime** with `runtime_release="$release_dir"`,
+and rerun the release procedure. The hosted Make commands mark the existing
+runtime lock as intentionally old with an exact internal `--old-file` operand;
+they therefore never mutate or rebuild the shared runtime merely because the
+immutable release has newer timestamps. The byte comparisons above are the
+runtime compatibility contract.
 
 Verify liveness, dependency readiness, and the public TLS route:
 
@@ -541,22 +536,15 @@ if sudo test -e "$next_link" || sudo test -L "$next_link"; then
   echo 'STOP: /opt/sidq/current.next already exists; inspect it first' >&2
   exit 1
 fi
-sudo ln -sfn "releases/$rollback_sha" "$next_link"
+sudo ln -s "releases/$rollback_sha" "$next_link"
 sudo mv -Tf "$next_link" /opt/sidq/current
 sudo test "$(readlink -f /opt/sidq/current)" = "$target_release"
-
-sudo touch /opt/sidq/runtime/venv/.sidq-dev-lock
-sudo test /opt/sidq/runtime/venv/.sidq-dev-lock -nt /opt/sidq/current/requirements-dev.lock \
-  && sudo test /opt/sidq/runtime/venv/.sidq-dev-lock -nt /opt/sidq/current/pyproject.toml \
-  && sudo test /opt/sidq/runtime/venv/.sidq-dev-lock -nt /opt/sidq/current/uv.lock \
-  && sudo test /opt/sidq/runtime/venv/.sidq-dev-lock -nt \
-    /opt/sidq/current/requirements-landing.lock \
-  && sudo systemctl restart sidq-landing
+sudo systemctl restart sidq-landing
 curl --fail --silent http://127.0.0.1:8766/healthz
 curl --fail --silent http://127.0.0.1:8766/readyz
 ```
 
-If compatibility fails, do not switch the symlink, touch the marker, or restart.
+If compatibility fails, do not switch the symlink or restart.
 Follow **Rebuild the production runtime** with
 `runtime_release="$target_release"`, then rerun this procedure. A compatible
 rollback switches only the deployment symlink and does not rewrite the source
