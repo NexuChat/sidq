@@ -16,7 +16,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
-from sidq.gates.self_contradiction import CatalogEntity, CatalogSnapshot
+from sidq.gates.self_contradiction import CatalogEntity, CatalogSnapshot, is_pii_tag
 from sidq.models import Evidence
 
 # Checks with no mechanical repair, and why. Kept as data because the report
@@ -117,7 +117,11 @@ def _propose_pii_tag(finding: Evidence, snapshot: CatalogSnapshot) -> Proposal |
     does. Anything already carrying the marker is left alone.
     """
     edge = finding.detail.get("edge") or {}
-    markers = [str(tag) for tag in finding.detail.get("source_pii_tags") or ()]
+    markers = [
+        str(tag)
+        for tag in finding.detail.get("source_pii_tags") or ()
+        if is_pii_tag(str(tag))
+    ]
     urn, _, column = str(finding.subject).partition("#")
     if not markers or not urn or not column:
         return None

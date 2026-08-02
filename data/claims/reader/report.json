@@ -1,0 +1,46 @@
+{
+  "candidates": {
+    "catboost": {
+      "accuracy": 0.8768939393939394,
+      "precision": 0.9615384615384616,
+      "proposals": 52.0,
+      "recall": 0.42016806722689076,
+      "threshold": 0.72
+    },
+    "logistic regression": {
+      "accuracy": 0.8920454545454546,
+      "precision": 0.9583333333333334,
+      "proposals": 72.0,
+      "recall": 0.5798319327731093,
+      "threshold": 0.51
+    }
+  },
+  "chosen": "logistic regression",
+  "embedding_model": "microsoft/harrier-oss-v1-270m",
+  "embedding_revision": "31de22b673913c7d658c0f03f792d77c2dcf8ebd",
+  "eval_rows": 528,
+  "labels": [
+    "none",
+    "unique",
+    "not_null",
+    "accepted_values",
+    "relationships",
+    "expression"
+  ],
+  "operating_point": {
+    "precision": 0.9583333333333334,
+    "proposals": 72.0,
+    "recall": 0.5798319327731093,
+    "threshold": 0.51
+  },
+  "proposable": [
+    "unique",
+    "not_null"
+  ],
+  "rule_baseline": {
+    "precision": 0.17391304347826086,
+    "proposals": 23.0,
+    "recall": 0.03361344537815126
+  },
+  "train_rows": 2048
+}

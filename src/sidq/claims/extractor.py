@@ -114,13 +114,63 @@ class ModelRuntimeError(RuntimeError):
 
 _CLAIM_TYPES = ("unique", "not_null", "accepted_values", "relationships", "expression")
 
-# These installed Qwen3 templates expose native thinking control.  Passing
-# ``think: false`` has Ollama render the equivalent of ``/no_think`` and
-# avoids spending constrained-extraction output tokens on reasoning.
-_THINKING_MODELS = frozenset({"qwen3.5:4b", "qwen3.5:2b", "qwen3:1.7b", "qwen3:0.6b"})
-# The Qwen3.5 renderer takes raw generate prompts, so it requires its control
-# token in the prompt as well as the native request flag.
-_PROMPT_NO_THINK_MODELS = frozenset({"qwen3.5:4b", "qwen3.5:2b"})
+# Reasoning families spend their generation budget on thought before they answer,
+# so `think` has to be turned off or a short `num_predict` produces nothing at all.
+#
+# Matched by *family*, not by exact tag. The previous version of this was a set of
+# four exact names — `qwen3.5:4b`, `qwen3.5:2b`, `qwen3:1.7b`, `qwen3:0.6b` — and
+# `qwen3.5:0.8b`, the same family in a different size, fell straight through it:
+# every sentence came back as an empty completion, which `_claim_from_response`
+# read as an abstention. A model that produced nothing looked exactly like a
+# model exercising good judgment, which is the precise confusion this project
+# exists to prevent. `_require_content` below now makes that failure loud; this
+# list is what stops it happening for families already known.
+_REASONING_FAMILIES = (
+    "qwen3",
+    "deepseek-r1",
+    "gpt-oss",
+    "magistral",
+    "phi4-reasoning",
+    "granite4",
+)
+# The Qwen3 renderers take raw generate prompts, so they need the control token
+# in the prompt as well as the native request flag.
+_PROMPT_NO_THINK_FAMILIES = ("qwen3",)
+
+
+def _family_of(model: str) -> str:
+    """The family name, with any registry prefix and size tag removed."""
+    return model.rpartition("/")[2].partition(":")[0].casefold()
+
+
+def _is_reasoning_model(model: str) -> bool:
+    return _family_of(model).startswith(_REASONING_FAMILIES)
+
+
+def _needs_no_think_token(model: str) -> bool:
+    return _family_of(model).startswith(_PROMPT_NO_THINK_FAMILIES)
+
+
+def _require_content(response: str, model: str) -> str:
+    """Refuse to read an empty completion as a decision to abstain.
+
+    An abstention is `{"claim": null}` — the model considered the sentence and
+    declined it. An empty string is the model saying nothing at all, and the two
+    have to stay apart for the same reason "we did not check" and "we checked and
+    it passed" do. Reading silence as judgment is what let a whole family of
+    reasoning models look conservative while producing no output whatsoever.
+
+    Raised rather than returned, because the caller can distinguish an unusable
+    model from a careful one only if the failure has a different shape.
+    """
+    if response.strip():
+        return response
+    raise ModelRuntimeError(
+        f"{model} returned an empty completion. That is not an abstention: the "
+        "model produced no output at all. A reasoning model whose thinking is "
+        "not disabled spends the whole token budget before answering."
+    )
+
 
 # This schema is passed directly to Ollama's ``format`` option.  Keeping the
 # fixed shape deliberately simple improves grammar adherence by CPU-sized
@@ -201,22 +251,28 @@ class ModelExtractor:
             return None
 
         prompt = self._prompt(sentence, column, schema_context)
-        if self.model in _PROMPT_NO_THINK_MODELS:
+        if _needs_no_think_token(self.model):
             prompt += "\n/no_think"
         try:
-            response = self._generate(prompt, response_format=_MODEL_OUTPUT_SCHEMA)
+            response = _require_content(
+                self._generate(prompt, response_format=_MODEL_OUTPUT_SCHEMA), self.model
+            )
         except _StructuredOutputUnavailable:
             # Older Ollama builds do not implement ``format``.  We make one
             # unconstrained attempt, then strictly validate it before creating
             # a Claim.  A bad response is an abstention, never a malformed
             # claim escaping into the catalog.
-            response = self._generate(prompt, response_format=None)
+            response = _require_content(
+                self._generate(prompt, response_format=None), self.model
+            )
             claim = self._claim_from_response(response, sentence, column)
             if claim is not None:
                 return claim
             # The only permissive-runtime retry.  Invalid output is still an
             # abstention after this attempt.
-            response = self._generate(prompt, response_format=None)
+            response = _require_content(
+                self._generate(prompt, response_format=None), self.model
+            )
         return self._claim_from_response(response, sentence, column)
 
     def _ensure_model_is_available(self) -> None:
@@ -253,7 +309,7 @@ class ModelExtractor:
             # results are portable to a judge's laptop.
             "options": {"temperature": 0, "num_predict": 48, "num_gpu": 0},
         }
-        if self.model in _THINKING_MODELS:
+        if _is_reasoning_model(self.model):
             body["think"] = False
         if response_format is not None:
             body["format"] = response_format

@@ -245,6 +245,66 @@ def _relationship_target(expr: str) -> tuple[str, str]:
     return _quote_relation(parts[:-1]), _quote_identifier(parts[-1])
 
 
+# A claim's `expr` becomes part of a query this tool runs against a warehouse, so
+# it is validated by an allow-list of parsed node types rather than by looking for
+# bad substrings. Deny-by-default is what makes it hold: a construct nobody
+# thought about is rejected because it is absent, not caught because someone
+# predicted it.
+#
+# Functions are the interesting half. sqlglot gives each function it knows its own
+# node type and parses everything else as `exp.Anonymous` — so naming the pure
+# scalar functions below admits `COALESCE(a, 0)` while `PG_SLEEP(10)`,
+# `NEXTVAL('s')` and every other unknown callable stay out with no list of
+# forbidden names to maintain.
+_ALLOWED_EXPRESSION_NODES = frozenset(
+    {
+        # operators and structure
+        exp.Add,
+        exp.And,
+        exp.Between,
+        exp.Boolean,
+        exp.Column,
+        exp.Div,
+        exp.EQ,
+        exp.GT,
+        exp.GTE,
+        exp.ILike,
+        exp.Identifier,
+        exp.In,
+        exp.Is,
+        exp.LT,
+        exp.LTE,
+        exp.Like,
+        exp.Literal,
+        exp.Mod,
+        exp.Mul,
+        exp.NEQ,
+        exp.Neg,
+        exp.Not,
+        exp.Null,
+        exp.Or,
+        exp.Paren,
+        exp.Sub,
+        # pure scalar functions — no I/O, no state, no side effect. `Cast` needs
+        # `DataType`, which names a type and cannot carry an expression.
+        exp.Abs,
+        exp.Cast,
+        exp.Ceil,
+        exp.Coalesce,
+        exp.Concat,
+        exp.DataType,
+        exp.Floor,
+        exp.Length,
+        exp.Lower,
+        exp.Round,
+        exp.Substring,
+        exp.Trim,
+        exp.Upper,
+    }
+)
+_ALLOWED_IN_VALUES = frozenset({exp.Boolean, exp.Literal, exp.Null})
+
+
 def _validated_expression(value: str) -> str:
     try:
         statements = sqlglot.parse(value, read="postgres")
@@ -257,18 +317,18 @@ def _validated_expression(value: str) -> str:
     expression = statements[0]
     if expression is None:
         raise ValueError("expression is not valid SQL")
-    forbidden = (
-        exp.Query,
-        exp.Subquery,
-        exp.Command,
-        exp.Insert,
-        exp.Update,
-        exp.Delete,
-        exp.Create,
-        exp.Drop,
-    )
-    if isinstance(expression, forbidden) or any(
-        isinstance(node, forbidden) for node in expression.walk()
-    ):
-        raise ValueError("expression may not contain a query or command")
+    for node in expression.walk():
+        # `type(...) not in`, never `isinstance`: sqlglot models most functions as
+        # `exp.Func` subclasses, so an isinstance check against a permitted parent
+        # would quietly admit every sibling — including `exp.Anonymous`, which is
+        # what an unknown callable parses to.
+        if type(node) not in _ALLOWED_EXPRESSION_NODES:
+            raise ValueError("expression contains unsupported SQL")
+        if type(node) is exp.Is and type(node.expression) is not exp.Null:
+            raise ValueError("expression IS predicates may only test NULL")
+        if type(node) is exp.In and (
+            not node.expressions
+            or any(type(item) not in _ALLOWED_IN_VALUES for item in node.expressions)
+        ):
+            raise ValueError("expression IN predicates require a literal list")
     return expression.sql(dialect="postgres")

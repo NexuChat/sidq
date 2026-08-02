@@ -1,0 +1,21 @@
+# Devpost gallery boards
+
+Five 1920×1080 boards for the submission gallery, composed in the landing
+page's exact palette and type system. The rendered PNGs sit beside this file;
+the HTML sources live in `src/`.
+
+To regenerate a board after editing its source:
+
+```bash
+cd docs/gallery
+google-chrome --headless=new --disable-gpu --window-size=1920,1080 \
+  --hide-scrollbars --screenshot=01-cover.png "file://$PWD/src/01-cover.html"
+```
+
+`src/03-architecture.html` embeds a copy of `docs/architecture.svg` taken at
+generation time. After editing the canonical SVG, synchronize both the landing
+page copy and the gallery source first:
+
+```bash
+python3 scripts/sync_architecture.py
+```

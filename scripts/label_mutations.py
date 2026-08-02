@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import gzip
 import hashlib
 import json
 import multiprocessing
@@ -182,6 +183,21 @@ def write_jsonl(path: Path, records: Iterable[dict[str, Any]]) -> None:
             output.write(json.dumps(record, ensure_ascii=False, sort_keys=True) + "\n")
 
 
+def write_regression_artifact(
+    path: Path, records: Iterable[dict[str, Any]]
+) -> None:
+    """Write the labelled rows as a compact byte-reproducible gzip artifact."""
+    payload = "".join(
+        json.dumps(record, ensure_ascii=False, sort_keys=True) + "\n"
+        for record in sorted(records, key=lambda item: str(item["id"]))
+    ).encode("utf-8")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("wb") as output, gzip.GzipFile(
+        filename="", fileobj=output, mode="wb", compresslevel=9, mtime=0
+    ) as compressed:
+        compressed.write(payload)
+
+
 def _table(rows: list[list[str]]) -> str:
     return "\n".join(
         ["| " + " | ".join(rows[0]) + " |", "|" + "|".join("---" for _ in rows[0]) + "|"]
@@ -214,7 +230,14 @@ def build_report(records: Iterable[dict[str, Any]]) -> str:
     lines = [
         "# Mutation Benchmark",
         "",
-        f"Labelled mutations: {len(ordered)}. Labels are the fixture engine's verdicts; generator intent is retained only for comparison.",
+        (
+            f"Labelled mutations: {len(ordered)}. Labels are the fixture engine's "
+            "verdicts; generator intent is retained only for comparison. This is a "
+            "deterministic regression consistency corpus, not external or "
+            "human-labelled accuracy evidence. The compact complete guard artifact "
+            "and its provenance are documented in "
+            "[`data/benchmark/README.md`](../data/benchmark/README.md)."
+        ),
         "",
         "## Confusion table",
         "",
@@ -321,8 +344,10 @@ def _coverage_section(records: list[dict[str, Any]]) -> list[str]:
         "",
         f"- **{no_radius:,} of {total:,} rows ({no_radius / total:.0%}) have no",
         "  downstream lineage in the fixtures.** Every rule that needs a blast",
-        "  radius — `pii_exposure`, `critical_downstream`, `wide_blast_radius` — is",
+        "  radius — `critical_downstream` and `wide_blast_radius` — is",
         "  unreachable on those rows by construction, not by omission.",
+        "- `pii_exposure` remains policy-supported only for explicit proven route evidence;",
+        "  the former built-in blast inference is superseded.",
         "- PII tags exist in these fixtures only on the legacy showcase model, so the",
         "  `expose_pii_tagged_column` family is largely a test of resolution rather",
         "  than of PII detection. Its rate belongs in that light.",
@@ -414,6 +439,12 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--scratch-root", type=Path)
     parser.add_argument("--report", nargs="?", const=Path("docs/BENCHMARK.md"), type=Path)
+    parser.add_argument(
+        "--regression-artifact",
+        nargs="?",
+        const=Path("data/benchmark/labelled-regression.jsonl.gz"),
+        type=Path,
+    )
     return parser
 
 
@@ -439,6 +470,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     retained.update({str(item["id"]): item for item in labelled})
     completed = [retained[str(item["id"])] for item in source if str(item["id"]) in retained]
     write_jsonl(args.out, completed)
+    if args.regression_artifact is not None:
+        write_regression_artifact(args.regression_artifact, completed)
     if args.report is not None:
         input_by_id = {str(item["id"]): item for item in source}
         report_records = [{**input_by_id[str(item["id"])], **item} for item in completed]

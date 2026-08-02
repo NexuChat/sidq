@@ -23,6 +23,11 @@ class Receipt:
     verifier: str
     evidence_url: str
     evidence: tuple[dict[str, Any], ...]
+    context_hash: str = ""
+    # Swarm identity. Empty for a solo run: a lone auditor has no cooperation to
+    # record, and writing an empty worker id would imply one where none existed.
+    swarm_run: str = ""
+    worker_id: str = ""
 
     def structured_property_values(self) -> dict[str, list[str]]:
         """The exact MCP shape for the queryable receipt body."""
@@ -36,6 +41,17 @@ class Receipt:
             "urn:li:structuredProperty:sidq.rules_fired": list(self.rules_fired),
             "urn:li:structuredProperty:sidq.verifier": [self.verifier],
             "urn:li:structuredProperty:sidq.evidence_url": [self.evidence_url],
+            "urn:li:structuredProperty:sidq.context_hash": [self.context_hash],
+            # Written only when a swarm produced this receipt, so a solo audit
+            # leaves no trace of cooperation that did not happen.
+            **(
+                {
+                    "urn:li:structuredProperty:sidq.swarm_run": [self.swarm_run],
+                    "urn:li:structuredProperty:sidq.worker_id": [self.worker_id],
+                }
+                if self.swarm_run
+                else {}
+            ),
         }
 
     def to_dict(self) -> dict[str, Any]:
@@ -55,11 +71,20 @@ def build_receipt(
     checked_at: datetime | None = None,
     verifier: str | None = None,
     evidence_url: str = "",
+    swarm_run: str = "",
+    worker_id: str = "",
 ) -> Receipt:
     """Build a receipt after a verdict is decided; never influence the verdict."""
 
     if verdict.decision not in {"PASS", "WARN", "BLOCK"}:
         raise ValueError(f"unsupported Sidq verdict: {verdict.decision}")
+    # The subject comes from a catalog response, and a receipt is a write. A
+    # malformed or redirected URN must never reach a mutation tool, so the shape
+    # is checked here — once, at the boundary where a decision becomes a change.
+    if not urn.startswith("urn:li:dataset:(urn:li:dataPlatform:") or not urn.endswith(
+        ")"
+    ):
+        raise ValueError(f"refusing to write a receipt to a non-dataset URN: {urn}")
     timestamp = (checked_at or datetime.now(UTC)).astimezone(UTC).replace(microsecond=0)
     fired = tuple(
         sorted(
@@ -98,4 +123,6 @@ def build_receipt(
         verifier=verifier or f"sidq@{__version__}",
         evidence_url=evidence_url,
         evidence=evidence,
+        swarm_run=swarm_run,
+        worker_id=worker_id,
     )

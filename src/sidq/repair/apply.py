@@ -19,12 +19,34 @@ single permission error on one asset cannot silently abandon the rest.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from dataclasses import dataclass
+import time
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass, replace
+from typing import Protocol
 
+from sidq.gates.self_contradiction import CatalogEntity, CatalogField, CatalogSnapshot
+from sidq.graph.client import DatasetInfo, SchemaField
 from sidq.receipt.write import ToolCaller
 from sidq.repair.proposals import Proposal
-from sidq.repair.prove import RepairPlan
+from sidq.repair.prove import RepairPlan, verify_applied
+
+
+class DirectDatasetReader(Protocol):
+    """The post-write seam: entity reads by URN, never catalog search."""
+
+    def get_dataset(self, urn: str) -> DatasetInfo | None: ...
+
+
+type SnapshotReader = Callable[[Sequence[Proposal], float], CatalogSnapshot]
+
+
+@dataclass(frozen=True, slots=True)
+class PostWriteFinding:
+    """A structured gate finding observed in the direct post-write snapshot."""
+
+    kind: str
+    subject: str
+    detail: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -34,6 +56,24 @@ class ApplyOutcome:
     proposal: Proposal
     applied: bool
     detail: str = ""
+    verified: bool = False
+    unresolved: tuple[PostWriteFinding, ...] = ()
+    collateral: tuple[PostWriteFinding, ...] = ()
+
+    @property
+    def closed(self) -> bool:
+        """Only a mutation proven by a live re-read closes its finding."""
+        return self.applied and self.verified
+
+    @property
+    def status(self) -> str:
+        if self.detail == "dry run — nothing written":
+            return "dry_run"
+        if not self.applied:
+            return "write_failed"
+        if self.verified:
+            return "applied_verified"
+        return "applied_unverified"
 
 
 def apply_repairs(
@@ -50,8 +90,109 @@ def apply_repairs(
         except Exception as error:  # noqa: BLE001 - MCP transports raise several types
             outcomes.append(ApplyOutcome(proposal, False, type(error).__name__))
             continue
-        outcomes.append(ApplyOutcome(proposal, True))
+        outcomes.append(
+            ApplyOutcome(proposal, True, "mutation acknowledged; awaiting live read")
+        )
     return outcomes
+
+
+def refresh_snapshot(
+    before: CatalogSnapshot,
+    proposals: Sequence[Proposal],
+    graph: DirectDatasetReader,
+) -> CatalogSnapshot:
+    """Replace mutated entities from direct MCP entity/aspect reads.
+
+    Repairs only alter tags, terms, and owners. Lineage and every untouched entity
+    therefore remain the exact baseline used for the pre-write proof. Each target
+    is fetched by URN through ``get_dataset``; this path never searches an
+    asynchronously updated index.
+    """
+    existing = {entity.urn: entity for entity in before.entities}
+    refreshed: dict[str, CatalogEntity] = {}
+    urns = sorted({urn for proposal in proposals for urn, _ in proposal.targets})
+    for urn in urns:
+        prior = existing.get(urn)
+        if prior is None:
+            raise RuntimeError(f"repair target is absent from baseline: {urn}")
+        dataset = graph.get_dataset(urn)
+        if dataset is None:
+            raise RuntimeError(f"repair target is absent from live read: {urn}")
+        glossary = dict(dataset.glossary)
+        refreshed[urn] = replace(
+            prior,
+            fields=tuple(_catalog_field(field, glossary) for field in dataset.fields),
+            tags=_markers(dataset.tags, dataset.terms, glossary),
+            owners=tuple(sorted(dataset.owners)),
+            deprecated=dataset.deprecated,
+            schema_available=True,
+        )
+    return replace(
+        before,
+        entities=tuple(refreshed.get(entity.urn, entity) for entity in before.entities),
+    )
+
+
+def verify_repairs(
+    before: CatalogSnapshot,
+    outcomes: Sequence[ApplyOutcome],
+    read_snapshot: SnapshotReader,
+    *,
+    timeout: float,
+    monotonic: Callable[[], float] = time.monotonic,
+    sleep: Callable[[float], None] = time.sleep,
+) -> list[ApplyOutcome]:
+    """Poll direct catalog reads until acknowledged writes are proven or time out."""
+    acknowledged = [item for item in outcomes if item.applied]
+    if not acknowledged:
+        return list(outcomes)
+    proposals = [item.proposal for item in acknowledged]
+    deadline = monotonic() + max(timeout, 0.0)
+    delay = 0.05
+    checked = list(outcomes)
+    last_detail = "direct live verification did not complete"
+    while True:
+        try:
+            read_timeout = max(deadline - monotonic(), 0.0)
+            proof = verify_applied(
+                before, read_snapshot(proposals, read_timeout), proposals
+            )
+        except Exception as error:  # noqa: BLE001 - read transports raise several types
+            last_detail = f"direct live read failed: {type(error).__name__}"
+        else:
+            last_detail = proof.detail
+            unresolved = tuple(
+                PostWriteFinding(kind, subject) for kind, subject in proof.unresolved
+            )
+            collateral = tuple(
+                PostWriteFinding(kind, subject) for kind, subject in proof.collateral
+            )
+            resolved = set(proof.resolved) if not proof.collateral else set()
+            checked = [
+                replace(
+                    item,
+                    verified=(item.proposal.finding_kind, item.proposal.subject)
+                    in resolved,
+                    detail=proof.detail,
+                    unresolved=unresolved,
+                    collateral=collateral,
+                )
+                if item.applied
+                else item
+                for item in outcomes
+            ]
+            if proof.verified:
+                return checked
+        remaining = deadline - monotonic()
+        if remaining <= 0:
+            return [
+                replace(item, detail=last_detail)
+                if item.applied and not item.verified
+                else item
+                for item in checked
+            ]
+        sleep(min(delay, remaining))
+        delay = min(delay * 2, 1.0)
 
 
 def render_plan(plan: RepairPlan, *, dry_run: bool = True) -> list[str]:
@@ -85,22 +226,54 @@ def render_plan(plan: RepairPlan, *, dry_run: bool = True) -> list[str]:
     lines.append(
         "Nothing was written (add --apply to write)."
         if dry_run
-        else "Written through the official DataHub MCP mutation tools."
+        else "Repairs approved for an MCP write attempt."
     )
     return lines
 
 
 def render_applied(outcomes: Sequence[ApplyOutcome]) -> list[str]:
     written = [item for item in outcomes if item.applied]
+    verified = [item for item in outcomes if item.closed]
+    unverified = [item for item in outcomes if item.applied and not item.verified]
     failed = [
         item
         for item in outcomes
         if not item.applied and item.detail != "dry run — nothing written"
     ]
-    lines = [f"  repairs written   {len(written)} of {len(outcomes)}"]
+    lines = [
+        f"  repairs written   {len(written)} of {len(outcomes)}",
+        f"  repairs verified  {len(verified)} of {len(written)}",
+    ]
     for item in failed[:5]:
         lines.append(f"    {_short(item.proposal.subject)}: {item.detail}")
+    for item in unverified[:5]:
+        lines.append(
+            f"    {_short(item.proposal.subject)}: applied_unverified — {item.detail}"
+        )
+        for collateral in item.collateral[:3]:
+            suffix = f" — {collateral.detail}" if collateral.detail else ""
+            lines.append(
+                f"      collateral: {collateral.kind} on {collateral.subject}{suffix}"
+            )
     return lines
+
+
+def _catalog_field(field: SchemaField, glossary: dict[str, str]) -> CatalogField:
+    return CatalogField(
+        path=field.path,
+        description=field.description,
+        tags=_markers(
+            field.tags,
+            field.terms,
+            glossary,
+        ),
+    )
+
+
+def _markers(
+    tags: Sequence[str], terms: Sequence[str], glossary: dict[str, str]
+) -> tuple[str, ...]:
+    return tuple(sorted(set(tags) | {glossary.get(term, term) for term in terms}))
 
 
 def _render_proposal(proposal: Proposal) -> list[str]:

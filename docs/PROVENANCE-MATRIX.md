@@ -1,0 +1,34 @@
+# Data and execution provenance
+
+Sidq deliberately has more than one evidence boundary. This matrix names the
+source and transport for each public demo hop so a replay, a live catalog read,
+and a live-source comparison are never presented as the same thing.
+
+| Surface or hop | Evidence source | Transport used | Write capability | What the result proves |
+|---|---|---|---|---|
+| `make gate-demo` | Repository-held graph replay under `tests/fixtures/graph/`, the example SQL, and the shipped policy | In-process `ReplayGraphClient`; no network | None | The committed fixture, policy, and example commit reproduce the canonical `BLOCK` verdict byte-for-byte. It is not a live graph query. |
+| Connected `sidq check` / Sidq MCP `check_change` | Current DataHub entities, schema, ownership, governance markers, and lineage | Self-hosted official `mcp-server-datahub` over stdio: `search`, `get_entities`, `list_schema_fields`, `get_lineage`, and `get_lineage_paths_between` | None | The enforcement decision for evidence returned by the live MCP read. An incomplete or failed graph does not become empty success. |
+| `sidq audit --via-mcp` | Current bounded DataHub catalog window | Official DataHub MCP over stdio | None unless `--write-receipts` is explicitly supplied | A budgeted catalog audit through the agent-facing MCP surface. Search pagination and unresolved field lineage remain visible as bounds. |
+| `sidq audit --write-receipts`, `sidq swarm`, or `repair --apply` | A local deterministic verdict or proven repair plus current DataHub context | Official DataHub MCP mutation tools, enabled only in the operator-controlled MCP process | **Yes, explicit and opt-in** | That DataHub acknowledged the requested mutation and, for Receipts and repairs, that a bounded direct read observed the expected persisted state. Public run buttons do not expose these flags. |
+| `sidq verify <urn>` | Latest Receipt properties and current entity/one-hop context in DataHub | A separate official DataHub MCP stdio session using direct entity and lineage reads | None | Whether the recorded Receipt still holds under the reader's current policy hash, graph fingerprint, and age limit. It does not trust the writer's response. |
+| Sidq MCP `verify_context` | Current DataHub context, optional mapped model SQL, and an optional configured live source | Sidq MCP delegates graph reads to the official DataHub MCP server; any configured PostgreSQL comparison is a separate read-only source hop | None | A fresh, read-only context check stored in the Sidq MCP process's `VerificationStore`. This tool does not read or write a DataHub Receipt. |
+| Sidq MCP `search_verified` | Search results plus the Sidq MCP process's local `VerificationStore` | Sidq MCP server process | None | Search classification within that store. It is **not** a DataHub Receipt reader; use `sidq verify` for the independent DataHub handoff. |
+| `sidq claims --via-mcp` | Field documentation in DataHub, then the named live PostgreSQL source | Official DataHub MCP for documentation; bounded read-only SQL for source truth | None | Whether a supported documentation claim held in that source at run time. The optional model may propose a test after rules abstain; it cannot grant permission or emit `BLOCK`. |
+| `RealityGate` in the controlled stale-source demo | Current DataHub schema and current PostgreSQL `information_schema` | DataHub graph client plus direct read-only database connection | None | A scoped graph-versus-source schema comparison. This direct source hop is not described as MCP. |
+| Full catalog truth report | One measured `showcase-ecommerce` catalog snapshot | Supported DataHub Python SDK/GMS aspects, not the bounded MCP search window | None | Internal conflicts among persisted catalog claims in that measured snapshot. It is not a claim about the underlying source systems. |
+
+## Failure and freshness rules
+
+- An unreadable MCP or source hop is unavailable evidence, not an empty result.
+- `check_change` is read-only. Receipt creation is a separate operator action.
+- Mutation acknowledgment alone is insufficient: Receipt and repair paths use
+  bounded direct readback and fail as unconfirmed when persistence cannot be
+  observed.
+- DataHub stores the latest Receipt values. Sidq does not claim an append-only
+  audit history, exactly-once coordination, or historical collision counts.
+- Fixture-backed outputs carry the exact fixture commit and policy hash. Live
+  outputs must be scoped to their run time and environment.
+
+The implementation seams are `src/sidq/graph/client.py`,
+`src/sidq/receipt/{write,read}.py`, `src/sidq/mcp_server/server.py`, and
+`src/sidq/cli.py`.

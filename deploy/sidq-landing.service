@@ -6,30 +6,53 @@ StartLimitIntervalSec=0
 
 [Service]
 Type=simple
-User=dev
-Group=dev
-WorkingDirectory=/home/dev/sidq
+DynamicUser=true
+UMask=0077
+WorkingDirectory=/opt/sidq/current
 Environment=SIDQ_LANDING_PORT=8766
-Environment=DATAHUB_GMS_URL=http://localhost:8080
-Environment=DATAHUB_TELEMETRY_ENABLED=false
-ExecStart=/home/dev/sidq/.venv/bin/python /home/dev/sidq/web/server.py
+Environment=SIDQ_ALLOWED_ORIGINS=https://sidq.mlki.app
+Environment=SIDQ_TRUSTED_PROXIES=127.0.0.1/32
+Environment=SIDQ_VENV_DIR=/opt/sidq/runtime/venv
+Environment=SIDQ_RUNTIME_DIR=/opt/sidq/runtime
+Environment=SIDQ_COMMAND_PATH=/opt/sidq/runtime/venv/bin:/opt/sidq/runtime/mcp/bin:/usr/local/bin:/usr/bin:/bin
+Environment=HF_HOME=/opt/sidq/runtime/huggingface
+Environment=SENTENCE_TRANSFORMERS_HOME=/opt/sidq/runtime/huggingface/hub
+Environment=HF_HUB_OFFLINE=1
+Environment=TRANSFORMERS_OFFLINE=1
+Environment=TOKENIZERS_PARALLELISM=false
+Environment=DATAHUB_GMS_URL=http://127.0.0.1:8080
+Environment=SIDQ_DATAHUB_TOKEN_FILE=%d/datahub-reader-token
+Environment=SIDQ_CLAIMS_DSN_FILE=%d/claims-dsn
+LoadCredential=datahub-reader-token:/etc/sidq/datahub-reader.token
+LoadCredential=claims-dsn:/etc/sidq/claims.dsn
+ExecStart=/opt/sidq/runtime/venv/bin/python /opt/sidq/current/web/server.py
 Restart=always
 RestartSec=3s
 NoNewPrivileges=true
 PrivateTmp=true
+PrivateDevices=true
 ProtectSystem=strict
-# ProtectHome=read-only is load-bearing rather than boilerplate now that the
-# page can run commands: both entries in the runnable table are read-only, and
-# this is what makes that a property of the sandbox instead of a promise in a
-# docstring. A command that tried to write would fail here.
-ProtectHome=read-only
+ProtectHome=true
+ProtectProc=invisible
+ProcSubset=pid
+ProtectHostname=true
+ProtectClock=true
 ProtectKernelTunables=true
 ProtectKernelModules=true
+ProtectKernelLogs=true
 ProtectControlGroups=true
+RestrictNamespaces=true
 LockPersonality=true
+RestrictRealtime=true
 RestrictSUIDSGID=true
 CapabilityBoundingSet=
+SystemCallArchitectures=native
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ReadOnlyPaths=/opt/sidq/current /opt/sidq/runtime
+# The live process reached an observed 1G peak with one command. The service
+# permits two different commands concurrently, so MemoryMax leaves room for two.
+MemoryMax=2G
+CPUQuota=200%
 
 [Install]
 WantedBy=multi-user.target

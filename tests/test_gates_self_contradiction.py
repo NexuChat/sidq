@@ -1,17 +1,33 @@
 from __future__ import annotations
 
+import pytest
+
 from sidq.gates.self_contradiction import (
     CatalogEntity,
     CatalogField,
     CatalogSnapshot,
     LineageEdge,
     SelfContradictionGate,
+    is_pii_tag,
 )
 
 SOURCE = "urn:li:dataset:(urn:li:dataPlatform:dbt,analytics.source,PROD)"
 TARGET = "urn:li:dataset:(urn:li:dataPlatform:dbt,analytics.target,PROD)"
 ORPHAN = "urn:li:dataset:(urn:li:dataPlatform:dbt,analytics.missing,PROD)"
 CHART = "urn:li:chart:(looker,analytics.chart)"
+
+NEGATED_PII_TAGS = (
+    "not_pii",
+    "not-pii",
+    "NOTPII",
+    "nonPII",
+    "noPII",
+    "not_personally_identifiable",
+    "not-personally-identifiable",
+    "NOTPERSONALLYIDENTIFIABLE",
+    "nonPersonallyIdentifiable",
+    "noPersonallyIdentifiable",
+)
 
 
 class Graph:
@@ -107,3 +123,96 @@ def test_missing_complete_snapshot_is_unverifiable_not_a_finding() -> None:
         "pii_leak_untagged_unverifiable",
         "unowned_consumed_unverifiable",
     ]
+
+
+@pytest.mark.parametrize("tag", NEGATED_PII_TAGS)
+def test_a_negated_pii_source_tag_is_not_classified_as_pii(tag: str) -> None:
+    snapshot = CatalogSnapshot(
+        entities=(
+            CatalogEntity(
+                SOURCE,
+                "dataset",
+                fields=(CatalogField("email", tags=(f"urn:li:tag:{tag}",)),),
+                owners=("urn:li:corpuser:owner",),
+            ),
+            CatalogEntity(
+                TARGET,
+                "dataset",
+                fields=(CatalogField("email_copy"),),
+                owners=("urn:li:corpuser:owner",),
+            ),
+        ),
+        edges=(LineageEdge(SOURCE, "email", TARGET, "email_copy"),),
+    )
+
+    evidence = SelfContradictionGate().collect((), Graph(snapshot))
+
+    assert not [item for item in evidence if item.kind == "pii_leak_untagged"]
+
+
+@pytest.mark.parametrize("tag", (*NEGATED_PII_TAGS, "not_confidential"))
+def test_a_negated_target_tag_does_not_claim_equivalent_protection(tag: str) -> None:
+    snapshot = CatalogSnapshot(
+        entities=(
+            CatalogEntity(
+                SOURCE,
+                "dataset",
+                fields=(CatalogField("email", tags=("urn:li:tag:PII",)),),
+                owners=("urn:li:corpuser:owner",),
+            ),
+            CatalogEntity(
+                TARGET,
+                "dataset",
+                fields=(CatalogField("email_copy", tags=(f"urn:li:tag:{tag}",)),),
+                owners=("urn:li:corpuser:owner",),
+            ),
+        ),
+        edges=(LineageEdge(SOURCE, "email", TARGET, "email_copy"),),
+    )
+
+    evidence = SelfContradictionGate().collect((), Graph(snapshot))
+
+    assert [item.kind for item in evidence] == ["pii_leak_untagged"]
+
+
+@pytest.mark.parametrize(
+    ("source_tag", "target_tag"),
+    (("unpii", ""), ("PII", "pci")),
+)
+def test_positive_pii_and_protection_markers_remain_supported(
+    source_tag: str, target_tag: str
+) -> None:
+    snapshot = CatalogSnapshot(
+        entities=(
+            CatalogEntity(
+                SOURCE,
+                "dataset",
+                fields=(CatalogField("email", tags=(f"urn:li:tag:{source_tag}",)),),
+                owners=("urn:li:corpuser:owner",),
+            ),
+            CatalogEntity(
+                TARGET,
+                "dataset",
+                fields=(
+                    CatalogField(
+                        "email_copy",
+                        tags=(f"urn:li:tag:{target_tag}",) if target_tag else (),
+                    ),
+                ),
+                owners=("urn:li:corpuser:owner",),
+            ),
+        ),
+        edges=(LineageEdge(SOURCE, "email", TARGET, "email_copy"),),
+    )
+
+    evidence = SelfContradictionGate().collect((), Graph(snapshot))
+    leaks = [item for item in evidence if item.kind == "pii_leak_untagged"]
+
+    assert bool(leaks) is (target_tag == "")
+
+
+@pytest.mark.parametrize("tag", ("notice_pii", "nonprofit_pii", "pii_not_confidential"))
+def test_negation_like_text_after_a_positive_marker_does_not_negate_pii(
+    tag: str,
+) -> None:
+    assert is_pii_tag(f"urn:li:tag:{tag}")

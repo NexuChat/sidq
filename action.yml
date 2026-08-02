@@ -30,6 +30,10 @@ inputs:
     description: Path to the official mcp-server-datahub executable in live mode
     required: false
     default: ""
+  publish-results:
+    description: Publish the sticky comment and check; false prints the verdict only
+    required: false
+    default: "true"
 
 runs:
   using: composite
@@ -43,6 +47,7 @@ runs:
         SIDQ_FIXTURE_DIR: ${{ inputs.fixture-dir }}
         SIDQ_MODE: ${{ inputs.mode }}
         SIDQ_POLICY: ${{ inputs.policy }}
+        SIDQ_PUBLISH_RESULTS: ${{ inputs.publish-results }}
         SIDQ_REPO_ROOT: ${{ inputs.repo-root }}
       run: |
         set -euo pipefail
@@ -50,11 +55,16 @@ runs:
         python3 -m venv "${sidq_venv}"
         "${sidq_venv}/bin/python" -m pip install \
           --disable-pip-version-check \
+          --require-hashes \
+          -r "${SIDQ_ACTION_PATH}/requirements-action.lock"
+        "${sidq_venv}/bin/python" -m pip install \
+          --disable-pip-version-check \
+          --no-build-isolation \
+          --no-deps \
           "${SIDQ_ACTION_PATH}"
         if [[ "${SIDQ_MODE}" == "live" && -z "${SIDQ_DATAHUB_MCP_COMMAND}" ]]; then
-          "${sidq_venv}/bin/python" -m pip install \
-            --disable-pip-version-check \
-            "mcp-server-datahub==0.6.0"
+          echo "::error title=Sidq configuration::live mode requires datahub-mcp-command to name a preinstalled official MCP server"
+          exit 2
         fi
 
         set +e

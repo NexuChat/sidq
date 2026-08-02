@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sidq — the verdict</title>
+<link rel="stylesheet" href="board.css">
+</head>
+<body>
+  <div class="bar"></div>
+  <header class="mast">
+    <img src="../../brand/lockup.png" alt="Sidq صدق" style="display:block;height:46px;width:auto">
+    <div class="eyebrow">02 / Real engine output</div>
+  </header>
+  <main style="display:grid;grid-template-columns:1fr 1.1fr;gap:100px;align-items:start;padding:110px 84px 0">
+    <div>
+      <div class="eyebrow" style="color:var(--soft)">— Real engine output</div>
+      <div style="margin-top:8px;font-family:var(--display);font-size:300px;font-style:italic;font-weight:700;letter-spacing:-.09em;line-height:.78;color:var(--signal)">BLOCK</div>
+      <div style="margin-top:70px;display:grid;gap:0">
+        <div style="display:grid;grid-template-columns:170px 1fr;gap:24px;padding:24px 0;border-top:1px solid var(--rule)">
+          <div class="eyebrow">Rule</div>
+          <div style="color:var(--acid);font-size:22px">critical_downstream</div>
+        </div>
+        <div style="display:grid;grid-template-columns:170px 1fr;gap:24px;padding:24px 0;border-top:1px solid var(--rule)">
+          <div class="eyebrow">Change</div>
+          <div style="font-family:var(--display);font-size:27px">Remove <code style="font-family:var(--mono);font-size:23px">cust_email</code> from <code style="font-family:var(--mono);font-size:23px">order_entry.customers</code></div>
+        </div>
+        <div style="display:grid;grid-template-columns:170px 1fr;gap:24px;padding:24px 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)">
+          <div class="eyebrow">Why</div>
+          <div style="font-family:var(--display);font-size:27px;line-height:1.25">Blast evidence records cross-team owners downstream. <code style="font-family:var(--mono);font-size:23px">PII_Data</code> is sensitivity context only.</div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <h2 style="font-size:58px;line-height:1;max-width:700px">Directed lineage crosses a downstream ownership boundary.</h2>
+      <ol style="list-style:none;margin-top:48px;padding:0;border-top:1px solid var(--dim)">
+        <li style="display:grid;grid-template-columns:70px 1fr 40px;gap:22px;align-items:center;padding:26px 0;border-bottom:1px solid var(--rule)">
+          <span style="color:var(--soft);font-size:19px">01</span>
+          <span style="font-size:17px;color:var(--dim)"><strong style="display:block;font-family:var(--display);font-size:27px;font-weight:400;color:var(--paper);margin-bottom:5px">dbt · customers</strong>order_entry_db.order_entry.customers / cust_email</span>
+          <span style="color:var(--signal);font-size:26px">↓</span>
+        </li>
+        <li style="display:grid;grid-template-columns:70px 1fr 40px;gap:22px;align-items:center;padding:26px 0;border-bottom:1px solid var(--rule)">
+          <span style="color:var(--soft);font-size:19px">02</span>
+          <span style="font-size:17px;color:var(--dim)"><strong style="display:block;font-family:var(--display);font-size:27px;font-weight:400;color:var(--paper);margin-bottom:5px">dbt → Snowflake → Looker</strong>analytics.order_details.cust_email → view.order_details.cust_email → explore.order_details.cust_email</span>
+          <span style="color:var(--signal);font-size:26px">↓</span>
+        </li>
+        <li style="display:grid;grid-template-columns:70px 1fr 40px;gap:22px;align-items:center;padding:26px 0;border-bottom:1px solid var(--rule)">
+          <span style="color:var(--soft);font-size:19px">03</span>
+          <span style="font-size:17px;color:var(--dim)"><strong style="display:block;font-family:var(--display);font-size:27px;font-weight:400;color:var(--paper);margin-bottom:5px">Looker · explore → chart</strong>order-entry.explore.order_details → dashboard_elements.224</span>
+          <span style="color:var(--signal);font-size:26px">↓</span>
+        </li>
+        <li style="display:grid;grid-template-columns:70px 1fr 40px;gap:22px;align-items:center;padding:26px 0;border-bottom:1px solid var(--signal)">
+          <span style="color:var(--soft);font-size:19px">04</span>
+          <span style="font-size:17px;color:var(--dim)"><strong style="display:block;font-family:var(--display);font-size:27px;font-weight:400;color:var(--paper);margin-bottom:5px">Looker · dashboard</strong>dashboards.53 · total impact: 16 consumers (WARN)</span>
+          <span style="font-size:26px">&nbsp;</span>
+        </li>
+      </ol>
+    </div>
+  </main>
+  <footer class="foot">
+    <span>Same policy, same commit — byte-identical verdict</span>
+    <span>policy 66f48004… · commit 5addb753…</span>
+  </footer>
+</body>
+</html>

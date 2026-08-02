@@ -78,7 +78,7 @@ class GitHubClient:
             filename = document.get("filename")
             if isinstance(filename, str):
                 files.append(_safe_repo_path(filename))
-        if len(documents) == 3000:
+        if len(documents) >= 3000:
             raise ActionError(
                 "GitHub returned its 3,000-file pull-request limit; refusing a "
                 "partial verdict"
@@ -159,7 +159,9 @@ class GitHubClient:
             items.extend(page_items)
             if len(document) < 100:
                 return items
-        return items
+        raise ActionError(
+            "GitHub pagination limit reached; refusing a partial response"
+        )
 
     def _request(
         self, method: str, path: str, body: Mapping[str, Any] | None = None
@@ -519,15 +521,19 @@ def main() -> int:
             )
         exit_code = _EXIT_CODES[verdict.decision]
         command = f"sidq check --diff {event.base_sha}...{event.head_sha} --json"
-        _publish_result(
-            client,
-            pull_number=event.number,
-            head_sha=event.head_sha,
-            comment=render_comment(verdict, mode=mode, reproduce_command=command),
-            exit_code=exit_code,
-            decision=verdict.decision,
-            mode=mode,
-        )
+        comment = render_comment(verdict, mode=mode, reproduce_command=command)
+        if _publish_results():
+            _publish_result(
+                client,
+                pull_number=event.number,
+                head_sha=event.head_sha,
+                comment=comment,
+                exit_code=exit_code,
+                decision=verdict.decision,
+                mode=mode,
+            )
+        else:
+            _print_result_log(comment)
         return exit_code
     except ActionError as error:
         print(f"sidq: {error}", file=sys.stderr)
@@ -539,6 +545,20 @@ def _required_env(name: str) -> str:
     if not value:
         raise ActionError(f"{name} is required")
     return value
+
+
+def _print_result_log(comment: str) -> None:
+    for line in comment.replace("\r", "").splitlines():
+        print(f"sidq-result: {line}")
+
+
+def _publish_results() -> bool:
+    value = os.environ.get("SIDQ_PUBLISH_RESULTS", "true").strip().lower()
+    if value == "true":
+        return True
+    if value == "false":
+        return False
+    raise ActionError("SIDQ_PUBLISH_RESULTS must be 'true' or 'false'")
 
 
 if __name__ == "__main__":  # pragma: no cover - exercised as an action process
