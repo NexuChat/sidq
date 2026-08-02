@@ -392,6 +392,25 @@ def test_mobile_hero_and_command_bidi_have_explicit_layout_guards() -> None:
         assert declaration in code_guard.group("body")
 
 
+def test_narrow_phone_compacts_the_proof_before_the_two_screen_boundary() -> None:
+    styles = STYLES.read_text(encoding="utf-8")
+    narrow = styles[styles.rindex("@media (max-width: 340px)") :]
+
+    assert re.search(r"\.masthead\s*\{[^}]*min-height:\s*52px", narrow, flags=re.DOTALL)
+    assert re.search(
+        r"\.trust-path li,\s*\.trust-path li:last-child\s*\{[^}]*min-height:\s*52px",
+        narrow,
+        flags=re.DOTALL,
+    )
+    assert re.search(
+        r"\.verdict\s*\{[^}]*padding:\s*20px 0 32px",
+        narrow,
+        flags=re.DOTALL,
+    )
+    assert re.search(r"\.verdict-head\s*\{[^}]*gap:\s*12px", narrow, flags=re.DOTALL)
+    assert re.search(r"\.finding\s*\{[^}]*padding:\s*8px 0", narrow, flags=re.DOTALL)
+
+
 def test_every_keyboard_interactive_control_has_the_shared_focus_ring() -> None:
     styles = STYLES.read_text(encoding="utf-8")
 

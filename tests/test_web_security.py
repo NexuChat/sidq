@@ -681,6 +681,11 @@ def test_command_environments_are_allowlisted_and_credentials_are_scoped(
     claims = datahub_environments["claims"]
 
     assert "UNRELATED_AMBIENT_SECRET" not in gate | audit | claims
+    assert gate["PYTHONPATH"] == str(server.REPO / "src")
+    assert all(
+        environment["PYTHONPATH"] == str(server.REPO / "src")
+        for environment in datahub_environments.values()
+    )
     assert "DATAHUB_GMS_TOKEN" not in gate and "CLAIMS_SOURCE" not in gate
     assert all(
         environment["DATAHUB_GMS_TOKEN"] == "reader-secret"
@@ -716,6 +721,28 @@ def test_command_environments_are_allowlisted_and_credentials_are_scoped(
     )
 
 
+def test_hosted_make_demos_never_rebuild_or_expose_the_shared_runtime(
+    monkeypatch,
+) -> None:
+    from web import server
+
+    runtime_lock = f"--old-file={server.VENV_ROOT / '.sidq-dev-lock'}"
+    for name, target in (("gate-demo", "gate-demo"), ("claims", "claims-demo")):
+        argv = server.RUNNABLE[name][1]
+        assert argv == ("make", runtime_lock, target)
+        assert server._public_command(argv) == f"make {target}"
+
+    internal_venv = Path("/internal-review/runtime/venv")
+    internal_runtime = Path("/internal-review/runtime")
+    monkeypatch.setattr(server, "VENV_ROOT", internal_venv)
+    monkeypatch.setattr(server, "RUNTIME", internal_runtime)
+    sanitized = server._sanitize_public_text(
+        f"make: {internal_venv}/bin/python missing; cache={internal_runtime}/cache"
+    )
+    assert str(internal_venv) not in sanitized
+    assert str(internal_runtime) not in sanitized
+
+
 def test_claims_source_is_not_published_or_passed_in_process_arguments() -> None:
     from web import server
 
@@ -744,16 +771,36 @@ def test_public_output_redacts_credential_file_values_and_tolerates_missing_file
     claims_file = tmp_path / "claims-dsn"
     token_file.write_text("token-value\n", encoding="utf-8")
     claims_file.write_text(
-        "postgresql://reader:dsn-value@warehouse/db\n", encoding="utf-8"
+        "postgresql://reader:token-value@warehouse/db\n", encoding="utf-8"
     )
     monkeypatch.setenv("SIDQ_DATAHUB_TOKEN_FILE", str(token_file))
     monkeypatch.setenv("SIDQ_CLAIMS_DSN_FILE", str(claims_file))
 
     output = server._sanitize_public_text(
-        "token-value postgresql://reader:dsn-value@warehouse/db"
+        "token-value postgresql://reader:token-value@warehouse/db"
     )
 
     assert output == "[redacted] [redacted]"
+
+    token_file.write_text("AAAAAAAAAAZ\n", encoding="utf-8")
+    claims_file.write_text("ZBBBBBBBBBB\n", encoding="utf-8")
+    partially_overlapping_output = server._sanitize_public_text("AAAAAAAAAAZBBBBBBBBBB")
+
+    assert partially_overlapping_output == "[redacted]"
+
+    internal_runtime = Path("/internal-review/runtime")
+    overlapping_credential = (
+        "host=/internal-review/runtime/socket user=reader password=top-secret"
+    )
+    monkeypatch.setattr(server, "RUNTIME", internal_runtime)
+    claims_file.write_text(f"{overlapping_credential}\n", encoding="utf-8")
+
+    overlapping_output = server._sanitize_public_text(
+        f"connect failed: {overlapping_credential}"
+    )
+
+    assert overlapping_output == "connect failed: [redacted]"
+    assert "top-secret" not in overlapping_output
 
     claims_file.unlink()
     assert server._sanitize_public_text("ordinary error") == "ordinary error"
@@ -1030,6 +1077,70 @@ def test_readiness_endpoint_serves_status_json_and_security_headers_over_loopbac
     assert response.getheader("Cache-Control") == "no-store"
     for name, value in server.SECURITY_HEADERS.items():
         assert response.getheader(name) == value
+
+
+@pytest.mark.parametrize("method", ("GET", "HEAD", "POST"))
+def test_trusted_proxy_http_requests_redirect_to_the_allowed_https_origin(
+    monkeypatch, method: str
+) -> None:
+    from web import server
+
+    monkeypatch.setenv("SIDQ_TRUSTED_PROXIES", "127.0.0.1/32")
+    monkeypatch.setenv("SIDQ_ALLOWED_ORIGINS", "https://sidq.mlki.app")
+
+    with server.Server(("127.0.0.1", 0), server.Handler) as service:
+        thread = threading.Thread(target=service.serve_forever, daemon=True)
+        thread.start()
+        connection = http.client.HTTPConnection(*service.server_address, timeout=2)
+        try:
+            connection.request(
+                method,
+                "/proof?source=http",
+                headers={
+                    "Host": "sidq.mlki.app",
+                    "X-Forwarded-Proto": "http",
+                },
+            )
+            response = connection.getresponse()
+            response.read()
+        finally:
+            connection.close()
+            service.shutdown()
+            thread.join(timeout=2)
+
+    assert response.status == 308
+    assert response.getheader("Location") == "https://sidq.mlki.app/proof?source=http"
+    assert response.getheader("Cache-Control") == "no-store"
+    for name, value in server.SECURITY_HEADERS.items():
+        assert response.getheader(name) == value
+
+
+@pytest.mark.parametrize(
+    ("trusted_proxies", "host", "forwarded_proto"),
+    (
+        ("198.51.100.0/24", "sidq.mlki.app", "http"),
+        ("127.0.0.1/32", "attacker.example", "http"),
+        ("127.0.0.1/32", "sidq.mlki.app.attacker.test", "http"),
+        ("127.0.0.1/32", "sidq.mlki.app", "https"),
+        ("127.0.0.1/32", "sidq.mlki.app", "http, https"),
+    ),
+)
+def test_https_redirect_ignores_untrusted_or_ambiguous_forwarding_metadata(
+    monkeypatch, trusted_proxies: str, host: str, forwarded_proto: str
+) -> None:
+    from web import server
+
+    monkeypatch.setenv("SIDQ_TRUSTED_PROXIES", trusted_proxies)
+    monkeypatch.setenv("SIDQ_ALLOWED_ORIGINS", "https://sidq.mlki.app")
+
+    assert (
+        server._https_redirect_target(
+            "127.0.0.1",
+            {"Host": host, "X-Forwarded-Proto": forwarded_proto},
+            "/proof?source=http",
+        )
+        is None
+    )
 
 
 def test_landing_uses_a_hardened_external_script_and_progress_text() -> None:
@@ -1402,13 +1513,15 @@ def test_isolated_mcp_runtime_uses_its_own_hash_locked_requirements() -> None:
     source = (ROOT / "requirements-mcp.in").read_text(encoding="utf-8")
     lock = (ROOT / "requirements-mcp.lock").read_text(encoding="utf-8")
     security = (ROOT / "SECURITY.md").read_text(encoding="utf-8")
+    operations = (ROOT / "docs" / "OPERATIONS.md").read_text(encoding="utf-8")
 
     assert "mcp-server-datahub==0.6.0" in source
     assert "acryl-datahub==1.6.0.16" in source
     assert "mcp-server-datahub==0.6.0" in lock
     assert "--hash=sha256:" in lock
     assert "uv pip compile" in lock
-    assert "--require-hashes -r /opt/sidq/current/requirements-mcp.lock" in security
+    assert "docs/OPERATIONS.md#rebuild-the-production-runtime" in security
+    assert '--require-hashes -r "$runtime_release/requirements-mcp.lock"' in operations
     assert "uv pip compile" in security and "requirements-mcp.in" in security
     assert "pip install mcp-server-datahub==0.6.0" not in security
 
@@ -1417,6 +1530,7 @@ def test_landing_runtime_lock_includes_only_reader_and_live_extras() -> None:
     lock = (ROOT / "requirements-landing.lock").read_text(encoding="utf-8")
     makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
     security = (ROOT / "SECURITY.md").read_text(encoding="utf-8")
+    operations = (ROOT / "docs" / "OPERATIONS.md").read_text(encoding="utf-8")
 
     assert "sentence-transformers==" in lock
     assert "psycopg==" in lock
@@ -1428,8 +1542,11 @@ def test_landing_runtime_lock_includes_only_reader_and_live_extras() -> None:
         "--output-file requirements-landing.lock"
     )
     assert command in lock and command in makefile
-    assert "--require-hashes -r /opt/sidq/current/requirements-landing.lock" in security
-    assert "import sidq, sentence_transformers" in security
+    assert "docs/OPERATIONS.md#rebuild-the-production-runtime" in security
+    assert (
+        '--require-hashes -r "$runtime_release/requirements-landing.lock"' in operations
+    )
+    assert "import sidq, sentence_transformers" in operations
 
 
 def test_compose_commands_preserve_home_and_use_one_secret_path() -> None:

@@ -320,10 +320,12 @@ field:
 
 ## Owner-only remaining actions
 
-- [ ] Produce and verify a semantically corrected English-narration video, upload
-  that replacement to public YouTube, Vimeo, or Youku, verify logged-out playback,
-  and replace `<PUBLIC_VIDEO_URL>` in the Devpost submission. Do not upload or
-  submit the superseded 175.317-second v2 MP4s.
+- [ ] Upload the verified V4 English artifact
+  `/home/dev/sidq-video/artifacts/video/sidq-final-en.mp4` (SHA-256
+  `0811a494c3ee6f78f907c3f2d14908ca18df403d81e38d63093cfa7dab46beef`)
+  to public YouTube, Vimeo, or Youku, verify logged-out playback, and replace
+  `<PUBLIC_VIDEO_URL>` in the Devpost submission. Do not upload the superseded
+  175.317-second v2 MP4s or the rejected black-transition V4 render.
 - [ ] Paste the Reader credentials privately into Devpost Testing instructions,
   replace both placeholders there only, and paste the exact disclosure above into
   its corresponding field.
