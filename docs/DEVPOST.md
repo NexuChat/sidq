@@ -113,13 +113,15 @@ A second agent, `sidq repair`, decides what to do about each finding — and rep
 what it cannot fix. Proposals come from catalog evidence only, and nothing is
 offered for writing until the deterministic engine has re-run against the catalog
 that repair would create: it must resolve the finding, introduce no new one, and
-the surviving set must still hold when applied together. On the live showcase
-catalog that gate refused the obvious PII fix, because tagging the one column the
-finding named resolved it and immediately created a new untagged consumer
-downstream. The proposal it offers instead covers the whole field-lineage closure —
-6 columns across dbt, Snowflake and Looker — in one MCP call, and that one it
-proves. Four of the six checks produce no proposal at all, each with its reason
-recorded, because an agent with an answer for all six would be inventing four.
+the surviving set must still hold when applied together. In the complete-lineage
+regression, that gate refuses the obvious one-column PII fix because it creates a
+new untagged consumer downstream; the next proposal covers the whole
+field-lineage closure — 6 columns across dbt, Snowflake and Looker — in one MCP
+call, and the engine proves it. Four of the six regression checks produce no
+proposal at all, each with its reason recorded, because an agent with an answer
+for all six would be inventing four. The live showcase is adjudicated separately:
+if its lineage evidence is incomplete, the dry run fails closed, rejects the
+proposal, and writes nothing instead of borrowing the fixture's proof.
 
 When writeback is explicitly enabled, Sidq attempts a receipt through the official
 MCP mutation tools; writeback is off by default and a rejected mutation is reported
