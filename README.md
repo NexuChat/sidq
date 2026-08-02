@@ -459,22 +459,23 @@ Finding a contradiction is half the job. `sidq repair` proposes what to do about
 each one, and — more usefully — reports what it cannot fix.
 
 ```bash
-make repair-demo      # dry run; `sidq repair --via-mcp --apply` writes it
+make repair-demo      # dry run; `sidq repair --via-mcp --apply` may write a jointly proven plan
 ```
 
-Proposals come from catalog evidence only. Two of the six checks are mechanically
-repairable, because the correct value already exists elsewhere in the catalog: a
-PII marker that lineage says should have propagated, and an owner that every owned
-upstream agrees on. The other four produce nothing, each with its reason recorded.
-An agent with an answer for all six would be inventing four of them.
+Proposals come from catalog evidence only. In the complete-lineage regression,
+two of the six checks are mechanically repairable because the correct value
+already exists elsewhere in the fixture: a PII marker that lineage says should
+have propagated, and an owner that every owned upstream agrees on. The other four
+produce nothing, each with its reason recorded. An agent with an answer for all
+six would be inventing four of them.
 
 **Nothing is offered for writing until the deterministic engine has re-run against
 the catalog the repair would create.** It must resolve the finding, introduce no
 new one, and the surviving set must still hold when applied together.
 
-That gate changed the design rather than decorating it. The first PII repair
-tagged only the column the finding named. Against the live showcase catalog the
-engine refused it:
+That gate changed the design rather than decorating it. The complete-lineage
+regression first tries a PII repair that tags only the column the finding named.
+The engine refuses it:
 
 ```
 Refused — proposed, then disproved:
@@ -483,9 +484,13 @@ Refused — proposed, then disproved:
     would introduce: pii_leak_untagged on …looker…explore.order_details#customer_id
 ```
 
-A one-hop repair does not fix a leak, it moves it. The proposal it offers instead
-covers the whole field-lineage closure — 6 columns across dbt, Snowflake and
-Looker — as a single MCP call, and *that* one the engine proves.
+A one-hop repair does not fix a leak, it moves it. In that complete-lineage
+regression, the next proposal covers the whole field-lineage closure — 6 columns
+across dbt, Snowflake and Looker — as a single MCP call, and *that* one the engine
+proves. The live catalog is adjudicated separately: when lineage evidence is
+incomplete, the public dry run fails closed, rejects the proposal, and writes
+nothing. Its counts are a catalog-dependent snapshot, not inherited proof from
+the regression fixture.
 
 ## Four surfaces
 
