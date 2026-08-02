@@ -9,14 +9,25 @@ and confirmed, alongside the ones it disproved.
 from sidq.repair.apply import (
     ApplyOutcome,
     apply_repairs,
+    refresh_snapshot,
     render_applied,
     render_plan,
+    verify_repairs,
 )
 from sidq.repair.proposals import UNREPAIRABLE, Proposal, propose, propose_all
-from sidq.repair.prove import RepairOutcome, RepairPlan, prove, simulate, unfixed
+from sidq.repair.prove import (
+    AppliedRepairProof,
+    RepairOutcome,
+    RepairPlan,
+    prove,
+    simulate,
+    unfixed,
+    verify_applied,
+)
 
 __all__ = [
     "UNREPAIRABLE",
+    "AppliedRepairProof",
     "ApplyOutcome",
     "Proposal",
     "RepairOutcome",
@@ -25,8 +36,11 @@ __all__ = [
     "propose",
     "propose_all",
     "prove",
+    "refresh_snapshot",
     "render_applied",
     "render_plan",
     "simulate",
     "unfixed",
+    "verify_applied",
+    "verify_repairs",
 ]

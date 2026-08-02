@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sidq — architecture</title>
+<link rel="stylesheet" href="board.css">
+</head>
+<body>
+  <main style="display:grid;place-items:center;height:1080px;padding:40px 60px">
+    <div style="width:1800px"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1760 900" role="img" aria-labelledby="sidq-architecture-title sidq-architecture-desc">
+  <title id="sidq-architecture-title">Sidq — the trust circuit for DataHub agents</title>
+  <desc id="sidq-architecture-desc">An agent or code change enters Sidq. Five evidence gates compare DataHub context with live reality. A deterministic policy emits PASS, WARN, or BLOCK. An explicit optional write can store the latest receipt values as shared current state, not append-only history. An optional prose reader may propose a read-only source check but can never block.</desc>
+  <defs>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M32 0H0V32" fill="none" stroke="#1a1a17" stroke-width="1"/>
+    </pattern>
+    <linearGradient id="signal-glow" x1="0" x2="1">
+      <stop offset="0" stop-color="#ff503d" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#ff503d" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#ff503d" stop-opacity="0"/>
+    </linearGradient>
+    <marker id="arrow-signal" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10Z" fill="#ff503d"/>
+    </marker>
+    <marker id="arrow-acid" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10Z" fill="#d9ff57"/>
+    </marker>
+    <filter id="soft-glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <style>
+    .display { font-family: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif; }
+    .mono { font-family: "IBM Plex Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace; }
+    .eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 1.8px; fill: #a7a39a; }
+    .micro { font-size: 11.5px; fill: #a7a39a; }
+    .body { font-size: 13px; fill: #a7a39a; }
+    .body-strong { font-size: 13px; fill: #f1eee7; }
+    .label { font-size: 12px; font-weight: 700; letter-spacing: 1.1px; fill: #f1eee7; }
+    .rule { stroke: #34332f; }
+  </style>
+
+  <rect width="1760" height="900" fill="#0a0a09"/>
+  <rect width="1760" height="900" fill="url(#grid)" opacity="0.42"/>
+  <rect x="0" width="10" height="900" fill="#ff503d"/>
+  <rect x="0.5" y="0.5" width="1759" height="899" fill="none" stroke="#34332f"/>
+
+  <!-- Thesis: the memorable idea comes before the implementation detail. -->
+  <text class="mono eyebrow" x="64" y="64">SIDQ / TRUST INFRASTRUCTURE FOR DATA AGENTS / 2026</text>
+  <text class="mono" x="1696" y="64" font-size="13" fill="#d9ff57" text-anchor="end">صدق</text>
+  <text class="display" x="62" y="124" font-size="43" fill="#f1eee7">Don't make the agent smarter. <tspan fill="#ff503d" font-style="italic">Make its context provable.</tspan></text>
+  <text class="mono body" x="64" y="157">DataHub supplies context. Sidq turns that context into evidence, a deterministic decision, and shared current state.</text>
+  <line class="rule" x1="48" y1="184" x2="1712" y2="184"/>
+
+  <!-- Intent enters from either a coding agent or CI. -->
+  <g id="intent">
+    <text class="mono eyebrow" x="64" y="232">01 / INTENT</text>
+    <rect x="48" y="252" width="250" height="330" rx="4" fill="#11110f" stroke="#34332f"/>
+    <text class="display" x="74" y="304" font-size="29" fill="#f1eee7">Agent or CI</text>
+    <text class="mono body" x="74" y="336">before it trusts context</text>
+    <rect x="74" y="376" width="84" height="34" rx="17" fill="#181815" stroke="#34332f"/>
+    <text class="mono label" x="116" y="398" text-anchor="middle">ASK</text>
+    <rect x="172" y="376" width="100" height="34" rx="17" fill="#181815" stroke="#34332f"/>
+    <text class="mono label" x="222" y="398" text-anchor="middle">CHANGE</text>
+    <path d="M116 422V468M222 422V468" stroke="#a7a39a" stroke-width="1"/>
+    <circle cx="116" cy="482" r="14" fill="#0a0a09" stroke="#ff503d"/>
+    <circle cx="222" cy="482" r="14" fill="#0a0a09" stroke="#ff503d"/>
+    <path d="M109 482H123M116 475V489M215 482H229" stroke="#ff503d" stroke-width="1.5"/>
+    <text class="mono micro" x="74" y="532">SQL · dbt · MCP · PR</text>
+    <text class="mono body-strong" x="74" y="558">Nothing is trusted first.</text>
+  </g>
+
+  <!-- The central product: evidence collection wrapped around one decider. -->
+  <g id="truth-circuit">
+    <rect x="356" y="224" width="804" height="414" rx="6" fill="#0e0e0c" stroke="#4a4841"/>
+    <rect x="356" y="224" width="804" height="4" fill="#ff503d"/>
+    <text class="mono eyebrow" x="382" y="260">02 / SIDQ TRUTH CIRCUIT</text>
+    <text class="display" x="382" y="302" font-size="27" fill="#f1eee7">Five gates collect evidence. One policy decides.</text>
+
+    <g id="gates">
+      <rect x="382" y="336" width="132" height="58" rx="3" fill="#151512" stroke="#34332f"/>
+      <rect x="526" y="336" width="132" height="58" rx="3" fill="#151512" stroke="#34332f"/>
+      <rect x="670" y="336" width="132" height="58" rx="3" fill="#151512" stroke="#34332f"/>
+      <rect x="814" y="336" width="156" height="58" rx="3" fill="#151512" stroke="#34332f"/>
+      <rect x="982" y="336" width="152" height="58" rx="3" fill="#151512" stroke="#34332f"/>
+      <text class="mono label" x="448" y="361" text-anchor="middle">REALITY</text>
+      <text class="mono micro" x="448" y="381" text-anchor="middle">graph ↔ source</text>
+      <text class="mono label" x="592" y="361" text-anchor="middle">SCHEMA</text>
+      <text class="mono micro" x="592" y="381" text-anchor="middle">fields exist</text>
+      <text class="mono label" x="736" y="361" text-anchor="middle">BLAST</text>
+      <text class="mono micro" x="736" y="381" text-anchor="middle">impact paths</text>
+      <text class="mono label" x="892" y="361" text-anchor="middle">GOVERNANCE</text>
+      <text class="mono micro" x="892" y="381" text-anchor="middle">PII · owners</text>
+      <text class="mono label" x="1058" y="361" text-anchor="middle">SELF-CHECK</text>
+      <text class="mono micro" x="1058" y="381" text-anchor="middle">claim ↔ claim</text>
+    </g>
+
+    <path d="M448 394V424H1058V394" fill="none" stroke="#ff503d" stroke-width="1.3"/>
+    <path d="M758 424V444" stroke="#ff503d" stroke-width="1.5" marker-end="url(#arrow-signal)"/>
+    <rect x="596" y="446" width="324" height="112" rx="56" fill="#11110f" stroke="#ff503d" stroke-width="1.5"/>
+    <rect x="607" y="457" width="302" height="90" rx="45" fill="url(#signal-glow)"/>
+    <text class="mono eyebrow" x="758" y="478" text-anchor="middle">DETERMINISTIC POLICY</text>
+    <text class="display" x="758" y="526" text-anchor="middle" font-size="34">
+      <tspan fill="#f1eee7">PASS</tspan><tspan fill="#a7a39a"> / </tspan><tspan fill="#d9ff57">WARN</tspan><tspan fill="#a7a39a"> / </tspan><tspan fill="#ff503d" font-style="italic" font-weight="700">BLOCK</tspan>
+    </text>
+    <text class="mono micro" x="758" y="582" text-anchor="middle">same evidence + policy ⇒ byte-identical result</text>
+    <rect x="426" y="596" width="664" height="24" rx="12" fill="#181815"/>
+    <text class="mono eyebrow" x="758" y="612" text-anchor="middle" fill="#d9ff57">NO MODEL CAN BLOCK · UNVERIFIABLE IS NEVER CLEAN</text>
+  </g>
+
+  <!-- DataHub exposes context and the latest optional receipt values. -->
+  <g id="datahub-shared-state" aria-label="DATAHUB — SHARED CURRENT STATE">
+    <text class="mono eyebrow" x="1220" y="232">03 / SHARED STATE</text>
+    <rect x="1204" y="252" width="508" height="386" rx="6" fill="#11110f" stroke="#4a4841"/>
+    <rect x="1204" y="252" width="4" height="386" fill="#d9ff57"/>
+    <text class="display" x="1236" y="304" font-size="31" fill="#f1eee7">DATAHUB</text>
+    <text class="mono eyebrow" x="1390" y="302" fill="#d9ff57">SHARED CURRENT STATE</text>
+    <text class="mono body" x="1236" y="338">read the context graph</text>
+    <g>
+      <rect x="1236" y="360" width="92" height="30" rx="15" fill="#181815" stroke="#34332f"/>
+      <rect x="1338" y="360" width="92" height="30" rx="15" fill="#181815" stroke="#34332f"/>
+      <rect x="1440" y="360" width="92" height="30" rx="15" fill="#181815" stroke="#34332f"/>
+      <rect x="1542" y="360" width="112" height="30" rx="15" fill="#181815" stroke="#34332f"/>
+      <text class="mono micro" x="1282" y="380" text-anchor="middle">schema</text>
+      <text class="mono micro" x="1384" y="380" text-anchor="middle">lineage</text>
+      <text class="mono micro" x="1486" y="380" text-anchor="middle">owners</text>
+      <text class="mono micro" x="1598" y="380" text-anchor="middle">governance</text>
+    </g>
+    <path d="M1236 424H1680" stroke="#34332f"/>
+    <text class="mono body" x="1236" y="456">optional: write current receipt</text>
+    <rect x="1236" y="478" width="412" height="102" rx="4" fill="#0a0a09" stroke="#d9ff57"/>
+    <text class="mono eyebrow" x="1260" y="504" fill="#d9ff57">SIDQ RECEIPT</text>
+    <text class="mono body-strong" x="1260" y="532">verdict · policy_hash · commit_sha</text>
+    <text class="mono body" x="1260" y="556">checked_at · evidence · worker_id</text>
+    <text class="mono micro" x="1236" y="612">latest values · not append-only history</text>
+  </g>
+
+  <!-- Main signal arrows. -->
+  <path d="M298 416H344" stroke="#ff503d" stroke-width="1.8" marker-end="url(#arrow-signal)"/>
+  <text class="mono eyebrow" x="321" y="401" text-anchor="middle">VERIFY</text>
+  <path d="M1160 446H1192" stroke="#ff503d" stroke-width="1.8" marker-end="url(#arrow-signal)"/>
+  <text class="mono eyebrow" x="1176" y="431" text-anchor="middle">PROVE</text>
+
+  <!-- Optional model path, drawn outside the judged circuit. -->
+  <g id="optional-reader">
+    <rect x="356" y="674" width="354" height="74" rx="4" fill="#11110f" stroke="#5c5a52" stroke-dasharray="5 5"/>
+    <text class="mono eyebrow" x="380" y="700">OPTIONAL PROSE READER</text>
+    <text class="mono body-strong" x="380" y="724">proposes what to test — never what is true</text>
+    <text class="mono micro" x="380" y="742">pinned model revision + head fingerprint</text>
+    <rect x="736" y="674" width="300" height="74" rx="4" fill="#11110f" stroke="#5c5a52" stroke-dasharray="5 5"/>
+    <text class="mono eyebrow" x="760" y="700">READ-ONLY SOURCE CHECK</text>
+    <text class="mono body-strong" x="760" y="724">bounded SQL returns measured evidence</text>
+    <text class="mono micro" x="760" y="742">query results never enter a model</text>
+    <path d="M710 711H724" stroke="#a7a39a" stroke-dasharray="4 4" marker-end="url(#arrow-signal)"/>
+    <path d="M886 674V648" stroke="#a7a39a" stroke-dasharray="4 4" marker-end="url(#arrow-signal)"/>
+  </g>
+
+  <!-- Current receipts can steer a later run after explicit writeback. -->
+  <g id="memory-loop">
+    <path d="M1548 638V790H174V594" fill="none" stroke="#d9ff57" stroke-width="1.7" marker-end="url(#arrow-acid)"/>
+    <text class="mono eyebrow" x="1228" y="782" fill="#d9ff57">CURRENT RECEIPTS CAN STEER THE NEXT RUN</text>
+    <circle cx="1120" cy="786" r="18" fill="#11110f" stroke="#d9ff57"/>
+    <circle cx="1068" cy="786" r="18" fill="#11110f" stroke="#d9ff57"/>
+    <circle cx="1016" cy="786" r="18" fill="#11110f" stroke="#d9ff57"/>
+    <text class="mono label" x="1120" y="790" text-anchor="middle">C</text>
+    <text class="mono label" x="1068" y="790" text-anchor="middle">B</text>
+    <text class="mono label" x="1016" y="790" text-anchor="middle">A</text>
+    <text class="mono body-strong" x="978" y="818" text-anchor="middle">resume · swarm · no coordinator</text>
+    <text class="display" x="204" y="804" font-size="25" fill="#f1eee7">Each run can re-check the same shared current state.</text>
+  </g>
+
+  <line class="rule" x1="48" y1="844" x2="1712" y2="844"/>
+  <text class="mono eyebrow" x="64" y="872">DETERMINISTIC BLOCKING · FAIL-CLOSED · OFFICIAL DATAHUB MCP · OPTIONAL RECEIPT WRITE · APACHE-2.0</text>
+  <text class="display" x="1712" y="876" font-size="29" font-weight="700" fill="#f1eee7" text-anchor="end">Sidq <tspan class="mono" fill="#d9ff57" font-size="14">صدق</tspan></text>
+</svg>
+</div>
+  </main>
+</body>
+</html>

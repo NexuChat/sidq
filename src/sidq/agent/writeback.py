@@ -2,9 +2,11 @@
 
 This is the half of the first judging criterion that reading alone cannot satisfy:
 the agent traverses the graph, and then writes what it concluded back where the
-next agent can read it. `search_verified` is the consumer — an asset with a fresh
-receipt is one any agent, including a competitor's, can trust without re-deriving
-anything.
+next agent can read it. The independent DataHub receipt consumer is ``sidq
+verify``/``get_verification_status``. The similarly named ``search_verified``
+MCP tool reads Sidq's process-local verification-context cache; it is not a
+DataHub receipt reader. A later receipt reader therefore re-reads the current
+graph, policy hash, age, and recorded evidence instead of trusting the writer.
 
 Two properties are deliberate.
 
@@ -32,7 +34,7 @@ from sidq.receipt.build import Receipt, build_receipt
 
 # The write surface is the receipt module's own, not a second declaration of it.
 # Two protocols that are supposed to describe the same thing is how they drift.
-from sidq.receipt.write import ToolCaller, write_receipt
+from sidq.receipt.write import ReceiptWriteUnconfirmed, ToolCaller, write_receipt
 
 
 @dataclass(frozen=True, slots=True)
@@ -104,9 +106,16 @@ def write_receipts(
         try:
             write_receipt(receipt, tool_caller)
         except Exception as error:  # noqa: BLE001 - MCP transports raise several types
-            outcomes.append(
-                WriteOutcome(receipt.urn, receipt.verdict, False, type(error).__name__)
+            failure = (
+                "write_unconfirmed"
+                if isinstance(error, ReceiptWriteUnconfirmed)
+                else type(error).__name__
             )
+            rollback_errors = getattr(error, "receipt_rollback_errors", ())
+            detail = failure
+            if rollback_errors:
+                detail += "; rollback_incomplete: " + "; ".join(rollback_errors)
+            outcomes.append(WriteOutcome(receipt.urn, receipt.verdict, False, detail))
             continue
         outcomes.append(WriteOutcome(receipt.urn, receipt.verdict, True))
     return outcomes

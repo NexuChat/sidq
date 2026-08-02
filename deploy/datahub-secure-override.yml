@@ -1,0 +1,52 @@
+services:
+  datahub-gms-quickstart:
+    environment:
+      METADATA_SERVICE_AUTH_ENABLED: "true"
+      DATAHUB_SYSTEM_CLIENT_ID: ${DATAHUB_SYSTEM_CLIENT_ID:?set DATAHUB_SYSTEM_CLIENT_ID}
+      DATAHUB_SYSTEM_CLIENT_SECRET: ${DATAHUB_SYSTEM_CLIENT_SECRET:?set DATAHUB_SYSTEM_CLIENT_SECRET}
+      DATAHUB_TOKEN_SERVICE_SIGNING_KEY: ${DATAHUB_TOKEN_SERVICE_SIGNING_KEY:?set DATAHUB_TOKEN_SERVICE_SIGNING_KEY}
+      DATAHUB_TOKEN_SERVICE_SALT: ${DATAHUB_TOKEN_SERVICE_SALT:?set DATAHUB_TOKEN_SERVICE_SALT}
+    ports: !override
+      - target: 8080
+        published: "8080"
+        host_ip: 127.0.0.1
+        protocol: tcp
+    volumes: !override []
+
+  frontend-quickstart:
+    environment:
+      METADATA_SERVICE_AUTH_ENABLED: "true"
+      AUTH_JAAS_ENABLED: "false"
+      AUTH_NATIVE_ENABLED: "true"
+      DATAHUB_SYSTEM_CLIENT_ID: ${DATAHUB_SYSTEM_CLIENT_ID:?set DATAHUB_SYSTEM_CLIENT_ID}
+      DATAHUB_SYSTEM_CLIENT_SECRET: ${DATAHUB_SYSTEM_CLIENT_SECRET:?set DATAHUB_SYSTEM_CLIENT_SECRET}
+      DATAHUB_SECRET: ${DATAHUB_FRONTEND_SECRET:?set a unique DATAHUB_FRONTEND_SECRET}
+      UI_INGESTION_DEFAULT_CLI_VERSION: ${UI_INGESTION_DEFAULT_CLI_VERSION}
+    ports: !override
+      - target: 9002
+        published: "9002"
+        host_ip: 127.0.0.1
+        protocol: tcp
+    volumes: !override []
+
+  mysql:
+    ports: !override []
+
+  kafka-broker:
+    ports: !override []
+
+  opensearch:
+    ports: !override []
+
+  datahub-actions-quickstart:
+    environment:
+      DATAHUB_SYSTEM_CLIENT_ID: ${DATAHUB_SYSTEM_CLIENT_ID:?set DATAHUB_SYSTEM_CLIENT_ID}
+      DATAHUB_SYSTEM_CLIENT_SECRET: ${DATAHUB_SYSTEM_CLIENT_SECRET:?set DATAHUB_SYSTEM_CLIENT_SECRET}
+    volumes: !override []
+
+  system-update-quickstart:
+    restart: "no"
+    volumes: !override []
+    environment:
+      DATAHUB_TOKEN_SERVICE_SIGNING_KEY: ${DATAHUB_TOKEN_SERVICE_SIGNING_KEY:?set DATAHUB_TOKEN_SERVICE_SIGNING_KEY}
+      DATAHUB_TOKEN_SERVICE_SALT: ${DATAHUB_TOKEN_SERVICE_SALT:?set DATAHUB_TOKEN_SERVICE_SALT}

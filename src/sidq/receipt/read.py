@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Callable, Mapping, Sequence
 from datetime import UTC, datetime, timedelta
 from typing import Any
+
+from sidq.serialization import canonical_json
 
 ToolCaller = Callable[[str, Mapping[str, Any]], Any]
 _PREFIX = "urn:li:structuredProperty:sidq."
@@ -32,12 +35,80 @@ def get_verification_status(
         tool_caller = StdioMCPReceiptToolCaller()
     try:
         entity = _single_entity(tool_caller("get_entities", {"urns": [urn]}), urn)
+        recorded_context_hash = _one(_sidq_values(entity), "context_hash")
+        current_context_hash = _current_context_hash(
+            urn, entity, recorded_context_hash, tool_caller
+        )
     finally:
         if owns_caller:
             close = getattr(tool_caller, "close", None)
             if callable(close):
                 close()
+    return _status_of(
+        urn,
+        entity,
+        current_policy_hash=current_policy_hash,
+        max_age=max_age,
+        now=now,
+        schema_modified_at=schema_modified_at,
+        current_context_hash=current_context_hash,
+    )
+
+
+# `get_entities` takes a list, so reading the whole catalog's receipts does not
+# have to cost one call per asset. The batch size is a courtesy to the server,
+# not a correctness bound; any chunking returns the same statuses.
+_BATCH = 20
+
+
+def get_verification_statuses(
+    urns: Sequence[str],
+    tool_caller: ToolCaller,
+    *,
+    current_policy_hash: str | None = None,
+    max_age: timedelta = timedelta(days=7),
+    now: datetime | None = None,
+) -> dict[str, dict[str, Any]]:
+    """Read many receipts at once, one bounded ``get_entities`` call per batch.
+
+    Every requested URN gets a status. An asset the response did not mention comes
+    back with no verdict — indistinguishable from "never verified", which is the
+    correct reading: a receipt that cannot be produced does not vouch for anything.
+    """
+    statuses: dict[str, dict[str, Any]] = {}
+    ordered = list(dict.fromkeys(str(urn) for urn in urns))
+    for start in range(0, len(ordered), _BATCH):
+        chunk = ordered[start : start + _BATCH]
+        by_urn = _entities_by_urn(tool_caller("get_entities", {"urns": chunk}))
+        for urn in chunk:
+            entity = by_urn.get(urn, {})
+            recorded_context_hash = _one(_sidq_values(entity), "context_hash")
+            current_context_hash = _current_context_hash(
+                urn, entity, recorded_context_hash, tool_caller
+            )
+            statuses[urn] = _status_of(
+                urn,
+                entity,
+                current_policy_hash=current_policy_hash,
+                max_age=max_age,
+                now=now,
+                current_context_hash=current_context_hash,
+            )
+    return statuses
+
+
+def _status_of(
+    urn: str,
+    entity: Mapping[str, Any],
+    *,
+    current_policy_hash: str | None,
+    max_age: timedelta,
+    now: datetime | None,
+    schema_modified_at: datetime | None = None,
+    current_context_hash: str | None = None,
+) -> dict[str, Any]:
     values = _sidq_values(entity)
+    recorded_context_hash = _one(values, "context_hash")
     result: dict[str, Any] = {
         "urn": urn,
         "verdict": _one(values, "verdict"),
@@ -48,10 +119,20 @@ def get_verification_status(
         "rules_fired": values.get("rules_fired", []),
         "verifier": _one(values, "verifier"),
         "evidence_url": _one(values, "evidence_url"),
+        "context_hash": recorded_context_hash,
+        # Present only on receipts a swarm wrote; a reader uses them to say
+        # *which* worker vouched for an asset it skipped.
+        "swarm_run": _one(values, "swarm_run"),
+        "worker_id": _one(values, "worker_id"),
     }
     stale, reason = _staleness(
         checked_at=result["checked_at"],
-        schema_modified_at=schema_modified_at or _schema_modified_at(entity),
+        schema_modified_at=(
+            schema_modified_at
+            or (_schema_modified_at(entity) if not recorded_context_hash else None)
+        ),
+        recorded_context_hash=recorded_context_hash,
+        current_context_hash=current_context_hash,
         recorded_policy_hash=result["policy_hash"],
         current_policy_hash=current_policy_hash,
         max_age=max_age,
@@ -62,19 +143,47 @@ def get_verification_status(
     return result
 
 
-def _single_entity(raw: Any, requested_urn: str) -> Mapping[str, Any]:
+def _entities_by_urn(raw: Any) -> dict[str, Mapping[str, Any]]:
+    """Index a ``get_entities`` response by URN, tolerating the same shapes
+    ``_single_entity`` does. An unrecognisable payload indexes nothing, and the
+    caller reads that as "no receipt" rather than as an error to swallow."""
     if isinstance(raw, Mapping):
         nested = raw.get("entities") or raw.get("result")
         if isinstance(nested, Sequence) and not isinstance(nested, (str, bytes)):
             raw = nested
-        elif raw.get("urn") == requested_urn or "structuredProperties" in raw:
+        elif isinstance(raw.get("urn"), str):
+            return {str(raw["urn"]): raw}
+    if not isinstance(raw, Sequence) or isinstance(raw, (str, bytes)):
+        return {}
+    return {
+        str(item["urn"]): item
+        for item in raw
+        if isinstance(item, Mapping) and isinstance(item.get("urn"), str)
+    }
+
+
+def _single_entity(raw: Any, requested_urn: str) -> Mapping[str, Any]:
+    """The entity that IS the requested asset — never merely the first returned.
+
+    This used to fall back to the first entity in the response when no URN
+    matched, which handed the catalog a way to answer a question it was not
+    asked: return asset B's receipt when A was requested, and `verify A` prints
+    VERIFIED on the strength of B's evidence. A tool built to stop agents
+    trusting the graph cannot itself trust the graph to reply about the right
+    asset. An unmatched response is treated as no receipt, which reads as
+    NOT VERIFIED — the safe answer.
+    """
+    if isinstance(raw, Mapping):
+        nested = raw.get("entities") or raw.get("result")
+        if isinstance(nested, Sequence) and not isinstance(nested, (str, bytes)):
+            raw = nested
+        elif raw.get("urn") == requested_urn:
             return raw
+        else:
+            return {}
     if isinstance(raw, Sequence) and not isinstance(raw, (str, bytes)):
         for item in raw:
             if isinstance(item, Mapping) and item.get("urn") == requested_urn:
-                return item
-        for item in raw:
-            if isinstance(item, Mapping):
                 return item
     return {}
 
@@ -123,14 +232,222 @@ def _one(values: Mapping[str, list[str]], name: str) -> str | None:
     return value[0] if value else None
 
 
+_SIDQ_BADGES = frozenset({"urn:li:tag:sidq:verified", "urn:li:tag:sidq:blocked"})
+_AUDIT_KEYS = frozenset(
+    {"created", "createdon", "lastmodified", "lastobserved", "timestamp"}
+)
+
+
+def decision_context_hash(
+    urn: str, entity: Mapping[str, Any], tool_caller: ToolCaller
+) -> str:
+    """Hash the semantic entity plus complete immediate lineage in both directions."""
+    if entity.get("urn") != urn:
+        raise RuntimeError("decision context entity does not match the requested URN")
+    values = _sidq_values(entity)
+    context = {
+        "entity": _semantic_context(
+            entity,
+            evidence_urls=frozenset(values.get("evidence_url", [])),
+        ),
+        "downstream": _lineage_context(urn, tool_caller, upstream=False),
+        "upstream": _lineage_context(urn, tool_caller, upstream=True),
+    }
+    return f"sha256:{hashlib.sha256(canonical_json(context)).hexdigest()}"
+
+
+def _current_context_hash(
+    urn: str,
+    entity: Mapping[str, Any],
+    recorded_context_hash: str | None,
+    tool_caller: ToolCaller,
+) -> str | None:
+    if not recorded_context_hash:
+        return None
+    try:
+        return decision_context_hash(urn, entity, tool_caller)
+    except Exception:  # noqa: BLE001 - an unprovable read is stale, never fatal
+        return None
+
+
+def _lineage_context(
+    urn: str, tool_caller: ToolCaller, *, upstream: bool
+) -> Mapping[str, Any]:
+    raw = tool_caller(
+        "get_lineage",
+        {
+            "urn": urn,
+            "upstream": upstream,
+            "max_hops": 1,
+            "max_results": 100,
+        },
+    )
+    if not isinstance(raw, Mapping):
+        raise TypeError("decision context lineage response must be an object")
+    direction = "upstreams" if upstream else "downstreams"
+    section = raw.get(direction)
+    if not isinstance(section, Mapping):
+        raise TypeError(f"decision context lineage is missing {direction}")
+    if _is_official_empty_lineage(section):
+        return {"total": 0, "results": []}
+    results = section.get("searchResults")
+    total = section.get("total")
+    returned = section.get("returned")
+    has_more = section.get("hasMore", section.get("has_more"))
+    if (
+        not isinstance(results, list)
+        or not isinstance(total, int)
+        or isinstance(total, bool)
+        or not isinstance(returned, int)
+        or isinstance(returned, bool)
+        or total != returned
+        or returned != len(results)
+        or has_more is not False
+    ):
+        raise RuntimeError(f"decision context {direction} lineage is incomplete")
+    return {"total": total, "results": _semantic_context(results)}
+
+
+def _is_official_empty_lineage(value: Mapping[str, Any]) -> bool:
+    total = value.get("total")
+    return (
+        isinstance(total, int)
+        and not isinstance(total, bool)
+        and total == 0
+        and all(
+            key not in value
+            for key in ("searchResults", "returned", "hasMore", "has_more")
+        )
+    )
+
+
+def _semantic_context(
+    value: Any, *, evidence_urls: frozenset[str] = frozenset()
+) -> Any:
+    if isinstance(value, Mapping):
+        semantic: dict[str, Any] = {}
+        for key, item in value.items():
+            name = str(key)
+            if name.casefold() in _AUDIT_KEYS:
+                continue
+            if name in {"structuredProperties", "structured_properties"}:
+                semantic[name] = _without_sidq_properties(
+                    item, evidence_urls=evidence_urls
+                )
+                continue
+            if (
+                name == "tags"
+                and isinstance(item, Sequence)
+                and not isinstance(item, (str, bytes))
+            ):
+                semantic[name] = [
+                    _semantic_context(tag, evidence_urls=evidence_urls)
+                    for tag in item
+                    if not _contains_urn(tag, _SIDQ_BADGES)
+                ]
+                continue
+            if name == "relatedDocuments":
+                semantic[name] = _without_sidq_receipt_documents(
+                    item, evidence_urls=evidence_urls
+                )
+                continue
+            semantic[name] = _semantic_context(item, evidence_urls=evidence_urls)
+        return semantic
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
+        return [_semantic_context(item, evidence_urls=evidence_urls) for item in value]
+    return value
+
+
+def _without_sidq_properties(value: Any, *, evidence_urls: frozenset[str]) -> Any:
+    if isinstance(value, Mapping):
+        return {
+            str(key): (
+                [
+                    _semantic_context(item, evidence_urls=evidence_urls)
+                    for item in items
+                    if not _is_sidq_property(item)
+                ]
+                if str(key) in {"properties", "structuredProperties"}
+                and isinstance(items := item, list)
+                else _without_sidq_properties(item, evidence_urls=evidence_urls)
+            )
+            for key, item in value.items()
+        }
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
+        return [
+            _semantic_context(item, evidence_urls=evidence_urls)
+            for item in value
+            if not _is_sidq_property(item)
+        ]
+    return value
+
+
+def _without_sidq_receipt_documents(
+    value: Any, *, evidence_urls: frozenset[str]
+) -> Any:
+    if isinstance(value, Mapping):
+        documents = value.get("documents")
+        if isinstance(documents, Sequence) and not isinstance(documents, (str, bytes)):
+            return {
+                "documents": [
+                    _semantic_context(document, evidence_urls=evidence_urls)
+                    for document in documents
+                    if not _is_sidq_receipt_document(document, evidence_urls)
+                ]
+            }
+        return {
+            str(key): _without_sidq_receipt_documents(item, evidence_urls=evidence_urls)
+            for key, item in value.items()
+        }
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
+        return [
+            _semantic_context(document, evidence_urls=evidence_urls)
+            for document in value
+            if not _is_sidq_receipt_document(document, evidence_urls)
+        ]
+    return value
+
+
+def _is_sidq_receipt_document(value: Any, evidence_urls: frozenset[str]) -> bool:
+    if evidence_urls and _contains_urn(value, evidence_urls):
+        return True
+    if not isinstance(value, Mapping):
+        return False
+    info = value.get("info")
+    title = info.get("title") if isinstance(info, Mapping) else None
+    return (
+        isinstance(title, str)
+        and title.startswith("Sidq ")
+        and " receipt for urn:li:" in title
+    )
+
+
+def _is_sidq_property(value: Any) -> bool:
+    if not isinstance(value, Mapping):
+        return False
+    property_urn = value.get("structuredPropertyUrn") or value.get("propertyUrn")
+    nested = value.get("structuredProperty")
+    if not property_urn and isinstance(nested, Mapping):
+        property_urn = nested.get("urn")
+    return isinstance(property_urn, str) and property_urn.startswith(_PREFIX)
+
+
+def _contains_urn(value: Any, urns: set[str] | frozenset[str]) -> bool:
+    if isinstance(value, Mapping):
+        return any(_contains_urn(item, urns) for item in value.values())
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
+        return any(_contains_urn(item, urns) for item in value)
+    return isinstance(value, str) and value in urns
+
+
 def _schema_modified_at(entity: Mapping[str, Any]) -> datetime | None:
-    for name in ("schemaMetadata", "editableSchemaMetadata"):
-        aspect = entity.get(name)
-        if isinstance(aspect, Mapping):
-            timestamp = _timestamp(aspect.get("lastModified"))
-            if timestamp is not None:
-                return timestamp
-    return None
+    modified = [
+        timestamp
+        for name in ("schemaMetadata", "editableSchemaMetadata")
+        if isinstance((aspect := entity.get(name)), Mapping)
+        if (timestamp := _timestamp(aspect.get("lastModified"))) is not None
+    ]
+    return max(modified, default=None)
 
 
 def _timestamp(value: Any) -> datetime | None:
@@ -159,6 +476,8 @@ def _staleness(
     *,
     checked_at: str | None,
     schema_modified_at: datetime | None,
+    recorded_context_hash: str | None,
+    current_context_hash: str | None,
     recorded_policy_hash: str | None,
     current_policy_hash: str | None,
     max_age: timedelta,
@@ -167,12 +486,18 @@ def _staleness(
     checked = _parse_iso(checked_at)
     if checked is None:
         return True, "receipt has no valid checked_at timestamp"
+    if current_policy_hash is not None and current_policy_hash != recorded_policy_hash:
+        return True, "policy hash changed since the last verification"
     if schema_modified_at is not None and schema_modified_at > checked:
         return True, "asset schema changed after the last verification"
     if now.astimezone(UTC) - checked > max_age:
         return True, "receipt exceeded the maximum verification age"
-    if current_policy_hash is not None and current_policy_hash != recorded_policy_hash:
-        return True, "policy hash changed since the last verification"
+    if not recorded_context_hash:
+        return True, "receipt has no decision context hash"
+    if current_context_hash is None:
+        return True, "asset decision context could not be proved"
+    if current_context_hash != recorded_context_hash:
+        return True, "asset decision context changed"
     return False, None
 
 
@@ -189,13 +514,18 @@ def holds(status: Mapping[str, Any]) -> tuple[bool, str]:
     verdict = status.get("verdict")
     if not verdict:
         return False, "no receipt on this asset"
-    if status.get("stale"):
-        return False, f"receipt is stale: {status.get('stale_reason') or 'unknown'}"
+    if verdict not in {"PASS", "WARN", "BLOCK"}:
+        # The engine emits exactly three verdicts. Anything else was not written
+        # by this engine, so it vouches for nothing — a catalog cannot invent a
+        # fourth verdict and have it read as approval.
+        return False, f"receipt records an unrecognised verdict ({verdict})"
     if verdict == "BLOCK":
         return (
             False,
             f"receipt records a refusal ({status.get('reason_code') or verdict})",
         )
+    if status.get("stale"):
+        return False, f"receipt is stale: {status.get('stale_reason') or 'unknown'}"
     return True, f"receipt records {verdict}"
 
 

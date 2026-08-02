@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title description">
+  <title id="title">Sidq — provable context before agents act</title>
+  <desc id="description">An evidence graph flows through a deterministic block decision into an optional receipt.</desc>
+  <rect width="1200" height="630" fill="#0a0a09"/>
+  <rect x="0" y="0" width="14" height="630" fill="#ff503d"/>
+  <path d="M68 80H1132M68 550H1132" stroke="#3b3b37" stroke-width="2"/>
+  <text x="68" y="132" fill="#d4ff45" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="22" letter-spacing="3">SIDQ / DATAHUB-NATIVE TRUST INFRASTRUCTURE</text>
+  <text x="68" y="225" fill="#f5f1e8" font-family="Inter, Arial, sans-serif" font-size="64" font-weight="700" letter-spacing="-2">PROVE THE CONTEXT</text>
+  <text x="68" y="296" fill="#f5f1e8" font-family="Inter, Arial, sans-serif" font-size="64" font-weight="700" letter-spacing="-2">BEFORE THE AGENT ACTS</text>
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" text-anchor="middle">
+    <rect x="68" y="385" width="160" height="62" rx="2" fill="#171715" stroke="#77776f"/>
+    <text x="148" y="422" fill="#f5f1e8">DATAHUB CONTEXT</text>
+    <path d="M228 416H284" stroke="#77776f" stroke-width="2"/>
+    <path d="M276 408L284 416L276 424" fill="none" stroke="#77776f" stroke-width="2"/>
+    <rect x="284" y="385" width="160" height="62" rx="2" fill="#171715" stroke="#77776f"/>
+    <text x="364" y="412" fill="#f5f1e8">EVIDENCE</text>
+    <text x="364" y="434" fill="#aaa79f">CHECK</text>
+    <path d="M444 416H500" stroke="#77776f" stroke-width="2"/>
+    <path d="M492 408L500 416L492 424" fill="none" stroke="#77776f" stroke-width="2"/>
+    <rect x="500" y="365" width="220" height="102" rx="2" fill="#ff503d"/>
+    <text x="610" y="429" fill="#0a0a09" font-family="Inter, Arial, sans-serif" font-size="48" font-weight="800" font-style="italic">BLOCK</text>
+    <path d="M720 416H776" stroke="#77776f" stroke-width="2"/>
+    <path d="M768 408L776 416L768 424" fill="none" stroke="#77776f" stroke-width="2"/>
+    <rect x="776" y="385" width="168" height="62" rx="2" fill="#171715" stroke="#d4ff45"/>
+    <text x="860" y="412" fill="#d4ff45">OPTIONAL</text>
+    <text x="860" y="434" fill="#f5f1e8">RECEIPT</text>
+    <path d="M944 416H1000" stroke="#77776f" stroke-width="2"/>
+    <path d="M992 408L1000 416L992 424" fill="none" stroke="#77776f" stroke-width="2"/>
+    <circle cx="1050" cy="416" r="34" fill="#171715" stroke="#d4ff45"/>
+    <path d="M1037 416L1047 426L1065 405" fill="none" stroke="#d4ff45" stroke-width="4"/>
+  </g>
+  <text x="68" y="587" fill="#aaa79f" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18">ONE CATALOG. MANY AGENTS. NO BLIND TRUST.</text>
+  <text x="1132" y="587" fill="#f5f1e8" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18" text-anchor="end">sidq.mlki.app</text>
+</svg>

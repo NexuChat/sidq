@@ -6,6 +6,11 @@ blast-radius and PII scenes. Do not merge the graphs or invent lineage between
 them: this PostgreSQL database has one job, which is to prove that catalog
 metadata can become stale relative to a live source.
 
+The repository Compose file supplies only this controlled PostgreSQL service.
+It does not start DataHub. It relies on an already-running DataHub OSS
+quickstart and its external `datahub_network`; the source and catalog are not a
+single Compose graph.
+
 ## Prerequisites
 
 - Docker with Compose
@@ -27,7 +32,23 @@ The PostgreSQL 16 container joins both its Compose network and the external
 
 ## One-line demo targets
 
-Run these commands from the repository root:
+For the complete connected journey, run these commands from the repository
+root:
+
+```console
+make mcp-install
+make demo-stack
+make mcp-smoke
+make live-loop
+```
+
+`demo-stack` requires the already-running, separate DataHub quickstart, then
+starts and ingests this PostgreSQL Compose project. `mcp-smoke` initializes `sidq-mcp` and requires its
+exact three-tool list, then exercises the official `mcp-server-datahub` graph
+dependency against DataHub. `live-loop` performs the complete read, decide,
+write, and independent-read sequence.
+
+The lower-level source lifecycle targets remain available:
 
 ```console
 make demo-up

@@ -210,11 +210,10 @@ def _render_evidence_detail(evidence: Evidence, *, advisory: bool = False) -> li
             )
         )
 
-    # Two gates raise `pii_exposure` by different routes: the blast radius when a
-    # tagged column reaches a dashboard, and the governance gate when the tag is
-    # lost into consumers that do not carry it. Without these bullets the two
-    # findings render byte-identical, which reads as a duplicated bug rather than
-    # as two distinct exposures.
+    # Blast evidence can carry PII tags and dashboards as sensitivity context.
+    # Rendering those facts does not claim that the proposal created a new PII
+    # route: the built-in change model emits no `pii_exposure` without a proven
+    # proposed lineage delta and governed destination.
     dashboards = _strings(detail.get("dashboards"))
     if dashboards:
         lines.append(

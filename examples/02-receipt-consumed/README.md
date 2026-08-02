@@ -12,8 +12,9 @@ namespace and the `sidq:verified` / `sidq:blocked` badges.
 > `src/sidq/policy/default_policy.yaml`, so every policy change gives a new one.
 > This run predates the constraint-reconciliation and `partial_blast_radius`
 > rules, so re-running it today yields a different `policy_hash` — a receipt
-> pinned to a policy that has since changed is exactly what
-> `search_verified` and `get_verification_status` are built to detect. The
+> pinned to a policy that has since changed is exactly what the independent
+> `sidq verify <urn>` CLI path is built to detect. `search_verified` uses the
+> separate Sidq MCP verification store; it does not read DataHub Receipts. The
 > transcript is kept verbatim rather than rewritten, because editing a recorded
 > live run to match today's code would destroy the only thing it proves.
 > `tests/test_receipt.py` fails if this paragraph is removed while the transcript
@@ -31,6 +32,11 @@ process), then run:
 .venv/bin/python examples/02-receipt-consumed/change_schema.py
 .venv/bin/python examples/02-receipt-consumed/read_stale.py
 ```
+
+For the supported receipt-consumer surface, run `sidq verify <urn>` from a
+separate process. Sidq's own MCP server has exactly three tools:
+`check_change`, `verify_context`, and `search_verified`; receipt status is not a
+fourth MCP tool.
 
 ## Captured live output
 

@@ -61,15 +61,15 @@ def server_command(explicit: str | None) -> str:
 
 
 def decode_result(tool_name: str, result: Any) -> Any:
-    if result.isError:
+    if result.is_error:
         messages = [
             item.text
             for item in result.content
             if getattr(item, "type", None) == "text"
         ]
         raise RuntimeError(f"{tool_name} failed: {'; '.join(messages)}")
-    if result.structuredContent and "result" in result.structuredContent:
-        return result.structuredContent["result"]
+    if result.structured_content and "result" in result.structured_content:
+        return result.structured_content["result"]
     for item in result.content:
         if getattr(item, "type", None) == "text":
             return json.loads(item.text)
@@ -128,8 +128,8 @@ async def smoke(args: argparse.Namespace, server_stderr: TextIO) -> None:
         initialized = await session.initialize()
         print(
             "Connected:",
-            f"server={initialized.serverInfo.name}",
-            f"version={initialized.serverInfo.version}",
+            f"server={initialized.server_info.name}",
+            f"version={initialized.server_info.version}",
             f"gms={args.gms_url}",
         )
 

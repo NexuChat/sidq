@@ -5,6 +5,14 @@
 > not pre-flight ships, and §8 lists it as a deliverable. This is that
 > record: a negative result, reached before any model was fitted.
 
+> **Superseded semantic snapshot:** This generated record has not been rerun
+> after the built-in change path stopped inferring `pii_exposure` from the
+> catalog's current graph. Preserve its numbers as historical output, not as a
+> claim about the current engine. The current published example is blocked by
+> `critical_downstream` because it has cross-team downstream owners;
+> `wide_blast_radius` adds a 16-consumer `WARN`, and `PII_Data` is sensitivity
+> context only.
+
 ## The finding
 
 The ladder was trained on 13,300 rows and evaluated on 7,366 rows from 7 held-out dbt models. The split is by model, per §3, so no model appears on both sides and the numbers are not a memorisation score.
@@ -22,6 +30,8 @@ Those rows contain **1,507 distinct training diffs and 607 distinct test diffs**
 | L2+ pre-checks and gradient-boosted trees | 0.00%               | 0               | 0.00%      | 100.00%  |
 
 The cheapest rung that meets the bar is **L0.75 pre-checks and a two-term rule**: 0 missed blocks out of 5,921, and 0 false alarms. §4 asks for the cheapest, not the most sophisticated, so a tie resolves downward.
+
+A tie here is a tie on *accuracy only*, and this document measures nothing else. The other dimension is settled in [`DECISION-COST.md`](DECISION-COST.md): at the shape a gate really has — one change at a time — the rule decides three orders of magnitude faster than the model that ties it, and it is still ahead when the model is given its friendliest possible framing.
 
 | §6 criterion | outcome |
 | --- | --- |
@@ -43,7 +53,7 @@ The rule holds *on this corpus*, and the corpus is narrow. Its verdicts are driv
 
 So the finding is not that pre-flight is easy. It is that this corpus cannot tell us whether pre-flight is hard, and a model trained on it would have shipped a rule wearing a classifier's clothes.
 
-**The rule was re-tested after the evidence got richer, not before.** Wiring the documentation and governance gates into `sidq check` took `doc_rot` from zero fires to 2,564 and `pii_exposure` from 46 to 1,367 across the corpus. The rule still reproduces the oracle on all 6,050 undecided rows. The reason is worth stating plainly rather than claiming as a win: every held-out row carrying `doc_rot` was already blocking for another reason, so the new gates added explanation rather than new decisions. Evidence got richer; the decision boundary did not move.
+**In that superseded run, the rule was re-tested after the evidence got richer, not before.** Wiring the documentation and governance gates into `sidq check` took `doc_rot` from zero fires to 2,564 and the former built-in `pii_exposure` behavior from 46 to 1,367 across the corpus. The rule still reproduced that run's oracle on all 6,050 undecided rows. The reason is worth stating plainly rather than claiming as a win: every held-out row carrying `doc_rot` was already blocking for another reason, so the new gates added explanation rather than new decisions. Evidence got richer; the historical decision boundary did not move.
 
 ### What actually moved the number
 
@@ -66,7 +76,7 @@ measured rather than reasoned about.
 | adjudicated on concrete rules | 19,293 (93.4%) |
 | distinct dbt models (the §3 split unit) | 20 |
 
-Evidence kinds behind the labels:
+Historical evidence kinds behind those labels:
 
 | evidence kind | rows |
 | --- | ---: |

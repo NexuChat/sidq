@@ -1,4 +1,4 @@
-# SIDQ RECEIPT SPEC — wave 3 (binding)
+# SIDQ RECEIPT SPEC — implemented receipt contract
 
 Verified facts: `docs/RECON.md`.
 
@@ -16,8 +16,8 @@ We use the required component to both read and write. Three parts, each with a j
 
 | Part | Tool | Job |
 |---|---|---|
-| **Queryable body** | `add_structured_properties` | machine-readable facts, filterable in DataHub search |
-| **Visible badge** | `add_tags` | `sidq:verified` / `sidq:blocked` — renders in the UI, screenshots well, one glance |
+| **Queryable body** | `add_structured_properties` / `remove_structured_properties` | machine-readable facts, filterable in DataHub search |
+| **Visible badge** | `add_tags` / `remove_tags` | exactly one of `sidq:verified` / `sidq:blocked` — renders in the UI, screenshots well, one glance |
 | **Full evidence** | `save_document` | the human-readable receipt: rules fired, evidence, links |
 
 **Gotcha — do this first:** structured properties must be *defined* as entities before any
@@ -36,17 +36,28 @@ structured properties first; they are searchable and the custom-properties path 
 | `sidq.commit_sha` | string | the exact commit the verdict was computed on |
 | `sidq.checked_at` | string | ISO-8601 UTC |
 | `sidq.policy_hash` | string | sha256 of the policy file actually used |
+| `sidq.context_hash` | string | sha256 of semantic entity metadata plus complete immediate lineage |
 | `sidq.rules_fired` | string, multiple | rule ids, sorted |
 | `sidq.verifier` | string | `sidq@<version>` |
 | `sidq.evidence_url` | string | link to the PR comment / document |
 
-`policy_hash` + `commit_sha` together make the attestation **reproducible**: anyone can
-re-run the same policy on the same commit and get the same verdict, byte for byte. Say
-this out loud in the README — it is the difference between an attestation and a sticker.
+`policy_hash` + `commit_sha` make the captured verdict **reproducible**: anyone can
+re-run the same policy on the same commit and get the same verdict, byte for byte.
+They do not sign the Receipt, make it tamper-proof, or prove that the catalog has
+not changed. The independently recomputed `context_hash`, policy comparison, and
+age check determine whether the latest Receipt still applies.
 
-## 3. Consumption — `get_verification_status(urn)`
+## 3. Consumption — `sidq verify <urn>`
 
-Our MCP tool returns, for the asset's latest receipt:
+Receipt consumption is a CLI operation, not a fourth Sidq MCP tool. Run it from
+a process separate from the writer:
+
+```bash
+sidq verify 'urn:li:dataset:(urn:li:dataPlatform:postgres,example.table,PROD)' --json
+```
+
+It reads the latest receipt through the official DataHub MCP dependency and
+returns:
 
 ```json
 {
@@ -56,17 +67,27 @@ Our MCP tool returns, for the asset's latest receipt:
   "commit_sha": "9f2c1ab",
   "checked_at": "2026-08-02T11:04:00Z",
   "policy_hash": "sha256:...",
+  "context_hash": "sha256:...",
   "rules_fired": [],
   "stale": true,
-  "stale_reason": "asset schema changed after the last verification"
+  "stale_reason": "asset decision context changed"
 }
 ```
 
 **Receipts expire — this is the point.** `stale` is computed, never stored:
 
-- the asset's schema `lastModified` in the graph is newer than `checked_at`, **or**
-- `checked_at` is older than the configured max age (default 7 days), **or**
-- the current `policy_hash` differs from the one recorded on the receipt.
+- a policy-hash mismatch invalidates immediately, **or**
+- the current semantic entity metadata or complete one-hop upstream and downstream
+  lineage differs from the recorded context hash, **or**
+- missing, partial, or error context is stale (fail-closed), **or**
+- `checked_at` is missing or invalid, **or**
+- `checked_at` is older than the configured limit. The CLI default maximum age is
+  7 days.
+
+Sidq's own receipt properties, badges, and evidence documents are excluded from
+the context hash so a receipt does not invalidate itself. The hosted public
+handoff alone uses 45 days solely to span judging through August 31, 2026; any
+context or policy change still invalidates immediately.
 
 So an analytics agent asking "is this asset verified?" gets a real answer — *"verified at
 commit 9f2c1ab, but it has changed since"* — instead of a badge that means nothing. A
@@ -75,15 +96,34 @@ receipt that cannot go stale is a sticker.
 ## 4. Demo obligation (DECISION §6, scene 4)
 
 The PASS receipt must be **visible in the DataHub UI** (that is what the tag buys us), and
-a *different* agent must then call `get_verification_status` and change its behaviour
+a *different* process must then run `sidq verify` and change its behaviour
 because of the answer. Not a log line — a behaviour change: it declines, or it warns, or it
 picks a different asset. If the demo cannot show a third party acting on the receipt, the
 receipt is decorative and criterion #1 is only half won.
 
+Sidq's own `sidq-mcp` server exposes exactly three tools: `check_change`,
+`verify_context`, and `search_verified`. None is named as a receipt-status tool.
+
 ## 5. Hard rules
 
-- The receipt is written **after** the verdict, never as part of computing it. No feedback loops.
-- A `BLOCK` verdict writes a receipt too. Recording a refusal is the whole thesis — writing
+- Writeback is attempted **after** the verdict, never as part of computing it. A
+  human-readable document is saved first, the visible badge is applied second,
+  and the machine-readable structured Receipt is published last because that
+  final body is what independent readers trust. If a later mutation or exact
+  readback fails, Sidq uses the official remove/add tools to restore the prior
+  managed badges and touched `sidq.*` values. The evidence document cannot be
+  deleted through this MCP surface and can remain inert. DataHub does not provide
+  a transaction across these tools. Same-URN writes are serialized within one
+  Sidq process, and compensation refuses to overwrite managed values it does not
+  recognize as the prior or attempted state. DataHub exposes no compare-and-swap
+  across these tools, so cross-process writers can still race when their states
+  are indistinguishable, and a failed compensation call can leave partial state.
+  Sidq therefore does not describe the sequence as atomic.
+- A mutation acknowledgement is not success: Sidq polls `get_entities` directly
+  with bounded backoff until the exact structured Receipt is visible. Timeout or
+  mismatch is `write_unconfirmed`, not a written Receipt. No feedback loops.
+- In an opted-in writeback run, a `BLOCK` verdict is eligible for a receipt too.
+  Recording a refusal is the whole thesis — writing
   only on success would be vanity.
 - Sidq holds write permission for the `sidq.*` namespace and its own tags **only**.
   Say so in the README; a gate that can rewrite arbitrary metadata is a liability, and
