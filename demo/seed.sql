@@ -33,6 +33,26 @@ CREATE INDEX orders_customer_ordered_at_idx
 CREATE INDEX orders_status_ordered_at_idx
     ON raw.orders (status, ordered_at DESC);
 
+-- Documentation that `sidq claims` tests against this database. Three of these
+-- are true and one is not, and the false one is the ordinary kind: the enum was
+-- documented when it had three values and a fourth was added later without the
+-- comment being revisited. Nothing about the data is arranged for the demo —
+-- the rows are the same rows every other scene uses.
+COMMENT ON COLUMN raw.customers.customer_id IS
+    'The primary key. One row per customer.';
+COMMENT ON COLUMN raw.orders.order_total IS
+    'The order total in the account currency. This value must never be null.';
+COMMENT ON COLUMN raw.orders.status IS
+    'The order lifecycle state. One of: pending, paid, fulfilled.';
+COMMENT ON COLUMN raw.orders.ordered_at IS
+    'Roughly speaking, when the order was placed by the customer.';
+-- Phrased the way real dbt and FHIR documentation phrases it, which is to say
+-- not in any of the handful of forms a regular expression can commit to. The
+-- deterministic reader declines this sentence; the trained one proposes a
+-- uniqueness claim, and the claim is then tested like any other.
+COMMENT ON COLUMN raw.order_items.item_id IS
+    'A surrogate key providing a unique key for each row.';
+
 CREATE TABLE raw.order_items (
     item_id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     order_id bigint NOT NULL REFERENCES raw.orders (order_id),

@@ -9,7 +9,7 @@ services:
       POSTGRES_USER: sidq
       POSTGRES_PASSWORD: sidq
     ports:
-      - "55432:5432"
+      - "127.0.0.1:55432:5432"
     volumes:
       - demo-postgres-data:/var/lib/postgresql/data
       - ./seed.sql:/docker-entrypoint-initdb.d/001-seed.sql:ro

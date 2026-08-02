@@ -1,7 +1,7 @@
 # Live MCP contract
 
 Verified on 2026-07-28 over one stdio `ClientSession` connected to
-`.venv/bin/mcp-server-datahub`, with `DATAHUB_GMS_URL=http://localhost:8080`.
+`mcp-server-datahub` (isolated uv-tool install), with `DATAHUB_GMS_URL=http://localhost:8080`.
 The responses below are trimmed from real calls against the loaded
 `showcase-ecommerce` graph.
 

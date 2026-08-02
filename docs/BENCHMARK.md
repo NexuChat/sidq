@@ -1,6 +1,18 @@
 # Mutation Benchmark
 
-Labelled mutations: 20666. Labels are the fixture engine's verdicts; generator intent is retained only for comparison.
+> **Superseded semantic snapshot:** The counts below were generated before the
+> built-in change path stopped inferring `pii_exposure` from the catalog's current
+> graph. They have not been rerun under the corrected semantics and must not be
+> presented as current engine output. In the current published example,
+> `critical_downstream` supplies the `BLOCK` because cross-team owners are present,
+> `wide_blast_radius` supplies a supporting `WARN` for 16 consumers, and
+> `PII_Data` is sensitivity context only.
+
+Labelled mutations: 20666. Labels are the fixture engine's verdicts; generator
+intent is retained only for comparison. This is a deterministic regression
+consistency corpus, not external or human-labelled accuracy evidence. The compact
+complete guard artifact and its provenance are documented in
+[`data/benchmark/README.md`](../data/benchmark/README.md).
 
 ## Confusion table
 
@@ -22,13 +34,15 @@ of the gate only where the gate could have fired at all.
 
 - **10,089 of 20,666 rows (49%) have no
   downstream lineage in the fixtures.** Every rule that needs a blast
-  radius — `pii_exposure`, `critical_downstream`, `wide_blast_radius` — is
-  unreachable on those rows by construction, not by omission.
+  radius — including the former built-in `pii_exposure` behavior,
+  `critical_downstream`, and `wide_blast_radius` — was unreachable on those rows
+  in this historical run by construction, not by omission.
 - PII tags exist in these fixtures only on the legacy showcase model, so the
-  `expose_pii_tagged_column` family is largely a test of resolution rather
-  than of PII detection. Its rate belongs in that light.
+  `expose_pii_tagged_column` family was largely a test of resolution under the
+  former semantics rather than proof of a proposed PII route. Its historical rate
+  belongs in that light.
 
-Rules that actually fired:
+Rules that fired in that superseded run:
 
 | rule | times fired |
 |---|---|

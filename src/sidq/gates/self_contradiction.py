@@ -26,7 +26,14 @@ _CHECKS = (
 _FIELD_URN = re.compile(
     r"^urn:li:schemaField:\((urn:li:dataset:\(urn:li:dataPlatform:[^,]+,[^,]+,[^)]+\)),(.+)\)$"
 )
-_SNAKE_CASE = r"[a-z][a-z0-9]*_[a-z0-9_]+"
+# A column reference inside prose. Written for Unicode from the start: the
+# ASCII-only form this replaced could not see a single Arabic, Chinese,
+# Japanese, or Cyrillic column name, so doc rot in any non-English catalog was
+# invisible — the check ran and found nothing, which is the exact failure this
+# project exists to catch. `\w` under Python's default Unicode semantics covers
+# every script; the underscore requirement stays, because it is what
+# distinguishes a column name from an ordinary word in a sentence.
+_SNAKE_CASE = r"\w+_\w+"
 _COLUMN_REFERENCE = re.compile(
     rf"\b(?:column|field)\s+[`\"']?({_SNAKE_CASE})[`\"']?\b", re.IGNORECASE
 )
@@ -71,6 +78,15 @@ class CatalogSnapshot:
 
     entities: tuple[CatalogEntity, ...]
     edges: tuple[LineageEdge, ...] = ()
+    entities_complete: bool = True
+    """Whether `entities` is the whole catalog or a bounded page of it.
+
+    The SDK path enumerates everything, so absence really does mean absent. MCP
+    `search` returns one page, and an edge leaving that page points at an asset
+    that exists — it is simply outside the window. Reporting those as dangling
+    turns the reader's own paging into hundreds of contradictions that are not
+    there, so `orphan_lineage` is only adjudicated when this is true.
+    """
     field_lineage_resolved: frozenset[str] | None = None
     """Assets whose *column-level* lineage was actually fetched.
 
@@ -177,7 +193,11 @@ class CatalogSnapshot:
         return cls(
             tuple(sorted(entities, key=lambda item: item.urn)),
             tuple(sorted(edges, key=_edge_key)),
-            frozenset(resolved),
+            # MCP `search` is paginated: this is a window on the catalog, not the
+            # catalog. Saying so is what keeps the reader's own boundary from
+            # being reported as the catalog's contradictions.
+            entities_complete=False,
+            field_lineage_resolved=frozenset(resolved),
         )
 
     @classmethod
@@ -198,6 +218,7 @@ class CatalogSnapshot:
             ChartInfoClass,
             DashboardInfoClass,
             DatasetPropertiesClass,
+            DeprecationClass,
             GlobalTagsClass,
             OwnershipClass,
             SchemaMetadataClass,
@@ -220,6 +241,7 @@ class CatalogSnapshot:
                 )
                 ownership = get_aspect(urn, OwnershipClass)
                 status = get_aspect(urn, StatusClass)
+                deprecation = get_aspect(urn, DeprecationClass)
                 tags = get_aspect(urn, GlobalTagsClass)
                 schema = (
                     get_aspect(urn, SchemaMetadataClass) if kind == "dataset" else None
@@ -233,7 +255,7 @@ class CatalogSnapshot:
                         fields=fields,
                         tags=_tags(tags),
                         owners=_owners(ownership),
-                        deprecated=_deprecated(properties),
+                        deprecated=_deprecated(properties, deprecation),
                         live=not bool(_value(status, "removed", False)),
                         schema_available=schema is not None
                         if kind == "dataset"
@@ -281,7 +303,11 @@ class SelfContradictionGate:
         evidence.extend(_deprecated_upstream_of_live(entities, snapshot.edges))
         evidence.extend(_documentation(entities))
         evidence.extend(_lineage_field_missing(entities, snapshot.edges))
-        evidence.extend(_orphan_lineage(entities, snapshot.edges))
+        evidence.extend(
+            _orphan_lineage(
+                entities, snapshot.edges, complete=snapshot.entities_complete
+            )
+        )
         evidence.extend(_pii_leaks(entities, snapshot.edges))
         evidence.extend(_unowned_consumed(entities, snapshot.edges))
         evidence.extend(_field_lineage_unresolved(entities, snapshot))
@@ -341,6 +367,8 @@ def _mcp_table_edges(graph: Any, urn: str, depth: int) -> list[LineageEdge]:
         result = graph.get_downstream(urn, depth)
     except Exception:  # noqa: BLE001 - a lineage gap is absence, not a crash
         return []
+    if not getattr(result, "complete", True):
+        raise _Unverifiable(f"table lineage response is incomplete for {urn}")
     targets = getattr(result, "urns", ()) if result is not None else ()
     return [LineageEdge(urn, None, str(target), None) for target in targets or ()]
 
@@ -361,10 +389,39 @@ def _mcp_field_edges(
             result = graph.get_downstream(entity.urn, depth, field.path)
         except Exception as error:
             raise _Unverifiable(f"column lineage failed for {field.path}") from error
+        if not getattr(result, "complete", True):
+            raise _Unverifiable(f"column lineage was incomplete for {field.path}")
+        if getattr(result, "granularity", "table") != "column":
+            raise _Unverifiable(
+                f"column lineage lacked column granularity for {field.path}"
+            )
         columns = getattr(result, "columns", {}) if result is not None else {}
         if not isinstance(columns, Mapping):
             raise _Unverifiable(f"column lineage was unreadable for {field.path}")
-        for target, target_fields in columns.items():
+        targets = tuple(str(target) for target in getattr(result, "urns", ()) or ())
+        target_fields_by_urn = {
+            str(target): fields for target, fields in columns.items()
+        }
+        if targets:
+            if set(target_fields_by_urn) != set(targets):
+                raise _Unverifiable(
+                    f"column lineage did not map every target for {field.path}"
+                )
+            if any(
+                not isinstance(target_fields_by_urn[target], Sequence)
+                or isinstance(target_fields_by_urn[target], (str, bytes))
+                or not target_fields_by_urn[target]
+                or any(
+                    not isinstance(target_field, str) or not target_field
+                    for target_field in target_fields_by_urn[target]
+                )
+                for target in targets
+            ):
+                raise _Unverifiable(
+                    f"column lineage had empty target fields for {field.path}"
+                )
+        for target in targets:
+            target_fields = target_fields_by_urn[target]
             edges.extend(
                 LineageEdge(entity.urn, field.path, str(target), str(target_field))
                 for target_field in target_fields or ()
@@ -448,7 +505,7 @@ def _lineage_field_missing(
             )
             continue
         fields = {field.path for field in target.fields}
-        if edge.target_field not in fields:
+        if not _field_present(edge.target_field, fields):
             evidence.append(
                 Evidence(
                     "lineage_field_missing",
@@ -463,10 +520,66 @@ def _lineage_field_missing(
     return _unique(evidence)
 
 
+def _field_present(claimed: str, schema_paths: set[str]) -> bool:
+    """Is this claimed column really absent, or only spelled another way?
+
+    Exact-string comparison was the whole check, and on one catalog that was
+    right. Across platforms it is not: Snowflake stores identifiers upper-cased,
+    dbt lower-cases them, and DataHub links the two as *siblings* — the same
+    table, two representations. A lineage edge crossing that boundary then reads
+    as `CUSTOMER_ID` missing from a schema that has `customer_id`, and the tool
+    reports a contradiction where a human sees a naming convention. Researching
+    real catalog conventions is what surfaced it; a sibling pair reproduces it in
+    three lines.
+
+    So a claim is absent only when it survives every spelling a catalog
+    legitimately uses for the same column: exact, case-folded, and — for the
+    nested `[version=2.0].[type=struct]...name` paths that JSON, Avro, and
+    Parquet schemas produce — the leaf name the path ends in. Anything beyond
+    that stays a finding, because loosening further would start excusing real
+    contradictions, which is the more expensive mistake.
+    """
+    if claimed in schema_paths:
+        return True
+    folded = {path.casefold() for path in schema_paths}
+    if claimed.casefold() in folded:
+        return True
+    leaf = _leaf_name(claimed)
+    return bool(leaf) and leaf in {_leaf_name(path) for path in folded}
+
+
+def _leaf_name(path: str) -> str:
+    """The final segment of a field path, with DataHub's type annotations gone."""
+    without_types = [
+        part
+        for part in path.split(".")
+        if not (part.startswith("[") and part.endswith("]"))
+    ]
+    return without_types[-1].casefold() if without_types else ""
+
+
 def _orphan_lineage(
-    entities: dict[str, CatalogEntity], edges: Iterable[LineageEdge]
+    entities: dict[str, CatalogEntity],
+    edges: Iterable[LineageEdge],
+    *,
+    complete: bool = True,
 ) -> list[Evidence]:
+    """A dangling edge — but only when the catalog view is whole.
+
+    On a bounded read, every edge crossing the page boundary looks dangling.
+    Calling those contradictions would be inventing them, so an incomplete view
+    reports what it could not adjudicate instead of guessing.
+    """
     evidence: list[Evidence] = []
+    if not complete:
+        return [
+            _unverifiable(
+                "orphan_lineage",
+                "the catalog view is a bounded page, so a missing endpoint may "
+                "simply lie outside it",
+                "catalog",
+            )
+        ]
     for edge in sorted(edges, key=_edge_key):
         for side, urn in (("source", edge.source_urn), ("target", edge.target_urn)):
             if urn not in entities:
@@ -513,11 +626,11 @@ def _pii_leaks(
         target_field = _field(target, edge.target_field)
         if source_field is None or target_field is None:
             continue  # Missing fields are handled by lineage_field_missing, not inferred PII.
-        pii_tags = tuple(sorted(tag for tag in source_field.tags if _is_pii_tag(tag)))
+        pii_tags = tuple(sorted(tag for tag in source_field.tags if is_pii_tag(tag)))
         if not pii_tags:
             continue
         target_tags = tuple(sorted(target_field.tags))
-        if not set(pii_tags).intersection(target_tags):
+        if not _carries_equivalent_protection(pii_tags, target_tags):
             evidence.append(
                 Evidence(
                     "pii_leak_untagged",
@@ -531,6 +644,69 @@ def _pii_leaks(
                 )
             )
     return _unique(evidence)
+
+
+def _carries_equivalent_protection(
+    source_pii_tags: tuple[str, ...], target_tags: tuple[str, ...]
+) -> bool:
+    """Does the downstream column already declare protection, by any name?
+
+    The comparison was tag identity: the target had to carry the *same* marker
+    as its source. Real governance does not work that way — a column inherited
+    from a `PII` source is routinely marked `GDPR`, `Sensitive`, or
+    `Confidential`, and identity comparison reports that protected column as an
+    untagged leak. An independent review flagged it, and a false leak report is
+    expensive: it sends a governance team chasing a column that was never
+    exposed.
+
+    Exact identity still counts, and so does any other marker that names
+    protection. What is deliberately *not* accepted is a bare negation like
+    `not_pii` — a column claiming the opposite of its upstream is a
+    contradiction worth reporting, not a protection worth trusting.
+    """
+    if set(source_pii_tags) & set(target_tags):
+        return True
+    return any(_is_protection_tag(tag) for tag in target_tags)
+
+
+_PROTECTION_MARKERS = (
+    "pii",
+    "gdpr",
+    "hipaa",
+    "phi",
+    "sensitive",
+    "confidential",
+    "restricted",
+    "personal",
+    "private",
+    "ccpa",
+    "pci",
+)
+
+
+def _is_protection_tag(tag: str) -> bool:
+    """A tag that declares the column protected — but never a denial of it."""
+    leaf = tag.casefold().rsplit(":", 1)[-1]
+    if _is_negated_tag(tag):
+        return False
+    return any(marker in leaf for marker in _PROTECTION_MARKERS)
+
+
+def _tag_words(tag: str) -> tuple[str, ...]:
+    leaf = tag.rsplit(":", 1)[-1]
+    separated = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", "_", leaf)
+    return tuple(re.findall(r"[a-z0-9]+", separated.casefold()))
+
+
+def _is_negated_tag(tag: str) -> bool:
+    compact = "".join(_tag_words(tag))
+    for prefix in ("not", "non", "no"):
+        if not compact.startswith(prefix):
+            continue
+        marker = compact[len(prefix) :]
+        if any(marker.startswith(item) for item in _PROTECTION_MARKERS):
+            return True
+    return False
 
 
 def _deprecated_upstream_of_live(
@@ -666,9 +842,12 @@ def _field(entity: CatalogEntity, path: str) -> CatalogField | None:
     return next((field for field in entity.fields if field.path == path), None)
 
 
-def _is_pii_tag(tag: str) -> bool:
-    normalized = tag.casefold()
-    return "pii" in normalized or "personally_identifiable" in normalized
+def is_pii_tag(tag: str) -> bool:
+    """Recognize a positive PII marker, never a marker that denies PII."""
+    if _is_negated_tag(tag):
+        return False
+    compact = "".join(_tag_words(tag))
+    return "pii" in compact or "personallyidentifiable" in compact
 
 
 def _all_entity_urns(list_urns: Any, kind: str) -> Iterable[str]:
@@ -765,7 +944,18 @@ def _urn_list(value: Any, key: str) -> tuple[str, ...]:
     )
 
 
-def _deprecated(properties: Any) -> bool:
+def _deprecated(properties: Any, deprecation: Any = None) -> bool:
+    """Is this asset deprecated, by either way DataHub records it?
+
+    Only the custom-property form was read, which is the convention some
+    ingestion sources emit. DataHub also has a first-class `Deprecation` aspect
+    that the UI writes and that most sources use — and it was invisible here, so
+    on any catalog deprecating the standard way the check ran and found nothing.
+    An independent review of the detection logic flagged it as a major
+    under-report; both forms count now, and either one is enough.
+    """
+    if bool(_value(deprecation, "deprecated", False)):
+        return True
     custom = _value(properties, "customProperties", {}) or {}
     value = custom.get("deprecated") if isinstance(custom, dict) else None
     return str(value).casefold() in {"true", "yes", "deprecated"}

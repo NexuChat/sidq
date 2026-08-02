@@ -1,0 +1,73 @@
+/* Shared canvas for the Devpost gallery boards — the landing page's exact
+   palette and type system, fixed to a 1920x1080 frame. */
+:root {
+  --ink: #0a0a09;
+  --ink2: #11110f;
+  --paper: #f1eee7;
+  --dim: #a7a39a;
+  --rule: #34332f;
+  --signal: #ff503d;
+  --soft: #ff8a79;
+  --acid: #d9ff57;
+  --display: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  --mono: "IBM Plex Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+}
+
+* { box-sizing: border-box; margin: 0; }
+
+body {
+  position: relative;
+  overflow: hidden;
+  width: 1920px;
+  height: 1080px;
+  background:
+    radial-gradient(circle at 84% 10%, rgba(255, 80, 61, 0.08), transparent 30rem),
+    var(--ink);
+  color: var(--paper);
+  font-family: var(--mono);
+}
+
+body::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgba(241, 238, 231, 0.12);
+  pointer-events: none;
+}
+
+.bar { position: absolute; top: 0; bottom: 0; left: 0; width: 12px; background: var(--signal); }
+
+.mast {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 56px 84px 0;
+}
+
+.word { font-family: var(--display); font-size: 44px; font-weight: 700; letter-spacing: -0.07em; }
+.word span { margin-left: 14px; color: var(--acid); font-family: var(--mono); font-size: 20px; }
+
+.eyebrow {
+  color: var(--dim);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.foot {
+  position: absolute;
+  right: 84px;
+  bottom: 56px;
+  left: 84px;
+  display: flex;
+  justify-content: space-between;
+  padding-top: 28px;
+  border-top: 1px solid var(--rule);
+  color: var(--dim);
+  font-size: 15px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+h1, h2 { font-family: var(--display); font-weight: 400; letter-spacing: -0.055em; }

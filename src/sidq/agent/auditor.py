@@ -19,17 +19,25 @@ does something different.
 convert an unperformed check into a clean bill of health. Every judgment here is
 the deterministic engine's; the agent chooses *where to point it*, which is the
 part that was missing.
+
+**It can also remember — through the catalog, not beside it.** Given the prior
+receipts a previous run wrote back (`sidq.agent.memory`), it skips assets whose
+receipt still holds and spends the whole budget on assets no run has reached.
+Coverage converges across runs under a fixed budget, and because the memory is
+the catalog itself, any sidq instance resumes where any other stopped.
 """
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 
+from sidq.agent.memory import PriorReceipt
 from sidq.gates.self_contradiction import (
     CatalogEntity,
     CatalogSnapshot,
     SelfContradictionGate,
+    is_pii_tag,
 )
 from sidq.models import Evidence
 
@@ -76,6 +84,9 @@ class AuditRun:
     verified: list[str] = field(default_factory=list)
     # Examined, but nothing could be established either way — never 'clean'.
     unestablished: list[str] = field(default_factory=list)
+    # (urn, reason) — skipped because a prior receipt still holds. Not examined
+    # this run and never counted as if it had been; the receipt vouches, we don't.
+    vouched: list[tuple[str, str]] = field(default_factory=list)
     order: list[Target] = field(default_factory=list)
     # Evidence kept per asset so a receipt can be built later without re-auditing.
     evidence_by_urn: dict[str, list[Evidence]] = field(default_factory=dict)
@@ -98,6 +109,7 @@ class AuditRun:
             "unverifiable": len(self.unverifiable),
             "verified_clean": len(self.verified),
             "unestablished": len(self.unestablished),
+            "vouched_by_receipt": len(self.vouched),
             "promoted_by_a_finding": len(self.promoted),
         }
 
@@ -111,10 +123,19 @@ class CatalogAuditor:
         *,
         budget: int = DEFAULT_BUDGET,
         gate: SelfContradictionGate | None = None,
+        prior: Mapping[str, PriorReceipt] | None = None,
     ) -> None:
         self._snapshot = snapshot
         self._budget = max(0, budget)
         self._gate = gate or SelfContradictionGate()
+        # What the catalog remembers from previous runs (`sidq.agent.memory`).
+        # Empty means amnesia, and amnesia is the safe default: nothing is ever
+        # skipped on the strength of a receipt nobody read.
+        self._prior = dict(prior or {})
+        # Every URN the catalog actually contains. Slicing hides most of them
+        # from the gate, so this is what tells a genuine dangling edge apart
+        # from the edge of the window.
+        self._known_urns = {entity.urn for entity in snapshot.entities}
 
     # -- perception ------------------------------------------------------
 
@@ -132,7 +153,7 @@ class CatalogAuditor:
         score = downstream * 10
         if downstream:
             reasons.append(f"{downstream} downstream consumers")
-        if any("pii" in tag.lower() for tag in entity.tags):
+        if any(is_pii_tag(tag) for tag in entity.tags):
             score += 50
             reasons.append("carries a PII tag")
         if not entity.owners:
@@ -185,6 +206,20 @@ class CatalogAuditor:
             if target.urn in seen:
                 continue
             seen.add(target.urn)
+
+            # A holding receipt is a memoised verdict: the engine is
+            # deterministic, so unchanged asset + unchanged policy would
+            # reproduce exactly what a previous run already wrote back.
+            # Re-deriving it would spend budget to learn nothing, and the
+            # budget's whole purpose is to reach the assets no run has seen.
+            # `holds()` was recomputed by this reader at recall time — stale,
+            # blocked, and absent receipts all fail it and stay in the queue.
+            # Not even a promotion pierces this: a neighbour's lie is evidence
+            # about the neighbour, not a change to this asset's content.
+            prior = self._prior.get(target.urn)
+            if prior is not None and prior.holds:
+                result.vouched.append((target.urn, prior.reason))
+                continue
 
             if len(result.examined) >= self._budget:
                 # Not silence: everything the budget did not reach is named, so
@@ -258,16 +293,59 @@ class CatalogAuditor:
                 entity for entity in self._snapshot.entities if entity.urn in neighbours
             ),
             related,
+            # A slice is a window on the catalog by construction: everything past
+            # this target's immediate neighbourhood is absent from it. Declaring
+            # that keeps the agent's own framing from being read as the catalog's
+            # dangling edges — orphans are adjudicated against the whole entity
+            # set below, never against the slice.
+            entities_complete=False,
             # Carried, not defaulted. Dropping it would let slicing quietly turn a
             # bounded read into a complete one, and every asset whose lineage was
             # never fetched would come back looking clean.
-            self._snapshot.field_lineage_resolved,
+            field_lineage_resolved=self._snapshot.field_lineage_resolved,
         )
+
+        # Keep only what this target is answerable for. Subject-prefix matching
+        # covers the asset itself and its columns (`urn#field`), and that is the
+        # right rule for every finding whose subject is a real asset — a source
+        # must not inherit its neighbour's broken schema.
+        #
+        # One kind escapes it. An orphan edge's subject is the URN that is
+        # *missing* from the catalog, so it can never prefix-match any target,
+        # and the filter silently discarded every orphan the gate produced: the
+        # check ran, found a real contradiction, and the agent threw it away. An
+        # independent review of the detection logic caught it. Orphans are
+        # therefore attributed to the real endpoint that claims the dangling
+        # edge, which is the asset a reader can actually act on.
+        def _concerns_target(item: Evidence) -> bool:
+            if item.subject.startswith(target.urn):
+                return True
+            if (
+                item.subject == "catalog"
+                and item.kind.endswith("_unverifiable")
+                and not self._snapshot.entities_complete
+            ):
+                return True
+            if item.kind != "orphan_lineage":
+                return False
+            # An orphan is real only when the endpoint is missing from the *whole*
+            # catalog. The gate sees one target's slice, where every asset beyond
+            # the immediate neighbourhood is absent by construction — so slicing
+            # alone manufactures orphans by the hundred. Checking against the full
+            # entity set is what separates a genuine dangling edge from the
+            # boundary of the window the agent chose to look through.
+            if item.subject in self._known_urns:
+                return False
+            edge = item.detail.get("edge") or {}
+            return target.urn in (
+                edge.get("source_dataset"),
+                edge.get("target_dataset"),
+            )
+
         return [
             item
             for item in self._gate.collect((), _Scoped(slice_))
-            if item.subject.startswith(target.urn)
-            or any(item.subject.startswith(urn) for urn in (target.urn,))
+            if _concerns_target(item)
         ]
 
 
@@ -292,6 +370,14 @@ def render(result: AuditRun, *, catalog: str) -> list[str]:
         f"  unverifiable    {summary['unverifiable']}",
         f"  verified clean  {summary['verified_clean']}",
     ]
+    if result.vouched:
+        # Distinct from 'verified clean' on purpose: these were not examined
+        # this run. The receipt vouches for them, and the line says whose word
+        # the reader is taking.
+        lines.append(
+            f"  vouched         {len(result.vouched)} "
+            "(a prior receipt still holds; budget spent elsewhere)"
+        )
     if result.unestablished:
         lines.append(
             f"  NOT established {len(result.unestablished)} "
@@ -324,7 +410,10 @@ def render(result: AuditRun, *, catalog: str) -> list[str]:
 
 
 def audit(
-    snapshot: CatalogSnapshot, *, budget: int = DEFAULT_BUDGET
+    snapshot: CatalogSnapshot,
+    *,
+    budget: int = DEFAULT_BUDGET,
+    prior: Mapping[str, PriorReceipt] | None = None,
 ) -> tuple[AuditRun, Sequence[str]]:
-    result = CatalogAuditor(snapshot, budget=budget).run()
+    result = CatalogAuditor(snapshot, budget=budget, prior=prior).run()
     return result, render(result, catalog=f"{len(snapshot.entities)} entities")

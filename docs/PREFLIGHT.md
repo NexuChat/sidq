@@ -28,7 +28,7 @@ Four conditions. A model that fails any one of them is decoration.
 | condition | pre-flight | the LoRA attempt |
 |---|---|---|
 | No deterministic algorithm exists | ✅ without the network the exact verdict is **impossible by definition** | ❌ we compute constraints exactly |
-| Labels abundant and free | ✅ **the oracle is the labeller** — zero human annotation | ❌ prose did not contain the answer; labels were not derivable from inputs |
+| Labels abundant and free | ✅ **the fixture engine is the labeller** — zero human annotation, suitable for regression consistency but not external accuracy | ❌ prose did not contain the answer; labels were not derivable from inputs |
 | Being wrong is cheap | ✅ it is a **pre-filter**; the oracle still decides at the gate | ❌ it was proposed on the verdict path |
 | Does something otherwise impossible | ✅ sub-second feedback inside the agent loop | ❌ a probabilistic copy of an exact computation |
 
@@ -55,8 +55,11 @@ Produced by `scripts/generate_mutations.py` + `scripts/label_mutations.py`
 (see `docs/BENCHMARK.md`). One corpus, two products: the published miss-rate
 benchmark, and this training set.
 
-**The label is the oracle's verdict.** The generator's `intent` is never a label —
-it exists only so the benchmark can compare intent against verdict.
+**The label is the fixture engine's verdict.** The generator's `intent` is never a
+label — it exists only so the benchmark can compare intent against verdict. These
+self-labels measure whether a local pre-filter reproduces the committed engine and
+fixture graph. They are not human annotations and cannot establish real-world
+accuracy.
 
 ### Input contract — and the leak rule
 
@@ -143,8 +146,9 @@ does not match. This is the mechanical version of the lesson recorded in
 
 **Result: no model ships, and §1 decided it rather than §6.**
 
-The ladder was trained and evaluated on 2026-07-30 over 20,666 oracle-labelled
-mutations, split by dbt model. Two rungs reach a perfect held-out score — and one
+The ladder was trained and evaluated on 2026-07-30 over 20,666 fixture-engine-labelled
+mutations, split by dbt model. Two rungs reach perfect held-out regression
+consistency — and one
 of them is not a model.
 
 `L0.75` is two deterministic pre-checks plus a two-term rule: **block when a
@@ -185,7 +189,7 @@ ship. Reaching for L3 anyway is the mistake §4 named in advance.
 
 Writing the criteria before the data existed is what made this readable — and what
 made a flawed criterion visible as a flaw rather than as a result. Without them, the
-headline would have been L0's 80% accuracy, from a model that has learned only that
+headline would have been L0's 80% self-label consistency, from a model that has learned only that
 most changes block. `docs/LORA.md` is the same lesson learned the expensive way.
 
 The deterministic engine ships alone, and §6 pre-committed to exactly that.

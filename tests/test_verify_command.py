@@ -8,10 +8,12 @@ collapse into the same answer as "checked and passed".
 
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import Any
 
 import pytest
 
+from sidq import cli
 from sidq.cli import main
 from sidq.receipt import holds, render_verification
 
@@ -86,7 +88,11 @@ def test_a_failed_readback_is_not_confused_with_a_failed_verification(
         def close(self) -> None:
             return None
 
-    monkeypatch.setattr("sidq.cli.StdioMCPReceiptToolCaller", _Broken)
+    monkeypatch.setattr("sidq.cli.StdioMCPToolCaller", _Broken)
+    monkeypatch.setattr(
+        "sidq.cli.StdioMCPReceiptToolCaller",
+        lambda: pytest.fail("verify must not start a mutation-enabled MCP transport"),
+    )
 
     assert main(["verify", _URN]) == 2
     assert "could not read the receipt" in capsys.readouterr().err
@@ -102,7 +108,55 @@ def test_verify_exits_one_when_the_asset_has_no_receipt(
         def close(self) -> None:
             return None
 
-    monkeypatch.setattr("sidq.cli.StdioMCPReceiptToolCaller", _Empty)
+    monkeypatch.setattr("sidq.cli.StdioMCPToolCaller", _Empty)
+    monkeypatch.setattr(
+        "sidq.cli.StdioMCPReceiptToolCaller",
+        lambda: pytest.fail("verify must not start a mutation-enabled MCP transport"),
+    )
 
     assert main(["verify", _URN]) == 1
     assert "NOT VERIFIED" in capsys.readouterr().out
+
+
+def test_verify_max_age_days_is_typed_and_defaults_to_seven() -> None:
+    default = cli._parser().parse_args(["verify", _URN])
+    configured = cli._parser().parse_args(["verify", _URN, "--max-age-days", "45"])
+
+    assert default.max_age_days == 7
+    assert configured.max_age_days == 45
+    assert isinstance(configured.max_age_days, int)
+
+
+def test_verify_passes_the_configured_maximum_age_to_the_receipt_reader(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    seen: dict[str, object] = {}
+
+    class _Reader:
+        def close(self) -> None:
+            return None
+
+    def read_status(urn: str, caller: object, **kwargs: object) -> dict[str, object]:
+        seen.update(kwargs)
+        return _status()
+
+    monkeypatch.setattr(cli, "StdioMCPToolCaller", _Reader)
+    monkeypatch.setattr(cli, "get_verification_status", read_status)
+
+    assert main(["verify", _URN, "--max-age-days", "45"]) == 0
+    assert seen["max_age"] == timedelta(days=45)
+
+
+def test_verify_rejects_a_negative_maximum_age_before_opening_a_transport(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        cli,
+        "StdioMCPToolCaller",
+        lambda: pytest.fail("invalid arguments must not open an MCP transport"),
+    )
+
+    with pytest.raises(SystemExit) as failure:
+        main(["verify", _URN, "--max-age-days", "-1"])
+
+    assert failure.value.code == 2

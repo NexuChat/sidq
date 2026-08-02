@@ -1,0 +1,9 @@
+{
+  "gpu": "NVIDIA RTX 4000 SFF Ada Generation",
+  "torch": "2.9.1+cu128",
+  "rows": 7366,
+  "rule_ns": 21.577337756752968,
+  "roundtrip_ns": 31550.001353025436,
+  "resident_ns": 24182.923138141632,
+  "batch_ns": 3.3491300461960978
+}
