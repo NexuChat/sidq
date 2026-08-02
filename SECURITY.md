@@ -309,40 +309,32 @@ role-management, temporary-table, or database-owner privileges.
 ## Install an immutable landing release
 
 Do not execute public requests from a developer checkout. For a reviewed Git
-SHA, materialize a root-owned release under `/opt/sidq/releases`, keep the
-virtual environment and MCP executable in a separately root-owned runtime, and
-make both trees immutable to the dynamic service user:
+SHA, use the single fail-closed **Release** procedure in
+[`docs/OPERATIONS.md`](docs/OPERATIONS.md#release). It requires a clean exact
+commit, extracts into a uniquely named staging directory, makes the staged tree
+root-owned and immutable, rejects or byte-compares any pre-existing release,
+checks runtime compatibility, and only then performs the atomic `current`
+symlink move. Do not materialize directly into the final SHA path or activate a
+partially extracted tree.
 
-```sh
-release_sha=$(git -C /home/dev/sidq-public rev-parse --verify HEAD)
-sudo install -d -o root -g root -m 0755 /opt/sidq/releases /opt/sidq/runtime
-sudo install -d -o root -g root -m 0755 "/opt/sidq/releases/$release_sha"
-git -C /home/dev/sidq-public archive "$release_sha" | \
-  sudo tar -x -C "/opt/sidq/releases/$release_sha"
-sudo chown -R root:root "/opt/sidq/releases/$release_sha" /opt/sidq/runtime
-sudo chmod -R a+rX,a-w "/opt/sidq/releases/$release_sha"
-sudo ln -sfn "/opt/sidq/releases/$release_sha" /opt/sidq/current
-```
+Build or replace the application and DataHub MCP environments only with the
+single fail-closed **Rebuild the production runtime** procedure in
+[`docs/OPERATIONS.md`](docs/OPERATIONS.md#rebuild-the-production-runtime).
+Never install directly into the active `/opt/sidq/runtime/venv` or
+`/opt/sidq/runtime/mcp` path. That procedure starts with `set -euo pipefail`,
+installs both hash-locked environments under unique `.next` names, validates the
+Sidq import and MCP executable, makes the staged trees root-owned and immutable,
+and preserves the prior runtime until the replacement has been activated and
+probed. A failed install or validation therefore cannot create an active
+readiness marker or replace the running environment.
 
-Build `/opt/sidq/runtime/venv` from the reviewed lock and install the DataHub MCP
-executable in its own pinned root-owned environment. The marker prevents a
-public `make gate-demo` or `make claims-demo` from trying to rebuild the
-read-only runtime:
-
-```sh
-sudo python3 -m venv /opt/sidq/runtime/venv
-sudo /opt/sidq/runtime/venv/bin/python -m pip install \
-  --require-hashes -r /opt/sidq/current/requirements-landing.lock
-sudo /opt/sidq/runtime/venv/bin/python -m pip install \
-  --no-build-isolation --no-deps /opt/sidq/current
-sudo /opt/sidq/runtime/venv/bin/python -c \
-  'import sidq, sentence_transformers; print(sidq.__name__, sentence_transformers.__version__)'
-sudo touch /opt/sidq/runtime/venv/.sidq-dev-lock
-sudo python3 -m venv /opt/sidq/runtime/mcp
-sudo /opt/sidq/runtime/mcp/bin/python -m pip install \
-  --require-hashes -r /opt/sidq/current/requirements-mcp.lock
-sudo /opt/sidq/runtime/mcp/bin/mcp-server-datahub --help >/dev/null
-```
+The marker records a validated application-environment install. For hosted
+demos, the exact internal `--old-file` operand—not the marker alone—prevents
+immutable-release timestamps from asking Make to rebuild the read-only runtime.
+The **Release** procedure intentionally stops if the active runtime and all five
+recorded compatibility inputs are absent or do not match; a new host must first
+be provisioned through equally staged, fail-closed deployment automation rather
+than by adapting the local-development install target.
 
 `requirements-mcp.in` stays separate because the isolated official DataHub MCP
 server and Sidq's core MCP 2.x dependency cannot share one environment. Update
@@ -517,10 +509,20 @@ Compromise of the local host is outside this remote threat boundary. These
 controls are replay and DoS containment, not user authentication and not a
 substitute for Cloudflare access controls.
 
+Forwarded plain-HTTP requests from that trusted tunnel peer receive a canonical
+308 redirect to the configured HTTPS origin. The redirect target is built from
+the fixed allowed origin rather than an untrusted `Host` header.
+
 For DataHub-dependent subprocesses only, the server reads the Reader credential
 and exposes it to that child as `DATAHUB_GMS_TOKEN`; it never inherits the
 service manager's ambient environment. The offline gate receives neither that
 token nor the claims DSN.
+
+Hosted `make gate-demo` and `make claims-demo` runs pass an internal exact
+`--old-file` operand for the already-built shared runtime marker. This prevents a
+new immutable release timestamp from triggering a package install into the
+read-only runtime. The public command label omits only that exact operand, and
+public output redacts credentials before runtime paths and internal URLs.
 
 The CLI default is 7 days for receipt age. The hosted judging handoff explicitly
 passes `--max-age-days 45` for the August judging period. This 45-day judging window

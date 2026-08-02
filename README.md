@@ -5,9 +5,11 @@
 > Agents read metadata graphs before they act. Sidq asks whether that context is
 > supported by evidence, and can stop an agent before it builds on a contradiction.
 
-**Film plan (2:45):** [`docs/VIDEO.md`](docs/VIDEO.md). The submission video URL
-remains unset until that write → DataHub inspection → independent-read sequence is
-recorded and published. Public browser,
+**Verified final-film artifact (2:49.216 container):**
+[`docs/VIDEO.md`](docs/VIDEO.md). The upload-ready English MP4 has SHA-256
+`0811a494c3ee6f78f907c3f2d14908ca18df403d81e38d63093cfa7dab46beef`;
+the submission video URL remains unset until the owner uploads that exact file
+and confirms logged-out playback. Public browser,
 accessibility, interaction, and deployment evidence: [`docs/QA-RESULTS.md`](docs/QA-RESULTS.md).
 Contributions are welcome under [`CONTRIBUTING.md`](CONTRIBUTING.md) and the
 [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md).
@@ -84,7 +86,7 @@ file on first use, so that first run needs package-index access.
 | # | Command | Needs | What it proves | Takes |
 |---|---|---|---|---|
 | 1 | `make gate-demo` | Python 3.12; package downloads on first use; no DataHub or credentials | The published `BLOCK` verdict is re-derived from the committed graph recording, byte-identical, with the same `policy_hash`. Hand-editing an artifact fails this. | ~2s after bootstrap |
-| 2 | `make check` | Python 3.12; package downloads on first use | 983 tests, lint, format, types — the same code-quality and regression checks CI runs. | ~60s after bootstrap |
+| 2 | `make check` | Python 3.12; package downloads on first use | 983 tests, lint, format, types — 981 passed, 2 optional integrations skipped, with 83.50% branch coverage; the same gates CI runs. | ~60s after bootstrap |
 | 3 | `make live-loop` | a running DataHub ([`docs/SETUP.md`](docs/SETUP.md)) | The whole agent loop over the **official MCP server only**: read → decide → write a receipt → a *separate process* reads it back → an asset carrying no receipt returns `NOT VERIFIED`. | ~60s |
 | 4 | `make repair-demo` | the same DataHub | The repair agent proposes a fix from catalog evidence, re-runs the deterministic engine against the catalog that fix *would* create, and shows what it proved and what it refused. | ~40s |
 

@@ -1513,13 +1513,15 @@ def test_isolated_mcp_runtime_uses_its_own_hash_locked_requirements() -> None:
     source = (ROOT / "requirements-mcp.in").read_text(encoding="utf-8")
     lock = (ROOT / "requirements-mcp.lock").read_text(encoding="utf-8")
     security = (ROOT / "SECURITY.md").read_text(encoding="utf-8")
+    operations = (ROOT / "docs" / "OPERATIONS.md").read_text(encoding="utf-8")
 
     assert "mcp-server-datahub==0.6.0" in source
     assert "acryl-datahub==1.6.0.16" in source
     assert "mcp-server-datahub==0.6.0" in lock
     assert "--hash=sha256:" in lock
     assert "uv pip compile" in lock
-    assert "--require-hashes -r /opt/sidq/current/requirements-mcp.lock" in security
+    assert "docs/OPERATIONS.md#rebuild-the-production-runtime" in security
+    assert '--require-hashes -r "$runtime_release/requirements-mcp.lock"' in operations
     assert "uv pip compile" in security and "requirements-mcp.in" in security
     assert "pip install mcp-server-datahub==0.6.0" not in security
 
@@ -1528,6 +1530,7 @@ def test_landing_runtime_lock_includes_only_reader_and_live_extras() -> None:
     lock = (ROOT / "requirements-landing.lock").read_text(encoding="utf-8")
     makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
     security = (ROOT / "SECURITY.md").read_text(encoding="utf-8")
+    operations = (ROOT / "docs" / "OPERATIONS.md").read_text(encoding="utf-8")
 
     assert "sentence-transformers==" in lock
     assert "psycopg==" in lock
@@ -1539,8 +1542,11 @@ def test_landing_runtime_lock_includes_only_reader_and_live_extras() -> None:
         "--output-file requirements-landing.lock"
     )
     assert command in lock and command in makefile
-    assert "--require-hashes -r /opt/sidq/current/requirements-landing.lock" in security
-    assert "import sidq, sentence_transformers" in security
+    assert "docs/OPERATIONS.md#rebuild-the-production-runtime" in security
+    assert (
+        '--require-hashes -r "$runtime_release/requirements-landing.lock"' in operations
+    )
+    assert "import sidq, sentence_transformers" in operations
 
 
 def test_compose_commands_preserve_home_and_use_one_secret_path() -> None:

@@ -1,7 +1,13 @@
-# Public landing QA — 2026-08-01
+# Public landing QA — 2026-08-02
 
-Application build under test: `https://sidq.mlki.app`, built from app/web commit
-[`bdae060d84397b9bba8c94b2be08fc0f47788940`](https://github.com/NexuChat/sidq/commit/bdae060d84397b9bba8c94b2be08fc0f47788940).
+Implementation build under test: `https://sidq.mlki.app`, built from
+commit [`8039675d68e748b37a73a2796959c8d8bda8dabc`](https://github.com/NexuChat/sidq/commit/8039675d68e748b37a73a2796959c8d8bda8dabc).
+The public and local health payloads, immutable release path, and `origin/main`
+all reported that exact SHA during the implementation run. Document-only
+releases retain that tested application code and are revalidated before
+activation; the current deployed revision is read from `/healthz` and the
+landing footer rather than hard-coded into a commit that would change its own
+identity.
 
 ## Browser and accessibility
 
@@ -37,6 +43,8 @@ catalog-write flag.
 
 - Local and public `/healthz`: `status=ok`, with exactly five live demos.
 - Local and public `/readyz`: `status=ready`, `datahub=ok`.
+- Plain HTTP redirects canonically to HTTPS with status 308 and preserves the
+  path/query on the configured public host.
 - HTTPS response includes CSP, HSTS, `X-Content-Type-Options: nosniff`,
   `X-Frame-Options: DENY`, Permissions Policy, Referrer Policy, COOP, and CORP.
 - Every static reference is fingerprinted with a content-derived digest key and
@@ -49,27 +57,37 @@ catalog-write flag.
 
 ## Automated gates
 
-- Current host run after the CI demo-ref fix: 764 collected, 762 passed, and 2
-  optional integration tests skipped. The Qwen model weights were not present in
-  the cache, and the Ollama model `ibm/granite4:1b-q4_1` was not installed.
-- Current host branch coverage: 82.33%, above the enforced 80.0% threshold.
+- Current host run: 983 collected, 981 passed, and 2 optional integration tests
+  skipped. The Qwen model weights were not present in the cache, and the Ollama
+  model `ibm/granite4:1b-q4_1` was not installed.
+- Current host branch coverage: 83.50%, above the enforced 80.0% threshold.
 - Ruff lint, Ruff format, and mypy: pass.
-- An anonymous public shallow clone before the workflow fix passed 761 tests at
-  82.32% branch coverage with 3 skips. The only additional skip was the
-  demo-ref guard because shallow clones had not fetched `demo/*` refs. In that
-  clone, `make gate-demo` exited 0 and reproduced the expected `BLOCK` verdict.
-- The workflow now fetches `demo/*` as remote-tracking refs so the demo-ref guard
-  runs in CI instead of skipping.
 - The authoritative latest-main status is the [main-branch CI workflow
   view](https://github.com/NexuChat/sidq/actions/workflows/ci.yml?query=branch%3Amain).
   The final workflow pins the official `actions/setup-python` v7 Node 24 release
   by full commit SHA to remove the Node 20 deprecation annotation. The workflow
-  view is authoritative for the submitted revision; exact run results are
-  verified after each push.
-- Previous [GitHub Actions CI run
-  30710463507](https://github.com/NexuChat/sidq/actions/runs/30710463507) passed
-  before that workflow fix with 761 passed, 3 skipped, and 82.29% branch
-  coverage. It is not evidence for the current 762-passed, 2-skipped host run.
+  view is authoritative for the submitted revision; [run
+  30747820384](https://github.com/NexuChat/sidq/actions/runs/30747820384)
+  passed for the implementation SHA above.
+
+## Final-film media QA
+
+- Upload artifact:
+  `/home/dev/sidq-video/artifacts/video/sidq-final-en.mp4`, SHA-256
+  `0811a494c3ee6f78f907c3f2d14908ca18df403d81e38d63093cfa7dab46beef`,
+  29,636,338 bytes.
+- `ffprobe` reported a 169.216-second container with 5,075 decoded 1920x1080
+  H.264 frames at 30 fps and AAC-LC 48 kHz stereo audio. Full strict decode
+  passed; no qualifying black interval was detected.
+- Audio measured -16.1 LUFS integrated and -4.5 dBTP. Silence and freeze reports
+  were manually matched to authored gaps, evidence holds, and static designed
+  scenes; the rejected replay transition is absent from the final artifact.
+- Two-second full-film contact sheets, transitions, first 15 seconds, captions,
+  package text, and high-confidence secret/stale-claim patterns were reviewed.
+  An independent final proof review returned no actionable finding.
+- The adjacent SHA-256 manifest verifies the MP4, 54-cue SRT, 1280x720
+  project-owned thumbnail, six-frame contact sheet, and upload metadata. Public
+  upload and logged-out playback verification remain owner-only.
 
 ## Dependency audit
 

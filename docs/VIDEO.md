@@ -1,11 +1,14 @@
-# Final-film production contract
+# Final-film artifact and production contract
 
-The submission candidate is the reproducible V4 composition in
-`/home/dev/sidq-video`. Its authored timeline is 5,075 frames at 30 fps
-(169.167 seconds), 1920x1080. This source contract is under three minutes, but
-it is **not yet a submission artifact**: the MP4 becomes final only after the
-current repository suite passes and the rendered file passes the media checks
-below. The older 175.317-second v2 exports are stale and superseded.
+The verified local upload artifact is
+`/home/dev/sidq-video/artifacts/video/sidq-final-en.mp4`. Its SHA-256 is
+`0811a494c3ee6f78f907c3f2d14908ca18df403d81e38d63093cfa7dab46beef`
+and its exact size is 29,636,338 bytes. It remains a submission candidate until
+the owner uploads that exact file and confirms public logged-out playback. Its
+authored timeline is 169.167 seconds when rounded to milliseconds. It is **not
+yet a submission artifact** because that public upload gate remains owner-only.
+The older 175.317-second v2 exports and the rejected black-transition V4 render
+are stale and must not be submitted.
 
 ## Truth labels and evidence boundary
 
@@ -27,34 +30,59 @@ below. The older 175.317-second v2 exports are stale and superseded.
   demonstrates the independent read of that persisted Receipt; the illustrated
   writeback is not presented as a live mutation.
 
-## Candidate source and owned media
+## Source and owned media
 
 - Composition: `/home/dev/sidq-video/src/v4/`, tested by `npm run test:v4` and
   `npm run typecheck`.
 - English narration: six project-controlled 48 kHz PCM masters with provenance
   in `public/v4/audio/narration.provenance.json`; burned English subtitles and
   a sidecar SRT are generated from the pinned script.
-- Score: locally synthesized with FFmpeg; no third-party music or audio asset.
+- Audio mix: narration only. The retained score source is explicitly excluded
+  from both final compositions and is covered by a contract test.
 - Current replay capture:
   `public/v4/proof/block-current.png`, SHA-256
   `6d180a347a47ad7b9f2df5593386ff5694bab9ebd051f61a3a6c8ce63789f5df`.
 - The private voice reference, credentials, and tokens are excluded from public
   assets, captures, and output.
 
+## Verified artifact
+
+- Container duration: 169.216 seconds, safely under three minutes.
+- Authored video: 5,075 frames / 169.166667 seconds at 30 fps, 1920x1080,
+  H.264 High, yuv420p, limited-range BT.709.
+- Audio: AAC-LC stereo at 48 kHz, approximately 189 kb/s; narration only;
+  measured at -16.1 LUFS integrated and -4.5 dBTP.
+- Captions: burned English captions plus `sidq-demo.en.srt`, 54 ordered cues.
+- Complete `ffmpeg -v error -xerror` decode: pass. `ffprobe -count_frames`:
+  exactly 5,075 video frames.
+- `blackdetect`: no qualifying interval. Silence and freeze findings were
+  reviewed as authored chapter gaps, the quiet closing card, evidence holds, or
+  designed static compositions. Browser replay frames replace the rejected
+  out-of-range transition and visibly reach the final `BLOCK` result.
+- Full-film two-second contact sheets, the first 15 seconds, transitions,
+  subtitles, source strings, and package text were independently reviewed. No
+  actionable secret, stale `pii_exposure` result, or false live-write claim was
+  found. The two source occurrences of those terms are negative assertions in
+  the forbidden-output/forbidden-claim contracts.
+- Release package:
+  `/home/dev/sidq-video/artifacts/video/`, including the MP4, sidecar SRT,
+  1280x720 project-owned thumbnail, contact sheet, upload metadata, and a
+  passing SHA-256 manifest.
+
 ## Release gate
 
-The final artifact must satisfy all of these before this document records its
-actual duration, byte size, and SHA-256:
+All local media gates have passed. Repository validation is checked again on
+the exact documentation revision before release:
 
-- [ ] Current `make check` passes, including the 80% branch-coverage gate.
-- [ ] Render is 1920x1080 at 30 fps, H.264/yuv420p with AAC stereo at 48 kHz.
-- [ ] `ffprobe` confirms a safe duration below three minutes.
-- [ ] A complete `ffmpeg -v error` decode succeeds.
-- [ ] Loudness, true peak, silence, clipping, black frames, freezes, subtitles,
+- [x] Current `make check` passes, including the 80% branch-coverage gate.
+- [x] Render is 1920x1080 at 30 fps, H.264/yuv420p with AAC stereo at 48 kHz.
+- [x] `ffprobe` confirms a safe duration below three minutes.
+- [x] A complete `ffmpeg -v error -xerror` decode succeeds.
+- [x] Loudness, true peak, silence, clipping, black frames, freezes, subtitles,
   transitions, and the first 15 seconds are reviewed.
-- [ ] Contact sheet, 1280x720 project-owned thumbnail, SRT, metadata, and
+- [x] Contact sheet, 1280x720 project-owned thumbnail, SRT, metadata, and
   SHA-256 manifest are created beside the MP4.
-- [ ] Frame and source scans find no password, token, private key, stale
+- [x] Frame and source scans find no password, token, private key, stale
   `pii_exposure` result, or false live-write label.
 - [ ] Verify the uploaded public video is viewable without sign-in and add its public URL to the submission.
 
