@@ -733,6 +733,7 @@ def test_the_video_runbook_fits_the_limit_and_leads_with_the_handoff() -> None:
 
 def test_the_browser_qa_record_covers_every_live_journey_and_viewport() -> None:
     qa = (ROOT / "docs/QA-RESULTS.md").read_text()
+    normalized_qa = " ".join(qa.lower().split())
 
     for viewport in ("375x812", "768x1024", "1440x1000"):
         assert viewport in qa
@@ -740,6 +741,8 @@ def test_the_browser_qa_record_covers_every_live_journey_and_viewport() -> None:
         assert journey in qa
     assert "AccessLint" in qa and "0 violations" in qa
     assert "5/5" in qa and "HTTP 200" in qa
+    assert "1 proposed, 0 proven, 1 rejected" in normalized_qa
+    assert "catalog-dependent snapshot" in normalized_qa
 
 
 def test_pull_request_ci_executes_the_local_action_without_publish_authority() -> None:
@@ -792,6 +795,7 @@ def test_clean_clone_carries_the_preflight_regression_evidence() -> None:
 
 def test_judge_copy_does_not_overstate_reproducibility_or_exclusivity() -> None:
     readme = README.read_text(encoding="utf-8")
+    devpost = (ROOT / "docs" / "DEVPOST.md").read_text(encoding="utf-8")
     landing = (ROOT / "web" / "index.html").read_text(encoding="utf-8")
 
     assert "the only one asking" not in readme
@@ -803,6 +807,14 @@ def test_judge_copy_does_not_overstate_reproducibility_or_exclusivity() -> None:
     assert "every number this README states is pinned" not in readme
     assert "carries each verdict back" not in readme
     assert "every claim" not in landing.lower()
+    for surface in (readme, devpost, landing):
+        normalized = " ".join(surface.lower().split())
+        assert "complete-lineage regression" in normalized
+        assert "live" in normalized and "fails closed" in normalized
+    assert "against the live showcase catalog the engine refused it" not in readme
+    assert "shipped the 6-column closure" not in landing
+    assert "sidq repair --via-mcp --apply` writes it" not in readme
+    assert "may write a jointly proven plan" in readme
 
 
 def test_submission_copy_does_not_publish_a_stale_video_or_deny_catalog_io() -> None:
@@ -868,6 +880,15 @@ def test_swarm_docs_match_latest_receipt_observability() -> None:
             "cannot count collisions after the fact",
         ):
             assert honest_boundary in normalized
+
+    landing = " ".join(
+        (ROOT / "web" / "index.html").read_text(encoding="utf-8").lower().split()
+    )
+    assert "never re-paid" not in landing
+    assert (
+        "a valid receipt can avoid repeat work; concurrent workers may still "
+        "duplicate an examination"
+    ) in landing
 
 
 def test_supported_python_copy_matches_the_single_tested_minor() -> None:
