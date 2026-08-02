@@ -113,11 +113,16 @@ def test_operations_can_adopt_only_a_complete_matching_legacy_runtime() -> None:
     assert "one-time adoption" in rebuild.lower()
     assert "one-time adoption" in release.lower()
     release_writability_check = 'sudo find "$legacy_release" -perm /0222'
-    runtime_writability_check = 'sudo find "/opt/sidq/runtime/$runtime_dir" -perm /0022'
+    runtime_writability_check = (
+        'sudo find "/opt/sidq/runtime/$runtime_dir" ! -type l -perm /0022'
+    )
     assert release_writability_check in adoption
     assert runtime_writability_check in adoption
     assert 'sudo find "$legacy_release" -perm /0022' not in adoption
+    assert 'sudo find "/opt/sidq/runtime/$runtime_dir" -perm /0022' not in adoption
     assert 'sudo find "/opt/sidq/runtime/$runtime_dir" -perm /0222' not in adoption
+    assert 'sudo test ! -L "/opt/sidq/runtime/$runtime_dir"' in adoption
+    assert 'sudo find "/opt/sidq/runtime/$runtime_dir" ! -user root' in adoption
 
     for compatibility_input in (
         "requirements-dev.lock",

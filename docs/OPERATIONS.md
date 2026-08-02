@@ -46,7 +46,8 @@ sudo test -d /opt/sidq/runtime
 sudo test ! -L /opt/sidq/runtime
 sudo test "$(sudo stat -c '%U:%G' /opt/sidq/runtime)" = root:root
 # The immutable release is a-w; the root-owned legacy runtime may retain owner
-# write permission, but it must not be writable by its group or other users.
+# write permission, but non-symlink entries must not be writable by their group
+# or other users. Internal venv symlinks have no effective write mode.
 for runtime_dir in venv mcp; do
   sudo test -d "/opt/sidq/runtime/$runtime_dir"
   sudo test ! -L "/opt/sidq/runtime/$runtime_dir"
@@ -54,7 +55,7 @@ for runtime_dir in venv mcp; do
   sudo test -z \
     "$(sudo find "/opt/sidq/runtime/$runtime_dir" ! -user root -print -quit)"
   sudo test -z \
-    "$(sudo find "/opt/sidq/runtime/$runtime_dir" -perm /0022 -print -quit)"
+    "$(sudo find "/opt/sidq/runtime/$runtime_dir" ! -type l -perm /0022 -print -quit)"
 done
 sudo test -f /opt/sidq/runtime/venv/.sidq-dev-lock
 sudo test ! -L /opt/sidq/runtime/venv/.sidq-dev-lock
