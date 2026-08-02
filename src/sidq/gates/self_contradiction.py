@@ -119,8 +119,8 @@ class CatalogSnapshot:
         MCP `search` is paginated, so this sees one bounded page rather than the
         whole catalog — what an agent would actually see. And MCP `get_lineage`
         returns column granularity only when asked for one named column, so field
-        lineage costs one call per column (0.116s each against the local DataHub on
-        2026-07-30). `field_lineage_budget` caps how many assets are worth that:
+        lineage costs one call per column and varies with the DataHub environment.
+        `field_lineage_budget` caps how many assets are worth that:
         the most connected ones first, since a wrong claim about a widely consumed
         asset is the one that propagates. Everything past the cap is recorded as
         unresolved, never as clean.

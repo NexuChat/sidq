@@ -353,8 +353,8 @@ asset` for the discovered asset. Once every dataset carries a receipt, the step
 reports convergence instead.
 
 `AUDIT_BUDGET` and `RECEIPT_URN` are overridable, and the budget
-matters: field lineage costs one MCP call per column (0.116s each against the
-local DataHub), so raising it raises the runtime roughly linearly.
+matters: field lineage costs one MCP call per column, so raising it raises the
+runtime roughly linearly; wall time depends on the DataHub environment.
 
 ## 5. Project verification
 

@@ -322,7 +322,10 @@ def _is_official_empty_lineage(value: Mapping[str, Any]) -> bool:
 
 
 def _semantic_context(
-    value: Any, *, evidence_urls: frozenset[str] = frozenset()
+    value: Any,
+    *,
+    evidence_urls: frozenset[str] = frozenset(),
+    managed_surfaces: bool = True,
 ) -> Any:
     if isinstance(value, Mapping):
         semantic: dict[str, Any] = {}
@@ -330,32 +333,91 @@ def _semantic_context(
             name = str(key)
             if name.casefold() in _AUDIT_KEYS:
                 continue
-            if name in {"structuredProperties", "structured_properties"}:
+            if managed_surfaces and name in {
+                "structuredProperties",
+                "structured_properties",
+            }:
                 semantic[name] = _without_sidq_properties(
                     item, evidence_urls=evidence_urls
                 )
                 continue
-            if (
-                name == "tags"
-                and isinstance(item, Sequence)
-                and not isinstance(item, (str, bytes))
-            ):
-                semantic[name] = [
-                    _semantic_context(tag, evidence_urls=evidence_urls)
-                    for tag in item
-                    if not _contains_urn(tag, _SIDQ_BADGES)
-                ]
+            if managed_surfaces and name in {"tags", "globalTags", "global_tags"}:
+                normalized_tags = _semantic_tag_context(
+                    item, evidence_urls=evidence_urls
+                )
+                if normalized_tags not in ({}, []):
+                    semantic[name] = normalized_tags
                 continue
-            if name == "relatedDocuments":
+            if managed_surfaces and name == "relatedDocuments":
                 semantic[name] = _without_sidq_receipt_documents(
                     item, evidence_urls=evidence_urls
                 )
                 continue
-            semantic[name] = _semantic_context(item, evidence_urls=evidence_urls)
+            semantic[name] = _semantic_context(
+                item, evidence_urls=evidence_urls, managed_surfaces=False
+            )
         return semantic
     if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
-        return [_semantic_context(item, evidence_urls=evidence_urls) for item in value]
+        return [
+            _semantic_context(item, evidence_urls=evidence_urls, managed_surfaces=False)
+            for item in value
+        ]
     return value
+
+
+def _semantic_tag_context(value: Any, *, evidence_urls: frozenset[str]) -> Any:
+    if _is_sidq_tag_assignment(value):
+        return {}
+    if isinstance(value, Mapping):
+        normalized: dict[str, Any] = {}
+        for key, item in value.items():
+            cleaned = (
+                _semantic_tag_context(item, evidence_urls=evidence_urls)
+                if str(key) == "tags"
+                else _semantic_metadata_context(item)
+            )
+            if cleaned not in ({}, []):
+                normalized[str(key)] = cleaned
+        return normalized
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
+        normalized_items = [
+            _semantic_tag_context(item, evidence_urls=evidence_urls) for item in value
+        ]
+        return [item for item in normalized_items if item not in ({}, [])]
+    return _semantic_context(value, evidence_urls=evidence_urls, managed_surfaces=False)
+
+
+def _semantic_metadata_context(value: Any) -> Any:
+    if isinstance(value, Mapping):
+        return {
+            str(key): _semantic_metadata_context(item)
+            for key, item in value.items()
+            if str(key).casefold() not in _AUDIT_KEYS
+        }
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
+        return [_semantic_metadata_context(item) for item in value]
+    return value
+
+
+def _is_sidq_tag_assignment(value: Any) -> bool:
+    if isinstance(value, str):
+        return value in _SIDQ_BADGES
+    if not isinstance(value, Mapping):
+        return False
+    structural_keys = {"tagUrn", "urn", "tag"}
+    if "tags" in value and any(key in value for key in structural_keys):
+        return False
+    tag_urns = {
+        urn
+        for urn in (value.get("tagUrn"), value.get("urn"))
+        if isinstance(urn, str) and urn
+    }
+    nested = value.get("tag")
+    if isinstance(nested, Mapping):
+        nested_urn = nested.get("urn")
+        if isinstance(nested_urn, str) and nested_urn:
+            tag_urns.add(nested_urn)
+    return len(tag_urns) == 1 and bool(tag_urns & _SIDQ_BADGES)
 
 
 def _without_sidq_properties(value: Any, *, evidence_urls: frozenset[str]) -> Any:
@@ -363,7 +425,9 @@ def _without_sidq_properties(value: Any, *, evidence_urls: frozenset[str]) -> An
         return {
             str(key): (
                 [
-                    _semantic_context(item, evidence_urls=evidence_urls)
+                    _semantic_context(
+                        item, evidence_urls=evidence_urls, managed_surfaces=False
+                    )
                     for item in items
                     if not _is_sidq_property(item)
                 ]
@@ -375,7 +439,7 @@ def _without_sidq_properties(value: Any, *, evidence_urls: frozenset[str]) -> An
         }
     if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
         return [
-            _semantic_context(item, evidence_urls=evidence_urls)
+            _semantic_context(item, evidence_urls=evidence_urls, managed_surfaces=False)
             for item in value
             if not _is_sidq_property(item)
         ]
@@ -390,7 +454,9 @@ def _without_sidq_receipt_documents(
         if isinstance(documents, Sequence) and not isinstance(documents, (str, bytes)):
             return {
                 "documents": [
-                    _semantic_context(document, evidence_urls=evidence_urls)
+                    _semantic_context(
+                        document, evidence_urls=evidence_urls, managed_surfaces=False
+                    )
                     for document in documents
                     if not _is_sidq_receipt_document(document, evidence_urls)
                 ]
@@ -401,7 +467,9 @@ def _without_sidq_receipt_documents(
         }
     if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
         return [
-            _semantic_context(document, evidence_urls=evidence_urls)
+            _semantic_context(
+                document, evidence_urls=evidence_urls, managed_surfaces=False
+            )
             for document in value
             if not _is_sidq_receipt_document(document, evidence_urls)
         ]

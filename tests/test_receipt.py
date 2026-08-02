@@ -29,6 +29,7 @@ from sidq.receipt.bootstrap import (
 )
 from sidq.receipt.build import build_receipt
 from sidq.receipt.read import (
+    _semantic_context,
     _sidq_values,
     _without_sidq_receipt_documents,
     get_verification_status,
@@ -41,6 +42,7 @@ from sidq.receipt.write import (
     _mcp_subprocess_environment,
     write_receipt,
 )
+from sidq.receipt.write import _managed_badges as _parsed_managed_badges
 from sidq.serialization import canonical_json
 
 URN = "urn:li:dataset:(urn:li:dataPlatform:postgres,sidq.receipt.test,DEV)"
@@ -201,6 +203,19 @@ def test_block_receipt_is_written_and_uses_the_blocked_badge() -> None:
         "get_entities",
     ]
     assert calls[4][1]["tag_urns"] == ["urn:li:tag:sidq:blocked"]
+
+
+def test_managed_badges_reads_the_official_mcp_tags_field() -> None:
+    entity = {
+        "tags": {
+            "tags": [
+                {"tag": {"urn": "urn:li:tag:sidq:verified"}},
+                {"tag": {"urn": "urn:li:tag:finance"}},
+            ]
+        }
+    }
+
+    assert _parsed_managed_badges(entity) == {"urn:li:tag:sidq:verified"}
 
 
 def test_read_computes_schema_policy_and_age_staleness() -> None:
@@ -417,6 +432,43 @@ class _LiveReceiptHub:
         raise AssertionError(name)
 
 
+class _OfficialTagsReceiptHub(_LiveReceiptHub):
+    """Model the official MCP response shape observed from live DataHub."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        del self.entity["globalTags"]
+
+    def __call__(self, name: str, arguments: Mapping[str, Any]) -> object:
+        if name in {"add_tags", "remove_tags"}:
+            wrapper = self.entity.setdefault("tags", {"tags": []})
+            tags = wrapper["tags"]
+            affected = set(arguments["tag_urns"])
+            if name == "add_tags":
+                existing = {tag["tag"]["urn"] for tag in tags}
+                tags.extend(
+                    {"tag": {"urn": urn}}
+                    for urn in arguments["tag_urns"]
+                    if urn not in existing
+                )
+            else:
+                tags[:] = [tag for tag in tags if tag["tag"]["urn"] not in affected]
+            return {}
+        return super().__call__(name, dict(arguments))
+
+
+def test_official_tags_first_write_confirms_and_remains_current() -> None:
+    hub = _OfficialTagsReceiptHub()
+    checked_at = datetime(2026, 8, 2, 11, 4, tzinfo=UTC)
+
+    written = write_receipt(build_receipt(URN, _verdict(), checked_at=checked_at), hub)
+    status = get_verification_status(URN, hub, now=checked_at + timedelta(minutes=1))
+
+    assert written["confirmed"] is True
+    assert _parsed_managed_badges(hub.entity) == {"urn:li:tag:sidq:verified"}
+    assert status["stale"] is False
+
+
 class _DelayedReceiptHub(_LiveReceiptHub):
     def __init__(self, *, hidden_reads: int) -> None:
         super().__init__()
@@ -583,6 +635,114 @@ def test_write_waits_for_exact_receipt_readback_with_bounded_backoff() -> None:
     assert hub.confirmation_calls == ["get_entities"] * 3
 
 
+def test_write_rejects_conflicting_managed_badges_across_tag_surfaces() -> None:
+    class _ConflictingTagSurfaceHub(_LiveReceiptHub):
+        def call_with_timeout(
+            self, name: str, arguments: Mapping[str, Any], *, timeout: float
+        ) -> object:
+            assert name == "get_entities"
+            return {
+                "entities": [
+                    {
+                        **self.entity,
+                        "tags": {"tags": [{"tag": {"urn": "urn:li:tag:sidq:blocked"}}]},
+                    }
+                ]
+            }
+
+    hub = _ConflictingTagSurfaceHub()
+
+    with pytest.raises(ReceiptWriteUnconfirmed, match="managed_badge=mismatch"):
+        write_receipt(
+            build_receipt(URN, _verdict()),
+            hub,
+            confirmation_timeout=0,
+        )
+
+
+def test_write_rejects_conflicting_tag_urn_aliases() -> None:
+    class _ConflictingTagAliasHub(_LiveReceiptHub):
+        def call_with_timeout(
+            self, name: str, arguments: Mapping[str, Any], *, timeout: float
+        ) -> object:
+            assert name == "get_entities"
+            return {
+                "entities": [
+                    {
+                        **self.entity,
+                        "globalTags": {
+                            "tags": [
+                                {
+                                    "urn": "urn:li:tag:sidq:verified",
+                                    "tag": {"urn": "urn:li:tag:sidq:blocked"},
+                                }
+                            ]
+                        },
+                    }
+                ]
+            }
+
+    with pytest.raises(ReceiptWriteUnconfirmed, match="managed_badge=mismatch"):
+        write_receipt(
+            build_receipt(URN, _verdict()),
+            _ConflictingTagAliasHub(),
+            confirmation_timeout=0,
+        )
+
+
+@pytest.mark.parametrize(
+    "blocked_surface",
+    [
+        ["urn:li:tag:sidq:blocked"],
+        {"tags": "urn:li:tag:sidq:blocked"},
+        "urn:li:tag:sidq:blocked",
+        {"urn": "urn:li:tag:sidq:blocked", "tags": []},
+    ],
+)
+def test_write_rejects_conflicting_compact_string_badge_surface(
+    blocked_surface: object,
+) -> None:
+    class _CompactStringConflictHub(_LiveReceiptHub):
+        def call_with_timeout(
+            self, name: str, arguments: Mapping[str, Any], *, timeout: float
+        ) -> object:
+            assert name == "get_entities"
+            return {
+                "entities": [
+                    {
+                        **self.entity,
+                        "tags": blocked_surface,
+                    }
+                ]
+            }
+
+    with pytest.raises(ReceiptWriteUnconfirmed, match="managed_badge=mismatch"):
+        write_receipt(
+            build_receipt(URN, _verdict()),
+            _CompactStringConflictHub(),
+            confirmation_timeout=0,
+        )
+
+
+def test_default_confirmation_window_tolerates_slow_catalog_indexing() -> None:
+    hub = _DelayedReceiptHub(hidden_reads=12)
+    clock = [0.0]
+
+    def sleep(delay: float) -> None:
+        clock[0] += delay
+
+    written = write_receipt(
+        build_receipt(URN, _verdict()),
+        hub,
+        monotonic=lambda: clock[0],
+        sleep=sleep,
+    )
+
+    assert written["confirmed"] is True
+    assert written["confirmation_attempts"] == 13
+    assert 8.0 < clock[0] < 30.0
+
+
 def test_write_acknowledgement_without_visible_receipt_is_not_success() -> None:
     hub = _DelayedReceiptHub(hidden_reads=100)
     clock = [0.0]
@@ -590,7 +750,7 @@ def test_write_acknowledgement_without_visible_receipt_is_not_success() -> None:
     def sleep(delay: float) -> None:
         clock[0] += delay
 
-    with pytest.raises(ReceiptWriteUnconfirmed, match="write_unconfirmed"):
+    with pytest.raises(ReceiptWriteUnconfirmed, match="write_unconfirmed") as caught:
         write_receipt(
             build_receipt(URN, _verdict()),
             hub,
@@ -603,6 +763,8 @@ def test_write_acknowledgement_without_visible_receipt_is_not_success() -> None:
 
     assert hub.receipt_number == 1
     assert hub.confirmation_calls
+    assert "last observed mismatch" in str(caught.value)
+    assert "managed_badge=" in str(caught.value)
 
 
 def test_write_confirmation_transport_call_respects_deadline() -> None:
@@ -1087,6 +1249,131 @@ def test_receipt_context_survives_self_writes_and_detects_semantic_change(
     assert stale["stale_reason"] == "asset decision context changed"
 
 
+def test_first_managed_badge_on_an_untagged_asset_does_not_change_context() -> None:
+    before = {"urn": URN, "name": "orders"}
+    after = {
+        **before,
+        "tags": {
+            "tags": [
+                {"tag": {"urn": "urn:li:tag:sidq:verified"}},
+            ]
+        },
+    }
+
+    assert _semantic_context(after) == _semantic_context(before)
+
+
+@pytest.mark.parametrize("tag_field", ["tags", "globalTags", "global_tags"])
+def test_managed_badge_filter_preserves_business_tag_context(tag_field: str) -> None:
+    finance = {"tag": {"urn": "urn:li:tag:finance"}}
+    restricted = {"tag": {"urn": "urn:li:tag:restricted"}}
+    sidq = {"tag": {"urn": "urn:li:tag:sidq:verified"}}
+    before = {"urn": URN, tag_field: {"tags": [finance]}}
+    after_self_write = {"urn": URN, tag_field: {"tags": [finance, sidq]}}
+    after_business_change = {
+        "urn": URN,
+        tag_field: {"tags": [finance, restricted, sidq]},
+    }
+
+    assert _semantic_context(after_self_write) == _semantic_context(before)
+    assert _semantic_context(after_business_change) != _semantic_context(before)
+
+
+def test_compact_string_badges_are_parsed_without_dropping_business_tags() -> None:
+    before = {"tags": ["urn:li:tag:finance"]}
+    after_self_write = {"tags": ["urn:li:tag:finance", "urn:li:tag:sidq:verified"]}
+    after_business_change = {
+        "tags": [
+            "urn:li:tag:finance",
+            "urn:li:tag:restricted",
+            "urn:li:tag:sidq:verified",
+        ]
+    }
+
+    assert _parsed_managed_badges(after_self_write) == {"urn:li:tag:sidq:verified"}
+    assert _semantic_context(after_self_write) == _semantic_context(before)
+    assert _semantic_context(after_business_change) != _semantic_context(before)
+    for managed_only in (
+        {"tags": "urn:li:tag:sidq:verified"},
+        {"tags": {"tags": "urn:li:tag:sidq:verified"}},
+    ):
+        assert _parsed_managed_badges(managed_only) == {"urn:li:tag:sidq:verified"}
+        assert _semantic_context(managed_only) == {}
+    hybrid = {"tags": {"urn": "urn:li:tag:sidq:verified", "tags": []}}
+    assert _semantic_context(hybrid) != {}
+    nested_before = {"tags": [["urn:li:tag:finance"]]}
+    nested_after = {"tags": [["urn:li:tag:finance", "urn:li:tag:sidq:verified"]]}
+    assert _parsed_managed_badges(nested_after) == {"urn:li:tag:sidq:verified"}
+    assert _semantic_context(nested_after) == _semantic_context(nested_before)
+    metadata_before = {
+        "tags": [
+            {
+                "tag": {"urn": "urn:li:tag:finance"},
+                "properties": {"references": []},
+            }
+        ]
+    }
+    metadata_after = {
+        "tags": [
+            {
+                "tag": {"urn": "urn:li:tag:finance"},
+                "properties": {"references": ["urn:li:tag:sidq:verified"]},
+            }
+        ]
+    }
+    assert _semantic_context(metadata_after) != _semantic_context(metadata_before)
+    nested_tag_key_before = {
+        "tags": [
+            {
+                "tag": {"urn": "urn:li:tag:finance"},
+                "properties": {"tags": []},
+            }
+        ]
+    }
+    nested_tag_key_after = {
+        "tags": [
+            {
+                "tag": {"urn": "urn:li:tag:finance"},
+                "properties": {"tags": ["urn:li:tag:sidq:verified"]},
+            }
+        ]
+    }
+    assert _semantic_context(nested_tag_key_after) != _semantic_context(
+        nested_tag_key_before
+    )
+    arbitrary_before = {"customProperties": {}}
+    arbitrary_after = {"customProperties": {"tags": "urn:li:tag:sidq:verified"}}
+    assert _semantic_context(arbitrary_after) != _semantic_context(arbitrary_before)
+
+
+def test_badge_like_description_cannot_hide_a_business_tag_change() -> None:
+    hub = _LiveReceiptHub()
+    tag = hub.entity["globalTags"]["tags"][0]
+    tag["description"] = "urn:li:tag:sidq:verified"
+    checked_at = datetime(2026, 8, 2, 11, 4, tzinfo=UTC)
+
+    write_receipt(build_receipt(URN, _verdict(), checked_at=checked_at), hub)
+    tag["tag"]["urn"] = "urn:li:tag:restricted"
+    status = get_verification_status(URN, hub, now=checked_at + timedelta(minutes=1))
+
+    assert status["stale"] is True
+    assert status["stale_reason"] == "asset decision context changed"
+
+
+def test_conflicting_tag_urn_aliases_cannot_hide_a_business_tag_change() -> None:
+    hub = _LiveReceiptHub()
+    tag = hub.entity["globalTags"]["tags"][0]
+    checked_at = datetime(2026, 8, 2, 11, 4, tzinfo=UTC)
+
+    write_receipt(build_receipt(URN, _verdict(), checked_at=checked_at), hub)
+    tag["urn"] = "urn:li:tag:sidq:verified"
+    tag["tag"]["urn"] = "urn:li:tag:restricted"
+    status = get_verification_status(URN, hub, now=checked_at + timedelta(minutes=1))
+
+    assert status["stale"] is True
+    assert status["stale_reason"] == "asset decision context changed"
+
+
 def test_context_hashed_receipt_max_age_boundaries_are_exact() -> None:
     hub = _LiveReceiptHub()
     checked_at = datetime(2026, 8, 2, 11, 4, tzinfo=UTC)
@@ -1530,23 +1817,68 @@ def test_receipt_stdio_caller_returns_tool_result_and_closes(monkeypatch) -> Non
     assert caller._thread is None
 
 
-def test_mutating_mcp_subprocess_environment_is_closed(monkeypatch) -> None:
+def test_mutating_mcp_subprocess_environment_is_closed(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("DATAHUB_GMS_TOKEN", "writer-token")
     monkeypatch.setenv("CLAIMS_SOURCE", "postgresql://reader:secret@warehouse/db")
     monkeypatch.setenv("GITHUB_TOKEN", "github-secret")
     monkeypatch.setenv("UNRELATED_SECRET", "ambient-secret")
 
-    environment = _mcp_subprocess_environment("https://catalog.example.test")
+    private_home = tmp_path / "receipt-mcp-home"
+    environment = _mcp_subprocess_environment(
+        "https://catalog.example.test", home=str(private_home)
+    )
 
     assert environment["DATAHUB_GMS_URL"] == "https://catalog.example.test"
     assert environment["DATAHUB_GMS_TOKEN"] == "writer-token"
     assert environment["DATAHUB_TELEMETRY_ENABLED"] == "false"
     assert environment["TOOLS_IS_MUTATION_ENABLED"] == "true"
     assert environment["LOGURU_LEVEL"] == "WARNING"
+    assert environment["HOME"] == str(private_home)
+    assert environment["HOME"] != "/tmp"
     assert "PATH" in environment
     assert "CLAIMS_SOURCE" not in environment
     assert "GITHUB_TOKEN" not in environment
     assert "UNRELATED_SECRET" not in environment
+
+
+def test_receipt_stdio_uses_and_removes_a_private_temporary_home(monkeypatch) -> None:
+    caller = StdioMCPReceiptToolCaller()
+    captured_homes: list[Path] = []
+
+    class _Session:
+        def __init__(self, read: object, write: object) -> None:
+            pass
+
+        async def initialize(self) -> None:
+            pass
+
+        async def __aenter__(self) -> Self:
+            return self
+
+        async def __aexit__(self, *args: object) -> None:
+            return None
+
+    async def next_request(function):
+        return None
+
+    def stdio_client(parameters):
+        home = Path(parameters["env"]["HOME"])
+        assert home.is_dir()
+        assert home.name.startswith("sidq-receipt-mcp-")
+        captured_homes.append(home)
+        return _AsyncContext((object(), object()))
+
+    monkeypatch.setattr(anyio.to_thread, "run_sync", next_request)
+    monkeypatch.setattr(mcp, "ClientSession", _Session)
+    monkeypatch.setattr(mcp.client.stdio, "stdio_client", stdio_client)
+    monkeypatch.setattr(
+        mcp.client.stdio, "StdioServerParameters", lambda **kwargs: kwargs
+    )
+
+    asyncio.run(caller._serve())
+
+    assert len(captured_homes) == 1
+    assert not captured_homes[0].exists()
 
 
 def test_receipt_stdio_startup_timeout_is_relayed(monkeypatch) -> None:
