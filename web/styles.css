@@ -1514,12 +1514,15 @@ footer {
   }
 
   .copy-command {
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: 1fr;
     gap: 12px;
   }
 
   .copy-command .copy {
-    padding-left: 14px;
+    padding: 14px 0;
+    border-top: 1px solid var(--rule);
+    border-left: 0;
+    text-align: left;
   }
 
   .architecture-frame img {
@@ -1553,7 +1556,8 @@ footer {
   }
 
   .finding {
-    grid-template-columns: 96px 1fr;
+    grid-template-columns: 1fr;
+    gap: 8px;
   }
 
   .trace-heading {

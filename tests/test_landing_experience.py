@@ -229,6 +229,16 @@ def test_mobile_hero_and_command_bidi_have_explicit_layout_guards() -> None:
     assert re.search(r"\.hero\s*\{[^}]*padding:", mobile, flags=re.DOTALL)
     assert re.search(r"\.hero-note\s*\{[^}]*margin-top:", mobile, flags=re.DOTALL)
     assert re.search(
+        r"\.finding\s*\{[^}]*grid-template-columns:\s*1fr",
+        mobile,
+        flags=re.DOTALL,
+    )
+    assert re.search(
+        r"\.copy-command\s*\{[^}]*grid-template-columns:\s*1fr",
+        mobile,
+        flags=re.DOTALL,
+    )
+    assert re.search(
         r"\.start-path,\s*\.install-details\s*\{[^}]*grid-template-columns:\s*1fr",
         mobile,
         flags=re.DOTALL,
