@@ -126,3 +126,27 @@ def test_context_is_limited_to_fast_prefilter_inputs(tmp_path: Path) -> None:
         & set(labelled["context"])
     )
     json.dumps(labelled, sort_keys=True)
+
+
+def test_report_does_not_restore_superseded_pii_exposure_as_an_active_rule() -> None:
+    report = label_mutations.build_report(
+        (
+            {
+                "id": "no-radius",
+                "family": "drop_selected_column",
+                "model_path": "models/orders.sql",
+                "intent": "harmful",
+                "verdict": "PASS",
+                "rule_ids": [],
+                "context": {"downstream_count": 0},
+                "diff": "",
+            },
+        )
+    )
+
+    assert "`pii_exposure`, `critical_downstream`, `wide_blast_radius`" not in report
+    assert (
+        "`pii_exposure` remains policy-supported only for explicit proven route evidence"
+        in report
+    )
+    assert "the former built-in blast inference is superseded" in report

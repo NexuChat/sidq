@@ -58,10 +58,16 @@ def test_landing_leads_with_one_decision_then_the_independent_handoff() -> None:
     assert html.index('id="decision"') < html.index('id="agent-handoff"')
     assert html.index('data-run="handoff"') < html.index('id="install-connect"')
     assert html.index('id="install-connect"') < html.index('class="deep-dives')
-    assert "Agents trust DataHub before they act." in hero
-    assert "who verifies that DataHub's context is telling the truth?" in hero
+    assert "DataHub-native trust infrastructure" in hero
+    assert "Don’t just make the agent smarter." in hero
+    assert "Make the context it acts on provable." in hero
+    assert (
+        "Sidq verifies schema, lineage, governance, ownership, and documented "
+        "claims before an agent acts."
+    ) in hero
     assert hero.count('class="cta run"') == 1
-    assert 'href="#trust-loop">See how trust is decided ↓</a>' in hero
+    assert 'href="#decision">Watch Sidq block a risky change ↓</a>' in hero
+    assert 'href="#install-connect">Run the proof ↓</a>' in hero
     assert "One command. A local graph." not in html
     assert "Try the proof yourself." in html
     assert "No setup maze." in html
@@ -70,6 +76,63 @@ def test_landing_leads_with_one_decision_then_the_independent_handoff() -> None:
     assert "demo-stack" in html and "live-loop" in html and "DataHub" in html
     assert "starts DataHub" not in html
     assert 'class="rail"' not in html
+
+
+def test_page_metadata_uses_the_judge_facing_positioning_and_owned_preview() -> None:
+    html = _landing()
+
+    assert "<title>Sidq — Provable Context for DataHub Agents</title>" in html
+    assert (
+        'property="og:title" content="Sidq — Provable Context for DataHub Agents"'
+        in html
+    )
+    assert 'property="og:type" content="website"' in html
+    assert 'property="og:url" content="https://sidq.mlki.app/"' in html
+    assert (
+        'property="og:image" content="https://sidq.mlki.app/social-preview.png"' in html
+    )
+    assert 'name="twitter:card" content="summary_large_image"' in html
+    assert (ROOT / "web" / "social-preview.png").is_file()
+
+
+def test_footer_reads_release_identity_from_same_origin_without_html_injection() -> (
+    None
+):
+    html = _landing()
+    script = SCRIPT.read_text(encoding="utf-8")
+
+    assert 'id="release-identity"' in html
+    assert 'fetch("/healthz"' in script
+    assert 'credentials: "same-origin"' in script
+    assert "Deployed commit: ${release.commit_sha}" in script
+    assert "Release: local/dev" in script
+    assert "releaseIdentity.textContent" in script
+    assert "/opt/sidq" not in html and "/opt/sidq" not in script
+
+
+def test_fixture_commit_is_not_labelled_as_the_deployed_release() -> None:
+    html = _landing()
+    fixture_sha = "5addb753788935d4d1aa6a9483c28c6fc124e5c7"
+    link = html.split(
+        f'href="https://github.com/NexuChat/sidq/commit/{fixture_sha}"', 1
+    )[0]
+
+    assert link.endswith("Fixture evidence commit: <a ")
+    assert "Deployed commit:" not in link[-100:]
+
+
+def test_agent_copy_calls_latest_receipts_current_state_not_memory() -> None:
+    html = _landing()
+    agents = html.split('id="agents-title"', 1)[1].split("</section>", 1)[0]
+
+    assert (
+        "Spend a budget. Re-check shared current state. Work as a swarm. "
+        "Refuse what you cannot prove."
+    ) in agents
+    assert '<span class="trace-type">Current state</span>' in agents
+    assert "</strong> With explicit optional Receipt writes" in agents
+    assert "Remember through the catalog" not in agents
+    assert '<span class="trace-type">Memory</span>' not in agents
 
 
 def test_receipt_handoff_and_mcp_tools_are_distinct_and_truthful() -> None:
@@ -93,11 +156,22 @@ def test_receipt_handoff_and_mcp_tools_are_distinct_and_truthful() -> None:
     assert "three read-only mcp tools" in tools.lower()
     for tool in ("check_change", "verify_context", "search_verified"):
         assert f"<code>{tool}</code>" in tools
+    assert "not a DataHub Receipt reader" in tools
+    assert "The independent Receipt read is the separate live proof above." in tools
     assert 'data-run="handoff"' in handoff
     assert "check_change writes" not in handoff
 
 
-def test_general_trust_contract_precedes_the_pii_example() -> None:
+def test_live_run_exposes_busy_state_to_assistive_technology() -> None:
+    html = _landing()
+    script = SCRIPT.read_text(encoding="utf-8")
+
+    assert 'class="handoff-run" aria-busy="false"' in html
+    assert 'runRegion.setAttribute("aria-busy", "true")' in script
+    assert 'runRegion.setAttribute("aria-busy", "false")' in script
+
+
+def test_general_trust_contract_precedes_the_concrete_example() -> None:
     html = _landing()
     contract = html.split('id="trust-loop"', 1)[1].split("</section>", 1)[0]
 
@@ -122,6 +196,20 @@ def test_general_trust_contract_precedes_the_pii_example() -> None:
         "Next agent: It re-checks the receipt for itself",
     ):
         assert f'aria-label="{accessible_stage}' in contract
+
+
+def test_concrete_proof_separates_blocking_trigger_from_supporting_context() -> None:
+    html = _landing()
+    decision = html.split('id="decision"', 1)[1].split("</section>", 1)[0]
+
+    assert "critical_downstream" in decision
+    assert "Blocking trigger" in decision
+    assert "wide_blast_radius" in decision
+    assert "WARN" in decision
+    assert "PII_Data" in decision
+    assert "Sensitivity context" in decision
+    assert "pii_exposure" not in decision
+    assert "break quietly" not in decision
 
 
 def test_install_journey_publishes_exact_copyable_commands() -> None:
@@ -285,6 +373,11 @@ def test_mobile_hero_and_command_bidi_have_explicit_layout_guards() -> None:
         flags=re.DOTALL,
     )
     assert re.search(
+        r"\.cta\s*\{[^}]*white-space:\s*normal[^}]*text-align:\s*center",
+        mobile,
+        flags=re.DOTALL,
+    )
+    assert re.search(
         r"\.start-path,\s*\.install-details\s*\{[^}]*grid-template-columns:\s*1fr",
         mobile,
         flags=re.DOTALL,
@@ -297,6 +390,28 @@ def test_mobile_hero_and_command_bidi_have_explicit_layout_guards() -> None:
         "unicode-bidi: isolate",
     ):
         assert declaration in code_guard.group("body")
+
+
+def test_every_keyboard_interactive_control_has_the_shared_focus_ring() -> None:
+    styles = STYLES.read_text(encoding="utf-8")
+
+    assert "a:focus-visible," in styles
+    assert "button:focus-visible," in styles
+    assert "summary:focus-visible" in styles
+    assert "outline: 2px solid var(--acid)" in styles
+    assert re.search(
+        r"\.hero-source\s*\{[^}]*min-height:\s*24px",
+        styles,
+        flags=re.DOTALL,
+    )
+
+
+def test_reduced_motion_disables_smooth_scrolling_and_arrival_animation() -> None:
+    styles = STYLES.read_text(encoding="utf-8")
+
+    reduce = styles.split("@media (prefers-reduced-motion: reduce)", 1)[1]
+    assert re.search(r"html\s*\{[^}]*scroll-behavior:\s*auto", reduce, re.DOTALL)
+    assert "@media (prefers-reduced-motion: no-preference)" in styles
 
 
 def test_non_json_http_errors_keep_status_without_exposing_response_html() -> None:

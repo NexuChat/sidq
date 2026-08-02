@@ -222,6 +222,27 @@ def test_where_any_blocks_when_either_risk_signal_is_present() -> None:
     assert cross_team.findings[0].rule_id == "critical_downstream"
 
 
+def test_unreadable_downstream_governance_fails_closed() -> None:
+    verdict = PolicyEngine().decide(
+        [
+            Evidence(
+                "blast_radius",
+                "urn:orders",
+                {
+                    "critical_assets": [],
+                    "cross_team_owners": [],
+                    "unreadable_assets": ["urn:dashboard"],
+                    "downstream_count": 1,
+                },
+            )
+        ]
+    )
+
+    assert verdict.decision == "BLOCK"
+    assert verdict.reason_code == "UNVERIFIABLE_CHANGE"
+    assert [finding.rule_id for finding in verdict.findings] == ["partial_blast_radius"]
+
+
 def test_invalid_numeric_evidence_cannot_bypass_a_threshold() -> None:
     evidence = Evidence(
         "blast_radius",

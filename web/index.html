@@ -3,11 +3,24 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Sidq verifies whether DataHub context is supported by evidence before an agent acts, then returns a reproducible PASS, WARN, or BLOCK decision.">
+    <meta name="description" content="Sidq verifies schema, lineage, governance, ownership, and documented claims before DataHub agents act, then returns a deterministic PASS, WARN, or BLOCK decision.">
     <meta name="theme-color" content="#0a0a09">
+    <link rel="canonical" href="https://sidq.mlki.app/">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Sidq — Provable Context for DataHub Agents">
+    <meta property="og:description" content="Evidence-first trust infrastructure with deterministic enforcement for agents that act on DataHub context.">
+    <meta property="og:url" content="https://sidq.mlki.app/">
+    <meta property="og:image" content="https://sidq.mlki.app/social-preview.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Sidq evidence graph ending in a deterministic BLOCK and an optional receipt">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Sidq — Provable Context for DataHub Agents">
+    <meta name="twitter:description" content="Prove the context before the agent acts.">
+    <meta name="twitter:image" content="https://sidq.mlki.app/social-preview.png">
     <link rel="icon" type="image/png" href="data:image/png;base64,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">
-    <title>Sidq — Is the graph lying?</title>
-    <link rel="stylesheet" href="styles.css?v=3801bf4fda5814b1">
+    <title>Sidq — Provable Context for DataHub Agents</title>
+    <link rel="stylesheet" href="styles.css?v=24af50ebda65f63e">
   </head>
   <body>
     <header class="masthead shell">
@@ -20,19 +33,19 @@
     <main id="top">
       <section class="hero shell" aria-labelledby="thesis">
         <div class="hero-grid">
-          <div class="eyebrow">Sidq / Trust before action</div>
+          <div class="eyebrow">DataHub-native trust infrastructure</div>
           <h1 id="thesis">
-            <span>Agents trust DataHub before they act.</span>
-            <span class="question">But who verifies that DataHub's context is telling the truth?</span>
+            <span>Don’t just make the agent smarter.</span>
+            <span class="question">Make the context it acts on provable.</span>
           </h1>
         </div>
         <div class="hero-note">
-          <div class="field-label">The trust layer</div>
+          <div class="field-label">Evidence before action</div>
           <div>
-            <p><strong>Sidq checks whether catalog context is supported by evidence before an agent relies on it.</strong> It distinguishes what is proven, incomplete, or contradictory — then returns a deterministic decision the next agent can verify again.</p>
+            <p><strong>Sidq verifies schema, lineage, governance, ownership, and documented claims before an agent acts.</strong> Its deterministic enforcement path returns PASS, WARN, or BLOCK—and can write an evidence receipt back to DataHub for independent re-checking.</p>
             <div class="hero-cta">
-              <a class="cta run" href="#trust-loop">See how trust is decided ↓</a>
-              <a class="hero-source" href="https://github.com/NexuChat/sidq">Source and evidence ↗</a>
+              <a class="cta run" href="#decision">Watch Sidq block a risky change ↓</a>
+              <a class="hero-source" href="#install-connect">Run the proof ↓</a>
             </div>
           </div>
         </div>
@@ -79,25 +92,25 @@
         <div class="shell">
           <div class="verdict-head">
             <div>
-              <div class="kicker">02 / One concrete proof</div>
+              <div class="kicker">02 / check_change · one concrete proof</div>
               <h2 class="decision" id="verdict-title">BLOCK</h2>
             </div>
             <div>
-              <div class="finding">
-                <div class="field-label">Agent asks</div>
-                <p class="rule-name"><code>check_change</code></p>
-              </div>
-              <div class="finding">
-                <div class="field-label">Rule</div>
-                <p class="rule-name">pii_exposure</p>
-              </div>
               <div class="finding">
                 <div class="field-label">Change</div>
                 <p class="value">Remove <code>cust_email</code> from <code>order_entry.customers</code></p>
               </div>
               <div class="finding">
-                <div class="field-label">Why</div>
-                <p class="value">The field is tagged <code>PII_Data</code>, reaches a live Looker dashboard, and affects 16 downstream consumers.</p>
+                <div class="field-label">Blocking trigger</div>
+                <p class="value"><span class="rule-name">critical_downstream · BLOCK</span><br>Verified downstream ownership crosses team boundaries, including <code>ORG_BACKEND_ENG</code> and eight additional owners.</p>
+              </div>
+              <div class="finding">
+                <div class="field-label">Supporting blast evidence</div>
+                <p class="value"><span class="rule-name">wide_blast_radius · WARN</span><br>16 downstream consumers are recorded, including a live Looker dashboard.</p>
+              </div>
+              <div class="finding">
+                <div class="field-label">Sensitivity context</div>
+                <p class="value">The recorded downstream path carries <code>PII_Data</code> metadata. It is supporting context, not the blocking cause.</p>
               </div>
             </div>
           </div>
@@ -136,16 +149,16 @@
             <div class="provenance">
               <span>Column lineage is proven through the BI field; chart and dashboard hops are entity-level.</span>
               <span>Source: <a href="https://github.com/NexuChat/sidq/blob/main/examples/01-blocked-pii-dashboard/verdict.json"><code>examples/01-blocked-pii-dashboard/verdict.json</code> ↗</a></span>
-              <span>Commit: <a href="https://github.com/NexuChat/sidq/commit/5addb753788935d4d1aa6a9483c28c6fc124e5c7"><code>5addb753788935d4d1aa6a9483c28c6fc124e5c7</code> ↗</a></span>
+              <span>Fixture evidence commit: <a href="https://github.com/NexuChat/sidq/commit/5addb753788935d4d1aa6a9483c28c6fc124e5c7"><code>5addb753788935d4d1aa6a9483c28c6fc124e5c7</code> ↗</a></span>
 
           <div class="ba">
             <div class="without">
               <div class="t">Without Sidq</div>
-              <p>The change merges. Sixteen consumers and a live dashboard break quietly, and the agent that caused it never knows.</p>
+              <p>The edit looks local, while its cross-team consumers and dashboard dependency remain outside the agent’s code view.</p>
             </div>
             <div class="with">
               <div class="t">With Sidq</div>
-              <p>The change is refused with the evidence attached. An explicit audit can preserve decision context for an independent reader.</p>
+              <p>The change is refused because the verified downstream dependency crosses team boundaries. The evidence is attached for an independent reader.</p>
             </div>
           </div>
             </div>
@@ -161,14 +174,14 @@
           </div>
           <div>
             <p class="handoff-explanation">A receipt is not authority. A separate reader re-reads the graph context and checks the receipt’s policy hash and age again. <strong>A current PASS continues; BLOCK, missing, or stale stops.</strong></p>
-            <div class="handoff-run">
+            <div class="handoff-run" aria-busy="false">
               <button class="copy run featured" type="button" data-run="handoff" aria-controls="run-output">Run the independent receipt read</button>
               <p id="run-status" aria-live="polite">This hosted demo reads a persisted receipt from DataHub and judges whether it still holds; it never trusts the writer's response.</p>
               <p id="run-progress" aria-live="polite" hidden></p>
               <pre id="run-output" tabindex="-1" hidden></pre>
               <details class="mcp-tools">
                 <summary>Three read-only MCP tools</summary>
-                <p>No hidden mutation:</p>
+                <p>No hidden mutation. Their verification store is not a DataHub Receipt reader. The independent Receipt read is the separate live proof above.</p>
                 <div><code>check_change</code><code>verify_context</code><code>search_verified</code></div>
               </details>
               <details class="more-live">
@@ -284,9 +297,9 @@ SIDQ_REPO_ROOT = "/absolute/path/to/data-repository"</code></pre>
                 <h2 id="picture-title">How it decides — one picture.</h2>
               </div>
               <div class="architecture-frame" tabindex="0" role="region" aria-label="Architecture diagram. Scroll horizontally to inspect at small sizes.">
-                <img src="architecture.svg?v=0e206420d5f984d7" alt="A change or agent question passes five evidence gates, one policy engine emits PASS, WARN or BLOCK, an opted-in audit can write a receipt into DataHub, and a later reader re-verifies it.">
+                <img src="architecture.svg?v=f6a3172bea473f00" alt="A change or agent question passes five evidence gates, one policy engine emits PASS, WARN or BLOCK, an opted-in audit can write a receipt into DataHub, and a later reader re-verifies it.">
               </div>
-              <a class="architecture-open" href="architecture.svg?v=0e206420d5f984d7" target="_blank" rel="noopener">Open full-size architecture ↗</a>
+              <a class="architecture-open" href="architecture.svg?v=f6a3172bea473f00" target="_blank" rel="noopener">Open full-size architecture ↗</a>
               <div class="provenance">
                 <span>Gates collect evidence. One engine decides. Receipts preserve decision context.</span>
                 <span>Full spec: <a href="https://github.com/NexuChat/sidq/blob/main/ARCHITECTURE.md"><code>ARCHITECTURE.md</code> ↗</a></span>
@@ -330,7 +343,7 @@ SIDQ_REPO_ROOT = "/absolute/path/to/data-repository"</code></pre>
       <section class="agents shell" id="s05" aria-labelledby="agents-title">
         <div class="trace-heading">
           <div class="eyebrow">05 / The agents</div>
-          <h2 id="agents-title">Spend a budget. Remember through the catalog. Work as a swarm. Refuse what you cannot prove.</h2>
+          <h2 id="agents-title">Spend a budget. Re-check shared current state. Work as a swarm. Refuse what you cannot prove.</h2>
         </div>
         <ol class="trace-list" aria-label="What the Sidq agents do">
           <li class="trace-item">
@@ -341,8 +354,8 @@ SIDQ_REPO_ROOT = "/absolute/path/to/data-repository"</code></pre>
           </li>
           <li class="trace-item">
             <span class="trace-index">02</span>
-            <span class="trace-type">Memory</span>
-            <span class="trace-asset"><strong>Remembers through the catalog itself.</strong><code>sidq audit --resume</code> — receipts are the memory; coverage converges run over run. The catalog is the ledger.</span>
+            <span class="trace-type">Current state</span>
+            <span class="trace-asset"><strong>Shared current state, not a ledger.</strong> With explicit optional Receipt writes, DataHub holds the latest values, not append-only history. <code>sidq audit --resume</code> re-checks those values before spending its budget.</span>
             <span class="trace-arrow" aria-hidden="true">↓</span>
           </li>
           <li class="trace-item">
@@ -411,7 +424,7 @@ SIDQ_REPO_ROOT = "/absolute/path/to/data-repository"</code></pre>
           </div>
           <div class="qa">
             <dt>Monitoring</dt>
-            <dd><strong>Receipts are the dashboard.</strong> <code>sidq.*</code> properties are queryable in DataHub search: verified / stale / blocked / never-examined is one query, and each resumed run reports coverage converging.</dd>
+            <dd><strong>Receipts are the dashboard.</strong> <code>sidq.*</code> properties are queryable in DataHub. <code>sidq verify</code> computes whether each recorded Receipt still holds against current context, policy, and age; audits report missing coverage explicitly.</dd>
           </div>
           <div class="qa">
             <dt>Cost</dt>
@@ -447,9 +460,10 @@ SIDQ_REPO_ROOT = "/absolute/path/to/data-repository"</code></pre>
 
     <footer class="shell">
       <span>Sidq / DataHub-native context verification</span>
-      <span>Evidence before confidence.</span>
+      <span>One catalog. Many agents. No blind trust.</span>
+      <span id="release-identity">Release: checking…</span>
     </footer>
 
-    <script src="app.js?v=27b228b29c6f27ff" defer></script>
+    <script src="app.js?v=54c62c820693bd74" defer></script>
   </body>
 </html>

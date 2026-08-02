@@ -256,7 +256,7 @@ def test_skill_worked_verdict_uses_the_real_finding_evidence_shape() -> None:
         )
     )
     worked_section = SKILL.split(
-        "### Worked example: blocked PII dashboard change", maxsplit=1
+        "### Worked example: blocked cross-team downstream change", maxsplit=1
     )[1]
     worked = json.loads(
         worked_section.split("```json", maxsplit=1)[1].split("```", 1)[0]
@@ -295,6 +295,9 @@ def test_datahub_and_sidq_mcp_servers_have_distinct_roles() -> None:
     for tool in ("check_change", "verify_context", "search_verified"):
         assert tool in combined
     assert "exactly three tools" in combined
+    assert "not a DataHub receipt reader" in combined
+    assert "sidq verify" in combined
+    assert "assets carrying fresh receipts" not in ARCHITECTURE
 
 
 def test_demo_compose_does_not_claim_to_supply_datahub() -> None:

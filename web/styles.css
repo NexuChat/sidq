@@ -49,7 +49,8 @@ a {
 }
 
 a:focus-visible,
-button:focus-visible {
+button:focus-visible,
+summary:focus-visible {
   outline: 2px solid var(--acid);
   outline-offset: 5px;
 }
@@ -847,7 +848,10 @@ h1 .question {
 }
 
 .hero-source {
+  display: inline-flex;
+  min-height: 24px;
   align-self: center;
+  align-items: center;
   color: var(--paper-dim);
   font-size: 0.7rem;
   font-weight: 700;
@@ -1562,6 +1566,13 @@ footer {
     margin-top: 18px;
   }
 
+  .cta {
+    width: 100%;
+    white-space: normal;
+    line-height: 1.35;
+    text-align: center;
+  }
+
   .trust-loop {
     padding: 36px 0;
   }
@@ -1665,6 +1676,83 @@ footer {
   }
 }
 
+@media (max-width: 480px) {
+  .masthead {
+    min-height: 64px;
+  }
+
+  .hero {
+    padding: 20px 0 22px;
+  }
+
+  h1 {
+    font-size: 2.35rem;
+  }
+
+  .hero-note > .field-label {
+    display: none;
+  }
+
+  .trust-loop {
+    padding: 24px 0;
+  }
+
+  .trust-heading h2 {
+    font-size: 1.85rem;
+  }
+
+  .trust-heading p {
+    display: none;
+  }
+
+  .trust-path {
+    margin-top: 14px;
+  }
+
+  .trust-path li,
+  .trust-path li:last-child {
+    min-height: 72px;
+    padding: 9px;
+  }
+
+  .trust-index {
+    margin-bottom: 6px;
+  }
+
+  .trust-path strong {
+    font-size: 0.88rem;
+  }
+}
+
+@media (max-width: 340px) {
+  .hero {
+    padding: 10px 0;
+  }
+
+  h1 {
+    font-size: 2.2rem;
+  }
+
+  .hero-cta {
+    margin-top: 12px;
+  }
+
+  .trust-loop {
+    padding: 14px 0;
+  }
+
+  .trust-path li,
+  .trust-path li:last-child {
+    min-height: 60px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .hero h1 span,
   .hero-note {
@@ -1681,11 +1769,9 @@ footer {
 
   @keyframes arrive {
     from {
-      opacity: 0;
       transform: translateY(24px);
     }
     to {
-      opacity: 1;
       transform: translateY(0);
     }
   }

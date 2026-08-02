@@ -68,7 +68,7 @@ At minimum four PRs, each one a demonstration scene:
 | PR | Change | Expected verdict |
 |---|---|---|
 | #1 | adds a column, touches nothing downstream | `PASS` + receipt |
-| #2 | drops `customers.email`, which a downstream dashboard depends on | `BLOCK` — `critical_downstream` + `pii_exposure` |
+| #2 | drops `customers.cust_email`, which has cross-team downstream consumers | `BLOCK` — `critical_downstream`; supporting `wide_blast_radius` warning |
 | #3 | references a column that exists in the live DB but **not** in the catalog | `BLOCK` — `STALE_CONTEXT` (the catalog is lying) |
 | #4 | the fix for #2, re-run | `PASS` + receipt, and the receipt is read back |
 
@@ -95,9 +95,13 @@ snowflake …customers.cust_email      (tagged urn:li:tag:b2fd91.PII_Data — a 
 
 A PR touching the dbt model `order_entry/customers.sql` resolves to
 `urn:li:dataset:(urn:li:dataPlatform:dbt,b2fd91.order_entry_db.order_entry.customers,PROD)`,
-and the blast gate then walks **real** column lineage into a **real** dashboard, with a
-**real** PII tag firing `pii_exposure`. Nothing is staged. Our demo dbt project must
-therefore mirror the showcase's dbt model paths so the resolver lands on those URNs.
+and the blast gate then walks **real** column lineage into a **real** dashboard.
+The `critical_downstream` rule blocks because the blast evidence records cross-team
+downstream owners. The 16-consumer count supports that decision with a
+`wide_blast_radius` warning, while the **real** PII tag is sensitivity context only;
+the built-in change path does not emit `pii_exposure` from it. Nothing is staged.
+Our demo dbt project must therefore mirror the showcase's dbt model paths so the
+resolver lands on those URNs.
 
 **Scene 3 — our own live Postgres.** The showcase pack is metadata-only: there is no
 database behind it to ALTER, so `STALE_CONTEXT` cannot be demonstrated on it. Our

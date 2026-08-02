@@ -62,7 +62,7 @@ rules:
       evidence_kind: pii_exposure
     severity: block
     message: >-
-      PII exposure is not permitted for {subject}.
+      A proven proposed PII route reaches an unapproved destination from {subject}.
   - id: assertion_dependency_break
     match:
       evidence_kind: assertion_dependency_break
@@ -86,12 +86,12 @@ rules:
       where_any:
         - field: detail.unreadable_assets
           op: not_empty
-    severity: warn
+    severity: block
+    reason_code: UNVERIFIABLE_CHANGE
     message: >-
-      Downstream governance could not be fully read for {subject}, so ownership
-      and criticality evidence is incomplete. The lineage itself is proven; the
-      blocking rules that depend on ownership could not be evaluated on every
-      consumer.
+      Sidq could not fully read downstream governance for {subject}, so ownership
+      and criticality could not be ruled out. This is a refusal to certify the
+      change, not a claim that the change is unsafe.
   - id: wide_blast_radius
     match:
       evidence_kind: blast_radius
@@ -119,7 +119,7 @@ rules:
       evidence_kind: access_policy_conflict
     severity: warn
     message: >-
-      Restricted data is routed to an unrestricted asset from {subject}.
+      A proven proposed route sends restricted data to an unrestricted asset from {subject}.
   - id: doc_rot
     match:
       evidence_kind: doc_rot
@@ -263,10 +263,3 @@ rules:
     message: >-
       Consumed-asset ownership could not be assessed for {subject}.
   #
-  # partial_blast_radius is a warn, not a block, and the choice is deliberate.
-  # A downstream get_dataset can fail for an ordinary reason — chart and dashboard
-  # consumers are not datasets in every graph — so blocking on it would refuse to
-  # certify almost every change with BI downstream. The lineage is still proven;
-  # what is incomplete is the ownership enrichment the blocking rules read. So it
-  # warns, consistent with the rule that advisory evidence never turns PASS into
-  # BLOCK, and the gate records exactly which consumers went unread.

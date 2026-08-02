@@ -2,7 +2,7 @@
 
 > The shape of the system. Build details live in `docs/ENGINE-SPEC.md`.
 
-Everyone taught AI to write SQL. We taught it **when to refuse** — and we leave proof.
+Everyone taught AI to write SQL. We taught it **when to refuse** — and we leave inspectable evidence.
 
 **Hackathon:** Build with DataHub — The Agent Hackathon (deadline Aug 10, 2026 · 5PM ET)
 **License:** Apache-2.0 at repo root (hard requirement)
@@ -12,10 +12,11 @@ and `sidq-mcp`, the three-tool server we ship.
 ## The gap
 
 DataHub MCP already does context-aware SQL generation; Vanna, Wren AI and dbt Copilot all
-generate. **Nobody gates.** No tool blocks a failing generated change before it merges, and
-none writes a verification receipt back to the metadata graph that a later agent reads.
+generate. **Sidq's contribution is a deterministic, DataHub-native pre-merge refusal path**
+that combines catalog evidence, explicit policy, and an optional queryable Receipt a later
+agent can independently re-check.
 
-![The Sidq loop: change → gates → policy → receipt → memory, with the catalog as the shared ledger](docs/architecture.svg)
+![The Sidq loop: change → gates → policy → optional receipt write → shared current state](docs/architecture.svg)
 
 ## The flow
 
@@ -29,13 +30,14 @@ git diff (SQL / dbt)
       │              disagree? → STALE_CONTEXT: "the catalog itself is lying"
 [1]  SCHEMA GATE     referenced tables/columns/types exist in the graph
 [2]  BLAST GATE      lineage impact: which downstream assets and dashboards break?
-[3]  GOVERNANCE GATE PII tags, ownership, deprecation, access policy
+[3]  GOVERNANCE GATE ownership and deprecation evidence
+      │              (PII tags remain sensitivity context; no route-delta claim)
 [4]  SELF-CHECK      graph claim ⟷ graph claim: schema, lineage, and governance
       │
       ▼  gates emit EVIDENCE only — never verdicts
 [P]  POLICY ENGINE   policy.yaml → PASS / WARN / BLOCK, per named rule, with evidence links
       │
-[S]  SIDQ RECEIPT    attested, queryable, written back onto the affected assets
+[S]  SIDQ RECEIPT    optional, operator-enabled write of current, queryable values
 ```
 
 ## Three delivery surfaces, one engine
@@ -43,8 +45,10 @@ git diff (SQL / dbt)
 1. **MCP server (ours)** — exactly three agent tools: `check_change(diff|sql)`,
    `verify_context(urn)`, and `search_verified(query)`. A coding agent asks permission
    *before* proposing data code; an analytics agent verifies context before trusting it;
-   another agent can select only assets carrying fresh receipts. This is what makes the
-   receipt consumed by a third party rather than by ourselves.
+   another agent can select assets carrying fresh records in the Sidq MCP verification
+   store. That store is not DataHub Receipt state. Independent Receipt consumption is the
+   separate `sidq verify` path, which reads DataHub again and checks current graph context,
+   policy, and age.
 2. **CLI** — the full operator surface: `sidq check`, `audit`, `repair`, `swarm`,
    `claims`, and `verify`. Every command returns deterministic human output or canonical
    JSON from the same evidence and policy engine.
@@ -55,25 +59,25 @@ The official `mcp-server-datahub` is not a fourth Sidq surface. It is the graph
 dependency used to read DataHub and perform explicit receipt mutations;
 `sidq-mcp` is the agent-facing Sidq server above.
 
-## The agents, and the memory they share
+## The agents, and the shared current state they can re-check
 
 `sidq audit` spends an explicit budget worst-first and names what it did not
 reach. `sidq repair` proposes only what the engine re-proves, and refuses the
-rest with reasons. And the receipts they write are not just output — they are
-the memory: `sidq audit --resume` reads them back, skips every asset whose
+rest with reasons. When an operator explicitly enables the optional Receipt write,
+DataHub stores the latest receipt values, not append-only history. `sidq audit
+--resume` reads that shared current state back, skips every asset whose
 receipt still holds under the current policy hash, and spends the whole budget
 on assets no run has seen. Coverage converges under a fixed budget, and any
-Sidq instance resumes where any other stopped, because the state lives in the
-catalog itself. No sidecar database, no daemon — the write-back is also the
-coordination layer.
+Sidq instance with access to the same catalog can re-check the latest values before
+choosing work. No sidecar database or daemon is required for this optimization.
 
 ## Rubric mapping
 
 | Criterion | Our answer |
 |---|---|
-| Depth of DataHub use **incl. write-back** | reads schema + lineage + governance; writes an attested receipt that a *different* agent reads back with `sidq verify`; the agent-facing MCP remains exactly the three documented verification tools |
+| Depth of DataHub use **incl. write-back** | reads schema + lineage + governance; explicitly writes a queryable receipt that a *different* agent reads back with `sidq verify`; the agent-facing MCP remains exactly the three documented verification tools |
 | Technical execution | deterministic end-to-end on the judges' own quickstart; fixture-backed tests; byte-identical verdicts for identical inputs |
-| Originality | inverts the category — verification-first, source-agnostic; Gate 0 catches the catalog lying about live reality at PR time, with no daemon; and receipts double as shared agent memory, so bounded audits converge to full coverage |
+| Originality | inverts the category — verification-first, source-agnostic; Gate 0 catches the catalog lying about live reality at PR time, with no daemon; optional current Receipt values let bounded audits resume from shared current state |
 | Real-world usefulness | a CI gate plus an agent guardrail — the daily pain of every data platform team |
 | Submission quality | public demo repo with real sealed PRs judges can read without installing anything |
 | Bonus | upstream `datahub-verify` skill |
@@ -86,7 +90,7 @@ coordination layer.
 | Airflow circuit breakers | stop bad **runs** after deploy; we stop bad **changes** before merge |
 | Monte Carlo / Bigeye | post-hoc observability for humans, as a separate product; we are a decision inside the PR, written into the graph |
 | DataHub Metadata Tests | Cloud-only, and its rules are metadata-internal; we are OSS and we compare against **live reality** |
-| Datafold / Recce | the closest real competitor — column-level impact in PRs. We differ: OSS and DataHub-native, governance/PII policy rather than data-diff, an attested receipt in the catalog, and an MCP surface for agents |
+| Datafold / Recce | the closest real competitor — column-level impact in PRs. We differ: OSS and DataHub-native, governance/PII policy rather than data-diff, an explicit queryable receipt in the catalog, and an MCP surface for agents |
 
 ## Stack (boring on purpose)
 

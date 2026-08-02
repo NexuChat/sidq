@@ -53,6 +53,7 @@ COMMENT = EXAMPLE / "pr-comment.md"
 # substituted in place rather than regenerated, but they are covered by a test
 # that fails when any of them disagrees with the verdict.
 HASH_CITING = ("README.md", "docs/PR-BOT.md", "skills/datahub-verify/SKILL.md")
+SKILL_PATH = ROOT / "skills" / "datahub-verify" / "SKILL.md"
 
 # The example's own history, kept explicit so the reconstruction cannot drift
 # into a different scenario than the one that was published.
@@ -142,10 +143,9 @@ def comment() -> str:
     canonical order keeps the two files a judge reads side by side consistent with
     each other; the divergence itself is pinned by a test.
 
-    Findings are matched by their canonical serialisation, not by rule id. Keying
-    on the rule id was a real bug: two gates raise `pii_exposure` on two different
-    routes, and a dict keyed by rule id keeps only the last, so the published
-    comment showed one finding twice and dropped the other entirely.
+    Findings are matched by their canonical serialisation, not by rule id. Rule
+    ids are not unique identifiers for evidence: multiple subjects can satisfy
+    the same rule, and a dict keyed by rule id would silently discard all but one.
     """
     verdict = _verdict_object()
     canonical = canonical_data(verdict)["findings"]
@@ -157,7 +157,7 @@ def comment() -> str:
         )
         remaining.remove(match)
         ordered.append(match)
-    return render_comment(replace(verdict, findings=tuple(ordered)))
+    return render_comment(replace(verdict, findings=tuple(ordered)), mode="fixture")
 
 
 def regenerate() -> dict:
@@ -167,6 +167,72 @@ def regenerate() -> dict:
 
 def rendered() -> str:
     return json.dumps(regenerate(), indent=2, sort_keys=True) + "\n"
+
+
+def _skill_worked_example(verdict: dict) -> str:
+    """Render the skill's compact example from the current sealed verdict."""
+
+    detail_keys = {
+        "wide_blast_radius": ("downstream_count",),
+        "critical_downstream": ("cross_team_owners",),
+    }
+    findings = []
+    for finding in verdict["findings"]:
+        keys = detail_keys.get(finding["rule_id"])
+        if keys is None:
+            continue
+        evidence = finding["evidence"][0]
+        findings.append(
+            {
+                "evidence": [
+                    {
+                        "detail": {
+                            key: evidence["detail"][key]
+                            for key in keys
+                            if key in evidence["detail"]
+                        },
+                        "graph_links": evidence["graph_links"],
+                        "kind": evidence["kind"],
+                        "subject": evidence["subject"],
+                    }
+                ],
+                "message": finding["message"],
+                "rule_id": finding["rule_id"],
+                "severity": finding["severity"],
+            }
+        )
+    excerpt = {
+        "commit_sha": verdict["commit_sha"],
+        "decision": verdict["decision"],
+        "findings": findings,
+        "policy_hash": verdict["policy_hash"],
+    }
+    payload = json.dumps(excerpt, indent=2, sort_keys=True)
+    return (
+        "### Worked example: blocked cross-team downstream change\n\n"
+        "The repository example `examples/01-blocked-pii-dashboard/verdict.json` "
+        "is an actual Sidq verdict. Removing `cust_email` is blocked by "
+        "`critical_downstream` because the proven blast evidence contains "
+        "cross-team owners. `wide_blast_radius` records 16 consumers as a WARN. "
+        "The downstream `PII_Data` tag is sensitivity context; this removal does "
+        "not emit `pii_exposure`.\n\n"
+        f"```json\n{payload}\n```\n\n"
+        "Tell the user that `critical_downstream` is the blocking rule and name "
+        "the cross-team owner evidence. Do not present the 16-consumer warning or "
+        "the PII tag as the blocking cause. A compliant next step must preserve "
+        "compatibility for the verified downstream consumers or obtain an explicit "
+        "governance decision.\n"
+    )
+
+
+def _replace_skill_worked_example(text: str, section: str) -> str:
+    pattern = r"### Worked example:.*?(?=\n---\n)"
+    updated, replacements = re.subn(
+        pattern, section.rstrip(), text, count=1, flags=re.DOTALL
+    )
+    if replacements != 1:
+        raise RuntimeError("could not locate the generated skill worked example")
+    return updated
 
 
 def main() -> int:
@@ -182,6 +248,7 @@ def main() -> int:
     fresh_comment = comment()
     new = json.loads(fresh)
     new_hash = new["policy_hash"]
+    fresh_skill_section = _skill_worked_example(new)
 
     if arguments.check:
         stale = []
@@ -197,6 +264,10 @@ def main() -> int:
             and f'"policy_hash": "{new_hash}"'
             not in (ROOT / name).read_text(encoding="utf-8")
         )
+        if _replace_skill_worked_example(
+            SKILL_PATH.read_text(encoding="utf-8"), fresh_skill_section
+        ) != SKILL_PATH.read_text(encoding="utf-8"):
+            stale.append(str(SKILL_PATH.relative_to(ROOT)))
         if stale:
             print("stale; rerun scripts/regenerate_example_01.py:")
             for name in stale:
@@ -228,6 +299,8 @@ def main() -> int:
         marker_at = updated.find(STICKY_MARKER)
         if marker_at != -1:
             updated = updated[:marker_at] + fresh_comment
+        if path == SKILL_PATH:
+            updated = _replace_skill_worked_example(updated, fresh_skill_section)
         if updated != text:
             path.write_text(updated, encoding="utf-8")
             print(f"wrote {name}")

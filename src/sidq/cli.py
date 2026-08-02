@@ -55,9 +55,11 @@ from sidq.repair import (
     apply_repairs,
     propose_all,
     prove,
+    refresh_snapshot,
     render_applied,
     render_plan,
     unfixed,
+    verify_repairs,
 )
 from sidq.resolver import Resolver
 from sidq.serialization import canonical_json
@@ -747,7 +749,29 @@ def _audit(arguments: Any) -> int:
         lines.extend(("", *render_writeback(outcomes)))
 
     if arguments.as_json:
-        sys.stdout.buffer.write(canonical_json(result.summary()) + b"\n")
+        output = result.summary()
+        if arguments.write_receipts:
+            failed_outcomes = [item for item in outcomes if not item.written]
+            output = {
+                **output,
+                "writes": {
+                    "attempted": len(outcomes),
+                    "written": len(outcomes) - len(failed_outcomes),
+                    "failed": len(failed_outcomes),
+                    "failures": [
+                        {
+                            "urn": item.urn,
+                            "verdict": item.verdict,
+                            "detail": item.detail,
+                        }
+                        for item in sorted(
+                            failed_outcomes,
+                            key=lambda item: (item.urn, item.verdict, item.detail),
+                        )
+                    ],
+                },
+            }
+        sys.stdout.buffer.write(canonical_json(output) + b"\n")
     else:
         print("\n".join(lines))
     write_failed = any(not item.written for item in outcomes)
@@ -778,12 +802,24 @@ def _repair(arguments: Any) -> int:
             close = getattr(caller, "close", None)
             if callable(close):
                 close()
+        if any(item.applied for item in outcomes):
+            outcomes = verify_repairs(
+                snapshot,
+                outcomes,
+                lambda proposals, timeout: _read_repair_targets(
+                    snapshot,
+                    proposals,
+                    server=arguments.server,
+                    timeout=timeout,
+                ),
+                timeout=arguments.timeout,
+            )
 
     remaining = list(unfixed(result.findings, plan))
     failed_repairs = {
         (item.proposal.finding_kind, item.proposal.subject)
         for item in outcomes
-        if not item.applied
+        if not item.closed and not item.unresolved and not item.collateral
     }
     remaining_keys = {(item.kind, item.subject) for item in remaining}
     remaining.extend(
@@ -791,6 +827,25 @@ def _repair(arguments: Any) -> int:
         for item in result.findings
         if (item.kind, item.subject) in failed_repairs
         and (item.kind, item.subject) not in remaining_keys
+    )
+    unresolved = {
+        (finding.kind, finding.subject): finding
+        for outcome in outcomes
+        for finding in outcome.unresolved
+    }
+    collateral = {
+        (finding.kind, finding.subject): finding
+        for outcome in outcomes
+        for finding in outcome.collateral
+    }
+    remaining.extend(
+        Evidence(
+            finding.kind,
+            finding.subject,
+            {"repair_collateral": finding.detail} if finding.detail else {},
+        )
+        for key, finding in sorted({**unresolved, **collateral}.items())
+        if key not in {(item.kind, item.subject) for item in remaining}
     )
     if remaining:
         # Named, not counted away. The repairable checks are the minority, and a
@@ -801,6 +856,14 @@ def _repair(arguments: Any) -> int:
         for kind in sorted({item.kind for item in remaining}):
             count = sum(1 for item in remaining if item.kind == kind)
             lines.append(f"  {kind:<34} {count}")
+            for item in sorted(
+                (item for item in remaining if item.kind == kind),
+                key=lambda item: item.subject,
+            ):
+                lines.append(f"    {item.subject}")
+                detail = item.detail.get("repair_collateral")
+                if detail:
+                    lines.append(f"      {detail}")
             reason = UNREPAIRABLE.get(kind)
             if reason:
                 lines.append(f"    no mechanical repair: {reason}")
@@ -812,10 +875,25 @@ def _repair(arguments: Any) -> int:
         output = plan.summary()
         if arguments.apply:
             written = sum(1 for item in outcomes if item.applied)
+            verified = sum(1 for item in outcomes if item.closed)
             output = {
                 **output,
                 "remaining": {
                     "count": len(remaining),
+                    "findings": [
+                        {
+                            "kind": item.kind,
+                            "subject": item.subject,
+                            **(
+                                {"detail": item.detail["repair_collateral"]}
+                                if item.detail.get("repair_collateral")
+                                else {}
+                            ),
+                        }
+                        for item in sorted(
+                            remaining, key=lambda item: (item.kind, item.subject)
+                        )
+                    ],
                     "kinds": {
                         kind: sum(1 for item in remaining if item.kind == kind)
                         for kind in sorted({item.kind for item in remaining})
@@ -823,15 +901,59 @@ def _repair(arguments: Any) -> int:
                 },
                 "writes": {
                     "attempted": len(outcomes),
-                    "failed": len(outcomes) - written,
+                    "applied_unverified": written - verified,
+                    "failed": sum(1 for item in outcomes if not item.applied),
+                    "verified": verified,
                     "written": written,
                 },
             }
         sys.stdout.buffer.write(canonical_json(output) + b"\n")
     else:
         print("\n".join(lines))
-    write_failed = any(not item.applied for item in outcomes)
-    return 1 if remaining or write_failed else 0
+    write_unclosed = any(not item.closed for item in outcomes)
+    return 1 if remaining or write_unclosed else 0
+
+
+def _read_repair_targets(
+    before: CatalogSnapshot,
+    proposals: Sequence[Any],
+    *,
+    server: str,
+    timeout: float,
+) -> CatalogSnapshot:
+    """Rebuild mutated state from direct entity reads, never from search."""
+    import queue
+    import threading
+
+    completed: queue.Queue[tuple[CatalogSnapshot | None, Exception | None]] = (
+        queue.Queue(maxsize=1)
+    )
+
+    def read() -> None:
+        graph: Any = None
+        try:
+            graph = MCPGraphClient(StdioMCPToolCaller(gms_url=server))
+            snapshot = refresh_snapshot(before, proposals, graph)
+        except Exception as error:  # noqa: BLE001 - MCP transports raise several types
+            completed.put((None, error))
+        else:
+            completed.put((snapshot, None))
+        finally:
+            close = getattr(graph, "close", None)
+            if callable(close):
+                close()
+
+    worker = threading.Thread(target=read, name="sidq-repair-readback", daemon=True)
+    worker.start()
+    worker.join(timeout=max(timeout, 0.0))
+    if worker.is_alive():
+        raise TimeoutError("direct repair read exceeded its bounded timeout")
+    snapshot, error = completed.get_nowait()
+    if error is not None:
+        raise error
+    if snapshot is None:
+        raise RuntimeError("direct repair read returned no snapshot")
+    return snapshot
 
 
 def replace_budget(arguments: Any, budget: int) -> Any:

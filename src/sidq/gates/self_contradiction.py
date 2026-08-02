@@ -626,7 +626,7 @@ def _pii_leaks(
         target_field = _field(target, edge.target_field)
         if source_field is None or target_field is None:
             continue  # Missing fields are handled by lineage_field_missing, not inferred PII.
-        pii_tags = tuple(sorted(tag for tag in source_field.tags if _is_pii_tag(tag)))
+        pii_tags = tuple(sorted(tag for tag in source_field.tags if is_pii_tag(tag)))
         if not pii_tags:
             continue
         target_tags = tuple(sorted(target_field.tags))
@@ -686,11 +686,27 @@ _PROTECTION_MARKERS = (
 
 def _is_protection_tag(tag: str) -> bool:
     """A tag that declares the column protected — but never a denial of it."""
-    lowered = tag.casefold()
-    leaf = lowered.rsplit(":", 1)[-1]
-    if leaf.startswith(("not_", "non_", "no_")) or "not_pii" in leaf:
+    leaf = tag.casefold().rsplit(":", 1)[-1]
+    if _is_negated_tag(tag):
         return False
     return any(marker in leaf for marker in _PROTECTION_MARKERS)
+
+
+def _tag_words(tag: str) -> tuple[str, ...]:
+    leaf = tag.rsplit(":", 1)[-1]
+    separated = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", "_", leaf)
+    return tuple(re.findall(r"[a-z0-9]+", separated.casefold()))
+
+
+def _is_negated_tag(tag: str) -> bool:
+    compact = "".join(_tag_words(tag))
+    for prefix in ("not", "non", "no"):
+        if not compact.startswith(prefix):
+            continue
+        marker = compact[len(prefix) :]
+        if any(marker.startswith(item) for item in _PROTECTION_MARKERS):
+            return True
+    return False
 
 
 def _deprecated_upstream_of_live(
@@ -826,9 +842,12 @@ def _field(entity: CatalogEntity, path: str) -> CatalogField | None:
     return next((field for field in entity.fields if field.path == path), None)
 
 
-def _is_pii_tag(tag: str) -> bool:
-    normalized = tag.casefold()
-    return "pii" in normalized or "personally_identifiable" in normalized
+def is_pii_tag(tag: str) -> bool:
+    """Recognize a positive PII marker, never a marker that denies PII."""
+    if _is_negated_tag(tag):
+        return False
+    compact = "".join(_tag_words(tag))
+    return "pii" in compact or "personallyidentifiable" in compact
 
 
 def _all_entity_urns(list_urns: Any, kind: str) -> Iterable[str]:

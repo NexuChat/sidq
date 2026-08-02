@@ -12,7 +12,7 @@ accessibility, interaction, and deployment evidence: [`docs/QA-RESULTS.md`](docs
 Contributions are welcome under [`CONTRIBUTING.md`](CONTRIBUTING.md) and the
 [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md).
 
-![How Sidq decides: a change or agent question passes five evidence gates, one policy engine emits PASS, WARN or BLOCK, optional writeback records accepted receipts in DataHub, and the next audit can resume from those receipts — the catalog is the ledger.](docs/architecture.svg)
+![How Sidq decides: a change or agent question passes five evidence gates, one policy engine emits PASS, WARN or BLOCK, and optional writeback records current receipt values in DataHub as shared current state.](docs/architecture.svg)
 
 Sidq is a DataHub-native verification layer for agents and data-code changes. It checks whether catalog context is truthful before an agent relies on it, then applies an explicit policy and leaves evidence that the next agent can read.
 
@@ -70,6 +70,11 @@ The official `mcp-server-datahub` is Sidq's graph dependency. `sidq-mcp` is the
 separate Sidq server that exposes exactly three tools: `check_change`,
 `verify_context`, and `search_verified`.
 
+`search_verified` classifies catalog matches with records in the Sidq MCP
+verification store; it is not a DataHub receipt reader. The independent Receipt
+consumer is `sidq verify <urn>`, which reads the Receipt and current context from
+DataHub in a separate process.
+
 ## Judge runbook
 
 Four commands, in order of how much runtime infrastructure they need. Rows 1 and
@@ -79,7 +84,7 @@ file on first use, so that first run needs package-index access.
 | # | Command | Needs | What it proves | Takes |
 |---|---|---|---|---|
 | 1 | `make gate-demo` | Python 3.12; package downloads on first use; no DataHub or credentials | The published `BLOCK` verdict is re-derived from the committed graph recording, byte-identical, with the same `policy_hash`. Hand-editing an artifact fails this. | ~2s after bootstrap |
-| 2 | `make check` | Python 3.12; package downloads on first use | 821 tests, lint, format, types — the same code-quality and regression checks CI runs. | ~60s after bootstrap |
+| 2 | `make check` | Python 3.12; package downloads on first use | 956 tests, lint, format, types — the same code-quality and regression checks CI runs. | ~60s after bootstrap |
 | 3 | `make live-loop` | a running DataHub ([`docs/SETUP.md`](docs/SETUP.md)) | The whole agent loop over the **official MCP server only**: read → decide → write a receipt → a *separate process* reads it back → an asset carrying no receipt returns `NOT VERIFIED`. | ~60s |
 | 4 | `make repair-demo` | the same DataHub | The repair agent proposes a fix from catalog evidence, re-runs the deterministic engine against the catalog that fix *would* create, and shows what it proved and what it refused. | ~40s |
 
@@ -137,10 +142,10 @@ changing `policy_hash` invalidates receipts written under the old policy.
 
 **Monitoring.** The receipts are the monitoring surface: `sidq.*` properties are
 queryable through DataHub search, and `sidq verify <urn>` is a health check any
-pipeline can call. The current ledger observer proves only current recognizable
+pipeline can call. The current-state observer proves only current recognizable
 non-stale receipts, the subset carrying this swarm's run id as current-run
 receipts, and each latest receipt's latest worker attribution. DataHub stores the
-latest structured-property values, not an append-only examination history.
+latest structured-property values, not append-only examination history.
 
 **Cost.** Apache-2.0, self-hosted, zero API fees. The gate, audit, repair, and
 swarm paths do not call a model; the optional documentation reader runs locally.
@@ -345,16 +350,18 @@ exist, `None` where a type says `str`, and eight malformed receipt payloads,
 none of which vouch for anything. It terminates, it does not raise, and it never
 converts an asset nobody could examine into a clean one.
 
-### The audit that resumes — the catalog is the agent's memory
+### The audit that resumes from shared current state
 
-Those receipts are not only a record; they are state. `--resume` reads them back
+An explicit optional `--write-receipts` run records the latest Sidq receipt values
+in DataHub. They are shared current state, not append-only history. `--resume`
+reads them back
 before planning: an asset whose receipt still holds — same policy hash, not aged
 out, and the same semantic entity plus complete one-hop lineage context — is
 skipped, and the whole budget
 flows to assets no run has reached. Coverage converges run over run under a
-budget that never changed, and because the memory lives in the catalog rather
-than in a file beside the agent, any Sidq instance resumes where any other
-stopped. There is no ledger to sync; the catalog is the ledger.
+budget that never changed. A Sidq instance with access to the same catalog can
+re-check those latest values before choosing work. No separate state store is
+required for this optimization; the receipt values do not constitute an audit ledger.
 
 ```bash
 make converge-demo    # both runs, over official MCP, against the live catalog
@@ -392,8 +399,9 @@ Four steps, one process boundary in the middle of them:
    `list_schema_fields`, `get_lineage`.
 2. **Decide** with the shipped policy, and **write** the receipts back through the
    official MCP mutation tools.
-3. **Read it back from a separate process**, which recomputes staleness and
-   reaches its own verdict. A writer that reports its own success proves nothing.
+3. **Read it back from a separate process**, which independently recomputes
+   whether the recorded Receipt still holds under the current context, policy,
+   and age. A writer that reports its own success proves nothing.
 4. **Ask about an asset carrying no receipt** — chosen at run time, because the
    resuming audit eventually reaches any asset a script could name in advance —
    and get `NOT VERIFIED`, not silence. "We did not check" and "we checked and
@@ -417,7 +425,7 @@ service, no leader, and no shared filesystem. The only thing they share is
 DataHub.
 
 ```bash
-make swarm-demo    # four workers, one killed mid-run, then the ledger
+make swarm-demo    # four workers, one killed mid-run, then the current-state observer
 ```
 
 Each worker re-reads a receipt immediately before examining its asset and writes
@@ -499,9 +507,9 @@ writes SQL, and stops when the answer is that the catalog cannot be trusted.
 |---|---|
 | `verify_context(urn)` | Is the catalog telling the truth about this asset right now? |
 | `check_change(diff)` | May an agent propose this data-code change? |
-| `search_verified(query)` | Which matching assets have fresh, truthful catalog evidence? |
+| `search_verified(query)` | Which matching assets have fresh, truthful records in this Sidq MCP verification store? |
 
-`search_verified` distinguishes `verified`, `unverified`, `stale`, `unverifiable`, and `rejected`; a failed graph lookup is `GRAPH_UNAVAILABLE`, not an empty search result. MCP responses use canonical JSON, so identical inputs and verification state produce byte-identical output. See [`docs/MCP-SERVER.md`](docs/MCP-SERVER.md) for the client configuration and wire examples.
+`search_verified` distinguishes `verified`, `unverified`, `stale`, `unverifiable`, and `rejected`; a failed graph lookup is `GRAPH_UNAVAILABLE`, not an empty search result. Its response names `verification_source: sidq_mcp_store` so it cannot be confused with DataHub Receipt state. MCP responses use canonical JSON, so identical inputs and verification state produce byte-identical output. See [`docs/MCP-SERVER.md`](docs/MCP-SERVER.md) for the client configuration and wire examples.
 
 The repository also ships an installable Agent Skill that makes this verification
 sequence the agent's operating rule. Run the installer from the root of the
@@ -540,37 +548,13 @@ Exit codes are `0` for `PASS`, `1` for `WARN`, and `2` for `BLOCK`. The JSON ver
 The bot renders deterministic findings, provenance, graph evidence, impact paths, and the exact reproduction command. This is the real rendered output from [`examples/01-blocked-pii-dashboard/pr-comment.md`](examples/01-blocked-pii-dashboard/pr-comment.md):
 
 <!-- sidq-pr-bot:sticky -->
-# 🚫 BLOCKED — <code>pii_exposure</code>, <code>critical_downstream</code>
+# 🚫 BLOCKED — <code>critical_downstream</code>
 
-> **Provenance: LIVE DATAHUB.** Evidence was read from the live graph.
+> **FIXTURE REPLAY — NOT LIVE DATAHUB.** This verdict used recorded graph responses. See the sealed demo pull requests for live-graph verdicts.
 
 ## Deterministic policy decision
 
 Only the deterministic policy findings in this section affect the merge decision.
-
-### 🚫 <code>pii_exposure</code> — BLOCK
-
-**Why:** PII exposure is not permitted for dbt · order_entry_db.order_entry.customers.cust_email.
-
-**Evidence:** [<code>dbt · order_entry_db.order_entry.customers.cust_email</code>](https://datahub.mlki.app/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Adbt%2Cb2fd91.order_entry_db.order_entry.customers%2CPROD%29)
-
-- Changed column: <code>cust_email</code>
-- PII tags: <code>tag · PII_Data</code>
-- PII tag not carried by **10 downstream consumers**, including <code>Looker view · order-entry-looker.view.order_details</code>, <code>Looker explore · order-entry.explore.order_details</code>, <code>Power BI · datahub_order_entries.Customer_Analytics_Measures</code>
-
-### 🚫 <code>pii_exposure</code> — BLOCK
-
-**Why:** PII exposure is not permitted for dbt · order_entry_db.order_entry.customers.cust_email.
-
-**Evidence:** [<code>dbt · order_entry_db.order_entry.customers.cust_email</code>](https://datahub.mlki.app/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Adbt%2Cb2fd91.order_entry_db.order_entry.customers%2CPROD%29)
-
-- Changed column: <code>cust_email</code>
-- PII tags: <code>tag · PII_Data</code>
-- Reaches: <code>Looker dashboard · dashboards.53</code>
-- Column-level impact path:
-
-  <code>dbt · order_entry_db.order_entry.customers.cust_email</code> → <code>dbt · ORDER_ENTRY_DB.analytics.order_details.cust_email</code> → <code>Snowflake · order_entry_db.analytics.order_details.cust_email</code> → <code>Looker view · order-entry-looker.view.order_details.cust_email</code> → <code>Looker explore · order-entry.explore.order_details.order_details.cust_email</code> → <code>Looker explore · order-entry.explore.order_details</code> → <code>Looker chart · dashboard_elements.224</code> → <code>Looker dashboard · dashboards.53</code>
-- Path note: Column lineage is proven through the BI field; chart and dashboard hops are entity-level.
 
 ### ⚠️ <code>wide_blast_radius</code> — WARN
 
@@ -676,4 +660,4 @@ Only the deterministic policy findings in this section affect the merge decision
 
 ---
 
-Reproducibility: <code>policy_hash=996f3b0c7409189c4a79b0ff5f601b4d1cceb9b5e1375f1fbcb47702b9722d51</code> · <code>commit_sha=5addb753788935d4d1aa6a9483c28c6fc124e5c7</code> · run <code>sidq check --diff 5addb753788935d4d1aa6a9483c28c6fc124e5c7^..5addb753788935d4d1aa6a9483c28c6fc124e5c7 --json</code>
+Reproducibility: <code>policy_hash=66f48004804c5ce02955699710466b6d58ae7a868f876a4774e548c5c15920b8</code> · <code>commit_sha=5addb753788935d4d1aa6a9483c28c6fc124e5c7</code> · run <code>sidq check --diff 5addb753788935d4d1aa6a9483c28c6fc124e5c7^..5addb753788935d4d1aa6a9483c28c6fc124e5c7 --json</code>

@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 
 from sidq.gates.base import graph_unavailable
+from sidq.gates.self_contradiction import is_pii_tag
 from sidq.graph.client import (
     DatasetInfo,
     GraphClient,
@@ -59,21 +60,6 @@ class BlastRadiusGate:
                 evidence.append(graph_unavailable(asset.urn, error))
                 continue
             evidence.append(Evidence("blast_radius", asset.urn, details))
-            pii_tags = details["pii_tags"]
-            if column is not None and pii_tags and details["dashboards"]:
-                evidence.append(
-                    Evidence(
-                        "pii_exposure",
-                        f"{asset.urn}#{column}",
-                        {
-                            "changed_field": column,
-                            "pii_tags": pii_tags,
-                            "tagged_assets": details["pii_assets"],
-                            "dashboards": details["dashboards"],
-                            "paths": details["paths"],
-                        },
-                    )
-                )
         return evidence
 
 
@@ -223,6 +209,7 @@ def _details(
             # Whether it should also escalate to a refusal is a policy decision,
             # not a gate decision, so this gate reports and does not escalate.
             info = None
+        if info is None:
             unreadable.append(urn)
         tags = info.tags if info is not None else (inline_tags or ())
         if entity_type.lower() == "dashboard" or urn.startswith("urn:li:dashboard:"):
@@ -238,11 +225,11 @@ def _details(
                 for owner in info.owners
                 if source_owners and owner not in source_owners
             )
-            pii = sorted(tag for tag in tags if "pii" in tag.lower())
+            pii = sorted(tag for tag in tags if is_pii_tag(tag))
             if pii:
                 pii_assets[urn] = pii
         elif tags:
-            pii = sorted(tag for tag in tags if "pii" in tag.lower())
+            pii = sorted(tag for tag in tags if is_pii_tag(tag))
             if pii:
                 pii_assets[urn] = pii
     return {

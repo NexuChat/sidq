@@ -77,6 +77,32 @@ class RepairPlan:
         }
 
 
+@dataclass(frozen=True, slots=True)
+class AppliedRepairProof:
+    """What the deterministic gate found in a direct post-write snapshot."""
+
+    verified: bool
+    resolved: tuple[_FindingKey, ...]
+    unresolved: tuple[_FindingKey, ...]
+    collateral: tuple[_FindingKey, ...]
+
+    @property
+    def detail(self) -> str:
+        if self.collateral:
+            values = ", ".join(
+                f"{kind} on {subject}" for kind, subject in self.collateral[:3]
+            )
+            if any(kind.endswith("_unverifiable") for kind, _ in self.collateral):
+                return f"live read is incomplete: {values}"
+            return f"live read found collateral: {values}"
+        if self.unresolved:
+            values = ", ".join(
+                f"{kind} on {subject}" for kind, subject in self.unresolved[:3]
+            )
+            return f"required finding still present: {values}"
+        return "live read confirms the required findings are gone with no collateral"
+
+
 def prove(
     snapshot: CatalogSnapshot,
     proposals: Sequence[Proposal],
@@ -88,6 +114,15 @@ def prove(
     baseline = _findings(gate, snapshot)
     proven: list[RepairOutcome] = []
     rejected: list[RepairOutcome] = []
+
+    incomplete = _unverifiable(baseline)
+    if incomplete:
+        kinds = ", ".join(kind for kind, _ in sorted(incomplete)[:3])
+        reason = f"catalog evidence is incomplete: {kinds}"
+        rejected = [
+            RepairOutcome(proposal, False, False, (), reason) for proposal in proposals
+        ]
+        return RepairPlan((), tuple(rejected), False, reason)
 
     for proposal in proposals:
         target = (proposal.finding_kind, proposal.subject)
@@ -127,6 +162,29 @@ def prove(
         gate, snapshot, baseline, [outcome.proposal for outcome in proven]
     )
     return RepairPlan(tuple(proven), tuple(rejected), jointly, reason)
+
+
+def verify_applied(
+    before: CatalogSnapshot,
+    current: CatalogSnapshot,
+    proposals: Sequence[Proposal],
+    *,
+    gate: SelfContradictionGate | None = None,
+) -> AppliedRepairProof:
+    """Re-run the same gate against live state after acknowledged mutations."""
+    gate = gate or SelfContradictionGate()
+    baseline = _findings(gate, before)
+    after = _findings(gate, current)
+    required = {(proposal.finding_kind, proposal.subject) for proposal in proposals}
+    unresolved = tuple(sorted(required & after))
+    collateral = tuple(sorted((after - baseline) | _unverifiable(after)))
+    resolved = tuple(sorted(required - after))
+    return AppliedRepairProof(
+        not unresolved and not collateral,
+        resolved,
+        unresolved,
+        collateral,
+    )
 
 
 def _prove_together(
@@ -208,11 +266,11 @@ def _added(existing: tuple[str, ...], values: Any) -> tuple[str, ...]:
 def _findings(
     gate: SelfContradictionGate, snapshot: CatalogSnapshot
 ) -> set[_FindingKey]:
-    return {
-        (item.kind, item.subject)
-        for item in gate.collect((), _Supplied(snapshot))
-        if not item.kind.endswith("_unverifiable")
-    }
+    return {(item.kind, item.subject) for item in gate.collect((), _Supplied(snapshot))}
+
+
+def _unverifiable(findings: set[_FindingKey]) -> set[_FindingKey]:
+    return {item for item in findings if item[0].endswith("_unverifiable")}
 
 
 class _Supplied:

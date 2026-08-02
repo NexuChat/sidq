@@ -1034,18 +1034,22 @@ def test_readiness_endpoint_serves_status_json_and_security_headers_over_loopbac
 
 def test_landing_uses_a_hardened_external_script_and_progress_text() -> None:
     html = (ROOT / "web/index.html").read_text(encoding="utf-8")
-    script = (ROOT / "web/app.js").read_text(encoding="utf-8")
-    styles = (ROOT / "web/styles.css").read_text(encoding="utf-8")
+    script_path = ROOT / "web/app.js"
+    styles_path = ROOT / "web/styles.css"
+    script = script_path.read_text(encoding="utf-8")
+    styles = styles_path.read_text(encoding="utf-8")
+    script_version = hashlib.sha256(script_path.read_bytes()).hexdigest()[:16]
+    styles_version = hashlib.sha256(styles_path.read_bytes()).hexdigest()[:16]
 
     assert "username:" not in html.lower()
     assert "password:" not in html.lower()
-    assert '<script src="app.js?v=27b228b29c6f27ff" defer></script>' in html
+    assert f'<script src="app.js?v={script_version}" defer></script>' in html
     assert "X-Sidq-Demo" in script
     assert "/capability" in script and "X-Sidq-Capability" in script
     assert "setInterval" in script and "elapsed" in script
     assert "textContent" in script
     assert "innerHTML" not in script
-    assert '<link rel="stylesheet" href="styles.css?v=3801bf4fda5814b1">' in html
+    assert f'<link rel="stylesheet" href="styles.css?v={styles_version}">' in html
     assert "<style" not in html
     assert "style=" not in html
     assert not re.search(r"<script(?![^>]+\bsrc=)", html)

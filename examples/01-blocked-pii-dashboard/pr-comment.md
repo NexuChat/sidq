@@ -1,35 +1,11 @@
 <!-- sidq-pr-bot:sticky -->
-# 🚫 BLOCKED — <code>pii_exposure</code>, <code>critical_downstream</code>
+# 🚫 BLOCKED — <code>critical_downstream</code>
 
-> **Provenance: LIVE DATAHUB.** Evidence was read from the live graph.
+> **FIXTURE REPLAY — NOT LIVE DATAHUB.** This verdict used recorded graph responses. See the sealed demo pull requests for live-graph verdicts.
 
 ## Deterministic policy decision
 
 Only the deterministic policy findings in this section affect the merge decision.
-
-### 🚫 <code>pii_exposure</code> — BLOCK
-
-**Why:** PII exposure is not permitted for dbt · order_entry_db.order_entry.customers.cust_email.
-
-**Evidence:** [<code>dbt · order_entry_db.order_entry.customers.cust_email</code>](https://datahub.mlki.app/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Adbt%2Cb2fd91.order_entry_db.order_entry.customers%2CPROD%29)
-
-- Changed column: <code>cust_email</code>
-- PII tags: <code>tag · PII_Data</code>
-- PII tag not carried by **10 downstream consumers**, including <code>Looker view · order-entry-looker.view.order_details</code>, <code>Looker explore · order-entry.explore.order_details</code>, <code>Power BI · datahub_order_entries.Customer_Analytics_Measures</code>
-
-### 🚫 <code>pii_exposure</code> — BLOCK
-
-**Why:** PII exposure is not permitted for dbt · order_entry_db.order_entry.customers.cust_email.
-
-**Evidence:** [<code>dbt · order_entry_db.order_entry.customers.cust_email</code>](https://datahub.mlki.app/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Adbt%2Cb2fd91.order_entry_db.order_entry.customers%2CPROD%29)
-
-- Changed column: <code>cust_email</code>
-- PII tags: <code>tag · PII_Data</code>
-- Reaches: <code>Looker dashboard · dashboards.53</code>
-- Column-level impact path:
-
-  <code>dbt · order_entry_db.order_entry.customers.cust_email</code> → <code>dbt · ORDER_ENTRY_DB.analytics.order_details.cust_email</code> → <code>Snowflake · order_entry_db.analytics.order_details.cust_email</code> → <code>Looker view · order-entry-looker.view.order_details.cust_email</code> → <code>Looker explore · order-entry.explore.order_details.order_details.cust_email</code> → <code>Looker explore · order-entry.explore.order_details</code> → <code>Looker chart · dashboard_elements.224</code> → <code>Looker dashboard · dashboards.53</code>
-- Path note: Column lineage is proven through the BI field; chart and dashboard hops are entity-level.
 
 ### ⚠️ <code>wide_blast_radius</code> — WARN
 
@@ -135,4 +111,4 @@ Only the deterministic policy findings in this section affect the merge decision
 
 ---
 
-Reproducibility: <code>policy_hash=996f3b0c7409189c4a79b0ff5f601b4d1cceb9b5e1375f1fbcb47702b9722d51</code> · <code>commit_sha=5addb753788935d4d1aa6a9483c28c6fc124e5c7</code> · run <code>sidq check --diff 5addb753788935d4d1aa6a9483c28c6fc124e5c7^..5addb753788935d4d1aa6a9483c28c6fc124e5c7 --json</code>
+Reproducibility: <code>policy_hash=66f48004804c5ce02955699710466b6d58ae7a868f876a4774e548c5c15920b8</code> · <code>commit_sha=5addb753788935d4d1aa6a9483c28c6fc124e5c7</code> · run <code>sidq check --diff 5addb753788935d4d1aa6a9483c28c6fc124e5c7^..5addb753788935d4d1aa6a9483c28c6fc124e5c7 --json</code>

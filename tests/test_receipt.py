@@ -4,11 +4,14 @@ import asyncio
 import json
 import re
 import sys
+import threading
+import time
+from collections.abc import Mapping
 from concurrent.futures import Future
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import ModuleType
-from typing import Self
+from typing import Any, Self
 
 import anyio
 import mcp
@@ -26,11 +29,13 @@ from sidq.receipt.bootstrap import (
 )
 from sidq.receipt.build import build_receipt
 from sidq.receipt.read import (
+    _sidq_values,
     _without_sidq_receipt_documents,
     get_verification_status,
     get_verification_statuses,
 )
 from sidq.receipt.write import (
+    ReceiptWriteUnconfirmed,
     StdioMCPReceiptToolCaller,
     _document_reference,
     _mcp_subprocess_environment,
@@ -76,11 +81,31 @@ def test_write_uses_only_the_three_official_mcp_mutation_tools() -> None:
         URN, _verdict(), checked_at=datetime(2026, 8, 2, tzinfo=UTC)
     )
     calls: list[tuple[str, object]] = []
+    properties: dict[str, list[str]] = {}
+    tags: set[str] = set()
 
     def caller(name: str, arguments: object) -> object:
         calls.append((name, arguments))
         if name == "get_entities":
-            return {"entities": [{"urn": URN}]}
+            return {
+                "entities": [
+                    {
+                        "urn": URN,
+                        "globalTags": {"tags": [{"tag": {"urn": urn}} for urn in tags]},
+                        "structuredProperties": {
+                            "properties": [
+                                {
+                                    "structuredProperty": {"urn": urn},
+                                    "values": [
+                                        {"stringValue": value} for value in values
+                                    ],
+                                }
+                                for urn, values in properties.items()
+                            ]
+                        },
+                    }
+                ]
+            }
         if name == "get_lineage":
             direction = "upstreams" if arguments["upstream"] else "downstreams"
             return {
@@ -91,6 +116,10 @@ def test_write_uses_only_the_three_official_mcp_mutation_tools() -> None:
                     "searchResults": [],
                 }
             }
+        if name == "add_structured_properties":
+            properties.update(arguments["property_values"])
+        if name == "add_tags":
+            tags.update(arguments["tag_urns"])
         return {"success": True, "urn": "urn:li:document:sidq-receipt"}
 
     written = write_receipt(receipt, caller)
@@ -100,16 +129,17 @@ def test_write_uses_only_the_three_official_mcp_mutation_tools() -> None:
         "get_lineage",
         "get_lineage",
         "save_document",
-        "add_structured_properties",
         "add_tags",
+        "add_structured_properties",
+        "get_entities",
     ]
-    assert calls[4][1]["property_values"][
+    assert calls[5][1]["property_values"][
         "urn:li:structuredProperty:sidq.evidence_url"
     ] == ["urn:li:document:sidq-receipt"]
-    assert calls[4][1]["property_values"][
+    assert calls[5][1]["property_values"][
         "urn:li:structuredProperty:sidq.context_hash"
     ][0].startswith("sha256:")
-    assert calls[5][1]["tag_urns"] == ["urn:li:tag:sidq:verified"]
+    assert calls[4][1]["tag_urns"] == ["urn:li:tag:sidq:verified"]
     assert written["receipt"]["evidence_url"] == "urn:li:document:sidq-receipt"
 
 
@@ -118,11 +148,31 @@ def test_block_receipt_is_written_and_uses_the_blocked_badge() -> None:
         URN, _verdict("BLOCK"), checked_at=datetime(2026, 8, 2, tzinfo=UTC)
     )
     calls: list[tuple[str, object]] = []
+    properties: dict[str, list[str]] = {}
+    tags: set[str] = set()
 
     def caller(name: str, arguments: object) -> object:
         calls.append((name, arguments))
         if name == "get_entities":
-            return {"entities": [{"urn": URN}]}
+            return {
+                "entities": [
+                    {
+                        "urn": URN,
+                        "globalTags": {"tags": [{"tag": {"urn": urn}} for urn in tags]},
+                        "structuredProperties": {
+                            "properties": [
+                                {
+                                    "structuredProperty": {"urn": urn},
+                                    "values": [
+                                        {"stringValue": value} for value in values
+                                    ],
+                                }
+                                for urn, values in properties.items()
+                            ]
+                        },
+                    }
+                ]
+            }
         if name == "get_lineage":
             direction = "upstreams" if arguments["upstream"] else "downstreams"
             return {
@@ -133,6 +183,10 @@ def test_block_receipt_is_written_and_uses_the_blocked_badge() -> None:
                     "searchResults": [],
                 }
             }
+        if name == "add_structured_properties":
+            properties.update(arguments["property_values"])
+        if name == "add_tags":
+            tags.update(arguments["tag_urns"])
         return {"success": True, "urn": "urn:li:document:sidq-blocked"}
 
     write_receipt(receipt, caller)
@@ -142,10 +196,11 @@ def test_block_receipt_is_written_and_uses_the_blocked_badge() -> None:
         "get_lineage",
         "get_lineage",
         "save_document",
-        "add_structured_properties",
         "add_tags",
+        "add_structured_properties",
+        "get_entities",
     ]
-    assert calls[-1][1]["tag_urns"] == ["urn:li:tag:sidq:blocked"]
+    assert calls[4][1]["tag_urns"] == ["urn:li:tag:sidq:blocked"]
 
 
 def test_read_computes_schema_policy_and_age_staleness() -> None:
@@ -322,6 +377,12 @@ class _LiveReceiptHub:
             return {"urn": document}
         if name == "add_structured_properties":
             properties = self.entity["structuredProperties"]["properties"]
+            updated_urns = set(arguments["property_values"])
+            properties[:] = [
+                assignment
+                for assignment in properties
+                if assignment["structuredProperty"]["urn"] not in updated_urns
+            ]
             properties.extend(
                 {
                     "structuredProperty": {"urn": urn},
@@ -330,12 +391,658 @@ class _LiveReceiptHub:
                 for urn, values in arguments["property_values"].items()
             )
             return {}
+        if name == "remove_structured_properties":
+            removed_urns = set(arguments["property_urns"])
+            properties = self.entity["structuredProperties"]["properties"]
+            properties[:] = [
+                assignment
+                for assignment in properties
+                if assignment["structuredProperty"]["urn"] not in removed_urns
+            ]
+            return {}
         if name == "add_tags":
-            self.entity["globalTags"]["tags"].extend(
-                {"tag": {"urn": urn}} for urn in arguments["tag_urns"]
+            tags = self.entity["globalTags"]["tags"]
+            existing = {tag["tag"]["urn"] for tag in tags}
+            tags.extend(
+                {"tag": {"urn": urn}}
+                for urn in arguments["tag_urns"]
+                if urn not in existing
             )
             return {}
+        if name == "remove_tags":
+            removed_urns = set(arguments["tag_urns"])
+            tags = self.entity["globalTags"]["tags"]
+            tags[:] = [tag for tag in tags if tag["tag"]["urn"] not in removed_urns]
+            return {}
         raise AssertionError(name)
+
+
+class _DelayedReceiptHub(_LiveReceiptHub):
+    def __init__(self, *, hidden_reads: int) -> None:
+        super().__init__()
+        self.hidden_reads = hidden_reads
+        self.confirmation_calls: list[str] = []
+        self._properties_written = False
+
+    def __call__(self, name: str, arguments: Mapping[str, Any]) -> object:
+        if name == "add_structured_properties":
+            result = super().__call__(name, dict(arguments))
+            self._properties_written = True
+            return result
+        if name == "get_entities" and self._properties_written:
+            self.confirmation_calls.append(name)
+            if self.hidden_reads > 0:
+                self.hidden_reads -= 1
+                entity = dict(self.entity)
+                entity["structuredProperties"] = {"properties": []}
+                return {"entities": [entity]}
+        return super().__call__(name, dict(arguments))
+
+
+class _BoundedReceiptHub(_LiveReceiptHub):
+    def __init__(self) -> None:
+        super().__init__()
+        self.bounded_confirmation_calls = 0
+
+    def call_with_timeout(
+        self, name: str, arguments: Mapping[str, Any], *, timeout: float
+    ) -> object:
+        self.bounded_confirmation_calls += 1
+        if self.bounded_confirmation_calls == 1:
+            raise TimeoutError("first confirmation timed out")
+        return super().__call__(name, dict(arguments))
+
+
+def _managed_badges(hub: _LiveReceiptHub) -> list[str]:
+    return sorted(
+        tag["tag"]["urn"]
+        for tag in hub.entity["globalTags"]["tags"]
+        if tag["tag"]["urn"].startswith("urn:li:tag:sidq:")
+    )
+
+
+def test_failed_receipt_body_restores_badges_and_prior_queryable_state() -> None:
+    hub = _LiveReceiptHub()
+    calls: list[str] = []
+
+    def reject_after_applying(name: str, arguments: Mapping[str, Any]) -> object:
+        calls.append(name)
+        result = hub(name, dict(arguments))
+        if name == "add_structured_properties":
+            raise PermissionError("receipt body rejected after an ambiguous mutation")
+        return result
+
+    with pytest.raises(PermissionError, match="receipt body rejected"):
+        write_receipt(build_receipt(URN, _verdict()), reject_after_applying)
+
+    assert _managed_badges(hub) == []
+    assert _sidq_values(hub.entity) == {}
+    assert calls[-2:] == ["remove_tags", "remove_structured_properties"]
+
+
+def test_failed_badge_transition_restores_the_previous_badge_and_body() -> None:
+    hub = _LiveReceiptHub()
+    write_receipt(build_receipt(URN, _verdict("BLOCK")), hub)
+    previous_values = _sidq_values(hub.entity)
+
+    def reject_after_adding(name: str, arguments: Mapping[str, Any]) -> object:
+        result = hub(name, dict(arguments))
+        if name == "add_tags" and arguments["tag_urns"] == ["urn:li:tag:sidq:verified"]:
+            raise PermissionError("new badge rejected after an ambiguous mutation")
+        return result
+
+    with pytest.raises(PermissionError, match="new badge rejected"):
+        write_receipt(build_receipt(URN, _verdict()), reject_after_adding)
+
+    assert _managed_badges(hub) == ["urn:li:tag:sidq:blocked"]
+    assert _sidq_values(hub.entity) == previous_values
+
+
+@pytest.mark.parametrize(
+    ("before", "after", "expected_badge"),
+    [
+        ("PASS", "BLOCK", "urn:li:tag:sidq:blocked"),
+        ("WARN", "BLOCK", "urn:li:tag:sidq:blocked"),
+        ("BLOCK", "PASS", "urn:li:tag:sidq:verified"),
+        ("BLOCK", "WARN", "urn:li:tag:sidq:verified"),
+    ],
+)
+def test_successful_verdict_transition_leaves_exactly_one_correct_badge(
+    before: str, after: str, expected_badge: str
+) -> None:
+    hub = _LiveReceiptHub()
+
+    write_receipt(build_receipt(URN, _verdict(before)), hub)
+    write_receipt(build_receipt(URN, _verdict(after)), hub)
+
+    assert _managed_badges(hub) == [expected_badge]
+
+
+@pytest.mark.parametrize(
+    ("prior_verdict", "ignored_tool"),
+    [(None, "add_tags"), ("BLOCK", "remove_tags")],
+)
+def test_write_does_not_confirm_no_op_managed_badge_mutations(
+    prior_verdict: str | None, ignored_tool: str
+) -> None:
+    hub = _LiveReceiptHub()
+    if prior_verdict:
+        write_receipt(build_receipt(URN, _verdict(prior_verdict)), hub)
+    previous_values = _sidq_values(hub.entity)
+    previous_badges = _managed_badges(hub)
+    ignored = False
+
+    def ignore_badge_mutation(name: str, arguments: Mapping[str, Any]) -> object:
+        nonlocal ignored
+        if name == ignored_tool and not ignored:
+            ignored = True
+            return {}
+        return hub(name, dict(arguments))
+
+    clock = [0.0]
+
+    def sleep(delay: float) -> None:
+        clock[0] += delay
+
+    with pytest.raises(ReceiptWriteUnconfirmed, match="write_unconfirmed"):
+        write_receipt(
+            build_receipt(URN, _verdict()),
+            ignore_badge_mutation,
+            confirmation_timeout=0.01,
+            confirmation_initial_delay=0.01,
+            monotonic=lambda: clock[0],
+            sleep=sleep,
+        )
+
+    assert _sidq_values(hub.entity) == previous_values
+    assert _managed_badges(hub) == previous_badges
+
+
+def test_write_waits_for_exact_receipt_readback_with_bounded_backoff() -> None:
+    hub = _DelayedReceiptHub(hidden_reads=2)
+    clock = [0.0]
+    sleeps: list[float] = []
+
+    def sleep(delay: float) -> None:
+        sleeps.append(delay)
+        clock[0] += delay
+
+    written = write_receipt(
+        build_receipt(URN, _verdict()),
+        hub,
+        confirmation_timeout=1.0,
+        confirmation_initial_delay=0.1,
+        confirmation_max_delay=0.2,
+        monotonic=lambda: clock[0],
+        sleep=sleep,
+    )
+
+    assert written["confirmed"] is True
+    assert written["confirmation_attempts"] == 3
+    assert sleeps == [0.1, 0.2]
+    assert hub.confirmation_calls == ["get_entities"] * 3
+
+
+def test_write_acknowledgement_without_visible_receipt_is_not_success() -> None:
+    hub = _DelayedReceiptHub(hidden_reads=100)
+    clock = [0.0]
+
+    def sleep(delay: float) -> None:
+        clock[0] += delay
+
+    with pytest.raises(ReceiptWriteUnconfirmed, match="write_unconfirmed"):
+        write_receipt(
+            build_receipt(URN, _verdict()),
+            hub,
+            confirmation_timeout=0.25,
+            confirmation_initial_delay=0.1,
+            confirmation_max_delay=0.1,
+            monotonic=lambda: clock[0],
+            sleep=sleep,
+        )
+
+    assert hub.receipt_number == 1
+    assert hub.confirmation_calls
+
+
+def test_write_confirmation_transport_call_respects_deadline() -> None:
+    hub = _LiveReceiptHub()
+    entered = threading.Event()
+    release = threading.Event()
+    returned = threading.Event()
+    outcome: Future[dict[str, object]] = Future()
+
+    def blocking(name: str, arguments: Mapping[str, Any]) -> object:
+        if name == "get_entities" and hub.receipt_number:
+            entered.set()
+            release.wait()
+            returned.set()
+        return hub(name, dict(arguments))
+
+    def write() -> None:
+        try:
+            outcome.set_result(
+                write_receipt(
+                    build_receipt(URN, _verdict()),
+                    blocking,
+                    confirmation_timeout=0.05,
+                    confirmation_initial_delay=0.01,
+                )
+            )
+        except BaseException as error:  # noqa: BLE001 - relay the worker outcome
+            outcome.set_exception(error)
+
+    worker = threading.Thread(target=write, daemon=True)
+    started = time.monotonic()
+    worker.start()
+    try:
+        assert entered.wait(timeout=1.0)
+        with pytest.raises(
+            ReceiptWriteUnconfirmed, match="write_unconfirmed"
+        ) as caught:
+            outcome.result(timeout=2.5)
+        worker.join(timeout=0.1)
+        assert not worker.is_alive()
+        assert time.monotonic() - started < 2.5
+        assert caught.value.receipt_rollback_errors == (
+            "get_entities: ReceiptWriteUnconfirmed",
+        )
+    finally:
+        release.set()
+        worker.join(timeout=1.0)
+    assert returned.wait(timeout=1.0)
+
+
+def test_a_timed_out_confirmation_does_not_poison_the_shared_bounded_caller() -> None:
+    hub = _BoundedReceiptHub()
+    receipt = build_receipt(URN, _verdict())
+
+    with pytest.raises(ReceiptWriteUnconfirmed, match="write_unconfirmed"):
+        write_receipt(receipt, hub, confirmation_timeout=0.01)
+
+    written = write_receipt(receipt, hub, confirmation_timeout=0.01)
+
+    assert written["confirmed"] is True
+    assert hub.bounded_confirmation_calls == 3
+
+
+def test_solo_write_removes_stale_swarm_assignments_before_exact_confirmation() -> None:
+    properties: dict[str, list[str]] = {}
+    tags: set[str] = set()
+    calls: list[tuple[str, dict[str, Any]]] = []
+    document = 0
+
+    def caller(name: str, arguments: Mapping[str, Any]) -> object:
+        nonlocal document
+        copied = dict(arguments)
+        calls.append((name, copied))
+        if name == "get_entities":
+            return {
+                "entities": [
+                    {
+                        "urn": URN,
+                        "globalTags": {"tags": [{"tag": {"urn": urn}} for urn in tags]},
+                        "structuredProperties": {
+                            "properties": [
+                                {
+                                    "structuredProperty": {"urn": urn},
+                                    "values": [
+                                        {"stringValue": value} for value in values
+                                    ],
+                                }
+                                for urn, values in properties.items()
+                            ]
+                        },
+                    }
+                ]
+            }
+        if name == "get_lineage":
+            direction = "upstreams" if copied["upstream"] else "downstreams"
+            return {
+                direction: {
+                    "total": 0,
+                    "returned": 0,
+                    "hasMore": False,
+                    "searchResults": [],
+                }
+            }
+        if name == "save_document":
+            document += 1
+            return {"urn": f"urn:li:document:sidq-receipt-{document}"}
+        if name == "add_structured_properties":
+            properties.update(copied["property_values"])
+            return {}
+        if name == "remove_structured_properties":
+            for property_urn in copied["property_urns"]:
+                properties.pop(property_urn, None)
+            return {}
+        if name == "add_tags":
+            tags.update(copied["tag_urns"])
+            return {}
+        if name == "remove_tags":
+            tags.difference_update(copied["tag_urns"])
+            return {}
+        raise AssertionError(name)
+
+    write_receipt(
+        build_receipt(URN, _verdict(), swarm_run="swarm-1", worker_id="worker-1"),
+        caller,
+    )
+    written = write_receipt(build_receipt(URN, _verdict()), caller)
+
+    removals = [
+        arguments for name, arguments in calls if name == "remove_structured_properties"
+    ]
+    assert removals == [
+        {
+            "property_urns": [
+                "urn:li:structuredProperty:sidq.swarm_run",
+                "urn:li:structuredProperty:sidq.worker_id",
+            ],
+            "entity_urns": [URN],
+        }
+    ]
+    assert written["confirmed"] is True
+    assert "urn:li:structuredProperty:sidq.swarm_run" not in properties
+    assert "urn:li:structuredProperty:sidq.worker_id" not in properties
+
+
+def test_failed_solo_write_restores_existing_swarm_receipt_provenance() -> None:
+    hub = _LiveReceiptHub()
+    swarm = build_receipt(
+        URN,
+        _verdict("BLOCK"),
+        checked_at=datetime(2026, 8, 2, 10, tzinfo=UTC),
+        swarm_run="swarm-1",
+        worker_id="worker-1",
+    )
+    write_receipt(swarm, hub)
+    previous_values = _sidq_values(hub.entity)
+
+    def reject_solo_body(name: str, arguments: Mapping[str, Any]) -> object:
+        result = hub(name, dict(arguments))
+        if name == "add_structured_properties":
+            raise PermissionError("solo receipt body rejected")
+        return result
+
+    with pytest.raises(PermissionError, match="solo receipt body rejected"):
+        write_receipt(
+            build_receipt(
+                URN,
+                _verdict(),
+                checked_at=datetime(2026, 8, 2, 11, tzinfo=UTC),
+            ),
+            reject_solo_body,
+        )
+
+    assert _sidq_values(hub.entity) == previous_values
+    assert _managed_badges(hub) == ["urn:li:tag:sidq:blocked"]
+
+
+def test_unconfirmed_write_restores_complete_prior_block_swarm_state() -> None:
+    hub = _LiveReceiptHub()
+    write_receipt(
+        build_receipt(
+            URN,
+            _verdict("BLOCK"),
+            checked_at=datetime(2026, 8, 2, 10, tzinfo=UTC),
+            swarm_run="swarm-1",
+            worker_id="worker-1",
+        ),
+        hub,
+    )
+    previous_values = _sidq_values(hub.entity)
+    previous_badges = _managed_badges(hub)
+    ignored_removal = False
+
+    def leave_stale_block_badge(name: str, arguments: Mapping[str, Any]) -> object:
+        nonlocal ignored_removal
+        if name == "remove_tags" and not ignored_removal:
+            ignored_removal = True
+            return {}
+        return hub(name, dict(arguments))
+
+    clock = [0.0]
+
+    def sleep(delay: float) -> None:
+        clock[0] += delay
+
+    with pytest.raises(ReceiptWriteUnconfirmed, match="write_unconfirmed"):
+        write_receipt(
+            build_receipt(
+                URN,
+                _verdict(),
+                checked_at=datetime(2026, 8, 2, 11, tzinfo=UTC),
+            ),
+            leave_stale_block_badge,
+            confirmation_timeout=0.01,
+            confirmation_initial_delay=0.01,
+            monotonic=lambda: clock[0],
+            sleep=sleep,
+        )
+
+    assert _sidq_values(hub.entity) == previous_values
+    assert _managed_badges(hub) == previous_badges
+
+
+@pytest.mark.parametrize("persistence", ["partial", "mismatched"])
+def test_write_does_not_confirm_inexact_structured_properties(
+    persistence: str,
+) -> None:
+    hub = _LiveReceiptHub()
+
+    def inexact(name: str, arguments: Mapping[str, Any]) -> object:
+        if name == "add_structured_properties":
+            property_values = dict(arguments["property_values"])
+            if persistence == "partial":
+                property_values.pop("urn:li:structuredProperty:sidq.context_hash")
+            else:
+                property_values["urn:li:structuredProperty:sidq.verdict"] = ["BLOCK"]
+            arguments = {**arguments, "property_values": property_values}
+        return hub(name, dict(arguments))
+
+    clock = [0.0]
+
+    def sleep(delay: float) -> None:
+        clock[0] += delay
+
+    with pytest.raises(ReceiptWriteUnconfirmed, match="write_unconfirmed"):
+        write_receipt(
+            build_receipt(URN, _verdict()),
+            inexact,
+            confirmation_timeout=0.01,
+            confirmation_initial_delay=0.01,
+            monotonic=lambda: clock[0],
+            sleep=sleep,
+        )
+
+
+def test_later_same_urn_writer_is_not_erased_by_earlier_writer_rollback() -> None:
+    class _RaceHub(_LiveReceiptHub):
+        def __init__(self) -> None:
+            super().__init__()
+            self.a_confirmation_entered = threading.Event()
+            self.b_finished = threading.Event()
+
+        def call_with_timeout(
+            self, name: str, arguments: Mapping[str, Any], *, timeout: float
+        ) -> object:
+            if threading.current_thread().name == "writer-a":
+                self.a_confirmation_entered.set()
+                if self.b_finished.wait(timeout=0.2):
+                    return super().__call__(name, dict(arguments))
+                entity = dict(self.entity)
+                entity["structuredProperties"] = {"properties": []}
+                entity["globalTags"] = {"tags": []}
+                return {"entities": [entity]}
+            return super().__call__(name, dict(arguments))
+
+    hub = _RaceHub()
+    a_outcome: Future[object] = Future()
+    b_outcome: Future[object] = Future()
+    b_state: dict[str, object] = {}
+
+    def writer_a() -> None:
+        try:
+            a_outcome.set_result(
+                write_receipt(
+                    build_receipt(
+                        URN,
+                        _verdict(),
+                        checked_at=datetime(2026, 8, 2, 10, tzinfo=UTC),
+                    ),
+                    hub,
+                    confirmation_timeout=0,
+                )
+            )
+        except BaseException as error:  # noqa: BLE001 - relay thread outcome
+            a_outcome.set_exception(error)
+
+    def writer_b() -> None:
+        try:
+            b_outcome.set_result(
+                write_receipt(
+                    build_receipt(
+                        URN,
+                        _verdict("BLOCK"),
+                        checked_at=datetime(2026, 8, 2, 11, tzinfo=UTC),
+                    ),
+                    hub,
+                )
+            )
+            b_state["properties"] = _sidq_values(hub.entity)
+            b_state["badges"] = _managed_badges(hub)
+        except BaseException as error:  # noqa: BLE001 - relay thread outcome
+            b_outcome.set_exception(error)
+        finally:
+            hub.b_finished.set()
+
+    a_thread = threading.Thread(target=writer_a, name="writer-a", daemon=True)
+    b_thread = threading.Thread(target=writer_b, name="writer-b", daemon=True)
+    a_thread.start()
+    assert hub.a_confirmation_entered.wait(timeout=1.0)
+    b_thread.start()
+    a_thread.join(timeout=2.0)
+    b_thread.join(timeout=2.0)
+
+    with pytest.raises(ReceiptWriteUnconfirmed, match="write_unconfirmed"):
+        a_outcome.result(timeout=0.1)
+    assert b_outcome.result(timeout=0.1)["confirmed"] is True
+    assert _sidq_values(hub.entity) == b_state["properties"]
+    assert _managed_badges(hub) == b_state["badges"] == ["urn:li:tag:sidq:blocked"]
+
+
+def test_compensation_refuses_to_erase_external_writer_managed_state() -> None:
+    class _ExternalWriterHub(_LiveReceiptHub):
+        def __init__(self) -> None:
+            super().__init__()
+            self.external_values: dict[str, list[str]] = {}
+
+        def call_with_timeout(
+            self, name: str, arguments: Mapping[str, Any], *, timeout: float
+        ) -> object:
+            if not self.external_values:
+                current = _sidq_values(self.entity)
+                current["verdict"] = ["BLOCK"]
+                current["checked_at"] = ["2026-08-02T11:00:00Z"]
+                current["evidence_url"] = ["urn:li:document:external-writer"]
+                self.external_values = current
+                super().__call__(
+                    "add_structured_properties",
+                    {
+                        "property_values": {
+                            f"urn:li:structuredProperty:sidq.{key}": values
+                            for key, values in current.items()
+                        },
+                        "entity_urns": [URN],
+                    },
+                )
+                super().__call__(
+                    "remove_tags",
+                    {
+                        "tag_urns": [
+                            "urn:li:tag:sidq:verified",
+                            "urn:li:tag:sidq:blocked",
+                        ],
+                        "entity_urns": [URN],
+                    },
+                )
+                super().__call__(
+                    "add_tags",
+                    {
+                        "tag_urns": ["urn:li:tag:sidq:blocked"],
+                        "entity_urns": [URN],
+                    },
+                )
+            return super().__call__(name, dict(arguments))
+
+    hub = _ExternalWriterHub()
+
+    with pytest.raises(ReceiptWriteUnconfirmed, match="write_unconfirmed") as caught:
+        write_receipt(
+            build_receipt(
+                URN,
+                _verdict(),
+                checked_at=datetime(2026, 8, 2, 10, tzinfo=UTC),
+            ),
+            hub,
+            confirmation_timeout=0,
+        )
+
+    assert caught.value.receipt_rollback_errors == (
+        "state_conflict: concurrent managed receipt detected",
+    )
+    assert _sidq_values(hub.entity) == hub.external_values
+    assert _managed_badges(hub) == ["urn:li:tag:sidq:blocked"]
+
+
+def test_compensation_treats_external_property_removal_as_a_conflict() -> None:
+    class _ExternalRemovalHub(_LiveReceiptHub):
+        def __init__(self) -> None:
+            super().__init__()
+            self.armed = False
+            self.removed = False
+
+        def call_with_timeout(
+            self, name: str, arguments: Mapping[str, Any], *, timeout: float
+        ) -> object:
+            if self.armed and not self.removed:
+                self.removed = True
+                super().__call__(
+                    "remove_structured_properties",
+                    {
+                        "property_urns": ["urn:li:structuredProperty:sidq.checked_at"],
+                        "entity_urns": [URN],
+                    },
+                )
+            return super().__call__(name, dict(arguments))
+
+    hub = _ExternalRemovalHub()
+    write_receipt(
+        build_receipt(
+            URN,
+            _verdict("BLOCK"),
+            checked_at=datetime(2026, 8, 2, 9, tzinfo=UTC),
+        ),
+        hub,
+    )
+    hub.armed = True
+
+    with pytest.raises(ReceiptWriteUnconfirmed, match="write_unconfirmed") as caught:
+        write_receipt(
+            build_receipt(
+                URN,
+                _verdict(),
+                checked_at=datetime(2026, 8, 2, 10, tzinfo=UTC),
+            ),
+            hub,
+            confirmation_timeout=0,
+        )
+
+    assert caught.value.receipt_rollback_errors == (
+        "state_conflict: concurrent managed receipt detected",
+    )
+    assert "checked_at" not in _sidq_values(hub.entity)
 
 
 @pytest.mark.parametrize(
@@ -766,6 +1473,29 @@ def test_later_mutation_failure_is_not_reported_as_a_successful_write(
     assert outcomes[0].detail == "PermissionError"
     assert "receipts written  0 of 1" in "\n".join(render_writeback(outcomes))
     assert hub.receipt_number == 1  # save_document has no transaction to roll back.
+    assert get_verification_status(URN, hub)["verdict"] is None
+
+
+def test_rollback_failure_is_reported_without_transport_error_secrets() -> None:
+    receipt = build_receipt(URN, _verdict())
+    hub = _LiveReceiptHub()
+
+    def failed_write_and_rollback(name: str, arguments: dict) -> object:
+        result = hub(name, arguments)
+        if name == "add_structured_properties":
+            raise PermissionError("write failed with token=write-secret")
+        if name == "remove_structured_properties":
+            raise RuntimeError("rollback failed with token=rollback-secret")
+        return result
+
+    outcomes = write_receipts([receipt], failed_write_and_rollback)
+
+    assert outcomes[0].written is False
+    assert outcomes[0].detail == (
+        "PermissionError; rollback_incomplete: "
+        "remove_structured_properties: RuntimeError"
+    )
+    assert "secret" not in "\n".join(render_writeback(outcomes))
 
 
 class _ImmediateThread:
@@ -834,6 +1564,30 @@ def test_receipt_stdio_startup_timeout_is_relayed(monkeypatch) -> None:
         caller._startup.result()
 
 
+def test_receipt_stdio_bounded_request_times_out_during_startup(monkeypatch) -> None:
+    caller = StdioMCPReceiptToolCaller()
+    entered = threading.Event()
+    release = threading.Event()
+
+    def blocked_startup() -> None:
+        entered.set()
+        release.wait()
+        caller._startup.set_result(None)
+
+    monkeypatch.setattr(caller, "_run", blocked_startup)
+
+    started = time.monotonic()
+    try:
+        with pytest.raises(TimeoutError):
+            caller.call_with_timeout("get_entities", {}, timeout=0.05)
+        assert entered.is_set()
+        assert time.monotonic() - started < 0.5
+    finally:
+        release.set()
+        if caller._thread is not None:
+            caller._thread.join(timeout=1.0)
+
+
 class _AsyncContext:
     def __init__(self, value: object) -> None:
         self.value = value
@@ -852,6 +1606,115 @@ class _MCPResponse:
         self.structured_content = None
 
 
+def test_receipt_stdio_bounded_request_times_out_without_poisoning_session(
+    monkeypatch,
+) -> None:
+    caller = StdioMCPReceiptToolCaller()
+
+    class _Session:
+        def __init__(self, read: object, write: object) -> None:
+            pass
+
+        async def initialize(self) -> None:
+            pass
+
+        async def call_tool(
+            self, name: str, arguments: dict[str, object]
+        ) -> _MCPResponse:
+            if name == "first":
+                await anyio.sleep_forever()
+            return _MCPResponse('{"ok": true}')
+
+        async def __aenter__(self) -> Self:
+            return self
+
+        async def __aexit__(self, *args: object) -> None:
+            return None
+
+    monkeypatch.setattr(mcp, "ClientSession", _Session)
+    monkeypatch.setattr(
+        mcp.client.stdio,
+        "stdio_client",
+        lambda parameters: _AsyncContext((object(), object())),
+    )
+    monkeypatch.setattr(
+        mcp.client.stdio, "StdioServerParameters", lambda **kwargs: kwargs
+    )
+
+    try:
+        with pytest.raises(TimeoutError):
+            caller.call_with_timeout("first", {}, timeout=0.01)
+        assert caller("second", {}) == {"ok": True}
+    finally:
+        caller.close()
+
+
+def test_receipt_stdio_bounded_request_expires_while_queued(monkeypatch) -> None:
+    caller = StdioMCPReceiptToolCaller()
+    first_entered = threading.Event()
+    release_first = threading.Event()
+    calls: list[str] = []
+
+    class _Session:
+        def __init__(self, read: object, write: object) -> None:
+            pass
+
+        async def initialize(self) -> None:
+            pass
+
+        async def call_tool(
+            self, name: str, arguments: dict[str, object]
+        ) -> _MCPResponse:
+            calls.append(name)
+            if name == "first":
+                first_entered.set()
+                while not release_first.is_set():
+                    await anyio.sleep(0.01)
+            return _MCPResponse(f'{{"name": "{name}"}}')
+
+        async def __aenter__(self) -> Self:
+            return self
+
+        async def __aexit__(self, *args: object) -> None:
+            return None
+
+    monkeypatch.setattr(mcp, "ClientSession", _Session)
+    monkeypatch.setattr(
+        mcp.client.stdio,
+        "stdio_client",
+        lambda parameters: _AsyncContext((object(), object())),
+    )
+    monkeypatch.setattr(
+        mcp.client.stdio, "StdioServerParameters", lambda **kwargs: kwargs
+    )
+
+    first_result: Future[object] = Future()
+
+    def first_request() -> None:
+        try:
+            first_result.set_result(caller("first", {}))
+        except BaseException as error:  # noqa: BLE001 - relay the worker outcome
+            first_result.set_exception(error)
+
+    worker = threading.Thread(target=first_request, daemon=True)
+    worker.start()
+    try:
+        assert first_entered.wait(timeout=1.0)
+        started = time.monotonic()
+        with pytest.raises(TimeoutError):
+            caller.call_with_timeout("second", {}, timeout=0.05)
+        assert time.monotonic() - started < 0.5
+
+        release_first.set()
+        assert first_result.result(timeout=1.0) == {"name": "first"}
+        assert caller("third", {}) == {"name": "third"}
+        assert calls == ["first", "third"]
+    finally:
+        release_first.set()
+        worker.join(timeout=1.0)
+        caller.close()
+
+
 @pytest.mark.parametrize(
     ("response", "exception"),
     [
@@ -864,7 +1727,7 @@ def test_receipt_stdio_caller_rejects_malformed_or_error_mcp_responses(
 ) -> None:
     caller = StdioMCPReceiptToolCaller()
     result: Future[object] = Future()
-    requests = [("add_tags", {}, result), None]
+    requests = [("add_tags", {}, result, None), None]
 
     async def next_request(function):
         return requests.pop(0)

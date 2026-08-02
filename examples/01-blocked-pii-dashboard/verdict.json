@@ -6,111 +6,6 @@
       "evidence": [
         {
           "detail": {
-            "changed_field": "cust_email",
-            "confidence": "high",
-            "granularity": "column",
-            "pii_tags": [
-              "urn:li:tag:b2fd91.PII_Data"
-            ],
-            "tagged_assets": {
-              "urn:li:dataset:(urn:li:dataPlatform:dbt,b2fd91.ORDER_ENTRY_DB.analytics.order_details,PROD)": [
-                "urn:li:tag:b2fd91.PII_Data"
-              ]
-            },
-            "unsafe_assets": [
-              "urn:li:dataset:(urn:li:dataPlatform:looker,b2fd91.order-entry-looker.view.order_details,PROD)",
-              "urn:li:dataset:(urn:li:dataPlatform:looker,b2fd91.order-entry.explore.order_details,PROD)",
-              "urn:li:dataset:(urn:li:dataPlatform:powerbi,b2fd91.datahub_order_entries.Customer_Analytics_Measures,PROD)",
-              "urn:li:dataset:(urn:li:dataPlatform:powerbi,b2fd91.datahub_order_entries.Essential_KPI_Measures,PROD)",
-              "urn:li:dataset:(urn:li:dataPlatform:powerbi,b2fd91.datahub_order_entries.Geographic_Measures,PROD)",
-              "urn:li:dataset:(urn:li:dataPlatform:powerbi,b2fd91.datahub_order_entries.ORDER_DETAILS,PROD)",
-              "urn:li:dataset:(urn:li:dataPlatform:powerbi,b2fd91.datahub_order_entries.Product_Perfromance_Measures,PROD)",
-              "urn:li:dataset:(urn:li:dataPlatform:powerbi,b2fd91.datahub_order_entries.Time_Inteligence_Measures,PROD)",
-              "urn:li:dataset:(urn:li:dataPlatform:snowflake,b2fd91.order_entry_db.analytics.order_details,PROD)",
-              "urn:li:dataset:(urn:li:dataPlatform:snowflake,b2fd91.order_entry_db.analytics.order_details_replica,PROD)"
-            ]
-          },
-          "graph_links": [
-            "https://datahub.mlki.app/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Adbt%2Cb2fd91.order_entry_db.order_entry.customers%2CPROD%29"
-          ],
-          "kind": "pii_exposure",
-          "subject": "urn:li:dataset:(urn:li:dataPlatform:dbt,b2fd91.order_entry_db.order_entry.customers,PROD)#cust_email"
-        }
-      ],
-      "message": "PII exposure is not permitted for urn:li:dataset:(urn:li:dataPlatform:dbt,b2fd91.order_entry_db.order_entry.customers,PROD)#cust_email.",
-      "rule_id": "pii_exposure",
-      "severity": "block"
-    },
-    {
-      "evidence": [
-        {
-          "detail": {
-            "changed_field": "cust_email",
-            "dashboards": [
-              "urn:li:dashboard:(looker,b2fd91.dashboards.53)"
-            ],
-            "paths": [
-              {
-                "granularity": "column",
-                "hops": {
-                  "000": {
-                    "from": "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:dbt,b2fd91.order_entry_db.order_entry.customers,PROD),cust_email)",
-                    "to": "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:dbt,b2fd91.ORDER_ENTRY_DB.analytics.order_details,PROD),cust_email)"
-                  },
-                  "001": {
-                    "from": "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:dbt,b2fd91.ORDER_ENTRY_DB.analytics.order_details,PROD),cust_email)",
-                    "to": "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:snowflake,b2fd91.order_entry_db.analytics.order_details,PROD),cust_email)"
-                  },
-                  "002": {
-                    "from": "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:snowflake,b2fd91.order_entry_db.analytics.order_details,PROD),cust_email)",
-                    "to": "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:looker,b2fd91.order-entry-looker.view.order_details,PROD),cust_email)"
-                  },
-                  "003": {
-                    "from": "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:looker,b2fd91.order-entry-looker.view.order_details,PROD),cust_email)",
-                    "to": "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:looker,b2fd91.order-entry.explore.order_details,PROD),order_details.cust_email)"
-                  },
-                  "004": {
-                    "from": "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:looker,b2fd91.order-entry.explore.order_details,PROD),order_details.cust_email)",
-                    "to": "urn:li:dataset:(urn:li:dataPlatform:looker,b2fd91.order-entry.explore.order_details,PROD)"
-                  },
-                  "005": {
-                    "from": "urn:li:dataset:(urn:li:dataPlatform:looker,b2fd91.order-entry.explore.order_details,PROD)",
-                    "to": "urn:li:chart:(looker,b2fd91.dashboard_elements.224)"
-                  },
-                  "006": {
-                    "from": "urn:li:chart:(looker,b2fd91.dashboard_elements.224)",
-                    "to": "urn:li:dashboard:(looker,b2fd91.dashboards.53)"
-                  }
-                },
-                "note": "Column lineage is proven through the BI field; chart and dashboard hops are entity-level.",
-                "source": "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:dbt,b2fd91.order_entry_db.order_entry.customers,PROD),cust_email)",
-                "target": "urn:li:dashboard:(looker,b2fd91.dashboards.53)"
-              }
-            ],
-            "pii_tags": [
-              "urn:li:tag:b2fd91.PII_Data"
-            ],
-            "tagged_assets": {
-              "urn:li:dataset:(urn:li:dataPlatform:dbt,b2fd91.ORDER_ENTRY_DB.analytics.order_details,PROD)": [
-                "urn:li:tag:b2fd91.PII_Data"
-              ]
-            }
-          },
-          "graph_links": [
-            "https://datahub.mlki.app/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Adbt%2Cb2fd91.order_entry_db.order_entry.customers%2CPROD%29"
-          ],
-          "kind": "pii_exposure",
-          "subject": "urn:li:dataset:(urn:li:dataPlatform:dbt,b2fd91.order_entry_db.order_entry.customers,PROD)#cust_email"
-        }
-      ],
-      "message": "PII exposure is not permitted for urn:li:dataset:(urn:li:dataPlatform:dbt,b2fd91.order_entry_db.order_entry.customers,PROD)#cust_email.",
-      "rule_id": "pii_exposure",
-      "severity": "block"
-    },
-    {
-      "evidence": [
-        {
-          "detail": {
             "critical_assets": [],
             "cross_team_owners": [
               "urn:li:corpGroup:b2fd91.1e0398a3-113f-475e-b6fc-32ab72a634d2",
@@ -306,7 +201,7 @@
       "severity": "block"
     }
   ],
-  "policy_hash": "996f3b0c7409189c4a79b0ff5f601b4d1cceb9b5e1375f1fbcb47702b9722d51",
+  "policy_hash": "66f48004804c5ce02955699710466b6d58ae7a868f876a4774e548c5c15920b8",
   "reason_code": null,
   "touched": [
     {

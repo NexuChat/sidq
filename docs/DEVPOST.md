@@ -4,7 +4,7 @@
 
 **Project name:** Sidq
 
-**Tagline:** Evidence before confidence for DataHub agents and data-code changes.
+**Tagline:** Provable context before DataHub agents act.
 
 **Primary challenge:** Agents That Do Real Work — Sidq reads DataHub through
 MCP, acts on its evidence, writes optional receipts back, and lets the next
@@ -16,7 +16,8 @@ agent inherit a verifiable decision.
 
 **Live DataHub:** https://datahub.mlki.app
 
-**Public video:** <PUBLIC_VIDEO_URL>
+**Public video:** <PUBLIC_VIDEO_URL> *(must be the corrected replacement, not the
+superseded 175.317-second v2 export)*
 
 **Testing instructions** *(paste into the Devpost Testing instructions field
 visible to judges; never into the public description, repository, video, issue,
@@ -28,7 +29,7 @@ Role: Reader (no metadata mutation permission)
 Username: <READER_USERNAME>
 Password: <READER_PASSWORD>
 
-Then open https://sidq.mlki.app. Run "Prove the agent handoff" first, inspect
+Then open https://sidq.mlki.app. Run "Run the independent receipt read" first, inspect
 the referenced receipt and evidence document in DataHub, and run "Offline
 verdict" to re-derive the committed BLOCK result. The public buttons are fixed,
 read-only demonstrations and accept no request payload.
@@ -65,28 +66,29 @@ to `email_address` without re-ingesting DataHub. Sidq sees the graph and source
 disagree and blocks the context rather than letting an agent build on it.
 
 For a code change that removes `cust_email`, Sidq follows real column lineage through
-dbt, Snowflake, Looker, and a Looker dashboard. It sees the live `PII_Data` tag and
-returns `BLOCK`. The published example records 16 downstream consumers.
+dbt, Snowflake, Looker, and a Looker dashboard. The `critical_downstream` rule
+returns `BLOCK` because the blast evidence records cross-team downstream owners.
+The 16-consumer count triggers a supporting `wide_blast_radius` warning, while the
+live `PII_Data` tag is sensitivity context only.
 
 The whole loop runs over the official DataHub MCP server in one command,
 `make live-loop`: the agent reads with `search`, `get_entities`,
 `list_schema_fields`, and `get_lineage`; the policy decides; the receipt is written
-with the MCP mutation tools; and a *separate process* reads it back and recomputes
-its own verdict. A fourth step asks about an asset carrying no receipt — chosen at
+with the MCP mutation tools; and a *separate process* reads it back and independently
+recomputes whether the recorded Receipt still holds under the current context,
+policy, and age. A fourth step asks about an asset carrying no receipt — chosen at
 run time, since the resuming audit eventually reaches any asset named in advance —
 and gets `NOT VERIFIED`: a bounded run records what it could not afford to read
 instead of passing it over in silence, and assets in that state get no receipt at
 all.
 
-The audit also resumes — through the catalog, not beside it. `sidq audit
---resume` reads the receipts previous runs wrote back and skips every asset whose
-receipt still holds under the current policy, semantic context, and age, so the
-whole budget flows to assets no run has reached. Coverage converges run over run
-under a budget that never changed, and any Sidq instance resumes where any other
-stopped, because the state is the catalog itself. The judgment is recomputed by
-the reader each time — a stale, blocked, or unreadable receipt puts the asset back
-in the queue — and a skipped asset is reported as `vouched`, never as verified by
-this run.
+The audit can also resume from shared current state. With explicit Receipt
+writeback, `sidq audit --resume` re-checks the latest receipt values before
+planning. A valid current value can steer budget toward an unexamined asset;
+stale, blocked, missing, or unreadable values return the asset to consideration.
+DataHub stores latest values, not append-only history, and does not provide
+exactly-once coordination. A skipped asset is reported as `vouched`, never as
+verified by this run.
 
 The same mechanism works across space, not only time. Several auditor processes
 can work one catalog simultaneously with no message bus, no lock service, no
@@ -188,6 +190,11 @@ Sidq has three surfaces:
 - A GitHub PR bot that renders the decision, provenance, evidence, impact paths, and reproduction command.
 - A stdio MCP server, `sidq-mcp`, with `verify_context`, `check_change`, and `search_verified`.
 
+`search_verified` classifies matches against the separate Sidq MCP
+`VerificationStore`; it is not a DataHub Receipt reader. `sidq verify <urn>` is
+the independent consumer that reads the latest Receipt and current context from
+DataHub.
+
 The repository includes a cross-agent `datahub-verify` skill, installable with
 `npx skills add NexuChat/sidq --skill datahub-verify --agent codex`. It installs
 under `.agents/skills/datahub-verify`; the command does not install Sidq or
@@ -226,9 +233,11 @@ upstream field references. The truth report’s 285 contradictions are catalog-o
 comparisons: a stored lineage target names a field absent from its stored target
 schema.
 
-The PII and Looker demonstration uses the same showcase graph. Its published
+The lineage and sensitivity demonstration uses the same showcase graph. Its published
 evidence links `customers.cust_email` to Looker dashboard `b2fd91.dashboards.53`
-and records the `urn:li:tag:b2fd91.PII_Data` tag.
+and records the `urn:li:tag:b2fd91.PII_Data` tag as sensitivity context. The
+blocking finding is `critical_downstream`, based on cross-team downstream
+ownership; this example does not claim that the change introduced a PII route.
 
 The `STALE_CONTEXT` demonstration uses the controlled PostgreSQL database in
 `demo/`. Its seed contains 36 customers, 72 orders, 144 order items, and the
@@ -241,6 +250,11 @@ published `examples/02-receipt-consumed/` scripts. It does not claim that this
 disposable asset is part of the showcase sample.
 
 ## Limitations
+
+The built-in change path has neither a before/proposed route delta nor proof that
+a classified source field participates in a proposed route. It therefore does not
+emit `pii_exposure` or `access_policy_conflict`. The policy can still recognize
+those evidence kinds when a caller supplies explicit, proven route evidence.
 
 `lineage_rot` is not adjudicable on the shipped showcase sample because the datapack
 does not include the original model SQL. Sidq reports all 32 attempts as
@@ -270,7 +284,8 @@ decision explicit and reproducible.
   was deliberately excluded because its redistribution licence could not be
   confirmed.
 - The repository is Apache-2.0 licensed.
-- The local final uses English narration over silence and contains no music.
+- The superseded local v2 export uses English narration over silence and contains
+  no music; it must not be submitted after the blocking semantics correction.
 
 Use this exact AI/pre-existing-work disclosure in the corresponding Devpost
 field:
@@ -305,9 +320,10 @@ field:
 
 ## Owner-only remaining actions
 
-- [ ] Upload the English-narration final with burned English subtitles to public
-  YouTube, Vimeo, or Youku, verify logged-out playback, and replace
-  `<PUBLIC_VIDEO_URL>` in the Devpost submission.
+- [ ] Produce and verify a semantically corrected English-narration video, upload
+  that replacement to public YouTube, Vimeo, or Youku, verify logged-out playback,
+  and replace `<PUBLIC_VIDEO_URL>` in the Devpost submission. Do not upload or
+  submit the superseded 175.317-second v2 MP4s.
 - [ ] Paste the Reader credentials privately into Devpost Testing instructions,
   replace both placeholders there only, and paste the exact disclosure above into
   its corresponding field.

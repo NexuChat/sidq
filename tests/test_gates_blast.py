@@ -70,8 +70,40 @@ def test_blast_gate_emits_a_directed_column_path_to_dashboard() -> None:
     assert handoff in [(hop["from"], hop["to"]) for hop in hops]
     assert "chart and dashboard hops are entity-level" in path["note"]
 
-    pii = next(item for item in evidence if item.kind == "pii_exposure")
-    assert pii.detail["pii_tags"] == ["urn:li:tag:b2fd91.PII_Data"]
+    assert [item.kind for item in evidence] == ["blast_radius"]
+
+
+def test_rename_blast_radius_follows_the_breaking_old_field() -> None:
+    requested_columns: list[str | None] = []
+
+    class RecordingGraph:
+        def get_downstream(
+            self, urn: str, depth: int, column: str | None = None
+        ) -> LineageResult:
+            requested_columns.append(column)
+            return LineageResult(granularity="column")
+
+        def get_dataset(self, urn: str) -> DatasetInfo:
+            return DatasetInfo(urn)
+
+        def paths_between(self, *args: object, **kwargs: object) -> list:
+            return []
+
+    evidence = BlastRadiusGate().collect(
+        [
+            TouchedAsset(
+                CUSTOMERS,
+                "customers.sql",
+                ("customer_email",),
+                ("cust_email",),
+                (),
+            )
+        ],
+        RecordingGraph(),
+    )
+
+    assert requested_columns == ["cust_email"]
+    assert [item.kind for item in evidence] == ["blast_radius"]
 
 
 def test_blast_gate_fails_closed_when_graph_is_unavailable() -> None:
@@ -367,3 +399,92 @@ def test_a_fully_readable_radius_records_no_unreadable_assets() -> None:
 
     radius = next(item for item in evidence if item.kind == "blast_radius")
     assert radius.detail["unreadable_assets"] == []
+
+
+@pytest.mark.parametrize(
+    "tag",
+    (
+        "not_pii",
+        "not-pii",
+        "NOTPII",
+        "nonPII",
+        "noPII",
+        "not_personally_identifiable",
+        "not-personally-identifiable",
+        "NOTPERSONALLYIDENTIFIABLE",
+        "nonPersonallyIdentifiable",
+        "noPersonallyIdentifiable",
+    ),
+)
+def test_negated_pii_tags_are_not_published_as_pii_context(tag: str) -> None:
+    source = "urn:li:dataset:(urn:li:dataPlatform:dbt,db.source,PROD)"
+    downstream = "urn:li:dataset:(urn:li:dataPlatform:dbt,db.target,PROD)"
+
+    class Graph:
+        def get_dataset(self, urn: str) -> DatasetInfo | None:
+            return DatasetInfo(urn, tags=(f"urn:li:tag:{tag}",))
+
+        def get_downstream(
+            self, urn: str, depth: int, column: str | None = None
+        ) -> LineageResult:
+            return LineageResult(
+                urns=(downstream,),
+                tags={downstream: (f"urn:li:tag:{tag}",)},
+            )
+
+        def paths_between(self, *args: object, **kwargs: object) -> list:
+            return []
+
+    radius = BlastRadiusGate().collect(
+        [TouchedAsset(source, "source.sql", (), (), ())], Graph()
+    )[0]
+
+    assert radius.detail["pii_tags"] == []
+    assert radius.detail["pii_assets"] == {}
+
+
+def test_unpii_remains_positive_blast_context() -> None:
+    source = "urn:li:dataset:(urn:li:dataPlatform:dbt,db.source,PROD)"
+    downstream = "urn:li:dataset:(urn:li:dataPlatform:dbt,db.target,PROD)"
+
+    class Graph:
+        def get_dataset(self, urn: str) -> DatasetInfo:
+            return DatasetInfo(urn, tags=("urn:li:tag:unpii",))
+
+        def get_downstream(
+            self, urn: str, depth: int, column: str | None = None
+        ) -> LineageResult:
+            return LineageResult(urns=(downstream,))
+
+        def paths_between(self, *args: object, **kwargs: object) -> list:
+            return []
+
+    radius = BlastRadiusGate().collect(
+        [TouchedAsset(source, "source.sql", (), (), ())], Graph()
+    )[0]
+
+    assert radius.detail["pii_tags"] == ["urn:li:tag:unpii"]
+    assert radius.detail["pii_assets"] == {downstream: ["urn:li:tag:unpii"]}
+
+
+def test_a_missing_downstream_entity_read_is_unreadable_governance_evidence() -> None:
+    source = "urn:li:dataset:(urn:li:dataPlatform:dbt,db.source,PROD)"
+    downstream = "urn:li:dataset:(urn:li:dataPlatform:dbt,db.target,PROD)"
+
+    class Graph:
+        def get_dataset(self, urn: str) -> DatasetInfo | None:
+            return DatasetInfo(source) if urn == source else None
+
+        def get_downstream(
+            self, urn: str, depth: int, column: str | None = None
+        ) -> LineageResult:
+            return LineageResult(urns=(downstream,))
+
+        def paths_between(self, *args: object, **kwargs: object) -> list:
+            return []
+
+    radius = BlastRadiusGate().collect(
+        [TouchedAsset(source, "source.sql", (), (), ())], Graph()
+    )[0]
+
+    assert radius.detail["unreadable_assets"] == [downstream]

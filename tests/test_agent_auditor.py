@@ -8,6 +8,9 @@ enumerate and calls the result an audit is the failure mode worth guarding.
 
 from __future__ import annotations
 
+import pytest
+
+import sidq.agent.writeback as writeback_module
 from sidq.agent import (
     CatalogAuditor,
     receipts_for,
@@ -21,6 +24,7 @@ from sidq.gates.self_contradiction import (
     CatalogSnapshot,
     LineageEdge,
 )
+from sidq.receipt.write import ReceiptWriteUnconfirmed
 
 
 def _dataset(name: str, **kwargs: object) -> CatalogEntity:
@@ -59,6 +63,51 @@ def test_pii_and_missing_ownership_raise_an_asset_up_the_order() -> None:
     assert plan[0].urn == sensitive.urn
     assert "carries a PII tag" in plan[0].reasons
     assert "no owner" in plan[0].reasons
+
+
+@pytest.mark.parametrize(
+    "tag",
+    (
+        "not_pii",
+        "not-pii",
+        "NOTPII",
+        "nonPII",
+        "noPII",
+        "not_personally_identifiable",
+        "not-personally-identifiable",
+        "NOTPERSONALLYIDENTIFIABLE",
+        "nonPersonallyIdentifiable",
+        "noPersonallyIdentifiable",
+    ),
+)
+def test_a_negated_pii_tag_does_not_raise_audit_consequence(tag: str) -> None:
+    negated = _dataset(
+        "negated",
+        tags=(f"urn:li:tag:{tag}",),
+        owners=("urn:li:corpuser:a",),
+    )
+
+    target = CatalogAuditor(CatalogSnapshot((negated,))).plan()[0]
+
+    assert target.consequence == 0
+    assert target.reasons == ("no notable exposure",)
+
+
+def test_unpii_remains_a_positive_audit_marker() -> None:
+    target = CatalogAuditor(
+        CatalogSnapshot(
+            (
+                _dataset(
+                    "positive",
+                    tags=("urn:li:tag:unpii",),
+                    owners=("urn:li:corpuser:a",),
+                ),
+            )
+        )
+    ).plan()[0]
+
+    assert target.consequence == 50
+    assert target.reasons == ("carries a PII tag",)
 
 
 def test_a_bounded_run_names_what_it_did_not_examine() -> None:
@@ -232,11 +281,37 @@ def test_one_failed_write_does_not_discard_the_rest() -> None:
     result = CatalogAuditor(CatalogSnapshot(entities)).run()
     receipts = receipts_for(result)
     seen: list[str] = []
+    stored: dict[str, dict[str, list[str]]] = {}
+    stored_tags: dict[str, set[str]] = {}
 
     def flaky(name: str, arguments: dict) -> dict:
         seen.append(name)
         if name == "get_entities":
-            return {"entities": [{"urn": arguments["urns"][0]}]}
+            urn = arguments["urns"][0]
+            return {
+                "entities": [
+                    {
+                        "urn": urn,
+                        "structuredProperties": {
+                            "properties": [
+                                {
+                                    "structuredProperty": {"urn": property_urn},
+                                    "values": [
+                                        {"stringValue": value} for value in values
+                                    ],
+                                }
+                                for property_urn, values in stored.get(urn, {}).items()
+                            ]
+                        },
+                        "globalTags": {
+                            "tags": [
+                                {"tagUrn": tag}
+                                for tag in sorted(stored_tags.get(urn, set()))
+                            ]
+                        },
+                    }
+                ]
+            }
         if name == "get_lineage":
             direction = "upstreams" if arguments["upstream"] else "downstreams"
             return {
@@ -249,6 +324,12 @@ def test_one_failed_write_does_not_discard_the_rest() -> None:
             }
         if name == "save_document" and seen.count("save_document") == 1:
             raise RuntimeError("transport reset")
+        if name == "add_structured_properties":
+            stored[arguments["entity_urns"][0]] = dict(arguments["property_values"])
+        if name == "add_tags":
+            stored_tags.setdefault(arguments["entity_urns"][0], set()).update(
+                arguments["tag_urns"]
+            )
         return {"urn": "urn:li:document:x"}
 
     outcomes = write_receipts(receipts, flaky)
@@ -275,6 +356,22 @@ def test_nothing_is_reported_written_that_was_not() -> None:
 
     assert all(not item.written for item in outcomes)
     assert "receipts written  0 of 4" in "\n".join(render_writeback(outcomes))
+
+
+def test_unconfirmed_readback_is_reported_as_write_unconfirmed(monkeypatch) -> None:
+    result = CatalogAuditor(
+        CatalogSnapshot((_dataset("orders", owners=("urn:li:corpuser:a",)),))
+    ).run()
+
+    def unconfirmed(*args: object, **kwargs: object) -> None:
+        raise ReceiptWriteUnconfirmed("write_unconfirmed: timed out")
+
+    monkeypatch.setattr(writeback_module, "write_receipt", unconfirmed)
+    outcomes = write_receipts(receipts_for(result), lambda *_: {})
+
+    assert outcomes[0].written is False
+    assert outcomes[0].detail == "write_unconfirmed"
+    assert "write_unconfirmed" in "\n".join(render_writeback(outcomes))
 
 
 # ---------------------------------------------------------------------------

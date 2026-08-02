@@ -231,8 +231,9 @@ Then run the two-layer MCP smoke test. `make mcp-smoke` first initializes
 `sidq-mcp`, requires exactly `check_change`, `verify_context`, and
 `search_verified`, and calls `verify_context` on the showcase customers URN.
 That read-only call traverses the real client → Sidq MCP → official DataHub MCP
-→ GMS chain and fails closed on `GRAPH_UNAVAILABLE`; its verification store is
-temporary and never writes into the checkout. The target then starts
+→ GMS chain and fails closed on `GRAPH_UNAVAILABLE`; its Sidq MCP verification
+store is process-local for this smoke run and is not a DataHub Receipt reader.
+The target then starts
 `mcp-server-datahub` directly over stdio, connects a second real MCP client,
 searches, reads schema, and reads downstream column lineage against DataHub:
 

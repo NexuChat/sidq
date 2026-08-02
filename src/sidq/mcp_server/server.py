@@ -56,11 +56,12 @@ VERIFY_CONTEXT_DESCRIPTION = (
 )
 SEARCH_VERIFIED_DESCRIPTION = (
     "Call this when choosing catalog assets for analysis or code generation. It "
-    "searches the catalog and returns assets with a truthful Sidq verification inside "
-    "the requested age window in verified. Assets never checked, expired, or not "
-    "fully checkable are reported in unverified; assets checked and found false are "
-    "reported in rejected. A graph error is explicit and must not be treated as an "
-    "empty successful search."
+    "searches the catalog and classifies matches using Sidq MCP verification records "
+    "inside the requested age window. It is not a DataHub receipt reader; use `sidq "
+    "verify` for independent receipt consumption. Assets never checked, expired, or "
+    "not fully checkable are reported in unverified; assets checked and found false "
+    "are reported in rejected. A graph error is explicit and must not be treated as "
+    "an empty successful search."
 )
 
 
@@ -150,6 +151,7 @@ class UnverifiedAssetResult(_Model):
 class SearchVerifiedResult(_Model):
     query: str
     max_age_days: int
+    verification_source: Literal["sidq_mcp_store"]
     verified: list[SearchAssetResult]
     rejected: list[SearchAssetResult]
     unverified: list[UnverifiedAssetResult]
@@ -181,7 +183,7 @@ class _ManifestEntry:
 
 
 class VerificationStore:
-    """Small canonical receipt store consumed by ``search_verified``."""
+    """Canonical Sidq-MCP context results, distinct from DataHub receipts."""
 
     def __init__(self, path: str | Path | None = None) -> None:
         self.path = Path(path).resolve() if path is not None else None
@@ -511,6 +513,7 @@ class SidqService:
             return {
                 "query": query,
                 "max_age_days": max_age_days,
+                "verification_source": "sidq_mcp_store",
                 "verified": [],
                 "rejected": [],
                 "unverified": [],
@@ -524,6 +527,7 @@ class SidqService:
             return {
                 "query": query,
                 "max_age_days": max_age_days,
+                "verification_source": "sidq_mcp_store",
                 "verified": [],
                 "rejected": [],
                 "unverified": [],
@@ -598,6 +602,7 @@ class SidqService:
             {
                 "query": query,
                 "max_age_days": max_age_days,
+                "verification_source": "sidq_mcp_store",
                 "verified": verified,
                 "rejected": rejected,
                 "unverified": unverified,

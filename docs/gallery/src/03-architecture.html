@@ -9,7 +9,7 @@
   <main style="display:grid;place-items:center;height:1080px;padding:40px 60px">
     <div style="width:1800px"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1760 900" role="img" aria-labelledby="sidq-architecture-title sidq-architecture-desc">
   <title id="sidq-architecture-title">Sidq — the trust circuit for DataHub agents</title>
-  <desc id="sidq-architecture-desc">An agent or code change enters Sidq. Five evidence gates compare DataHub context with live reality. A deterministic policy emits PASS, WARN, or BLOCK. Proof is written back to DataHub as a receipt, and later agents resume or swarm from that shared ledger. An optional prose reader may propose a read-only source check but can never block.</desc>
+  <desc id="sidq-architecture-desc">An agent or code change enters Sidq. Five evidence gates compare DataHub context with live reality. A deterministic policy emits PASS, WARN, or BLOCK. An explicit optional write can store the latest receipt values as shared current state, not append-only history. An optional prose reader may propose a read-only source check but can never block.</desc>
   <defs>
     <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
       <path d="M32 0H0V32" fill="none" stroke="#1a1a17" stroke-width="1"/>
@@ -51,7 +51,7 @@
   <text class="mono eyebrow" x="64" y="64">SIDQ / TRUST INFRASTRUCTURE FOR DATA AGENTS / 2026</text>
   <text class="mono" x="1696" y="64" font-size="13" fill="#d9ff57" text-anchor="end">صدق</text>
   <text class="display" x="62" y="124" font-size="43" fill="#f1eee7">Don't make the agent smarter. <tspan fill="#ff503d" font-style="italic">Make its context provable.</tspan></text>
-  <text class="mono body" x="64" y="157">DataHub supplies context. Sidq turns that context into evidence, a deterministic decision, and shared memory.</text>
+  <text class="mono body" x="64" y="157">DataHub supplies context. Sidq turns that context into evidence, a deterministic decision, and shared current state.</text>
   <line class="rule" x1="48" y1="184" x2="1712" y2="184"/>
 
   <!-- Intent enters from either a coding agent or CI. -->
@@ -110,13 +110,13 @@
     <text class="mono eyebrow" x="758" y="612" text-anchor="middle" fill="#d9ff57">NO MODEL CAN BLOCK · UNVERIFIABLE IS NEVER CLEAN</text>
   </g>
 
-  <!-- DataHub is both context and durable coordination state. -->
-  <g id="datahub-ledger" aria-label="DATAHUB — CONTEXT + LEDGER">
+  <!-- DataHub exposes context and the latest optional receipt values. -->
+  <g id="datahub-shared-state" aria-label="DATAHUB — SHARED CURRENT STATE">
     <text class="mono eyebrow" x="1220" y="232">03 / SHARED STATE</text>
     <rect x="1204" y="252" width="508" height="386" rx="6" fill="#11110f" stroke="#4a4841"/>
     <rect x="1204" y="252" width="4" height="386" fill="#d9ff57"/>
     <text class="display" x="1236" y="304" font-size="31" fill="#f1eee7">DATAHUB</text>
-    <text class="mono eyebrow" x="1390" y="302" fill="#d9ff57">CONTEXT + LEDGER</text>
+    <text class="mono eyebrow" x="1390" y="302" fill="#d9ff57">SHARED CURRENT STATE</text>
     <text class="mono body" x="1236" y="338">read the context graph</text>
     <g>
       <rect x="1236" y="360" width="92" height="30" rx="15" fill="#181815" stroke="#34332f"/>
@@ -129,12 +129,12 @@
       <text class="mono micro" x="1598" y="380" text-anchor="middle">governance</text>
     </g>
     <path d="M1236 424H1680" stroke="#34332f"/>
-    <text class="mono body" x="1236" y="456">write proof back</text>
+    <text class="mono body" x="1236" y="456">optional: write current receipt</text>
     <rect x="1236" y="478" width="412" height="102" rx="4" fill="#0a0a09" stroke="#d9ff57"/>
     <text class="mono eyebrow" x="1260" y="504" fill="#d9ff57">SIDQ RECEIPT</text>
     <text class="mono body-strong" x="1260" y="532">verdict · policy_hash · commit_sha</text>
     <text class="mono body" x="1260" y="556">checked_at · evidence · worker_id</text>
-    <text class="mono micro" x="1236" y="612">queryable proof another process re-validates</text>
+    <text class="mono micro" x="1236" y="612">latest values · not append-only history</text>
   </g>
 
   <!-- Main signal arrows. -->
@@ -157,10 +157,10 @@
     <path d="M886 674V648" stroke="#a7a39a" stroke-dasharray="4 4" marker-end="url(#arrow-signal)"/>
   </g>
 
-  <!-- Receipts turn isolated runs into converging memory and coordination. -->
+  <!-- Current receipts can steer a later run after explicit writeback. -->
   <g id="memory-loop">
     <path d="M1548 638V790H174V594" fill="none" stroke="#d9ff57" stroke-width="1.7" marker-end="url(#arrow-acid)"/>
-    <text class="mono eyebrow" x="1228" y="782" fill="#d9ff57">RECEIPTS STEER THE NEXT RUN</text>
+    <text class="mono eyebrow" x="1228" y="782" fill="#d9ff57">CURRENT RECEIPTS CAN STEER THE NEXT RUN</text>
     <circle cx="1120" cy="786" r="18" fill="#11110f" stroke="#d9ff57"/>
     <circle cx="1068" cy="786" r="18" fill="#11110f" stroke="#d9ff57"/>
     <circle cx="1016" cy="786" r="18" fill="#11110f" stroke="#d9ff57"/>
@@ -168,11 +168,11 @@
     <text class="mono label" x="1068" y="790" text-anchor="middle">B</text>
     <text class="mono label" x="1016" y="790" text-anchor="middle">A</text>
     <text class="mono body-strong" x="978" y="818" text-anchor="middle">resume · swarm · no coordinator</text>
-    <text class="display" x="204" y="804" font-size="25" fill="#f1eee7">The catalog remembers what every agent proved.</text>
+    <text class="display" x="204" y="804" font-size="25" fill="#f1eee7">Each run can re-check the same shared current state.</text>
   </g>
 
   <line class="rule" x1="48" y1="844" x2="1712" y2="844"/>
-  <text class="mono eyebrow" x="64" y="872">DETERMINISTIC BLOCKING · FAIL-CLOSED · OFFICIAL DATAHUB MCP READ + WRITE · APACHE-2.0</text>
+  <text class="mono eyebrow" x="64" y="872">DETERMINISTIC BLOCKING · FAIL-CLOSED · OFFICIAL DATAHUB MCP · OPTIONAL RECEIPT WRITE · APACHE-2.0</text>
   <text class="display" x="1712" y="876" font-size="29" font-weight="700" fill="#f1eee7" text-anchor="end">Sidq <tspan class="mono" fill="#d9ff57" font-size="14">صدق</tspan></text>
 </svg>
 </div>

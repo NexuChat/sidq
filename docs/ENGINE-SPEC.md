@@ -22,7 +22,7 @@ src/sidq/
     reality.py         Gate 0 — graph schema vs live source schema
     schema.py          Gate 1 — referenced tables/columns exist in the graph
     blast.py           Gate 2 — lineage impact of the change
-    governance.py      Gate 3 — PII tags / ownership / deprecation
+    governance.py      Gate 3 — ownership / deprecation
     doc_rot.py         catalog field descriptions vs referenced fields
     lineage_rot.py     stored column lineage vs local model SQL
     self_contradiction.py
@@ -83,7 +83,7 @@ class Verdict:
 
 **Determinism contract:** identical `(diff, graph snapshot, policy file)` ⇒ byte-identical
 verdict JSON. All collections are sorted by a stable key before serialization. The
-`policy_hash` makes every attestation reproducible — this is a scoring asset, not a detail.
+`policy_hash` makes a captured verdict reproducible for the same inputs; it is not a signature or proof that the graph stayed unchanged.
 
 ## 3. Resolver (`resolver.py`) — the component v1 forgot
 
@@ -115,14 +115,20 @@ class Gate(Protocol):
 |---|---|---|
 | `reality` | `catalog_reality_mismatch` | Compares the graph's schema for each touched dataset against the **live source** (Postgres `information_schema`). `detail` carries `graph_fields`, `live_fields`, `missing_in_graph`, `missing_in_source`. |
 | `schema` | `unknown_field`, `unknown_dataset`, `type_mismatch` | Referenced tables/columns exist in the graph, types compatible. |
-| `blast` | `blast_radius` | Downstream impact per touched asset, via `get_lineage` **and `get_lineage_paths_between`** — record the *path*, not just a count; the path is the evidence a judge wants rendered. `detail`: `downstream_count`, `downstream_urns`, `paths`, `dashboards`, `critical_assets`, `cross_team_owners`, `depth`, `granularity` (`"column"` or `"table"` — set from RECON; if column-level lineage is absent in the sample, degrade to table-level and record that honestly). |
-| `governance` | `unowned_asset`, `deprecated_upstream`, `pii_exposure`, `access_policy_conflict` | Reads tags, ownership, and deprecation evidence for the changed asset and its downstream consumers. |
+| `blast` | `blast_radius` | Downstream impact per touched asset, via `get_lineage` **and `get_lineage_paths_between`** — record the *path*, not just a count; the path is the evidence a judge wants rendered. `detail`: `downstream_count`, `downstream_urns`, `paths`, `dashboards`, `critical_assets`, `cross_team_owners`, `pii_tags`, `depth`, `granularity` (`"column"` or `"table"` — set from RECON; if column-level lineage is absent in the sample, degrade to table-level and record that honestly). `pii_tags` is sensitivity context, not proof that the proposed change created a route. |
+| `governance` | `unowned_asset`, `deprecated_upstream` | Reads ownership and deprecation evidence for the changed asset. It does not infer route changes from the catalog's current graph. |
 | `doc_rot` | `doc_rot` | Checks whether catalog descriptions reference fields the stored schema does not contain. |
 | `lineage_rot` | `lineage_rot_missing`, `lineage_rot_extra`, `lineage_unverifiable` | Compares stored column-lineage claims with locally available model SQL and reports missing prerequisites explicitly. |
 | `self_contradiction` | catalog truth-check evidence kinds | Audits graph-internal schema, lineage, and governance claims without inventing live-source evidence. |
 
 Gates never raise on graph errors: a failed lookup becomes `Evidence(kind="graph_unavailable")`,
 which the default policy treats as **block** (fail closed — a gate that fails open is not a gate).
+
+The built-in change model has projected columns before and after a local SQL
+change, but no before/proposed lineage-edge delta or classified source-field proof.
+It therefore does not emit `pii_exposure` or `access_policy_conflict`. The policy
+retains rules for those kinds so explicit, proven route evidence can still be
+judged; current graph tags or downstream paths alone are insufficient.
 
 **Verified MCP call contract (2026-07-28 — `docs/MCP-CONTRACT.md`, real server, not docs).**
 Several signatures we had guessed were wrong and are now corrected: `search` rejects
@@ -159,8 +165,9 @@ rules:
   - id: critical_downstream
     match:
       evidence_kind: blast_radius
-      where:
+      where_any:
         - { field: detail.critical_assets, op: not_empty }
+        - { field: detail.cross_team_owners, op: not_empty }
     severity: block
 
   - id: wide_blast_radius

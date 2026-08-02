@@ -118,11 +118,14 @@ discovers dbt manifests and model SQL. `SIDQ_POSTGRES_DSN` enables
 reported in `unverifiable`. Forward secret values from the client process's
 environment instead of committing them to this JSON.
 
-Verification history defaults to
-`$SIDQ_REPO_ROOT/.sidq/mcp-verifications.json`. Set
-`SIDQ_VERIFICATION_STORE` to put the canonical store elsewhere. If the
-repository has more than one manifest model, set `SIDQ_SQL_PATH` to the model
-path used by raw `sql` calls, for example `models/customers.sql`.
+`SIDQ_VERIFICATION_STORE` selects an optional local Sidq MCP verification-record
+file that `search_verified` may read. The three read-only tools do not persist to
+that file: records produced by `verify_context` remain in the current MCP server
+process. This store is not a DataHub Receipt store and `search_verified` is not a
+DataHub receipt reader. Use `sidq verify <urn>` for the independent DataHub
+Receipt read. If the repository has more than one manifest model, set
+`SIDQ_SQL_PATH` to the model path used by raw `sql` calls, for example
+`models/customers.sql`.
 
 ## `check_change`
 
@@ -260,6 +263,12 @@ Example response:
 Answers: “Which matching assets have fresh evidence that their catalog context
 is truthful?” Call it when selecting data for analysis or generated code.
 
+The classification source is the Sidq MCP verification store populated in the
+current server process (or explicitly preloaded from its configured local
+store), not DataHub Receipt properties. Every response therefore includes
+`"verification_source": "sidq_mcp_store"`. DataHub Receipt consumption is the
+separate `sidq verify <urn>` CLI path.
+
 Only fresh, truthful assets appear in `verified`. The response also preserves
 the distinctions an agent needs:
 
@@ -286,6 +295,7 @@ Example response:
 {
   "max_age_days": 7,
   "query": "customers",
+  "verification_source": "sidq_mcp_store",
   "rejected": [],
   "unverified": [
     {

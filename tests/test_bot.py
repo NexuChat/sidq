@@ -57,19 +57,21 @@ def _example_verdict() -> Verdict:
     )
 
 
-def test_real_block_comment_is_deterministic_and_decision_first() -> None:
+def test_published_fixture_comment_is_deterministic_and_decision_first() -> None:
     verdict = _example_verdict()
 
-    first = render_comment(verdict)
-    second = render_comment(verdict)
+    first = render_comment(verdict, mode="fixture")
+    second = render_comment(verdict, mode="fixture")
 
     assert first.encode() == second.encode()
     assert first.startswith(
-        f"{STICKY_MARKER}\n"
-        "# 🚫 BLOCKED — <code>pii_exposure</code>, "
-        "<code>critical_downstream</code>\n"
+        f"{STICKY_MARKER}\n# 🚫 BLOCKED — <code>critical_downstream</code>\n"
     )
-    assert "**Why:** PII exposure is not permitted" in first
+    assert (
+        "**Why:** This change has critical or cross-team downstream consumers" in first
+    )
+    assert "PII tags: <code>tag · PII_Data</code>" in first
+    assert "PII exposure is not permitted" not in first
     # Host-agnostic: assert every graph link the verdict carries is actually rendered,
     # rather than pinning one hostname. Published artifacts point at the public DataHub
     # (SIDQ_DATAHUB_UI_URL); local runs default to localhost. Both must render links.
@@ -374,7 +376,9 @@ def test_fixture_engine_runs_against_recorded_graph(tmp_path: Path) -> None:
     )
 
     assert verdict.decision == "BLOCK"
-    assert "pii_exposure" in {finding.rule_id for finding in verdict.findings}
+    rules = {finding.rule_id for finding in verdict.findings}
+    assert "pii_exposure" not in rules
+    assert "critical_downstream" in rules
     assert "**FIXTURE REPLAY — NOT LIVE DATAHUB.**" in render_comment(
         verdict, mode="fixture"
     )

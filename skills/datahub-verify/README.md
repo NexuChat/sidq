@@ -24,7 +24,7 @@ make mcp-smoke
 
 - Calls `check_change` before an agent proposes SQL and honors `BLOCK` decisions.
 - Calls `verify_context(urn)` before trusting an asset's catalog metadata.
-- Uses `search_verified` for broad selection and preserves freshness and abstention states.
+- Uses `search_verified` for broad selection from the Sidq MCP verification store and preserves freshness and abstention states; this is distinct from DataHub Receipt reading via `sidq verify`.
 - Explains deterministic versus advisory findings and reproducible, expiring receipts.
 
 ## Usage

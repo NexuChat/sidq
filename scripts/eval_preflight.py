@@ -73,6 +73,15 @@ _CLOSING_NOTE = (
     "information at all. That is precisely the failure §5 was written to prevent, "
     "and it is why the criteria are read together."
 )
+_SUPERSEDED_SEMANTIC_NOTE = [
+    "> **Superseded semantic snapshot:** This generated record has not been rerun",
+    "> after the built-in change path stopped inferring `pii_exposure` from the",
+    "> catalog's current graph. Preserve its numbers as historical output, not as a",
+    "> claim about the current engine. The current published example is blocked by",
+    "> `critical_downstream` because it has cross-team downstream owners;",
+    "> `wide_blast_radius` adds a 16-consumer `WARN`, and `PII_Data` is sensitivity",
+    "> context only.",
+]
 
 
 def load() -> list[dict]:
@@ -126,7 +135,9 @@ def load_rungs() -> dict | None:
 
 def _measured_lines(rungs: dict) -> list[str]:
     """§4 and §6 decided by measurement, including where a criterion cannot decide."""
-    rows = [["rung", "false-negative rate", "false positives", "abstention", "accuracy"]]
+    rows = [
+        ["rung", "false-negative rate", "false positives", "abstention", "accuracy"]
+    ]
     for rung in rungs["rungs"]:
         rows.append(
             [
@@ -269,15 +280,15 @@ def _measured_lines(rungs: dict) -> list[str]:
         ),
         "",
         (
-            "**The rule was re-tested after the evidence got richer, not before.** "
-            "Wiring the documentation and governance gates into `sidq check` took "
-            "`doc_rot` from zero fires to 2,564 and `pii_exposure` from 46 to 1,367 "
-            "across the corpus. The rule still reproduces the oracle on all 6,050 "
-            "undecided rows. The reason is worth stating plainly rather than "
-            "claiming as a win: every held-out row carrying `doc_rot` was already "
-            "blocking for another reason, so the new gates added explanation rather "
-            "than new decisions. Evidence got richer; the decision boundary did not "
-            "move."
+            "**In that superseded run, the rule was re-tested after the evidence got "
+            "richer, not before.** Wiring the documentation and governance gates "
+            "into `sidq check` took `doc_rot` from zero fires to 2,564 and the former "
+            "built-in `pii_exposure` behavior from 46 to 1,367 across the corpus. The "
+            "rule still reproduced that run's oracle on all 6,050 undecided rows. "
+            "The reason is worth stating plainly rather than claiming as a win: "
+            "every held-out row carrying `doc_rot` was already blocking for another "
+            "reason, so the new gates added explanation rather than new decisions. "
+            "Evidence got richer; the historical decision boundary did not move."
         ),
         "",
         "### What actually moved the number",
@@ -382,6 +393,8 @@ def render(result: dict) -> str:
         "> not pre-flight ships, and §8 lists it as a deliverable. This is that",
         "> record: a negative result, reached before any model was fitted.",
         "",
+        *_SUPERSEDED_SEMANTIC_NOTE,
+        "",
         "## The finding",
         "",
         *_verdict_lines(result),
@@ -402,7 +415,7 @@ def render(result: dict) -> str:
         ),
         f"| distinct dbt models (the §3 split unit) | {result['models']} |",
         "",
-        "Evidence kinds behind the labels:",
+        "Historical evidence kinds behind those labels:",
         "",
         "| evidence kind | rows |",
         "| --- | ---: |",

@@ -182,6 +182,8 @@ _INTERNAL_URL_RE = re.compile(
     r"[^\s/:]*datahub-gms[^\s/:]*)(?::\d+)?(?:/[^\s]*)?",
     re.IGNORECASE,
 )
+_RELEASE_SHA_RE = re.compile(r"[0-9a-fA-F]{40}\Z")
+_RELEASES_ROOT = Path("/opt/sidq/releases")
 
 
 def _truncate_output(output: str) -> str:
@@ -488,12 +490,31 @@ def _reset_request_state_for_tests() -> None:
     _command_locks = {name: threading.Lock() for name in RUNNABLE}
 
 
+def _release_sha() -> str | None:
+    """Return an attributable release SHA without invoking Git or a shell."""
+    explicit = os.environ.get("SIDQ_RELEASE_SHA")
+    if explicit is not None and _RELEASE_SHA_RE.fullmatch(explicit):
+        return explicit.casefold()
+    try:
+        release = REPO.resolve()
+    except OSError:
+        return None
+    if release.parent == _RELEASES_ROOT and _RELEASE_SHA_RE.fullmatch(release.name):
+        return release.name.casefold()
+    return None
+
+
 def _health_payload() -> dict[str, object]:
     """Liveness has no dependencies: if this returns, the landing process lives."""
+    release_sha = _release_sha()
     return {
         "status": "ok",
         "service": "sidq-landing",
         "live_demos": sorted(RUNNABLE),
+        "release": {
+            "state": "deployed" if release_sha is not None else "local/dev",
+            "commit_sha": release_sha,
+        },
     }
 
 

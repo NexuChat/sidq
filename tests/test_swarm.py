@@ -16,7 +16,7 @@ decides.
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from threading import Barrier, Lock, Thread
+from threading import Barrier, Event, Lock, Thread, current_thread
 
 from sidq.agent.auditor import Target
 from sidq.agent.swarm import SwarmWorker, WorkerRun, observe, rotate_for
@@ -53,6 +53,7 @@ class FakeDataHub:
 
     def __init__(self) -> None:
         self._receipts: dict[str, dict[str, list[str]]] = {}
+        self._tags: dict[str, set[str]] = {}
         self.calls: list[tuple[str, dict]] = []
 
     def __call__(self, name: str, arguments: dict) -> object:
@@ -74,9 +75,23 @@ class FakeDataHub:
             return {"urn": "urn:li:document:fake-doc"}
         if name == "add_structured_properties":
             urn = arguments["entity_urns"][0]
-            self._receipts[urn] = dict(arguments["property_values"])
+            self._receipts.setdefault(urn, {}).update(arguments["property_values"])
+            return {}
+        if name == "remove_structured_properties":
+            for urn in arguments["entity_urns"]:
+                receipt = self._receipts.setdefault(urn, {})
+                for property_urn in arguments["property_urns"]:
+                    receipt.pop(property_urn, None)
             return {}
         if name == "add_tags":
+            for urn in arguments["entity_urns"]:
+                self._tags.setdefault(urn, set()).update(arguments["tag_urns"])
+            return {}
+        if name == "remove_tags":
+            for urn in arguments["entity_urns"]:
+                self._tags.setdefault(urn, set()).difference_update(
+                    arguments["tag_urns"]
+                )
             return {}
         raise AssertionError(f"FakeDataHub does not implement {name!r}")
 
@@ -84,6 +99,9 @@ class FakeDataHub:
         return {
             "urn": urn,
             "datasetProperties": {"lastModified": "2026-08-02T10:00:00+00:00"},
+            "globalTags": {
+                "tags": [{"tag": {"urn": tag}} for tag in self._tags.get(urn, set())]
+            },
             "structuredProperties": {
                 "properties": [
                     {
@@ -509,22 +527,34 @@ def test_interleaved_workers_can_both_examine_but_latest_receipt_cannot_prove_du
     hub = FakeDataHub()
     barrier = Barrier(2)
     lock = Lock()
-    initial_reads = 0
+    initial_readers: set[str] = set()
+    first_confirmation = Event()
+    writes_started = 0
 
     def colliding_hub(name: str, arguments: dict) -> object:
-        nonlocal initial_reads
-        if name == "get_entities":
+        nonlocal writes_started
+        caller = current_thread().name
+        if name == "get_entities" and caller.startswith("sidq-swarm-test-"):
             with lock:
-                is_initial = initial_reads < 2
+                is_initial = caller not in initial_readers
                 if is_initial:
-                    initial_reads += 1
+                    initial_readers.add(caller)
                     response = {
                         "entities": [hub._entity(urn) for urn in arguments["urns"]]
                     }
             if is_initial:
                 barrier.wait()
                 return response
-        return hub(name, arguments)
+        if name == "add_structured_properties":
+            with lock:
+                writes_started += 1
+                waits_for_first_confirmation = writes_started == 2
+            if waits_for_first_confirmation:
+                assert first_confirmation.wait(timeout=5)
+        response = hub(name, arguments)
+        if name == "get_entities" and caller == "sidq-receipt-confirmation":
+            first_confirmation.set()
+        return response
 
     runs: dict[str, WorkerRun] = {}
 
@@ -538,13 +568,18 @@ def test_interleaved_workers_can_both_examine_but_latest_receipt_cannot_prove_du
             now=lambda: NOW,
         ).run()
 
-    threads = [Thread(target=work, args=(worker,)) for worker in ("one", "two")]
+    threads = [
+        Thread(target=work, args=(worker,), name=f"sidq-swarm-test-{worker}")
+        for worker in ("one", "two")
+    ]
     for thread in threads:
         thread.start()
     for thread in threads:
         thread.join(timeout=5)
 
     assert all(not thread.is_alive() for thread in threads)
+    assert initial_readers == {"sidq-swarm-test-one", "sidq-swarm-test-two"}
+    assert first_confirmation.is_set()
     assert all(run.examined == [entity.urn] for run in runs.values())
     assert all(run.written == [entity.urn] for run in runs.values())
 

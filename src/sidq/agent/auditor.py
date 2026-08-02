@@ -37,6 +37,7 @@ from sidq.gates.self_contradiction import (
     CatalogEntity,
     CatalogSnapshot,
     SelfContradictionGate,
+    is_pii_tag,
 )
 from sidq.models import Evidence
 
@@ -152,7 +153,7 @@ class CatalogAuditor:
         score = downstream * 10
         if downstream:
             reasons.append(f"{downstream} downstream consumers")
-        if any("pii" in tag.lower() for tag in entity.tags):
+        if any(is_pii_tag(tag) for tag in entity.tags):
             score += 50
             reasons.append("carries a PII tag")
         if not entity.owners:

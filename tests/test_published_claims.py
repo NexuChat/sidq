@@ -15,6 +15,7 @@ from __future__ import annotations
 import gzip
 import json
 import re
+import struct
 import subprocess
 import sys
 from pathlib import Path
@@ -245,7 +246,15 @@ def _make_targets() -> set[str]:
 def test_every_make_command_we_publish_exists(document: str) -> None:
     """A published instruction that fails is worse than no instruction."""
     text = (ROOT / document).read_text(encoding="utf-8")
-    referenced = set(re.findall(r"\bmake ([a-z][\w-]*)", text))
+    # A sentence such as the approved tagline "make the context provable" is not
+    # a shell instruction. Commands are published as standalone lines, inline
+    # code, HTML code, or a fixed `data-command` value.
+    referenced = set(
+        re.findall(
+            r"(?m)(?:^|`|<code>|data-command=\")make ([a-z][\w-]*)",
+            text,
+        )
+    )
     missing = sorted(referenced - _make_targets())
 
     assert not missing, f"{document} tells a reader to run: {', '.join(missing)}"
@@ -543,11 +552,12 @@ def test_the_video_runbook_fits_the_limit_and_leads_with_the_handoff() -> None:
     video = (ROOT / "docs/VIDEO.md").read_text()
     normalized_video = " ".join(video.lower().split())
 
-    assert "175.317 seconds" in video
+    assert "169.167 seconds" in video
     assert "under three minutes" in normalized_video
-    assert "English narration with burned English subtitles" in video
+    assert "burned English subtitles" in video
     assert "ILLUSTRATION" in video
     assert "LIVE CAPTURE" in video
+    assert "REPRODUCIBLE OFFLINE REPLAY" in video
     for visible_capture_detail in ("address bar", "cursor", "cut wait labels"):
         assert visible_capture_detail in normalized_video
     assert "independent receipt read" in normalized_video
@@ -557,6 +567,8 @@ def test_the_video_runbook_fits_the_limit_and_leads_with_the_handoff() -> None:
         normalized_video
     )
     assert "not presented as a live mutation" in normalized_video
+    assert "not yet a submission artifact" in normalized_video
+    assert "critical_downstream" in video and "pii_exposure` finding" in video
 
     upload_action = (
         "- [ ] verify the uploaded public video is viewable without sign-in and add "
@@ -751,16 +763,49 @@ def test_the_upstream_skill_contribution_is_linked_on_judge_surfaces() -> None:
     assert contribution in (ROOT / "docs/DEVPOST.md").read_text()
 
 
-def test_liveness_is_dependency_free_and_names_the_exact_demo_surface() -> None:
+def test_liveness_is_dependency_free_and_names_the_exact_demo_surface(
+    monkeypatch,
+) -> None:
     from web import server
 
+    monkeypatch.delenv("SIDQ_RELEASE_SHA", raising=False)
     payload = server._health_payload()
 
     assert payload == {
         "status": "ok",
         "service": "sidq-landing",
         "live_demos": sorted(server.RUNNABLE),
+        "release": {"state": "local/dev", "commit_sha": None},
     }
+
+
+def test_release_sha_is_validated_or_derived_from_the_resolved_release_path(
+    monkeypatch,
+) -> None:
+    from web import server
+
+    explicit = "ABCDEF0123456789ABCDEF0123456789ABCDEF01"
+    monkeypatch.setenv("SIDQ_RELEASE_SHA", explicit)
+    assert server._release_sha() == explicit.lower()
+    assert server._health_payload()["release"] == {
+        "state": "deployed",
+        "commit_sha": explicit.lower(),
+    }
+
+    monkeypatch.setenv("SIDQ_RELEASE_SHA", "../../etc/passwd")
+    monkeypatch.setattr(
+        server,
+        "REPO",
+        Path("/opt/sidq/releases/0123456789abcdef0123456789abcdef01234567"),
+    )
+    assert server._release_sha() == "0123456789abcdef0123456789abcdef01234567"
+
+    monkeypatch.setattr(server, "REPO", ROOT)
+    assert server._release_sha() is None
+    payload = server._health_payload()
+    rendered = json.dumps(payload)
+    assert payload["release"] == {"state": "local/dev", "commit_sha": None}
+    assert "/opt/" not in rendered and str(ROOT) not in rendered
 
 
 @pytest.mark.parametrize(
@@ -1022,12 +1067,97 @@ def test_architecture_draws_the_model_outside_the_judged_path() -> None:
     for label in (
         "OPTIONAL PROSE READER",
         "READ-ONLY SOURCE CHECK",
-        "DATAHUB — CONTEXT + LEDGER",
+        "DATAHUB — SHARED CURRENT STATE",
         "NO MODEL CAN BLOCK",
     ):
         assert label in diagram
     assert (
         "READS AND WRITES ONLY THROUGH THE OFFICIAL DATAHUB MCP SERVER" not in diagram
+    )
+
+
+@pytest.mark.parametrize(
+    "document",
+    (
+        "README.md",
+        "ARCHITECTURE.md",
+        "web/index.html",
+        "docs/architecture.svg",
+    ),
+)
+def test_judge_surfaces_reject_ledger_and_proof_overclaims(document: str) -> None:
+    text = (ROOT / document).read_text(encoding="utf-8")
+    lowered = text.lower()
+
+    for overclaim in (
+        "catalog is the ledger",
+        "context + ledger",
+        "every agent proved",
+        "nobody gates",
+    ):
+        assert overclaim not in lowered
+    assert "shared current state" in lowered
+
+
+@pytest.mark.parametrize("document", ("README.md", "ARCHITECTURE.md", "web/index.html"))
+def test_shared_state_copy_names_latest_values_and_optional_receipt_writes(
+    document: str,
+) -> None:
+    lowered = (ROOT / document).read_text(encoding="utf-8").lower()
+
+    assert "not append-only" in lowered
+    assert "optional" in lowered and "receipt" in lowered
+
+
+def test_architecture_png_is_the_full_size_regenerated_board() -> None:
+    png = (ROOT / "docs" / "gallery" / "03-architecture.png").read_bytes()
+
+    assert png[:8] == b"\x89PNG\r\n\x1a\n"
+    assert struct.unpack(">II", png[16:24]) == (1920, 1080)
+
+
+def test_architecture_gap_claim_names_sidqs_contribution_without_absolutes() -> None:
+    architecture = (ROOT / "ARCHITECTURE.md").read_text(encoding="utf-8")
+    gap = architecture.split("## The gap", 1)[1].split("## The flow", 1)[0]
+
+    assert "Nobody gates" not in gap
+    assert "Sidq's contribution" in gap
+    assert "deterministic, DataHub-native pre-merge refusal path" in gap
+
+
+def test_devpost_resume_claim_stays_within_latest_value_and_race_boundaries() -> None:
+    devpost = (ROOT / "docs" / "DEVPOST.md").read_text(encoding="utf-8")
+    lowered = " ".join(devpost.lower().split())
+
+    assert "any Sidq instance resumes where any other stopped" not in devpost
+    assert "latest receipt values" in lowered
+    assert "not append-only history" in lowered
+    assert "does not provide exactly-once coordination" in lowered
+
+
+def test_architecture_flow_marks_receipt_write_as_operator_enabled_and_optional() -> (
+    None
+):
+    architecture = (ROOT / "ARCHITECTURE.md").read_text(encoding="utf-8")
+    flow = architecture.split("## The flow", 1)[1].split(
+        "## Three delivery surfaces", 1
+    )[0]
+
+    assert "[S]  SIDQ RECEIPT" in flow
+    assert "optional, operator-enabled write of current, queryable values" in flow
+    assert "explicit, queryable, written back onto the affected assets" not in flow
+
+
+def test_readme_swarm_demo_names_the_current_state_observer_not_a_ledger() -> None:
+    readme = README.read_text(encoding="utf-8")
+
+    assert (
+        "make swarm-demo    # four workers, one killed mid-run, then the current-state observer"
+        in readme
+    )
+    assert (
+        "make swarm-demo    # four workers, one killed mid-run, then the ledger"
+        not in readme
     )
 
 

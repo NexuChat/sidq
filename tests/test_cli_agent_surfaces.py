@@ -4,12 +4,21 @@ from __future__ import annotations
 
 import json
 import runpy
+import threading
+from dataclasses import replace
 from types import SimpleNamespace
 from typing import Any, ClassVar
 
 import pytest
 
 from sidq import cli
+from sidq.gates.self_contradiction import (
+    CatalogEntity,
+    CatalogField,
+    CatalogSnapshot,
+    LineageEdge,
+)
+from sidq.graph.client import DatasetInfo, SchemaField
 from sidq.mcp_server import server as mcp_server
 from sidq.models import Evidence, Verdict
 
@@ -465,6 +474,128 @@ def test_audit_json_is_the_canonical_summary(monkeypatch, capsysbinary) -> None:
     assert capsysbinary.readouterr().out == b'{"examined":2}\n'
 
 
+def test_audit_json_names_every_rollback_incomplete_write(
+    monkeypatch, capsysbinary
+) -> None:
+    result = SimpleNamespace(
+        findings=(),
+        summary=lambda: {"examined": 6, "findings": 0},
+    )
+    transport = _Closable()
+    failures = [
+        SimpleNamespace(
+            urn=f"{URN}-asset-{index}",
+            verdict="PASS",
+            written=False,
+            detail=(
+                "write_unconfirmed; rollback_incomplete: "
+                "state_conflict: concurrent managed receipt detected"
+            ),
+        )
+        for index in reversed(range(6))
+    ]
+
+    class _Auditor:
+        def __init__(self, snapshot, *, budget, prior) -> None:
+            pass
+
+        def run(self):
+            return result
+
+    monkeypatch.setattr(cli, "_read_snapshot", lambda arguments: object())
+    monkeypatch.setattr(cli, "CatalogAuditor", _Auditor)
+    monkeypatch.setattr(cli, "render", lambda run, *, catalog: ["unused"])
+    monkeypatch.setattr(cli, "StdioMCPReceiptToolCaller", lambda: transport)
+    monkeypatch.setattr(
+        cli,
+        "receipts_for",
+        lambda run, *, commit_sha: [f"receipt-{index}" for index in range(6)],
+    )
+    monkeypatch.setattr(cli, "write_receipts", lambda receipts, caller: failures)
+    monkeypatch.setattr(cli, "render_writeback", lambda outcomes: ["unused"])
+    monkeypatch.setattr(cli, "commit_sha_for_ref", lambda ref: "b" * 40)
+
+    assert cli._audit(_arguments(write_receipts=True, as_json=True)) == 1
+
+    expected = {
+        "examined": 6,
+        "findings": 0,
+        "writes": {
+            "attempted": 6,
+            "written": 0,
+            "failed": 6,
+            "failures": [
+                {
+                    "urn": f"{URN}-asset-{index}",
+                    "verdict": "PASS",
+                    "detail": (
+                        "write_unconfirmed; rollback_incomplete: "
+                        "state_conflict: concurrent managed receipt detected"
+                    ),
+                }
+                for index in range(6)
+            ],
+        },
+    }
+    output = capsysbinary.readouterr().out
+    assert json.loads(output) == expected
+    assert output == (
+        json.dumps(expected, sort_keys=True, separators=(",", ":")).encode() + b"\n"
+    )
+    assert transport.closed
+
+
+@pytest.mark.parametrize(("eligible", "written"), ((1, 1), (0, 0)))
+def test_audit_json_reports_success_and_zero_eligible_writes(
+    monkeypatch, capsysbinary, eligible: int, written: int
+) -> None:
+    result = SimpleNamespace(
+        findings=(),
+        summary=lambda: {"examined": 1, "findings": 0},
+    )
+    transport = _Closable()
+    receipts = ["receipt"] if eligible else []
+    outcomes = (
+        [SimpleNamespace(urn=URN, verdict="PASS", written=True, detail="")]
+        if written
+        else []
+    )
+
+    class _Auditor:
+        def __init__(self, snapshot, *, budget, prior) -> None:
+            pass
+
+        def run(self):
+            return result
+
+    def write(supplied, caller):
+        assert supplied == receipts
+        assert caller is transport
+        return outcomes
+
+    monkeypatch.setattr(cli, "_read_snapshot", lambda arguments: object())
+    monkeypatch.setattr(cli, "CatalogAuditor", _Auditor)
+    monkeypatch.setattr(cli, "render", lambda run, *, catalog: ["unused"])
+    monkeypatch.setattr(cli, "StdioMCPReceiptToolCaller", lambda: transport)
+    monkeypatch.setattr(cli, "receipts_for", lambda run, *, commit_sha: receipts)
+    monkeypatch.setattr(cli, "write_receipts", write)
+    monkeypatch.setattr(cli, "render_writeback", lambda supplied: ["unused"])
+    monkeypatch.setattr(cli, "commit_sha_for_ref", lambda ref: "b" * 40)
+
+    assert cli._audit(_arguments(write_receipts=True, as_json=True)) == 0
+    assert json.loads(capsysbinary.readouterr().out) == {
+        "examined": 1,
+        "findings": 0,
+        "writes": {
+            "attempted": eligible,
+            "written": written,
+            "failed": 0,
+            "failures": [],
+        },
+    }
+    assert transport.closed
+
+
 def test_repair_names_what_remains_and_applies_only_the_proven_plan(
     monkeypatch, capsys
 ) -> None:
@@ -495,8 +626,25 @@ def test_repair_names_what_remains_and_applies_only_the_proven_plan(
         cli,
         "apply_repairs",
         lambda supplied, caller, *, dry_run: (
-            [SimpleNamespace(applied=True)] if not dry_run else []
+            [
+                SimpleNamespace(
+                    applied=True,
+                    closed=True,
+                    unresolved=(),
+                    collateral=(),
+                    proposal=SimpleNamespace(
+                        finding_kind=finding.kind, subject=finding.subject
+                    ),
+                )
+            ]
+            if not dry_run
+            else []
         ),
+    )
+    monkeypatch.setattr(
+        cli,
+        "verify_repairs",
+        lambda before, outcomes, reader, *, timeout: outcomes,
     )
     monkeypatch.setattr(cli, "render_applied", lambda outcomes: ["applied once"])
 
@@ -542,7 +690,14 @@ def test_repair_write_failure_is_truthful_and_exits_nonzero(
     finding = Evidence("pii_leak_untagged", URN, {})
     proposal = SimpleNamespace(finding_kind=finding.kind, subject=finding.subject)
     result = SimpleNamespace(findings=(finding,))
-    failed = SimpleNamespace(applied=False, detail="PermissionError", proposal=proposal)
+    failed = SimpleNamespace(
+        applied=False,
+        closed=False,
+        unresolved=(),
+        collateral=(),
+        detail="PermissionError",
+        proposal=proposal,
+    )
 
     class _Auditor:
         def __init__(self, snapshot, *, budget) -> None:
@@ -572,17 +727,378 @@ def test_repair_write_failure_is_truthful_and_exits_nonzero(
     assert cli._repair(_arguments(apply=True, as_json=as_json)) == 1
     output = capsysbinary.readouterr().out
     if as_json:
-        assert json.loads(output) == {
-            "proven": 1,
-            "rejected": 0,
-            "remaining": {"count": 1, "kinds": {"pii_leak_untagged": 1}},
-            "writes": {"attempted": 1, "failed": 1, "written": 0},
-        }
+        assert output == (
+            b'{"proven":1,"rejected":0,"remaining":{"count":1,'
+            b'"findings":[{"kind":"pii_leak_untagged","subject":"'
+            + URN.encode()
+            + b'"}],"kinds":{"pii_leak_untagged":1}},"writes":'
+            b'{"applied_unverified":0,"attempted":1,"failed":1,'
+            b'"verified":0,"written":0}}\n'
+        )
     else:
         assert b"Still standing, unrepaired: 1" in output
         assert b"pii_leak_untagged" in output
         assert b"repairs written   0 of 1" in output
         assert b"PermissionError" in output
+
+
+def test_repair_acknowledgement_without_live_proof_stays_open_and_nonzero(
+    monkeypatch, capsysbinary
+) -> None:
+    plan = SimpleNamespace(summary=lambda: {"proven": 1, "rejected": 0})
+    finding = Evidence("pii_leak_untagged", URN, {})
+    proposal = SimpleNamespace(finding_kind=finding.kind, subject=finding.subject)
+    result = SimpleNamespace(findings=(finding,))
+    acknowledged = SimpleNamespace(
+        applied=True,
+        verified=False,
+        closed=False,
+        unresolved=(),
+        collateral=(),
+        status="applied_unverified",
+        detail="applied_unverified: verification timed out",
+        proposal=proposal,
+    )
+
+    class _Auditor:
+        def __init__(self, snapshot, *, budget) -> None:
+            pass
+
+        def run(self):
+            return result
+
+    monkeypatch.setattr(cli, "_read_snapshot", lambda arguments: object())
+    monkeypatch.setattr(cli, "CatalogAuditor", _Auditor)
+    monkeypatch.setattr(cli, "propose_all", lambda findings, snapshot: [])
+    monkeypatch.setattr(cli, "prove", lambda snapshot, proposals: plan)
+    monkeypatch.setattr(cli, "render_plan", lambda supplied, *, dry_run: ["plan"])
+    monkeypatch.setattr(cli, "unfixed", lambda findings, supplied: ())
+    monkeypatch.setattr(cli, "StdioMCPReceiptToolCaller", _Closable)
+    monkeypatch.setattr(
+        cli,
+        "apply_repairs",
+        lambda supplied, caller, *, dry_run: [acknowledged],
+    )
+    monkeypatch.setattr(
+        cli,
+        "verify_repairs",
+        lambda before, outcomes, reader, *, timeout: outcomes,
+    )
+    monkeypatch.setattr(
+        cli,
+        "render_applied",
+        lambda outcomes: [
+            "repairs written   1 of 1",
+            "repairs verified  0 of 1",
+            "applied_unverified",
+        ],
+    )
+
+    assert cli._repair(_arguments(apply=True, as_json=True)) == 1
+    assert capsysbinary.readouterr().out == (
+        b'{"proven":1,"rejected":0,"remaining":{"count":1,'
+        b'"findings":[{"kind":"pii_leak_untagged","subject":"'
+        + URN.encode()
+        + b'"}],"kinds":{"pii_leak_untagged":1}},"writes":'
+        b'{"applied_unverified":1,"attempted":1,"failed":0,'
+        b'"verified":0,"written":1}}\n'
+    )
+
+
+def _repair_journey() -> tuple[CatalogSnapshot, Evidence]:
+    source = CatalogEntity(
+        f"{URN}-source",
+        "dataset",
+        fields=(CatalogField("email", tags=("urn:li:tag:PII",)),),
+        owners=("urn:li:corpuser:owner",),
+    )
+    target = CatalogEntity(
+        URN,
+        "dataset",
+        fields=(CatalogField("email"),),
+        owners=("urn:li:corpuser:owner",),
+    )
+    snapshot = CatalogSnapshot(
+        (source, target),
+        (LineageEdge(source.urn, "email", target.urn, "email"),),
+    )
+    finding = Evidence(
+        "pii_leak_untagged",
+        f"{URN}#email",
+        {
+            "edge": {"source_urn": source.urn, "source_field": "email"},
+            "source_pii_tags": ["urn:li:tag:PII"],
+            "target_tags": [],
+        },
+    )
+    return snapshot, finding
+
+
+def _wire_repair_journey(
+    monkeypatch, *, collateral: bool, mutation_changes_state: bool = True
+) -> tuple[_Closable, Any]:
+    snapshot, finding = _repair_journey()
+    if collateral:
+        sink = CatalogEntity(
+            f"{URN}-sink",
+            "dataset",
+            fields=(CatalogField("email"),),
+            owners=("urn:li:corpuser:owner",),
+        )
+        snapshot = replace(
+            snapshot,
+            entities=(*snapshot.entities, sink),
+            edges=(*snapshot.edges, LineageEdge(URN, "email", sink.urn, "email")),
+        )
+
+    class _MCPBackend:
+        def __init__(self) -> None:
+            self.entities = {entity.urn: entity for entity in snapshot.entities}
+            self.mutations: list[tuple[str, dict[str, Any]]] = []
+            self.reads: list[str] = []
+
+        def mutate(self, name: str, arguments: dict[str, Any]) -> None:
+            self.mutations.append((name, arguments))
+            if not mutation_changes_state:
+                return
+            assert name == "add_tags"
+            tags = {str(tag) for tag in arguments["tag_urns"]}
+            for urn, path in zip(arguments["entity_urns"], arguments["column_paths"]):
+                entity = self.entities[str(urn)]
+                self.entities[str(urn)] = replace(
+                    entity,
+                    fields=tuple(
+                        replace(
+                            field,
+                            tags=tuple(sorted(set(field.tags) | tags)),
+                        )
+                        if field.path == path
+                        else field
+                        for field in entity.fields
+                    ),
+                )
+            if collateral:
+                self.entities[URN] = replace(self.entities[URN], owners=())
+
+        def get_dataset(self, urn: str) -> DatasetInfo:
+            self.reads.append(urn)
+            entity = self.entities[urn]
+            return DatasetInfo(
+                urn=urn,
+                fields=tuple(
+                    SchemaField(
+                        field.path,
+                        "string",
+                        True,
+                        field.description,
+                        tags=field.tags,
+                    )
+                    for field in entity.fields
+                ),
+                tags=entity.tags,
+                owners=entity.owners,
+                deprecated=entity.deprecated,
+            )
+
+    backend = _MCPBackend()
+
+    class _Auditor:
+        def __init__(self, supplied, *, budget) -> None:
+            assert supplied is snapshot
+
+        def run(self):
+            return SimpleNamespace(findings=(finding,))
+
+    class _MutationTransport(_Closable):
+        def __call__(self, name: str, arguments: dict[str, Any]) -> None:
+            backend.mutate(name, arguments)
+
+    class _DirectReader(_Closable):
+        def get_dataset(self, urn: str) -> DatasetInfo:
+            return backend.get_dataset(urn)
+
+    transport = _MutationTransport()
+    monkeypatch.setattr(cli, "_read_snapshot", lambda arguments: snapshot)
+    monkeypatch.setattr(cli, "CatalogAuditor", _Auditor)
+    monkeypatch.setattr(cli, "StdioMCPReceiptToolCaller", lambda: transport)
+    monkeypatch.setattr(cli, "StdioMCPToolCaller", lambda **kwargs: object())
+    monkeypatch.setattr(cli, "MCPGraphClient", lambda caller: _DirectReader())
+    return transport, backend
+
+
+def test_repair_apply_success_is_live_verified_and_exits_zero(
+    monkeypatch, capsysbinary
+) -> None:
+    transport, backend = _wire_repair_journey(monkeypatch, collateral=False)
+
+    assert cli._repair(_arguments(apply=True, as_json=True)) == 0
+    assert capsysbinary.readouterr().out == (
+        b'{"jointly_verified":true,"proposed":1,"proven":1,'
+        b'"proven_by_finding_kind":{"pii_leak_untagged":1},"rejected":0,'
+        b'"remaining":{"count":0,"findings":[],"kinds":{}},"writes":'
+        b'{"applied_unverified":0,"attempted":1,"failed":0,'
+        b'"verified":1,"written":1}}\n'
+    )
+    assert backend.entities[URN].fields[0].tags == ("urn:li:tag:PII",)
+    assert backend.reads == [URN]
+    assert transport.closed
+
+
+def test_repair_acknowledged_no_op_stays_unverified_and_exits_nonzero(
+    monkeypatch, capsysbinary
+) -> None:
+    transport, backend = _wire_repair_journey(
+        monkeypatch,
+        collateral=False,
+        mutation_changes_state=False,
+    )
+
+    assert cli._repair(_arguments(apply=True, as_json=True, timeout=0.1)) == 1
+
+    payload = json.loads(capsysbinary.readouterr().out)
+    assert payload["remaining"] == {
+        "count": 1,
+        "findings": [{"kind": "pii_leak_untagged", "subject": f"{URN}#email"}],
+        "kinds": {"pii_leak_untagged": 1},
+    }
+    assert payload["writes"] == {
+        "applied_unverified": 1,
+        "attempted": 1,
+        "failed": 0,
+        "verified": 0,
+        "written": 1,
+    }
+    assert backend.entities[URN].fields[0].tags == ()
+    assert backend.mutations[0][0] == "add_tags"
+    assert backend.reads
+    assert transport.closed
+
+
+@pytest.mark.parametrize("as_json", (False, True))
+def test_repair_apply_names_new_collateral_instead_of_the_resolved_original(
+    monkeypatch, capsysbinary, as_json: bool
+) -> None:
+    _wire_repair_journey(monkeypatch, collateral=True)
+
+    assert cli._repair(_arguments(apply=True, as_json=as_json)) == 1
+    output = capsysbinary.readouterr().out
+    if as_json:
+        assert output == (
+            b'{"jointly_verified":true,"proposed":1,"proven":1,'
+            b'"proven_by_finding_kind":{"pii_leak_untagged":1},"rejected":0,'
+            b'"remaining":{"count":1,"findings":[{"kind":"unowned_consumed",'
+            b'"subject":"'
+            + URN.encode()
+            + b'"}],"kinds":{"unowned_consumed":1}},"writes":'
+            b'{"applied_unverified":1,"attempted":1,"failed":0,'
+            b'"verified":0,"written":1}}\n'
+        )
+    else:
+        assert b"unowned_consumed" in output
+        assert URN.encode() in output
+        assert b"pii_leak_untagged" not in output.split(b"Still standing")[1]
+
+
+def test_repair_apply_names_both_unresolved_and_collateral_findings(
+    monkeypatch, capsysbinary
+) -> None:
+    snapshot, original = _repair_journey()
+    collateral = Evidence("unowned_consumed", f"{URN}-source", {})
+    result = SimpleNamespace(findings=(original,))
+    proposal = SimpleNamespace(
+        finding_kind=original.kind,
+        subject=original.subject,
+    )
+    outcome = SimpleNamespace(
+        applied=True,
+        verified=False,
+        closed=False,
+        unresolved=(
+            SimpleNamespace(kind=original.kind, subject=original.subject, detail=""),
+        ),
+        collateral=(
+            SimpleNamespace(
+                kind=collateral.kind, subject=collateral.subject, detail=""
+            ),
+        ),
+        detail="required finding remains and collateral was introduced",
+        proposal=proposal,
+    )
+
+    class _Auditor:
+        def __init__(self, supplied, *, budget) -> None:
+            assert supplied is snapshot
+
+        def run(self):
+            return result
+
+    monkeypatch.setattr(cli, "_read_snapshot", lambda arguments: snapshot)
+    monkeypatch.setattr(cli, "CatalogAuditor", _Auditor)
+    monkeypatch.setattr(cli, "propose_all", lambda findings, supplied: ())
+    monkeypatch.setattr(
+        cli,
+        "prove",
+        lambda supplied, proposals: SimpleNamespace(
+            summary=lambda: {"proven": 1, "rejected": 0}
+        ),
+    )
+    monkeypatch.setattr(cli, "render_plan", lambda supplied, *, dry_run: ["plan"])
+    monkeypatch.setattr(cli, "unfixed", lambda findings, supplied: ())
+    monkeypatch.setattr(cli, "StdioMCPReceiptToolCaller", _Closable)
+    monkeypatch.setattr(
+        cli,
+        "apply_repairs",
+        lambda supplied, caller, *, dry_run: [outcome],
+    )
+    monkeypatch.setattr(
+        cli,
+        "verify_repairs",
+        lambda before, outcomes, reader, *, timeout: outcomes,
+    )
+    monkeypatch.setattr(cli, "render_applied", lambda outcomes: ["unverified"])
+
+    assert cli._repair(_arguments(apply=True, as_json=True)) == 1
+    payload = json.loads(capsysbinary.readouterr().out)
+    assert payload["remaining"]["kinds"] == {
+        "pii_leak_untagged": 1,
+        "unowned_consumed": 1,
+    }
+    assert payload["remaining"]["findings"] == [
+        {"kind": "pii_leak_untagged", "subject": original.subject},
+        {"kind": "unowned_consumed", "subject": collateral.subject},
+    ]
+
+
+def test_repair_direct_read_is_bounded_even_if_the_transport_hangs(monkeypatch) -> None:
+    release = threading.Event()
+    closed = threading.Event()
+
+    class _HangingGraph:
+        def get_dataset(self, urn: str) -> DatasetInfo:
+            release.wait()
+            return DatasetInfo(urn=urn)
+
+        def close(self) -> None:
+            closed.set()
+
+    graph = _HangingGraph()
+    monkeypatch.setattr(cli, "StdioMCPToolCaller", lambda **kwargs: object())
+    monkeypatch.setattr(cli, "MCPGraphClient", lambda caller: graph)
+    before = CatalogSnapshot((CatalogEntity(URN, "dataset"),))
+    proposal = SimpleNamespace(targets=((URN, None),))
+
+    try:
+        with pytest.raises(TimeoutError, match="bounded timeout"):
+            cli._read_repair_targets(
+                before,
+                [proposal],
+                server="http://datahub",
+                timeout=0.01,
+            )
+    finally:
+        release.set()
+
+    assert closed.wait(timeout=1.0)
 
 
 @pytest.mark.parametrize("as_json", (False, True))

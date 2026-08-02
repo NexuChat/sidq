@@ -86,42 +86,21 @@ def test_the_published_verdict_json_is_still_a_block() -> None:
     assert published["decision"] == "BLOCK"
     assert published["policy_hash"]
     assert [finding["rule_id"] for finding in published["findings"]] == [
-        # PII exposure is raised twice, by two gates that found it on two routes.
-        # The governance gate was built and never wired to `sidq check`, so until
-        # it was, only the dashboard route appeared.
-        "pii_exposure",
-        "pii_exposure",
         "wide_blast_radius",
         "critical_downstream",
     ]
 
 
-def test_the_two_pii_findings_report_different_routes() -> None:
-    """Two identical-looking blocks would read as a bug rather than as depth.
-
-    One is the blast radius reaching a tagged dashboard; the other is the tag
-    failing to carry into downstream consumers. They must be distinguishable in
-    the evidence, or wiring the second gate has made the artifact worse.
-    """
+def test_the_removed_pii_field_is_sensitivity_context_not_exposure() -> None:
+    """Removing a sensitive field can break consumers, but creates no PII route."""
     published = _published()
-    details = [
-        evidence["detail"]
-        for finding in published["findings"]
-        if finding["rule_id"] == "pii_exposure"
-        for evidence in finding["evidence"]
-    ]
+    rules = [finding["rule_id"] for finding in published["findings"]]
 
-    assert len(details) == 2
-    assert any("dashboards" in detail for detail in details), (
-        "one PII finding must be the route that reaches a dashboard"
-    )
-    assert any("unsafe_assets" in detail for detail in details), (
-        "the other must be the route where the tag is not carried downstream"
-    )
-
+    assert "pii_exposure" not in rules
+    assert "critical_downstream" in rules
     comment = (BLOCKED / "pr-comment.md").read_text(encoding="utf-8")
-    assert "Reaches:" in comment
-    assert "PII tag not carried by" in comment
+    assert "PII exposure is not permitted" not in comment
+    assert "PII_Data" in comment
 
 
 def test_the_blocked_example_still_blocks_with_the_same_rule_ids(
@@ -248,6 +227,16 @@ def test_the_committed_pr_comment_matches_a_fresh_render() -> None:
     assert regenerate_example_01.comment() == (BLOCKED / "pr-comment.md").read_text(
         encoding="utf-8"
     ), "examples/01 pr-comment.md is stale; rerun scripts/regenerate_example_01.py"
+
+
+def test_the_generated_fixture_comment_never_claims_live_provenance() -> None:
+    comment = regenerate_example_01.comment()
+
+    assert "FIXTURE REPLAY — NOT LIVE DATAHUB" in comment
+    assert "Provenance: LIVE DATAHUB" not in comment
+    readme = (BLOCKED / "README.md").read_text(encoding="utf-8")
+    assert "recorded graph replay fixture" in readme
+    assert "against the live" not in readme
 
 
 @pytest.mark.parametrize(

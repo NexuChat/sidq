@@ -14,7 +14,10 @@ repair moves a leak rather than closing it.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import Any
+
+import pytest
 
 from sidq.gates.self_contradiction import (
     CatalogEntity,
@@ -22,6 +25,7 @@ from sidq.gates.self_contradiction import (
     CatalogSnapshot,
     LineageEdge,
 )
+from sidq.graph.client import DatasetInfo, SchemaField
 from sidq.models import Evidence
 from sidq.repair import (
     UNREPAIRABLE,
@@ -29,9 +33,12 @@ from sidq.repair import (
     propose,
     propose_all,
     prove,
+    refresh_snapshot,
+    render_applied,
     render_plan,
     simulate,
     unfixed,
+    verify_repairs,
 )
 
 _PII = "urn:li:tag:demo.PII_Data"
@@ -119,6 +126,58 @@ def test_the_closure_repair_is_proven_by_re_running_the_engine() -> None:
     assert plan.summary()["proven"] == 1
     assert not plan.rejected
     assert plan.jointly_verified
+
+
+def test_a_bounded_catalog_snapshot_cannot_prove_or_authorize_a_repair() -> None:
+    complete = _pii_chain()
+    proposals = propose_all([_pii_finding(_urn("middle"))], complete)
+    bounded = replace(
+        complete,
+        entities_complete=False,
+        field_lineage_resolved=frozenset({_urn("source")}),
+    )
+
+    plan = prove(bounded, proposals)
+
+    assert not plan.proven
+    assert plan.rejected
+    assert not plan.jointly_verified
+    assert not plan.writable
+    assert "incomplete" in plan.joint_reason
+
+
+@pytest.mark.parametrize(
+    "tag",
+    (
+        "not_pii",
+        "not-pii",
+        "NOTPII",
+        "nonPII",
+        "noPII",
+        "not_personally_identifiable",
+        "not-personally-identifiable",
+        "NOTPERSONALLYIDENTIFIABLE",
+        "nonPersonallyIdentifiable",
+        "noPersonallyIdentifiable",
+    ),
+)
+def test_negated_pii_evidence_is_never_propagated_as_a_repair_marker(
+    tag: str,
+) -> None:
+    finding = _pii_finding(_urn("middle"))
+    finding.detail["source_pii_tags"] = [f"urn:li:tag:{tag}"]
+
+    assert propose(finding, _pii_chain()) is None
+
+
+def test_unpii_evidence_remains_a_positive_repair_marker() -> None:
+    finding = _pii_finding(_urn("middle"))
+    finding.detail["source_pii_tags"] = ["urn:li:tag:unpii"]
+
+    proposal = propose(finding, _pii_chain())
+
+    assert proposal is not None
+    assert proposal.arguments["tag_urns"] == ["urn:li:tag:unpii"]
 
 
 def test_a_one_hop_repair_is_refused_because_it_moves_the_leak() -> None:
@@ -273,6 +332,200 @@ def test_one_failed_write_does_not_abandon_the_rest() -> None:
 
     assert len(seen) == 2
     assert [item.applied for item in outcomes] == [False, True]
+
+
+def test_successful_partial_write_can_be_verified_while_failed_write_stays_open() -> (
+    None
+):
+    snapshot = _pii_chain()
+    orphan = _dataset("c", (CatalogField("id"),))
+    upstream = _dataset("a", (CatalogField("id"),), ("urn:li:corpuser:one",))
+    combined = CatalogSnapshot(
+        (*snapshot.entities, orphan, upstream),
+        (*snapshot.edges, LineageEdge(upstream.urn, "id", orphan.urn, "id")),
+    )
+    plan = prove(
+        combined,
+        propose_all(
+            [
+                _pii_finding(_urn("middle")),
+                Evidence("unowned_consumed", orphan.urn, {}),
+            ],
+            combined,
+        ),
+    )
+    writes = 0
+
+    def caller(name: str, arguments: Any) -> None:
+        nonlocal writes
+        writes += 1
+        if writes == 1:
+            raise RuntimeError("permission denied")
+
+    outcomes = apply_repairs(plan, caller, dry_run=False)
+    current = simulate(combined, outcomes[1].proposal)
+    checked = verify_repairs(
+        combined,
+        outcomes,
+        lambda proposals, timeout: current,
+        timeout=0.0,
+    )
+
+    assert not checked[0].closed
+    assert checked[0].status == "write_failed"
+    assert checked[1].closed
+    assert checked[1].status == "applied_verified"
+
+
+def test_mutation_acknowledgement_stays_unverified_until_a_direct_read_proves_it() -> (
+    None
+):
+    snapshot = _pii_chain()
+    plan = prove(snapshot, propose_all([_pii_finding(_urn("middle"))], snapshot))
+    outcomes = apply_repairs(plan, lambda name, arguments: None, dry_run=False)
+    current = snapshot
+    reads = 0
+    now = [0.0]
+
+    def reader(proposals, timeout):
+        nonlocal current, reads
+        reads += 1
+        if reads == 2:
+            for proposal in proposals:
+                current = simulate(current, proposal)
+        return current
+
+    verified = verify_repairs(
+        snapshot,
+        outcomes,
+        reader,
+        timeout=1.0,
+        monotonic=lambda: now[0],
+        sleep=lambda delay: now.__setitem__(0, now[0] + delay),
+    )
+
+    assert outcomes[0].applied
+    assert not outcomes[0].verified
+    assert outcomes[0].status == "applied_unverified"
+    assert reads == 2
+    assert verified[0].verified
+    assert verified[0].closed
+    assert verified[0].status == "applied_verified"
+
+
+def test_verification_timeout_keeps_acknowledged_repairs_open() -> None:
+    snapshot = _pii_chain()
+    plan = prove(snapshot, propose_all([_pii_finding(_urn("middle"))], snapshot))
+    outcomes = apply_repairs(plan, lambda name, arguments: None, dry_run=False)
+
+    verified = verify_repairs(
+        snapshot,
+        outcomes,
+        lambda proposals, timeout: snapshot,
+        timeout=0.0,
+    )
+
+    assert verified[0].applied
+    assert not verified[0].verified
+    assert not verified[0].closed
+    assert verified[0].status == "applied_unverified"
+    assert "still present" in verified[0].detail
+    rendered = "\n".join(render_applied(verified))
+    assert "repairs verified  0 of 1" in rendered
+    assert "applied_unverified" in rendered
+
+
+def test_live_read_that_closes_the_target_but_adds_collateral_is_unverified() -> None:
+    snapshot = _pii_chain()
+    plan = prove(snapshot, propose_all([_pii_finding(_urn("middle"))], snapshot))
+    outcomes = apply_repairs(plan, lambda name, arguments: None, dry_run=False)
+    current = snapshot
+    for proposal in plan.writable:
+        current = simulate(current, proposal)
+    current = replace(
+        current,
+        entities=tuple(
+            replace(entity, owners=()) if entity.urn == _urn("middle") else entity
+            for entity in current.entities
+        ),
+    )
+
+    verified = verify_repairs(
+        snapshot,
+        outcomes,
+        lambda proposals, timeout: current,
+        timeout=0.0,
+    )
+
+    assert not verified[0].verified
+    assert tuple((item.kind, item.subject) for item in verified[0].collateral) == (
+        ("unowned_consumed", _urn("middle")),
+    )
+    assert "collateral" in verified[0].detail
+    assert "unowned_consumed" in verified[0].detail
+    rendered = "\n".join(render_applied(verified))
+    assert f"unowned_consumed on {_urn('middle')}" in rendered
+
+
+def test_incomplete_post_write_evidence_cannot_manufacture_clean_convergence() -> None:
+    snapshot = _pii_chain()
+    plan = prove(snapshot, propose_all([_pii_finding(_urn("middle"))], snapshot))
+    outcomes = apply_repairs(plan, lambda name, arguments: None, dry_run=False)
+    current = snapshot
+    for proposal in plan.writable:
+        current = simulate(current, proposal)
+    current = replace(
+        current,
+        entities_complete=False,
+        field_lineage_resolved=frozenset({_urn("source")}),
+    )
+
+    checked = verify_repairs(
+        snapshot,
+        outcomes,
+        lambda proposals, timeout: current,
+        timeout=0.0,
+    )
+
+    assert not checked[0].verified
+    assert not checked[0].closed
+    assert "incomplete" in checked[0].detail
+
+
+def test_post_write_refresh_reads_target_entities_directly_without_search() -> None:
+    snapshot = _pii_chain()
+    proposal = propose(_pii_finding(_urn("middle")), snapshot)
+    assert proposal is not None
+    calls: list[str] = []
+
+    class _DirectGraph:
+        def get_dataset(self, urn: str) -> DatasetInfo:
+            calls.append(urn)
+            entity = next(item for item in snapshot.entities if item.urn == urn)
+            return DatasetInfo(
+                urn=urn,
+                fields=tuple(
+                    SchemaField(
+                        field.path,
+                        "string",
+                        True,
+                        field.description,
+                        tags=(_PII,),
+                    )
+                    for field in entity.fields
+                ),
+                owners=entity.owners,
+            )
+
+        def search_assets(self, query: str):
+            raise AssertionError("post-write verification must not search")
+
+    refreshed = refresh_snapshot(snapshot, [proposal], _DirectGraph())
+
+    assert calls == [_urn("middle"), _urn("sink")]
+    assert not prove(
+        refreshed, propose_all([_pii_finding(_urn("middle"))], refreshed)
+    ).writable
 
 
 def test_the_report_names_what_it_refused() -> None:

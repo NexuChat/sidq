@@ -53,6 +53,7 @@ const runOutput = document.querySelector("#run-output");
 const runProgress = document.querySelector("#run-progress");
 const runStatus = document.querySelector("#run-status");
 const runButtons = document.querySelectorAll("[data-run]");
+const runRegion = document.querySelector(".handoff-run");
 
 async function readJsonResponse(response) {
   const contentType = response.headers.get("content-type") || "";
@@ -72,6 +73,36 @@ function responseError(response, payload, fallback) {
   return `${detail} (HTTP ${response.status}).`;
 }
 
+const releaseIdentity = document.querySelector("#release-identity");
+
+async function renderReleaseIdentity() {
+  if (!releaseIdentity) return;
+  try {
+    const response = await fetch("/healthz", {
+      credentials: "same-origin",
+      headers: { Accept: "application/json" },
+    });
+    const payload = await readJsonResponse(response);
+    const release = payload?.release;
+    if (
+      response.ok &&
+      release?.state === "deployed" &&
+      typeof release.commit_sha === "string" &&
+      /^[0-9a-f]{40}$/.test(release.commit_sha)
+    ) {
+      releaseIdentity.textContent = `Deployed commit: ${release.commit_sha}`;
+    } else if (response.ok && release?.state === "local/dev") {
+      releaseIdentity.textContent = "Release: local/dev";
+    } else {
+      releaseIdentity.textContent = "Release: unavailable";
+    }
+  } catch {
+    releaseIdentity.textContent = "Release: unavailable";
+  }
+}
+
+renderReleaseIdentity();
+
 for (const button of runButtons) {
   button.addEventListener("click", async () => {
     const label = button.textContent;
@@ -82,6 +113,7 @@ for (const button of runButtons) {
       runProgress.textContent = `${elapsed}s elapsed · expected about ${expected}s`;
     };
     for (const other of runButtons) other.disabled = true;
+    runRegion.setAttribute("aria-busy", "true");
     button.textContent = "Running…";
     runStatus.textContent = "Running on the host now. This is not a recording.";
     runProgress.hidden = false;
@@ -144,6 +176,7 @@ for (const button of runButtons) {
       runOutput.hidden = true;
     } finally {
       window.clearInterval(progressTimer);
+      runRegion.setAttribute("aria-busy", "false");
       for (const other of runButtons) other.disabled = false;
       button.textContent = label;
     }

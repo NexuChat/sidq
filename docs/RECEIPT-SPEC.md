@@ -16,8 +16,8 @@ We use the required component to both read and write. Three parts, each with a j
 
 | Part | Tool | Job |
 |---|---|---|
-| **Queryable body** | `add_structured_properties` | machine-readable facts, filterable in DataHub search |
-| **Visible badge** | `add_tags` | `sidq:verified` / `sidq:blocked` — renders in the UI, screenshots well, one glance |
+| **Queryable body** | `add_structured_properties` / `remove_structured_properties` | machine-readable facts, filterable in DataHub search |
+| **Visible badge** | `add_tags` / `remove_tags` | exactly one of `sidq:verified` / `sidq:blocked` — renders in the UI, screenshots well, one glance |
 | **Full evidence** | `save_document` | the human-readable receipt: rules fired, evidence, links |
 
 **Gotcha — do this first:** structured properties must be *defined* as entities before any
@@ -41,9 +41,11 @@ structured properties first; they are searchable and the custom-properties path 
 | `sidq.verifier` | string | `sidq@<version>` |
 | `sidq.evidence_url` | string | link to the PR comment / document |
 
-`policy_hash` + `commit_sha` together make the attestation **reproducible**: anyone can
-re-run the same policy on the same commit and get the same verdict, byte for byte. Say
-this out loud in the README — it is the difference between an attestation and a sticker.
+`policy_hash` + `commit_sha` make the captured verdict **reproducible**: anyone can
+re-run the same policy on the same commit and get the same verdict, byte for byte.
+They do not sign the Receipt, make it tamper-proof, or prove that the catalog has
+not changed. The independently recomputed `context_hash`, policy comparison, and
+age check determine whether the latest Receipt still applies.
 
 ## 3. Consumption — `sidq verify <urn>`
 
@@ -104,8 +106,22 @@ Sidq's own `sidq-mcp` server exposes exactly three tools: `check_change`,
 
 ## 5. Hard rules
 
-- Writeback is attempted **after** the verdict, never as part of computing it. Only
-  an accepted mutation becomes a receipt. No feedback loops.
+- Writeback is attempted **after** the verdict, never as part of computing it. A
+  human-readable document is saved first, the visible badge is applied second,
+  and the machine-readable structured Receipt is published last because that
+  final body is what independent readers trust. If a later mutation or exact
+  readback fails, Sidq uses the official remove/add tools to restore the prior
+  managed badges and touched `sidq.*` values. The evidence document cannot be
+  deleted through this MCP surface and can remain inert. DataHub does not provide
+  a transaction across these tools. Same-URN writes are serialized within one
+  Sidq process, and compensation refuses to overwrite managed values it does not
+  recognize as the prior or attempted state. DataHub exposes no compare-and-swap
+  across these tools, so cross-process writers can still race when their states
+  are indistinguishable, and a failed compensation call can leave partial state.
+  Sidq therefore does not describe the sequence as atomic.
+- A mutation acknowledgement is not success: Sidq polls `get_entities` directly
+  with bounded backoff until the exact structured Receipt is visible. Timeout or
+  mismatch is `write_unconfirmed`, not a written Receipt. No feedback loops.
 - In an opted-in writeback run, a `BLOCK` verdict is eligible for a receipt too.
   Recording a refusal is the whole thesis — writing
   only on success would be vanity.

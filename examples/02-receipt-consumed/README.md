@@ -12,8 +12,9 @@ namespace and the `sidq:verified` / `sidq:blocked` badges.
 > `src/sidq/policy/default_policy.yaml`, so every policy change gives a new one.
 > This run predates the constraint-reconciliation and `partial_blast_radius`
 > rules, so re-running it today yields a different `policy_hash` — a receipt
-> pinned to a policy that has since changed is exactly what
-> `search_verified` and the `sidq verify <urn>` CLI path are built to detect. The
+> pinned to a policy that has since changed is exactly what the independent
+> `sidq verify <urn>` CLI path is built to detect. `search_verified` uses the
+> separate Sidq MCP verification store; it does not read DataHub Receipts. The
 > transcript is kept verbatim rather than rewritten, because editing a recorded
 > live run to match today's code would destroy the only thing it proves.
 > `tests/test_receipt.py` fails if this paragraph is removed while the transcript
