@@ -49,6 +49,7 @@ REPO = ROOT.parent
 VENV_ROOT = Path(os.environ.get("SIDQ_VENV_DIR", str(REPO / ".venv")))
 VENV = VENV_ROOT / "bin"
 RUNTIME = Path(os.environ.get("SIDQ_RUNTIME_DIR", str(REPO)))
+_RUNTIME_LOCK_ARGUMENT = f"--old-file={VENV_ROOT / '.sidq-dev-lock'}"
 TIMEOUT_SECONDS = 240
 COOLDOWN_SECONDS = 30
 CLIENT_WINDOW_SECONDS = 10 * 60
@@ -123,7 +124,7 @@ RUNNABLE: dict[str, tuple[str, tuple[str, ...]]] = {
             "Re-derive the published verdict from the committed graph recording. "
             "Offline: no DataHub, no network, no credentials."
         ),
-        ("make", "gate-demo"),
+        ("make", _RUNTIME_LOCK_ARGUMENT, "gate-demo"),
     ),
     "audit": (
         (
@@ -154,7 +155,7 @@ RUNNABLE: dict[str, tuple[str, tuple[str, ...]]] = {
             "Measure documented field claims against the live source with bounded "
             "read-only SQL; query results remain on this host."
         ),
-        ("make", "claims-demo"),
+        ("make", _RUNTIME_LOCK_ARGUMENT, "claims-demo"),
     ),
 }
 
@@ -197,9 +198,38 @@ def _truncate_output(output: str) -> str:
     return prefix.decode("utf-8", errors="ignore") + TRUNCATION_MARKER
 
 
+def _redact_credentials(value: str, credentials: set[str]) -> str:
+    """Redact every credential span, including partially overlapping values."""
+    spans: list[tuple[int, int]] = []
+    for credential in credentials:
+        start = 0
+        while (match := value.find(credential, start)) != -1:
+            spans.append((match, match + len(credential)))
+            start = match + 1
+    if not spans:
+        return value
+
+    merged: list[tuple[int, int]] = []
+    for start, end in sorted(spans):
+        if merged and start <= merged[-1][1]:
+            previous_start, previous_end = merged[-1]
+            merged[-1] = (previous_start, max(previous_end, end))
+        else:
+            merged.append((start, end))
+
+    parts: list[str] = []
+    cursor = 0
+    for start, end in merged:
+        parts.extend((value[cursor:start], "[redacted]"))
+        cursor = end
+    parts.append(value[cursor:])
+    return "".join(parts)
+
+
 def _sanitize_public_text(value: str) -> str:
     """Remove host topology from the response without changing command behavior."""
-    sanitized = value.replace(str(REPO), "<repository>")
+    sanitized = value
+    credentials: set[str] = set()
     for path_variable in ("SIDQ_DATAHUB_TOKEN_FILE", "SIDQ_CLAIMS_DSN_FILE"):
         path = os.environ.get(path_variable)
         if not path:
@@ -209,7 +239,12 @@ def _sanitize_public_text(value: str) -> str:
         except (OSError, UnicodeError):
             continue
         if credential:
-            sanitized = sanitized.replace(credential, "[redacted]")
+            credentials.add(credential)
+    sanitized = _redact_credentials(sanitized, credentials)
+    runtime_paths = {path for path in (VENV_ROOT, RUNTIME) if path != REPO}
+    for path in sorted(runtime_paths, key=lambda item: len(str(item)), reverse=True):
+        sanitized = sanitized.replace(str(path), "[runtime]")
+    sanitized = sanitized.replace(str(REPO), "<repository>")
     gms_url = os.environ.get("DATAHUB_GMS_URL", "http://localhost:8080").rstrip("/")
     if gms_url:
         sanitized = sanitized.replace(gms_url, "[internal DataHub endpoint]")
@@ -217,9 +252,12 @@ def _sanitize_public_text(value: str) -> str:
 
 
 def _public_command(argv: tuple[str, ...]) -> str:
-    public_argv = (
-        ("sidq", *argv[1:]) if argv and argv[0] == str(VENV / "sidq") else argv
-    )
+    if argv and argv[0] == str(VENV / "sidq"):
+        public_argv = ("sidq", *argv[1:])
+    elif argv and argv[0] == "make":
+        public_argv = tuple(arg for arg in argv if arg != _RUNTIME_LOCK_ARGUMENT)
+    else:
+        public_argv = argv
     return shlex.join(public_argv)
 
 

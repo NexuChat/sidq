@@ -721,6 +721,28 @@ def test_command_environments_are_allowlisted_and_credentials_are_scoped(
     )
 
 
+def test_hosted_make_demos_never_rebuild_or_expose_the_shared_runtime(
+    monkeypatch,
+) -> None:
+    from web import server
+
+    runtime_lock = f"--old-file={server.VENV_ROOT / '.sidq-dev-lock'}"
+    for name, target in (("gate-demo", "gate-demo"), ("claims", "claims-demo")):
+        argv = server.RUNNABLE[name][1]
+        assert argv == ("make", runtime_lock, target)
+        assert server._public_command(argv) == f"make {target}"
+
+    internal_venv = Path("/internal-review/runtime/venv")
+    internal_runtime = Path("/internal-review/runtime")
+    monkeypatch.setattr(server, "VENV_ROOT", internal_venv)
+    monkeypatch.setattr(server, "RUNTIME", internal_runtime)
+    sanitized = server._sanitize_public_text(
+        f"make: {internal_venv}/bin/python missing; cache={internal_runtime}/cache"
+    )
+    assert str(internal_venv) not in sanitized
+    assert str(internal_runtime) not in sanitized
+
+
 def test_claims_source_is_not_published_or_passed_in_process_arguments() -> None:
     from web import server
 
@@ -749,16 +771,36 @@ def test_public_output_redacts_credential_file_values_and_tolerates_missing_file
     claims_file = tmp_path / "claims-dsn"
     token_file.write_text("token-value\n", encoding="utf-8")
     claims_file.write_text(
-        "postgresql://reader:dsn-value@warehouse/db\n", encoding="utf-8"
+        "postgresql://reader:token-value@warehouse/db\n", encoding="utf-8"
     )
     monkeypatch.setenv("SIDQ_DATAHUB_TOKEN_FILE", str(token_file))
     monkeypatch.setenv("SIDQ_CLAIMS_DSN_FILE", str(claims_file))
 
     output = server._sanitize_public_text(
-        "token-value postgresql://reader:dsn-value@warehouse/db"
+        "token-value postgresql://reader:token-value@warehouse/db"
     )
 
     assert output == "[redacted] [redacted]"
+
+    token_file.write_text("AAAAAAAAAAZ\n", encoding="utf-8")
+    claims_file.write_text("ZBBBBBBBBBB\n", encoding="utf-8")
+    partially_overlapping_output = server._sanitize_public_text("AAAAAAAAAAZBBBBBBBBBB")
+
+    assert partially_overlapping_output == "[redacted]"
+
+    internal_runtime = Path("/internal-review/runtime")
+    overlapping_credential = (
+        "host=/internal-review/runtime/socket user=reader password=top-secret"
+    )
+    monkeypatch.setattr(server, "RUNTIME", internal_runtime)
+    claims_file.write_text(f"{overlapping_credential}\n", encoding="utf-8")
+
+    overlapping_output = server._sanitize_public_text(
+        f"connect failed: {overlapping_credential}"
+    )
+
+    assert overlapping_output == "connect failed: [redacted]"
+    assert "top-secret" not in overlapping_output
 
     claims_file.unlink()
     assert server._sanitize_public_text("ordinary error") == "ordinary error"
