@@ -13,8 +13,10 @@ without any network is that the prose and the committed artifact still agree.
 from __future__ import annotations
 
 import gzip
+import hashlib
 import json
 import re
+import shutil
 import struct
 import subprocess
 import sys
@@ -315,6 +317,31 @@ def test_the_test_count_in_the_judge_runbook_is_the_real_one() -> None:
         "Update the runbook table."
     )
 
+    outcome = re.search(
+        r"(\d[\d,]*) passed, (\d[\d,]*) optional integrations skipped, "
+        r"with ([\d.]+)% branch coverage",
+        text,
+    )
+    assert outcome, "the judge runbook no longer states pass, skip, and coverage data"
+    passed = int(outcome.group(1).replace(",", ""))
+    skipped = int(outcome.group(2).replace(",", ""))
+    coverage = outcome.group(3)
+    assert passed + skipped == actual
+
+    qa = (ROOT / "docs/QA-RESULTS.md").read_text(encoding="utf-8")
+    claims = (ROOT / "docs/CLAIMS-MATRIX.md").read_text(encoding="utf-8")
+    audit = (ROOT / "docs/SECURITY-AUDIT.md").read_text(encoding="utf-8")
+    normalized_qa = " ".join(qa.split())
+    normalized_claims = " ".join(claims.split())
+    normalized_audit = " ".join(audit.split())
+    assert f"{passed} passed" in normalized_qa
+    assert f"{skipped} optional integration tests skipped" in normalized_qa
+    assert f"{passed} pass" in normalized_claims
+    assert f"{skipped} optional integrations skip" in normalized_claims
+    assert f"{passed} passed, {skipped} skipped" in normalized_audit
+    for evidence in (qa, claims, audit):
+        assert f"{coverage}%" in evidence
+
 
 def test_the_landing_page_can_only_run_read_only_commands() -> None:
     """The page runs commands on the host, so what it *can* run is a guarded set.
@@ -508,7 +535,8 @@ def test_the_operations_runbook_covers_probe_release_and_rollback() -> None:
         "systemctl restart sidq-landing",
         "/opt/sidq/releases/<SHA>",
         "/opt/sidq/current",
-        "ln -sfn",
+        'sudo ln -s "releases/$release_sha"',
+        'sudo ln -s "releases/$rollback_sha"',
         "mv -Tf",
         ".sidq-dev-lock",
         "git rev-parse HEAD",
@@ -523,21 +551,59 @@ def test_the_operations_runbook_covers_probe_release_and_rollback() -> None:
     release = runbook.split("## Release", 1)[1].split("## Configuration and logs", 1)[0]
     rollback = runbook.split("## Rollback", 1)[1]
     for procedure in (release, rollback):
-        switch_at = procedure.index("ln -sfn")
-        touch_at = procedure.index("touch /opt/sidq/runtime/venv/.sidq-dev-lock")
-        freshness_at = procedure.index("-nt /opt/sidq/current/requirements-dev.lock")
+        switch_at = procedure.index("sudo ln -s")
         before_restart, restart, _ = procedure.partition(
             "systemctl restart sidq-landing"
         )
         assert restart
-        assert procedure.count("cmp --silent") >= 3
-        assert procedure.rindex("cmp --silent") < switch_at < touch_at < freshness_at
-        assert freshness_at < len(before_restart)
+        assert procedure.rindex("cmp --silent") < switch_at < len(before_restart)
+        assert "ln -sfn" not in procedure
+        assert "touch /opt/sidq/runtime/venv/.sidq-dev-lock" not in procedure
+        assert "-nt /opt/sidq/current/" not in procedure
         for prerequisite in ("requirements-dev.lock", "pyproject.toml", "uv.lock"):
             assert prerequisite in procedure[:switch_at]
-            assert f"-nt /opt/sidq/current/{prerequisite}" in before_restart
+            assert f"/opt/sidq/runtime/{prerequisite}" in procedure[:switch_at]
         assert "STOP" in procedure[:switch_at]
         assert "docs/SETUP.md" in procedure[:switch_at]
+
+    normalized_release = " ".join(release.replace("\\\n", "").split())
+    normalized_rollback = " ".join(rollback.replace("\\\n", "").split())
+    for compatibility_input in (
+        "requirements-dev.lock",
+        "pyproject.toml",
+        "uv.lock",
+        "requirements-landing.lock",
+        "requirements-mcp.lock",
+    ):
+        assert (
+            f'sudo cmp --silent "$release_dir/{compatibility_input}" '
+            f"/opt/sidq/runtime/{compatibility_input}" in normalized_release
+        )
+        assert (
+            f'sudo cmp --silent "$target_release/{compatibility_input}" '
+            f"/opt/sidq/runtime/{compatibility_input}" in normalized_rollback
+        )
+
+    staging_at = release.index(
+        'staging_dir=$(sudo mktemp -d "/opt/sidq/releases/.${release_sha}.XXXXXX")'
+    )
+    archive_at = release.index('git archive "$release_sha"')
+    immutable_at = release.index('sudo chmod -R a-w,a+rX "$staging_dir"')
+    exact_tree_at = release.index("diff --recursive --brief --no-dereference")
+    final_path_move_at = release.index('sudo mv -T "$staging_dir" "$release_dir"')
+    compatibility_at = release.index(
+        'sudo cmp --silent "$release_dir/requirements-landing.lock"'
+    )
+    switch_at = release.index('sudo ln -s "releases/$release_sha"')
+    assert (
+        staging_at
+        < archive_at
+        < immutable_at
+        < exact_tree_at
+        < final_path_move_at
+        < compatibility_at
+        < switch_at
+    )
 
     assert "previous_release=$(readlink -f /opt/sidq/current)" in release
     assert "runtime_compatible_release=$(readlink -f /opt/sidq/current)" in rollback
@@ -576,6 +642,93 @@ def test_the_video_runbook_fits_the_limit_and_leads_with_the_handoff() -> None:
     )
     assert upload_action in normalized_video
     assert "- [x] verify the uploaded public video" not in normalized_video
+
+    expected_sha = "0811a494c3ee6f78f907c3f2d14908ca18df403d81e38d63093cfa7dab46beef"
+    expected_size = 29_636_338
+    expected_duration = 169.216
+    expected_frames = 5_075
+    expected_cues = 54
+    for evidence_path in (
+        ROOT / "README.md",
+        ROOT / "docs/DEVPOST.md",
+        ROOT / "docs/CLAIMS-MATRIX.md",
+        ROOT / "docs/QA-RESULTS.md",
+    ):
+        assert expected_sha in evidence_path.read_text(encoding="utf-8")
+    assert expected_sha in video
+    for claim in (
+        "29,636,338 bytes",
+        "169.216 seconds",
+        "5,075 frames",
+        "54 ordered cues",
+    ):
+        assert claim in video
+
+    artifact = Path("/home/dev/sidq-video/artifacts/video/sidq-final-en.mp4")
+    if artifact.is_file():
+        assert artifact.stat().st_size == expected_size
+        digest = hashlib.sha256()
+        with artifact.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(chunk)
+        assert digest.hexdigest() == expected_sha
+
+        ffprobe = shutil.which("ffprobe")
+        assert ffprobe, "ffprobe is required when the local release artifact exists"
+        completed = subprocess.run(
+            [
+                ffprobe,
+                "-v",
+                "error",
+                "-count_frames",
+                "-show_entries",
+                (
+                    "format=duration,size:"
+                    "stream=codec_type,codec_name,profile,pix_fmt,width,height,"
+                    "r_frame_rate,nb_read_frames,sample_rate,channels"
+                ),
+                "-of",
+                "json",
+                str(artifact),
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        probe = json.loads(completed.stdout)
+        assert int(probe["format"]["size"]) == expected_size
+        assert float(probe["format"]["duration"]) == pytest.approx(
+            expected_duration, abs=0.001
+        )
+        video_stream = next(
+            stream for stream in probe["streams"] if stream["codec_type"] == "video"
+        )
+        audio_stream = next(
+            stream for stream in probe["streams"] if stream["codec_type"] == "audio"
+        )
+        assert (video_stream["width"], video_stream["height"]) == (1920, 1080)
+        assert video_stream["codec_name"] == "h264"
+        assert video_stream["profile"] == "High"
+        assert video_stream["pix_fmt"] == "yuv420p"
+        assert video_stream["r_frame_rate"] == "30/1"
+        assert int(video_stream["nb_read_frames"]) == expected_frames
+        assert audio_stream["codec_name"] == "aac"
+        assert audio_stream["profile"] == "LC"
+        assert audio_stream["sample_rate"] == "48000"
+        assert audio_stream["channels"] == 2
+
+        ffmpeg = shutil.which("ffmpeg")
+        assert ffmpeg, "ffmpeg is required when the local release artifact exists"
+        subprocess.run(
+            [ffmpeg, "-v", "error", "-xerror", "-i", str(artifact), "-f", "null", "-"],
+            capture_output=True,
+            check=True,
+        )
+
+        captions = artifact.with_name("sidq-demo.en.srt")
+        assert captions.is_file()
+        cue_count = len(re.findall(r"(?m)^\d+$", captions.read_text(encoding="utf-8")))
+        assert cue_count == expected_cues
 
 
 def test_the_browser_qa_record_covers_every_live_journey_and_viewport() -> None:
