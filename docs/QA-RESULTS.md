@@ -31,7 +31,7 @@ All 5/5 fixed POST paths returned HTTP 200 through the public TLS route:
 | `handoff` | Exit 0; a separate read returns `VERIFIED` with receipt time, policy hash, verifier, and evidence document. |
 | `gate-demo` | Exit 0; the expected committed `BLOCK` verdict is re-derived byte-identically. |
 | `audit` | Exit 1 by design; 5 assets examined, 4 findings, 5 unverifiable checks, and 4 `unowned_consumed` assets. |
-| `repair` | Exit 1 by design; dry run with 1 proposed, 1 proven, 0 rejected, and nothing written. |
+| `repair` | Exit 1 by design; catalog-dependent snapshot with 1 proposed, 0 proven, 1 rejected, 11 findings still standing, and nothing written. The live catalog lacked complete lineage, so the proposal failed closed instead of being called safe. |
 | `claims` | Exit 0; 6 documented fields, 4 claims proposed, 4 tested, 1 violated, and 3 holding produce `WARN`. |
 
 The server disables every run button while a command is active. Its runnable set

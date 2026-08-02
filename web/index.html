@@ -373,7 +373,7 @@ SIDQ_REPO_ROOT = "/absolute/path/to/data-repository"</code></pre>
           <li class="trace-item">
             <span class="trace-index">05</span>
             <span class="trace-type">Repair agent</span>
-            <span class="trace-asset"><strong>Refuses the plausible fix.</strong><code>sidq repair</code> — rejected the one-column fix (it moves the leak); shipped the 6-column closure the engine re-proved. Four of six checks: no proposal, reasons recorded.</span>
+            <span class="trace-asset"><strong>Refuses the plausible fix.</strong><code>sidq repair</code> — in the complete-lineage regression, rejects the one-column fix and re-proves the 6-column closure. The live catalog stays separate and fails closed when lineage is incomplete; the latest QA snapshot was 1 proposed, 0 proven, 1 rejected, with no write.</span>
             <span class="trace-arrow" aria-hidden="true">—</span>
           </li>
         </ol>
@@ -428,7 +428,7 @@ SIDQ_REPO_ROOT = "/absolute/path/to/data-repository"</code></pre>
           </div>
           <div class="qa">
             <dt>Cost</dt>
-            <dd><strong>Zero API fees, explicit compute.</strong> Open source and self-hosted. Gate, audit, repair, and swarm do not call a model; the optional reader runs locally. MCP time is budgeted per run — and work done once is never re-paid while its receipt holds.</dd>
+            <dd><strong>Zero API fees, explicit compute.</strong> Open source and self-hosted. Gate, audit, repair, and swarm do not call a model; the optional reader runs locally. MCP time is budgeted per run. A valid Receipt can avoid repeat work; concurrent workers may still duplicate an examination because the protocol is at-least-once, not exactly-once.</dd>
           </div>
         </dl>
       </section>
