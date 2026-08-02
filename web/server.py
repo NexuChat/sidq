@@ -90,6 +90,7 @@ COMMAND_ENV_ALLOWLIST = frozenset(
         "LOGURU_LEVEL",
         "PATH",
         "PYTHONUNBUFFERED",
+        "PYTHONPATH",
         "SENTENCE_TRANSFORMERS_HOME",
         "TOKENIZERS_PARALLELISM",
         "TRANSFORMERS_OFFLINE",
@@ -342,6 +343,45 @@ def _client_identity(peer: str, headers: object) -> str | None:
         except ValueError:
             pass
     return None
+
+
+def _https_redirect_target(peer: str, headers: object, target: str) -> str | None:
+    """Return a canonical HTTPS target only for explicit, trusted proxy metadata."""
+    try:
+        peer_ip = ipaddress.ip_address(peer)
+    except ValueError:
+        return None
+    if not _trusted_proxy(peer_ip):
+        return None
+
+    get_header = getattr(headers, "get", lambda *_: None)
+    forwarded_proto = get_header("X-Forwarded-Proto")
+    host = get_header("Host")
+    if not isinstance(forwarded_proto, str) or not isinstance(host, str):
+        return None
+    if forwarded_proto.strip().casefold() != "http":
+        return None
+
+    allowed_origin = next(
+        (
+            urllib.parse.urlsplit(origin)
+            for origin in _allowed_origins()
+            if urllib.parse.urlsplit(origin).scheme == "https"
+            and urllib.parse.urlsplit(origin).netloc.casefold()
+            == host.strip().casefold()
+        ),
+        None,
+    )
+    if allowed_origin is None:
+        return None
+
+    requested = urllib.parse.urlsplit(target)
+    path = requested.path or "/"
+    if not path.startswith("/"):
+        return None
+    return urllib.parse.urlunsplit(
+        ("https", allowed_origin.netloc, path, requested.query, "")
+    )
 
 
 def _request_is_same_origin(headers: object) -> bool:
@@ -617,6 +657,9 @@ def _command_environment(name: str) -> dict[str, str]:
             f"{VENV}:{RUNTIME / 'mcp' / 'bin'}:/usr/local/bin:/usr/bin:/bin",
         ),
         "PYTHONUNBUFFERED": "1",
+        # Dependencies come from the hash-locked runtime, while application code
+        # must always come from the exact immutable release served by this process.
+        "PYTHONPATH": str(REPO / "src"),
         "VENV": str(VENV_ROOT),
     }
     if name in {"audit", "repair", "handoff", "claims"}:
@@ -701,7 +744,20 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self.send_header(name, value)
         super().end_headers()
 
+    def _redirect_forwarded_http(self) -> bool:
+        target = _https_redirect_target(self.client_address[0], self.headers, self.path)
+        if target is None:
+            return False
+        self.send_response(308)
+        self.send_header("Location", target)
+        self.send_header("Content-Length", "0")
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        return True
+
     def do_GET(self) -> None:
+        if self._redirect_forwarded_http():
+            return
         parsed_path = urllib.parse.urlsplit(self.path)
         if parsed_path.path == "/healthz":
             self._json(200, _health_payload())
@@ -730,7 +786,14 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             return
         super().do_GET()
 
+    def do_HEAD(self) -> None:
+        if self._redirect_forwarded_http():
+            return
+        super().do_HEAD()
+
     def do_POST(self) -> None:
+        if self._redirect_forwarded_http():
+            return
         name = self.path.removeprefix("/run/").strip("/")
         if not self.path.startswith("/run/") or name not in RUNNABLE:
             self._json(404, {"error": "no such command"})

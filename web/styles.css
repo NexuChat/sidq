@@ -1725,6 +1725,10 @@ footer {
 }
 
 @media (max-width: 340px) {
+  .masthead {
+    min-height: 52px;
+  }
+
   .hero {
     padding: 10px 0;
   }
@@ -1738,12 +1742,24 @@ footer {
   }
 
   .trust-loop {
-    padding: 14px 0;
+    padding: 10px 0;
   }
 
   .trust-path li,
   .trust-path li:last-child {
-    min-height: 60px;
+    min-height: 52px;
+  }
+
+  .verdict {
+    padding: 20px 0 32px;
+  }
+
+  .verdict-head {
+    gap: 12px;
+  }
+
+  .finding {
+    padding: 8px 0;
   }
 }
 

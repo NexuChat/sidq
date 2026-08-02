@@ -681,6 +681,11 @@ def test_command_environments_are_allowlisted_and_credentials_are_scoped(
     claims = datahub_environments["claims"]
 
     assert "UNRELATED_AMBIENT_SECRET" not in gate | audit | claims
+    assert gate["PYTHONPATH"] == str(server.REPO / "src")
+    assert all(
+        environment["PYTHONPATH"] == str(server.REPO / "src")
+        for environment in datahub_environments.values()
+    )
     assert "DATAHUB_GMS_TOKEN" not in gate and "CLAIMS_SOURCE" not in gate
     assert all(
         environment["DATAHUB_GMS_TOKEN"] == "reader-secret"
@@ -1030,6 +1035,70 @@ def test_readiness_endpoint_serves_status_json_and_security_headers_over_loopbac
     assert response.getheader("Cache-Control") == "no-store"
     for name, value in server.SECURITY_HEADERS.items():
         assert response.getheader(name) == value
+
+
+@pytest.mark.parametrize("method", ("GET", "HEAD", "POST"))
+def test_trusted_proxy_http_requests_redirect_to_the_allowed_https_origin(
+    monkeypatch, method: str
+) -> None:
+    from web import server
+
+    monkeypatch.setenv("SIDQ_TRUSTED_PROXIES", "127.0.0.1/32")
+    monkeypatch.setenv("SIDQ_ALLOWED_ORIGINS", "https://sidq.mlki.app")
+
+    with server.Server(("127.0.0.1", 0), server.Handler) as service:
+        thread = threading.Thread(target=service.serve_forever, daemon=True)
+        thread.start()
+        connection = http.client.HTTPConnection(*service.server_address, timeout=2)
+        try:
+            connection.request(
+                method,
+                "/proof?source=http",
+                headers={
+                    "Host": "sidq.mlki.app",
+                    "X-Forwarded-Proto": "http",
+                },
+            )
+            response = connection.getresponse()
+            response.read()
+        finally:
+            connection.close()
+            service.shutdown()
+            thread.join(timeout=2)
+
+    assert response.status == 308
+    assert response.getheader("Location") == "https://sidq.mlki.app/proof?source=http"
+    assert response.getheader("Cache-Control") == "no-store"
+    for name, value in server.SECURITY_HEADERS.items():
+        assert response.getheader(name) == value
+
+
+@pytest.mark.parametrize(
+    ("trusted_proxies", "host", "forwarded_proto"),
+    (
+        ("198.51.100.0/24", "sidq.mlki.app", "http"),
+        ("127.0.0.1/32", "attacker.example", "http"),
+        ("127.0.0.1/32", "sidq.mlki.app.attacker.test", "http"),
+        ("127.0.0.1/32", "sidq.mlki.app", "https"),
+        ("127.0.0.1/32", "sidq.mlki.app", "http, https"),
+    ),
+)
+def test_https_redirect_ignores_untrusted_or_ambiguous_forwarding_metadata(
+    monkeypatch, trusted_proxies: str, host: str, forwarded_proto: str
+) -> None:
+    from web import server
+
+    monkeypatch.setenv("SIDQ_TRUSTED_PROXIES", trusted_proxies)
+    monkeypatch.setenv("SIDQ_ALLOWED_ORIGINS", "https://sidq.mlki.app")
+
+    assert (
+        server._https_redirect_target(
+            "127.0.0.1",
+            {"Host": host, "X-Forwarded-Proto": forwarded_proto},
+            "/proof?source=http",
+        )
+        is None
+    )
 
 
 def test_landing_uses_a_hardened_external_script_and_progress_text() -> None:
