@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import gzip
 import json
 from pathlib import Path
 
@@ -35,6 +36,24 @@ def test_generator_is_deterministic_for_a_fixed_seed(tmp_path: Path) -> None:
     generate_mutations.write_records(second, _records(seed=7))
 
     assert first.read_bytes() == second.read_bytes()
+
+
+def test_regression_artifact_packaging_is_compact_and_deterministic(
+    tmp_path: Path,
+) -> None:
+    records = [
+        {"id": "b", "verdict": "PASS", "context": {}},
+        {"id": "a", "verdict": "BLOCK", "context": {}},
+    ]
+    first = tmp_path / "first.jsonl.gz"
+    second = tmp_path / "second.jsonl.gz"
+
+    label_mutations.write_regression_artifact(first, records)
+    label_mutations.write_regression_artifact(second, reversed(records))
+
+    assert first.read_bytes() == second.read_bytes()
+    with gzip.open(first, mode="rt", encoding="utf-8") as handle:
+        assert [json.loads(line)["id"] for line in handle] == ["a", "b"]
 
 
 def test_benign_mutation_keeps_output_columns_and_drop_removes_one() -> None:
@@ -107,3 +126,27 @@ def test_context_is_limited_to_fast_prefilter_inputs(tmp_path: Path) -> None:
         & set(labelled["context"])
     )
     json.dumps(labelled, sort_keys=True)
+
+
+def test_report_does_not_restore_superseded_pii_exposure_as_an_active_rule() -> None:
+    report = label_mutations.build_report(
+        (
+            {
+                "id": "no-radius",
+                "family": "drop_selected_column",
+                "model_path": "models/orders.sql",
+                "intent": "harmful",
+                "verdict": "PASS",
+                "rule_ids": [],
+                "context": {"downstream_count": 0},
+                "diff": "",
+            },
+        )
+    )
+
+    assert "`pii_exposure`, `critical_downstream`, `wide_blast_radius`" not in report
+    assert (
+        "`pii_exposure` remains policy-supported only for explicit proven route evidence"
+        in report
+    )
+    assert "the former built-in blast inference is superseded" in report

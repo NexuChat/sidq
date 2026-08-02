@@ -6,20 +6,38 @@ import json
 import os
 import queue
 import threading
+import time
 from collections.abc import Callable, Mapping, Sequence
-from concurrent.futures import Future
+from concurrent.futures import Future, InvalidStateError
 from dataclasses import replace
 from typing import Any
 
 from .build import Receipt
+from .read import _sidq_values, _single_entity, decision_context_hash
 
 ToolCaller = Callable[[str, Mapping[str, Any]], Any]
+Clock = Callable[[], float]
+Sleeper = Callable[[float], None]
+
+_CONFIRMATION_TIMEOUT_SECONDS = 8.0
+_CONFIRMATION_INITIAL_DELAY_SECONDS = 0.1
+_CONFIRMATION_MAX_DELAY_SECONDS = 1.0
+# Compensation has its own bound: long enough for ordinary MCP/DataHub latency,
+# but finite so a failed confirmation cannot make the caller hang indefinitely.
+_ROLLBACK_READ_TIMEOUT_SECONDS = 2.0
 
 _BADGE_BY_VERDICT = {
     "PASS": "urn:li:tag:sidq:verified",
     "WARN": "urn:li:tag:sidq:verified",
     "BLOCK": "urn:li:tag:sidq:blocked",
 }
+_MANAGED_BADGES = frozenset(_BADGE_BY_VERDICT.values())
+_SIDQ_PROPERTY_PREFIX = "urn:li:structuredProperty:sidq."
+_URN_WRITE_LOCKS = tuple(threading.Lock() for _ in range(64))
+
+
+class ReceiptWriteUnconfirmed(RuntimeError):
+    """The mutations returned, but the exact receipt was not readable in time."""
 
 
 class StdioMCPReceiptToolCaller:
@@ -43,21 +61,40 @@ class StdioMCPReceiptToolCaller:
             "DATAHUB_GMS_URL", "http://localhost:8080"
         )
         self._requests: queue.Queue[
-            tuple[str, Mapping[str, Any], Future[Any]] | None
+            tuple[str, Mapping[str, Any], Future[Any], float | None] | None
         ] = queue.Queue()
         self._thread: threading.Thread | None = None
         self._startup: Future[None] = Future()
 
     def __call__(self, name: str, arguments: Mapping[str, Any]) -> Any:
+        return self._call(name, arguments, deadline=None)
+
+    def call_with_timeout(
+        self, name: str, arguments: Mapping[str, Any], *, timeout: float
+    ) -> Any:
+        """Call one tool without letting it block the shared MCP session forever."""
+        if timeout < 0:
+            raise ValueError("timeout must be non-negative")
+        return self._call(name, arguments, deadline=time.monotonic() + timeout)
+
+    def _call(
+        self, name: str, arguments: Mapping[str, Any], *, deadline: float | None
+    ) -> Any:
         if self._thread is None:
             self._thread = threading.Thread(
                 target=self._run, name="sidq-receipt-mcp", daemon=True
             )
             self._thread.start()
-            self._startup.result()
+        startup_timeout = _remaining_seconds(deadline)
+        self._startup.result(timeout=startup_timeout)
         result: Future[Any] = Future()
-        self._requests.put((name, dict(arguments), result))
-        return result.result()
+        self._requests.put((name, dict(arguments), result, deadline))
+        try:
+            return result.result(timeout=_remaining_seconds(deadline))
+        except TimeoutError:
+            if not result.done():
+                result.cancel()
+            raise
 
     def _run(self) -> None:
         import anyio
@@ -73,13 +110,7 @@ class StdioMCPReceiptToolCaller:
         from mcp import ClientSession
         from mcp.client.stdio import StdioServerParameters, stdio_client
 
-        environment = {
-            **os.environ,
-            "DATAHUB_GMS_URL": self._gms_url,
-            "DATAHUB_TELEMETRY_ENABLED": "false",
-            "TOOLS_IS_MUTATION_ENABLED": "true",
-            "LOGURU_LEVEL": "WARNING",
-        }
+        environment = _mcp_subprocess_environment(self._gms_url)
         parameters = StdioServerParameters(
             command=self._command, args=list(self._args), env=environment
         )
@@ -90,9 +121,21 @@ class StdioMCPReceiptToolCaller:
             await session.initialize()
             self._startup.set_result(None)
             while request := await anyio.to_thread.run_sync(self._requests.get):
-                name, arguments, result = request
+                name, arguments, result, deadline = request
+                if result.cancelled():
+                    continue
+                timeout = _remaining_seconds(deadline)
+                if timeout is not None and timeout <= 0:
+                    _set_future_exception_if_pending(
+                        result, TimeoutError(f"MCP {name} request timed out")
+                    )
+                    continue
                 try:
-                    response = await session.call_tool(name, dict(arguments))
+                    if timeout is None:
+                        response = await session.call_tool(name, dict(arguments))
+                    else:
+                        with anyio.fail_after(timeout):
+                            response = await session.call_tool(name, dict(arguments))
                     is_error = getattr(response, "is_error", None)
                     if is_error is None:
                         is_error = getattr(response, "isError", False)
@@ -103,21 +146,63 @@ class StdioMCPReceiptToolCaller:
                     if structured is None:
                         structured = getattr(response, "structuredContent", None)
                     if structured is not None:
-                        result.set_result(structured)
+                        _set_future_result_if_pending(result, structured)
                     else:
                         text = next(
                             (text for text in _text_messages(response.content)),
                             "{}",
                         )
-                        result.set_result(json.loads(text))
+                        _set_future_result_if_pending(result, json.loads(text))
                 except Exception as error:  # noqa: BLE001 - relay every MCP tool failure through its Future
-                    result.set_exception(error)
+                    _set_future_exception_if_pending(result, error)
 
     def close(self) -> None:
         if self._thread is not None:
             self._requests.put(None)
             self._thread.join(timeout=5)
         self._thread = None
+
+
+def _remaining_seconds(deadline: float | None) -> float | None:
+    if deadline is None:
+        return None
+    return max(deadline - time.monotonic(), 0.0)
+
+
+def _set_future_result_if_pending(result: Future[Any], value: Any) -> None:
+    if result.cancelled():
+        return
+    try:
+        result.set_result(value)
+    except InvalidStateError:
+        if not result.cancelled():
+            raise
+
+
+def _set_future_exception_if_pending(result: Future[Any], error: BaseException) -> None:
+    if result.cancelled():
+        return
+    try:
+        result.set_exception(error)
+    except InvalidStateError:
+        if not result.cancelled():
+            raise
+
+
+def _mcp_subprocess_environment(gms_url: str) -> dict[str, str]:
+    """Return only the environment needed by the receipt-writing MCP child."""
+    environment = {
+        "DATAHUB_GMS_URL": gms_url,
+        "DATAHUB_TELEMETRY_ENABLED": "false",
+        "HOME": "/tmp",
+        "LANG": os.environ.get("LANG", "C.UTF-8"),
+        "LOGURU_LEVEL": "WARNING",
+        "PATH": os.environ.get("PATH", "/usr/local/bin:/usr/bin:/bin"),
+        "TOOLS_IS_MUTATION_ENABLED": "true",
+    }
+    if token := os.environ.get("DATAHUB_GMS_TOKEN"):
+        environment["DATAHUB_GMS_TOKEN"] = token
+    return environment
 
 
 def _text_messages(contents: Sequence[object]) -> list[str]:
@@ -130,44 +215,379 @@ def _text_messages(contents: Sequence[object]) -> list[str]:
     ]
 
 
-def write_receipt(receipt: Receipt, tool_caller: ToolCaller) -> dict[str, Any]:
+def write_receipt(
+    receipt: Receipt,
+    tool_caller: ToolCaller,
+    *,
+    confirmation_timeout: float = _CONFIRMATION_TIMEOUT_SECONDS,
+    confirmation_initial_delay: float = _CONFIRMATION_INITIAL_DELAY_SECONDS,
+    confirmation_max_delay: float = _CONFIRMATION_MAX_DELAY_SECONDS,
+    monotonic: Clock = time.monotonic,
+    sleep: Sleeper = time.sleep,
+) -> dict[str, Any]:
     """Write evidence, queryable fields, and a visible badge through MCP.
 
     The document is saved first so its returned URN becomes the evidence link on
     a receipt that did not already have an externally supplied evidence URL.
     """
 
+    with _write_lock_for(receipt.urn):
+        return _write_receipt_under_lock(
+            receipt,
+            tool_caller,
+            confirmation_timeout=confirmation_timeout,
+            confirmation_initial_delay=confirmation_initial_delay,
+            confirmation_max_delay=confirmation_max_delay,
+            monotonic=monotonic,
+            sleep=sleep,
+        )
+
+
+def _write_lock_for(urn: str) -> threading.Lock:
+    return _URN_WRITE_LOCKS[hash(urn) % len(_URN_WRITE_LOCKS)]
+
+
+def _write_receipt_under_lock(
+    receipt: Receipt,
+    tool_caller: ToolCaller,
+    *,
+    confirmation_timeout: float,
+    confirmation_initial_delay: float,
+    confirmation_max_delay: float,
+    monotonic: Clock,
+    sleep: Sleeper,
+) -> dict[str, Any]:
+
+    entity = _single_entity(
+        tool_caller("get_entities", {"urns": [receipt.urn]}), receipt.urn
+    )
+    existing_sidq_values = _sidq_values(entity)
+    existing_badges = _managed_badges(entity)
+    context_hash = decision_context_hash(receipt.urn, entity, tool_caller)
+    prepared = replace(receipt, context_hash=context_hash)
     saved = tool_caller(
         "save_document",
         {
             "document_type": "Decision",
-            "title": f"Sidq {receipt.verdict} receipt for {receipt.urn}",
-            "content": receipt.evidence_markdown(),
-            "related_assets": [receipt.urn],
+            "title": f"Sidq {prepared.verdict} receipt for {prepared.urn}",
+            "content": prepared.evidence_markdown(),
+            "related_assets": [prepared.urn],
         },
     )
-    evidence_url = receipt.evidence_url or _document_reference(saved)
-    persisted = replace(receipt, evidence_url=evidence_url)
-    structured = tool_caller(
-        "add_structured_properties",
-        {
-            "property_values": persisted.structured_property_values(),
-            "entity_urns": [persisted.urn],
-        },
-    )
-    tag = tool_caller(
-        "add_tags",
-        {
-            "tag_urns": [_BADGE_BY_VERDICT[persisted.verdict]],
-            "entity_urns": [persisted.urn],
-        },
-    )
+    document_reference = _document_reference(saved)
+    if not document_reference:
+        raise RuntimeError("save_document did not return a valid document URN")
+    evidence_url = prepared.evidence_url or document_reference
+    persisted = replace(prepared, evidence_url=evidence_url)
+    desired_badge = _BADGE_BY_VERDICT[persisted.verdict]
+    property_values = persisted.structured_property_values()
+    badge_mutation_attempted = False
+    touched_properties: set[str] = set()
+    tag: Any = {"unchanged": True}
+    try:
+        obsolete_badges = sorted(existing_badges - {desired_badge})
+        if obsolete_badges:
+            badge_mutation_attempted = True
+            tool_caller(
+                "remove_tags",
+                {
+                    "tag_urns": obsolete_badges,
+                    "entity_urns": [persisted.urn],
+                },
+            )
+        if desired_badge not in existing_badges:
+            badge_mutation_attempted = True
+            tag = tool_caller(
+                "add_tags",
+                {
+                    "tag_urns": [desired_badge],
+                    "entity_urns": [persisted.urn],
+                },
+            )
+
+        if not persisted.swarm_run:
+            stale_swarm_properties = [
+                f"{_SIDQ_PROPERTY_PREFIX}{name}"
+                for name in ("swarm_run", "worker_id")
+                if name in existing_sidq_values
+            ]
+            if stale_swarm_properties:
+                touched_properties.update(stale_swarm_properties)
+                tool_caller(
+                    "remove_structured_properties",
+                    {
+                        "property_urns": stale_swarm_properties,
+                        "entity_urns": [persisted.urn],
+                    },
+                )
+
+        # The queryable body is the reader's authority, so publish it only after
+        # the visible badge is in its intended state. Its direct, exact readback
+        # is the success boundary for the whole non-transactional sequence.
+        touched_properties.update(property_values)
+        structured = tool_caller(
+            "add_structured_properties",
+            {
+                "property_values": property_values,
+                "entity_urns": [persisted.urn],
+            },
+        )
+        confirmation_attempts = _confirm_receipt_readback(
+            persisted,
+            tool_caller,
+            timeout=confirmation_timeout,
+            initial_delay=confirmation_initial_delay,
+            max_delay=confirmation_max_delay,
+            monotonic=monotonic,
+            sleep=sleep,
+        )
+    except Exception as error:
+        rollback_errors = _restore_prior_receipt_state(
+            tool_caller,
+            persisted.urn,
+            existing_sidq_values=existing_sidq_values,
+            existing_badges=existing_badges,
+            attempted_sidq_values=property_values,
+            desired_badge=desired_badge,
+            restore_badges=badge_mutation_attempted,
+            touched_properties=touched_properties,
+        )
+        if rollback_errors:
+            error.__dict__["receipt_rollback_errors"] = tuple(rollback_errors)
+            error.add_note(
+                "receipt rollback was incomplete: " + "; ".join(rollback_errors)
+            )
+        raise
     return {
         "receipt": persisted.to_dict(),
         "save_document": saved,
         "add_structured_properties": structured,
         "add_tags": tag,
+        "confirmed": True,
+        "confirmation_attempts": confirmation_attempts,
     }
+
+
+def _managed_badges(entity: Mapping[str, Any]) -> frozenset[str]:
+    tags: Any = entity.get("globalTags") or entity.get("global_tags") or {}
+    if isinstance(tags, Mapping):
+        tags = tags.get("tags") or []
+    if not isinstance(tags, Sequence) or isinstance(tags, (str, bytes)):
+        return frozenset()
+    urns: set[str] = set()
+    for assignment in tags:
+        if not isinstance(assignment, Mapping):
+            continue
+        urn = assignment.get("tagUrn") or assignment.get("urn")
+        nested = assignment.get("tag")
+        if not urn and isinstance(nested, Mapping):
+            urn = nested.get("urn")
+        if isinstance(urn, str) and urn in _MANAGED_BADGES:
+            urns.add(urn)
+    return frozenset(urns)
+
+
+def _restore_prior_receipt_state(
+    tool_caller: ToolCaller,
+    urn: str,
+    *,
+    existing_sidq_values: Mapping[str, list[str]],
+    existing_badges: frozenset[str],
+    attempted_sidq_values: Mapping[str, list[str]],
+    desired_badge: str,
+    restore_badges: bool,
+    touched_properties: set[str],
+) -> list[str]:
+    """Best-effort compensation for DataHub's non-transactional mutations."""
+
+    errors: list[str] = []
+
+    if not restore_badges and not touched_properties:
+        return errors
+
+    try:
+        entity = _single_entity(
+            _confirmation_call(
+                tool_caller,
+                urn,
+                deadline=time.monotonic() + _ROLLBACK_READ_TIMEOUT_SECONDS,
+                monotonic=time.monotonic,
+            ),
+            urn,
+        )
+    except Exception as rollback_error:  # noqa: BLE001 - preserve original failure
+        return [f"get_entities: {type(rollback_error).__name__}"]
+
+    if not _managed_state_belongs_to_attempt(
+        entity,
+        existing_sidq_values=existing_sidq_values,
+        existing_badges=existing_badges,
+        attempted_sidq_values=attempted_sidq_values,
+        desired_badge=desired_badge,
+    ):
+        return ["state_conflict: concurrent managed receipt detected"]
+
+    def attempt(name: str, arguments: Mapping[str, Any]) -> None:
+        try:
+            tool_caller(name, arguments)
+        except Exception as rollback_error:  # noqa: BLE001 - preserve original failure
+            errors.append(f"{name}: {type(rollback_error).__name__}")
+
+    if restore_badges:
+        attempt(
+            "remove_tags",
+            {"tag_urns": sorted(_MANAGED_BADGES), "entity_urns": [urn]},
+        )
+        if existing_badges:
+            attempt(
+                "add_tags",
+                {"tag_urns": sorted(existing_badges), "entity_urns": [urn]},
+            )
+
+    if touched_properties:
+        attempt(
+            "remove_structured_properties",
+            {"property_urns": sorted(touched_properties), "entity_urns": [urn]},
+        )
+        prior_values = {
+            property_urn: list(existing_sidq_values[name])
+            for property_urn in sorted(touched_properties)
+            if (name := property_urn.removeprefix(_SIDQ_PROPERTY_PREFIX))
+            in existing_sidq_values
+        }
+        if prior_values:
+            attempt(
+                "add_structured_properties",
+                {"property_values": prior_values, "entity_urns": [urn]},
+            )
+
+    return errors
+
+
+def _managed_state_belongs_to_attempt(
+    entity: Mapping[str, Any],
+    *,
+    existing_sidq_values: Mapping[str, list[str]],
+    existing_badges: frozenset[str],
+    attempted_sidq_values: Mapping[str, list[str]],
+    desired_badge: str,
+) -> bool:
+    current_values = _sidq_values(entity)
+    attempted_values = {
+        urn.removeprefix(_SIDQ_PROPERTY_PREFIX): values
+        for urn, values in attempted_sidq_values.items()
+    }
+    names = set(current_values) | set(existing_sidq_values) | set(attempted_values)
+    for name in names:
+        current = tuple(sorted(current_values.get(name, ())))
+        prior = tuple(sorted(existing_sidq_values.get(name, ())))
+        attempted = tuple(sorted(attempted_values.get(name, ())))
+        if current not in {prior, attempted}:
+            return False
+
+    allowed_badges = existing_badges | {desired_badge}
+    return _managed_badges(entity) <= allowed_badges
+
+
+def _confirm_receipt_readback(
+    receipt: Receipt,
+    tool_caller: ToolCaller,
+    *,
+    timeout: float,
+    initial_delay: float,
+    max_delay: float,
+    monotonic: Clock,
+    sleep: Sleeper,
+) -> int:
+    """Poll the entity aspect directly until the exact receipt is visible.
+
+    Mutation acknowledgements establish only that DataHub accepted the calls.
+    They do not establish that a later process can consume the receipt.  This
+    bounded read-after-write check deliberately uses ``get_entities`` rather
+    than the asynchronously indexed search surface.  It confirms persistence;
+    the independent reader still re-computes graph and policy staleness later.
+    """
+
+    if timeout < 0:
+        raise ValueError("confirmation_timeout must be non-negative")
+    if initial_delay <= 0 or max_delay <= 0:
+        raise ValueError("confirmation delays must be positive")
+
+    expected = {
+        urn.removeprefix("urn:li:structuredProperty:sidq."): tuple(sorted(values))
+        for urn, values in receipt.structured_property_values().items()
+    }
+    deadline = monotonic() + timeout
+    delay = min(initial_delay, max_delay)
+    attempts = 0
+    while True:
+        attempts += 1
+        entity = _single_entity(
+            _confirmation_call(
+                tool_caller,
+                receipt.urn,
+                deadline=deadline,
+                monotonic=monotonic,
+            ),
+            receipt.urn,
+        )
+        actual = {
+            name: tuple(sorted(values)) for name, values in _sidq_values(entity).items()
+        }
+        expected_badge = _BADGE_BY_VERDICT[receipt.verdict]
+        if actual == expected and _managed_badges(entity) == {expected_badge}:
+            return attempts
+
+        remaining = deadline - monotonic()
+        if remaining <= 0:
+            raise ReceiptWriteUnconfirmed(
+                "write_unconfirmed: exact receipt was not visible through "
+                f"get_entities after {attempts} attempts for {receipt.urn}"
+            )
+        sleep(min(delay, remaining))
+        delay = min(delay * 2, max_delay)
+
+
+def _confirmation_call(
+    tool_caller: ToolCaller,
+    urn: str,
+    *,
+    deadline: float,
+    monotonic: Clock,
+) -> Any:
+    """Call the confirmation transport without waiting past its deadline."""
+
+    timeout = max(deadline - monotonic(), 0.0)
+    bounded_call = getattr(tool_caller, "call_with_timeout", None)
+    if callable(bounded_call):
+        try:
+            return bounded_call("get_entities", {"urns": [urn]}, timeout=timeout)
+        except TimeoutError as error:
+            raise ReceiptWriteUnconfirmed(
+                "write_unconfirmed: get_entities exceeded the confirmation "
+                f"deadline for {urn}"
+            ) from error
+
+    result: Future[Any] = Future()
+
+    def call() -> None:
+        try:
+            result.set_result(tool_caller("get_entities", {"urns": [urn]}))
+        except Exception as error:  # noqa: BLE001 - relay the transport failure
+            result.set_exception(error)
+
+    threading.Thread(
+        target=call,
+        name="sidq-receipt-confirmation",
+        daemon=True,
+    ).start()
+    try:
+        return result.result(timeout=timeout)
+    except TimeoutError as error:
+        raise ReceiptWriteUnconfirmed(
+            "write_unconfirmed: get_entities exceeded the confirmation "
+            f"deadline for {urn}"
+        ) from error
 
 
 def _document_reference(result: Any) -> str:
@@ -175,6 +595,11 @@ def _document_reference(result: Any) -> str:
 
     if isinstance(result, Mapping):
         urn = result.get("urn")
-        if isinstance(urn, str) and urn:
+        if (
+            isinstance(urn, str)
+            and urn.startswith("urn:li:document:")
+            and len(urn) > len("urn:li:document:")
+            and not any(character.isspace() for character in urn)
+        ):
             return urn
     return ""

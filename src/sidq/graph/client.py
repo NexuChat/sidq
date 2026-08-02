@@ -5,12 +5,12 @@ from __future__ import annotations
 import json
 import os
 import queue
+import tempfile
 import threading
 from collections.abc import Callable, Mapping, Sequence
 from concurrent.futures import Future
 from dataclasses import dataclass
 from dataclasses import field as dataclass_field
-from pathlib import Path as FilePath
 from typing import Any, Protocol, runtime_checkable
 
 
@@ -64,6 +64,9 @@ class LineageResult:
     columns: Mapping[str, tuple[str, ...]] = dataclass_field(default_factory=dict)
     tags: Mapping[str, tuple[str, ...]] = dataclass_field(default_factory=dict)
     granularity: str = "table"
+    total: int | None = None
+    returned: int | None = None
+    complete: bool = True
 
 
 @runtime_checkable
@@ -237,12 +240,13 @@ class StdioMCPToolCaller:
     def __init__(
         self, command: str | None = None, *, gms_url: str | None = None
     ) -> None:
-        self._command = command or str(
-            FilePath(__file__).resolve().parents[3]
-            / ".venv"
-            / "bin"
-            / "mcp-server-datahub"
-        )
+        # Resolved from PATH, exactly like the receipt writer's caller. The old
+        # default pointed into this repository's own venv, which assumed the
+        # server can share the client's environment — it cannot: the client
+        # needs mcp>=2 while the server's fastmcp still imports the mcp 1.x
+        # internals, so a same-venv install crashes on startup. The server runs
+        # from its own isolated install (`uv tool install mcp-server-datahub`).
+        self._command = command or "mcp-server-datahub"
         self._gms_url = gms_url or os.environ.get(
             "DATAHUB_GMS_URL", "http://localhost:8080"
         )
@@ -275,28 +279,24 @@ class StdioMCPToolCaller:
         from mcp import ClientSession
         from mcp.client.stdio import StdioServerParameters, stdio_client
 
-        env = {
-            **os.environ,
-            "DATAHUB_GMS_URL": self._gms_url,
-            "DATAHUB_TELEMETRY_ENABLED": "false",
-            "LOGURU_LEVEL": "WARNING",
-        }
-        async with (
-            stdio_client(StdioServerParameters(command=self._command, env=env)) as (
-                read,
-                write,
-            ),
-            ClientSession(read, write) as session,
-        ):
-            await session.initialize()
-            self._startup.set_result(None)
-            while request := await anyio.to_thread.run_sync(self._requests.get):
-                name, arguments, result = request
-                try:
-                    response = await session.call_tool(name, dict(arguments))
-                    result.set_result(_tool_response_payload(response, name=name))
-                except BaseException as error:  # noqa: BLE001 -- preserve caller-visible failures
-                    result.set_exception(error)
+        with tempfile.TemporaryDirectory(prefix="sidq-datahub-mcp-home-") as home:
+            env = _mcp_subprocess_environment(self._gms_url, home=home)
+            async with (
+                stdio_client(StdioServerParameters(command=self._command, env=env)) as (
+                    read,
+                    write,
+                ),
+                ClientSession(read, write) as session,
+            ):
+                await session.initialize()
+                self._startup.set_result(None)
+                while request := await anyio.to_thread.run_sync(self._requests.get):
+                    name, arguments, result = request
+                    try:
+                        response = await session.call_tool(name, dict(arguments))
+                        result.set_result(_tool_response_payload(response, name=name))
+                    except BaseException as error:  # noqa: BLE001 -- preserve caller-visible failures
+                        result.set_exception(error)
 
     def __call__(self, name: str, arguments: Mapping[str, Any]) -> Any:
         self._start()
@@ -309,6 +309,23 @@ class StdioMCPToolCaller:
             self._requests.put(None)
             self._thread.join(timeout=5)
         self._thread = None
+
+
+def _mcp_subprocess_environment(
+    gms_url: str, *, home: str | os.PathLike[str] = "/tmp"
+) -> dict[str, str]:
+    """Return only the environment needed by the read-only DataHub MCP child."""
+    environment = {
+        "DATAHUB_GMS_URL": gms_url,
+        "DATAHUB_TELEMETRY_ENABLED": "false",
+        "HOME": os.fspath(home),
+        "LANG": os.environ.get("LANG", "C.UTF-8"),
+        "LOGURU_LEVEL": "WARNING",
+        "PATH": os.environ.get("PATH", "/usr/local/bin:/usr/bin:/bin"),
+    }
+    if token := os.environ.get("DATAHUB_GMS_TOKEN"):
+        environment["DATAHUB_GMS_TOKEN"] = token
+    return environment
 
 
 def _tool_response_payload(response: Any, *, name: str = "tool") -> Any:
@@ -500,9 +517,10 @@ def _first_entity(value: Any, urn: str) -> Mapping[str, Any] | None:
     ):
         return document
     for entity in _items(value):
-        if "error" not in entity and _string(
-            entity, "urn", "entity_urn", "entityUrn"
-        ) in (None, urn):
+        if (
+            "error" not in entity
+            and _string(entity, "urn", "entity_urn", "entityUrn") == urn
+        ):
             return entity
     return None
 
@@ -564,8 +582,13 @@ def _parse_lineage(value: Any, *, requested_column: str | None) -> LineageResult
     downstreams = document.get("downstreams")
     if not isinstance(downstreams, Mapping):
         raise GraphResponseError("get_lineage response is missing a downstreams object")
-    search_results = downstreams.get("searchResults")
-    if not isinstance(search_results, list):
+    official_empty = _is_official_empty_lineage(downstreams)
+    raw_search_results = downstreams.get("searchResults")
+    if official_empty:
+        search_results: list[Any] = []
+    elif isinstance(raw_search_results, list):
+        search_results = raw_search_results
+    else:
         raise GraphResponseError(
             "get_lineage response is missing a downstreams.searchResults list"
         )
@@ -600,6 +623,27 @@ def _parse_lineage(value: Any, *, requested_column: str | None) -> LineageResult
         if (urn := _string(_mapping(item.get("entity")), "urn"))
     }
     metadata = _mapping(document.get("metadata"))
+    total = downstreams.get("total")
+    returned = 0 if official_empty else downstreams.get("returned")
+    total = total if isinstance(total, int) and not isinstance(total, bool) else None
+    returned = (
+        returned
+        if isinstance(returned, int) and not isinstance(returned, bool)
+        else None
+    )
+    has_more = (
+        False
+        if official_empty
+        else downstreams.get("hasMore", downstreams.get("has_more"))
+    )
+    complete = (
+        total is not None
+        and returned is not None
+        and has_more is False
+        and total == returned == len(search_results)
+        and len(urns) == len(search_results)
+        and len(set(urns)) == len(urns)
+    )
     granularity = (
         "column" if metadata.get("queryType") == "column-level-lineage" else "table"
     )
@@ -610,6 +654,22 @@ def _parse_lineage(value: Any, *, requested_column: str | None) -> LineageResult
         columns=columns,
         tags=tags,
         granularity=granularity if granularity in {"column", "table"} else "table",
+        total=total,
+        returned=returned,
+        complete=complete,
+    )
+
+
+def _is_official_empty_lineage(value: Mapping[str, Any]) -> bool:
+    total = value.get("total")
+    return (
+        isinstance(total, int)
+        and not isinstance(total, bool)
+        and total == 0
+        and all(
+            key not in value
+            for key in ("searchResults", "returned", "hasMore", "has_more")
+        )
     )
 
 

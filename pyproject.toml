@@ -2,16 +2,44 @@
 name = "sidq"
 version = "0.1.0"
 description = "DataHub-native pre-merge gate for data code, with attested Sidq receipts"
-requires-python = ">=3.12"
-license = { text = "Apache-2.0" }
+requires-python = ">=3.12,<3.13"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 dependencies = [
     "sqlglot",  # SQL parsing for the schema gate — deterministic, no LLM
     "pyyaml",   # restricted policy and asset-map loading
-    "mcp",      # official MCP client, talks to mcp-server-datahub
+    # Official MCP client, talks to mcp-server-datahub. The floor is 2 because
+    # the server imports the `mcp_types` module layout; a fresh install resolved
+    # 1.29.0 once and could not import — the constraint now states what the code
+    # actually requires.
+    "mcp>=2,<3",
 ]
 
 [project.optional-dependencies]
-dev = ["mypy", "pytest", "ruff", "types-PyYAML"]
+# CI, Make, and the composite action install Sidq with --no-build-isolation, so
+# their environments must already contain the patched build backend.
+dev = [
+    "hypothesis",
+    "mypy",
+    "numpy>=2,<3",
+    "psycopg[binary]>=3.1",
+    "pytest",
+    "pytest-cov",
+    "ruff",
+    "setuptools>=83",
+    "types-PyYAML",
+]
+action = ["setuptools>=83", "wheel"]
+# `make regen` retrains the pre-flight ladder to prove the published negative
+# result still holds; that needs scikit-learn but none of the LoRA stack.
+bench = ["scikit-learn>=1.5"]
+# `sidq claims` tests documentation against a live PostgreSQL source. The driver
+# is an extra rather than a dependency because every other command reads only
+# metadata and must stay installable with no database client at all.
+live = ["psycopg[binary]>=3.1"]
+# The trained documentation reader. The head itself is committed and needs only
+# numpy; this extra is the multilingual embedding model that produces its input.
+reader = ["numpy>=2,<3", "sentence-transformers>=5.0", "transformers>=4.50"]
 advisory = ["transformers>=5.0", "torch>=2.5"]
 # Kept out of the default install: these packages and the model weights are
 # only required for the CPU LoRA experiment in scripts/train_lora.py.
@@ -31,22 +59,34 @@ sidq = "sidq.cli:main"
 sidq-mcp = "sidq.mcp_server:main"
 
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=83"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+sidq = ["claims/head.npz", "policy/default_policy.yaml"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+
+[tool.coverage.run]
+branch = true
+source = ["sidq"]
+
+[tool.coverage.report]
+fail_under = 80
+precision = 1
+show_missing = true
+skip_covered = true
 
 [tool.ruff.format]
 exclude = [
     "data/claims/**",
     "docs/**",
     "examples/**",
-    "research/**",
     "scripts/**",
     "tests/test_published_artifact_granularity.py",
 ]
@@ -63,3 +103,18 @@ strict = false
 [[tool.mypy.overrides]]
 module = ["sidq.*"]
 disallow_untyped_defs = true
+
+# The DataHub SDK is an optional integration, not a dependency: every import of
+# it is lazy, and each call site handles ImportError with a working alternative
+# (`--via-mcp` reads through the official MCP server with no SDK at all). A
+# clean clone must type-check without it — the same property `make check`
+# promises a judge.
+[[tool.mypy.overrides]]
+module = ["datahub.*"]
+ignore_missing_imports = true
+
+# The PostgreSQL driver ships with the `live` extra only, so a default dev
+# environment type-checks the code that imports it without installing it.
+[[tool.mypy.overrides]]
+module = ["psycopg.*"]
+ignore_missing_imports = true

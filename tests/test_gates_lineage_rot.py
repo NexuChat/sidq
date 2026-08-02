@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import pytest
+
 from sidq.gates.lineage_rot import LineageRotGate
-from sidq.graph.client import DatasetInfo, LineageResult, SchemaField
+from sidq.graph.client import DatasetInfo, LineageResult, MCPGraphClient, SchemaField
 from sidq.models import FieldRef, TouchedAsset
 
 SOURCE = "urn:li:dataset:(urn:li:dataPlatform:dbt,analytics.raw_customers,PROD)"
@@ -53,6 +55,38 @@ def _asset() -> TouchedAsset:
 
 def _gate(sql: str) -> LineageRotGate:
     return LineageRotGate({TARGET: sql})
+
+
+def _mcp_graph(
+    claims: dict[str, tuple[str, ...]],
+) -> tuple[MCPGraphClient, list[tuple[str, dict[str, object]]]]:
+    calls: list[tuple[str, dict[str, object]]] = []
+
+    def caller(name: str, arguments: dict[str, object]) -> object:
+        calls.append((name, arguments))
+        if name == "get_entities":
+            return {"entities": [{"urn": TARGET}]}
+        if name == "list_schema_fields":
+            return {"schema_fields": [{"fieldPath": column} for column in claims]}
+        if name == "get_lineage":
+            columns = claims[str(arguments["column"])]
+            results = (
+                [{"entity": {"urn": SOURCE}, "lineageColumns": list(columns)}]
+                if columns
+                else []
+            )
+            return {
+                "upstreams": {
+                    "total": len(results),
+                    "returned": len(results),
+                    "hasMore": False,
+                    "searchResults": results,
+                },
+                "metadata": {"queryType": "column-level-lineage"},
+            }
+        raise AssertionError(name)
+
+    return MCPGraphClient(caller), calls
 
 
 def test_lineage_rot_reports_a_claimed_edge_the_sql_no_longer_produces() -> None:
@@ -116,3 +150,128 @@ def test_lineage_rot_walks_ctes_and_aliases_to_physical_source_columns() -> None
     )
 
     assert evidence == []
+
+
+def test_lineage_rot_uses_the_official_upstream_mcp_column_contract() -> None:
+    graph, calls = _mcp_graph({"customer_id": ("id",)})
+
+    evidence = _gate(
+        "SELECT c.id AS customer_id FROM analytics.raw_customers AS c"
+    ).collect([_asset()], graph)
+
+    assert evidence == []
+    assert calls == [
+        ("get_entities", {"urns": [TARGET]}),
+        ("list_schema_fields", {"urn": TARGET, "limit": 100}),
+        (
+            "get_lineage",
+            {
+                "urn": TARGET,
+                "upstream": True,
+                "max_hops": 1,
+                "max_results": 100,
+                "column": "customer_id",
+            },
+        ),
+    ]
+
+
+def test_lineage_rot_accepts_the_official_empty_upstream_mcp_contract() -> None:
+    calls: list[tuple[str, dict[str, object]]] = []
+
+    def caller(name: str, arguments: dict[str, object]) -> object:
+        calls.append((name, arguments))
+        if name == "get_entities":
+            return {"entities": [{"urn": TARGET}]}
+        if name == "list_schema_fields":
+            return {"schema_fields": [{"fieldPath": "customer_id"}]}
+        if name == "get_lineage":
+            return {
+                "upstreams": {"total": 0},
+                "metadata": {"queryType": "column-level-lineage"},
+            }
+        raise AssertionError(name)
+
+    evidence = _gate(
+        "SELECT 1 AS customer_id FROM analytics.raw_customers AS c"
+    ).collect([_asset()], MCPGraphClient(caller))
+
+    assert evidence == []
+    assert calls == [
+        ("get_entities", {"urns": [TARGET]}),
+        ("list_schema_fields", {"urn": TARGET, "limit": 100}),
+        (
+            "get_lineage",
+            {
+                "urn": TARGET,
+                "upstream": True,
+                "max_hops": 1,
+                "max_results": 100,
+                "column": "customer_id",
+            },
+        ),
+    ]
+
+
+@pytest.mark.parametrize(
+    ("sql", "claims", "expected_kind"),
+    [
+        (
+            "SELECT 1 AS legacy_email FROM analytics.raw_customers AS c",
+            {"legacy_email": ("legacy_email",)},
+            "lineage_rot_missing",
+        ),
+        (
+            "SELECT c.email AS email FROM analytics.raw_customers AS c",
+            {"email": ()},
+            "lineage_rot_extra",
+        ),
+    ],
+)
+def test_lineage_rot_diffs_real_mcp_column_payloads(
+    sql: str, claims: dict[str, tuple[str, ...]], expected_kind: str
+) -> None:
+    graph, _ = _mcp_graph(claims)
+
+    evidence = _gate(sql).collect([_asset()], graph)
+
+    assert [item.kind for item in evidence] == [expected_kind]
+
+
+@pytest.mark.parametrize(
+    "upstreams",
+    [
+        {
+            "total": 1,
+            "returned": 0,
+            "hasMore": True,
+            "searchResults": [],
+        },
+        {
+            "total": 1,
+            "returned": 1,
+            "hasMore": False,
+            "searchResults": [{"entity": {"urn": SOURCE}}],
+        },
+    ],
+)
+def test_lineage_rot_fails_closed_on_partial_or_malformed_mcp_lineage(
+    upstreams: dict[str, object],
+) -> None:
+    graph, _ = _mcp_graph({"email": ()})
+
+    def malformed(name: str, arguments: dict[str, object]) -> object:
+        if name == "get_lineage":
+            return {
+                "upstreams": upstreams,
+                "metadata": {"queryType": "column-level-lineage"},
+            }
+        return graph._tool_caller(name, arguments)
+
+    evidence = _gate(
+        "SELECT c.email AS email FROM analytics.raw_customers AS c"
+    ).collect([_asset()], MCPGraphClient(malformed))
+
+    assert [item.kind for item in evidence] == ["lineage_unverifiable"]
+    assert "lineage_rot_missing" not in {item.kind for item in evidence}
+    assert "lineage_rot_extra" not in {item.kind for item in evidence}

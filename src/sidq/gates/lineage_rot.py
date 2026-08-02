@@ -371,30 +371,64 @@ def _edges_from_result(result: LineageResult, target_column: str) -> _Claims:
 
 
 def _edges_from_mcp(raw: Any, target_column: str) -> _Claims:
-    document = raw if isinstance(raw, Mapping) else {}
+    if not isinstance(raw, Mapping):
+        raise _Unverifiable("graph column-lineage response is not an object")
+    document = raw
     raw_metadata = document.get("metadata")
     metadata = raw_metadata if isinstance(raw_metadata, Mapping) else {}
     if metadata.get("queryType") != "column-level-lineage":
         raise _Unverifiable("graph did not return column-level lineage")
     raw_upstreams = document.get("upstreams")
-    upstreams = raw_upstreams if isinstance(raw_upstreams, Mapping) else {}
+    if not isinstance(raw_upstreams, Mapping):
+        raise _Unverifiable("graph column-lineage response has no upstreams object")
+    upstreams = raw_upstreams
     raw_results = upstreams.get("searchResults")
-    results = raw_results if isinstance(raw_results, list) else []
+    total = upstreams.get("total")
+    official_empty = (
+        isinstance(total, int)
+        and not isinstance(total, bool)
+        and total == 0
+        and all(
+            key not in upstreams
+            for key in ("searchResults", "returned", "hasMore", "has_more")
+        )
+    )
+    results = [] if official_empty else raw_results
+    returned = 0 if official_empty else upstreams.get("returned")
+    has_more = (
+        False if official_empty else upstreams.get("hasMore", upstreams.get("has_more"))
+    )
+    if (
+        not isinstance(results, list)
+        or not isinstance(total, int)
+        or isinstance(total, bool)
+        or not isinstance(returned, int)
+        or isinstance(returned, bool)
+        or has_more is not False
+        or total != returned
+        or returned != len(results)
+    ):
+        raise _Unverifiable("graph returned incomplete column-level lineage")
     edges: set[tuple[str, str, str]] = set()
     source_urns: set[str] = set()
     for item in results:
         if not isinstance(item, Mapping):
-            continue
+            raise _Unverifiable("graph returned malformed column-level lineage")
         raw_entity = item.get("entity")
         entity = raw_entity if isinstance(raw_entity, Mapping) else {}
         urn = entity.get("urn")
         columns = item.get("lineageColumns")
-        if not isinstance(urn, str) or not isinstance(columns, list):
-            continue
+        if (
+            not isinstance(urn, str)
+            or not urn
+            or not isinstance(columns, list)
+            or not columns
+            or any(not isinstance(column, str) or not column for column in columns)
+        ):
+            raise _Unverifiable("graph returned malformed column-level lineage")
         source_urns.add(urn)
         for source_column in columns:
-            if isinstance(source_column, str):
-                edges.add((urn, source_column, target_column))
+            edges.add((urn, source_column, target_column))
     return _Claims(tuple(sorted(edges)), tuple(sorted(source_urns)))
 
 

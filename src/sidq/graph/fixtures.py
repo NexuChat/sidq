@@ -199,8 +199,32 @@ def _path(raw: dict[str, Any]) -> LineagePath:
 
 def _lineage(raw: dict[str, Any]) -> LineageResult:
     entity_types = raw.get("entity_types", {})
+    urns = tuple(raw.get("urns", ()))
+    total = raw.get("total")
+    returned = raw.get("returned")
+    total = total if isinstance(total, int) and not isinstance(total, bool) else None
+    returned = (
+        returned
+        if isinstance(returned, int) and not isinstance(returned, bool)
+        else None
+    )
+    explicit_complete = raw.get("complete")
+    if total is not None or returned is not None:
+        # A legacy bounded recording that omitted the final completeness bit is
+        # not allowed to infer it from partial counts. Only the old unbounded
+        # LineageResult shape (which carried neither count) keeps its historical
+        # behaviour, so the committed pre-contract fixture corpus still replays.
+        complete = (
+            explicit_complete is not False
+            and total is not None
+            and total == returned == len(urns)
+        )
+    elif isinstance(explicit_complete, bool):
+        complete = explicit_complete
+    else:
+        complete = True
     return LineageResult(
-        urns=tuple(raw.get("urns", ())),
+        urns=urns,
         entity_types=entity_types
         if isinstance(entity_types, dict)
         else tuple(entity_types),
@@ -208,4 +232,7 @@ def _lineage(raw: dict[str, Any]) -> LineageResult:
         columns={key: tuple(value) for key, value in raw.get("columns", {}).items()},
         tags={key: tuple(value) for key, value in raw.get("tags", {}).items()},
         granularity=str(raw.get("granularity", "table")),
+        total=total,
+        returned=returned,
+        complete=complete,
     )

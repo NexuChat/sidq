@@ -304,3 +304,107 @@ def test_claim_serialization_is_byte_deterministic() -> None:
     )
 
     assert canonical_json(claim) == canonical_json(claim)
+
+
+# ---------------------------------------------------------------------------
+# A claim's `expr` becomes part of a query run against a warehouse. It is
+# validated by an allow-list of parsed node types, so both halves need pinning:
+# the constructs a real dbt test uses must survive it, and everything else must
+# not. An allow-list that only ever gets tested on attacks quietly becomes
+# unusable; one only ever tested on valid input quietly becomes a substring
+# filter.
+# ---------------------------------------------------------------------------
+
+
+def _expression_claim(expr: str) -> Claim:
+    return Claim(
+        "expression",
+        "status",
+        expr=expr,
+        source_sentence="expression",
+        confidence=1.0,
+    )
+
+
+ORDINARY_EXPRESSIONS = (
+    "amount >= 0",
+    "status IN ('paid', 'refunded')",
+    "deleted_at IS NULL",
+    "customer_id IS NOT NULL",
+    "quantity * unit_price = total",
+    "discount >= 0 AND discount <= 1",
+    "NOT is_test",
+    "(a + b) / 2 < 100",
+    "score BETWEEN 0 AND 100",
+    "created_at <= updated_at",
+    "id % 2 = 0",
+    "region <> 'unknown'",
+    "LOWER(email) LIKE '%@%'",
+    "CAST(x AS INT) > 0",
+    "COALESCE(a, 0) >= 0",
+    "LENGTH(name) > 0",
+    "ROUND(x, 2) = 1",
+    "TRIM(s) <> ''",
+    "UPPER(c) = 'A'",
+    "ABS(x) < 1",
+)
+
+
+@pytest.mark.parametrize("expr", ORDINARY_EXPRESSIONS)
+def test_the_expressions_a_real_dbt_test_writes_still_compile(expr: str) -> None:
+    """The cost of a deny-by-default list is false refusals; this is that bill."""
+    compiled = compile_claim(_expression_claim(expr), ("analytics", "orders"))
+
+    assert compiled.count_sql.count(expr) >= 1
+
+
+HOSTILE_EXPRESSIONS = (
+    # a second statement
+    "1 = 1; DROP TABLE users",
+    # queries, in every shape they arrive
+    "(SELECT 1)",
+    "col IN (SELECT value FROM other_table)",
+    "x = (SELECT max(y) FROM z)",
+    "amount > 0 UNION SELECT password FROM users",
+    "EXISTS (SELECT 1)",
+    # callables: state, I/O, timing, and the filesystem
+    "nextval('sequence') > 0",
+    "now() IS NOT NULL",
+    "pg_sleep(10) IS NOT NULL",
+    "version() = '1'",
+    "current_user = 'x'",
+    "random() < 1",
+    "lo_import('/etc/passwd') > 0",
+    "dblink('', '') IS NOT NULL",
+    "query_to_xml('select 1', true, true, '') IS NOT NULL",
+    # control flow and constructs nobody enumerated as dangerous
+    "CASE WHEN 1 = 1 THEN 1 ELSE 0 END = 1",
+    "x = ANY(ARRAY[1, 2])",
+)
+
+
+@pytest.mark.parametrize("expr", HOSTILE_EXPRESSIONS)
+def test_an_expression_that_is_not_a_predicate_never_reaches_a_warehouse(
+    expr: str,
+) -> None:
+    """Not one forbidden-name list: these fail by being absent from the allow-list.
+
+    `pg_sleep` and `lo_import` are refused for the same reason a function invented
+    tomorrow will be — sqlglot parses every callable it does not know as
+    `exp.Anonymous`, and `exp.Anonymous` was never permitted.
+    """
+    with pytest.raises(ValueError):
+        compile_claim(_expression_claim(expr), ("analytics", "orders"))
+
+
+def test_the_compiled_expression_is_the_parser_output_not_the_input_text() -> None:
+    """Re-rendering from the AST is what makes a trailing comment harmless.
+
+    `1 = 1 --` is not an attack, but it is the shape of one: text after the
+    predicate that a substring filter would have to reason about. Nothing
+    downstream ever sees the original string, so there is nothing to reason about.
+    """
+    compiled = compile_claim(_expression_claim("1 = 1 --"), ("analytics", "orders"))
+
+    assert "--" not in compiled.count_sql
+    assert "1 = 1" in compiled.count_sql

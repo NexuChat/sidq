@@ -62,7 +62,7 @@ group help has a packaging defect (the specific `load --help` command still work
 
 ```text
 FileNotFoundError: [Errno 2] No such file or directory:
-'/home/dev/sidq/.venv/lib/python3.12/site-packages/datahub/cli/datapack/resources/DATAPACK_AGENT_CONTEXT.md'
+'.venv/lib/python3.12/site-packages/datahub/cli/datapack/resources/DATAPACK_AGENT_CONTEXT.md'
 ```
 
 That defect did not prevent this recon because the datapack had already been loaded by

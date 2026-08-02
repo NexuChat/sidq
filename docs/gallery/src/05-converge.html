@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sidq — independent receipt re-check</title>
+<link rel="stylesheet" href="board.css">
+</head>
+<body>
+  <div class="bar"></div>
+  <header class="mast">
+    <img src="../../brand/lockup.png" alt="Sidq صدق" style="display:block;height:46px;width:auto">
+    <div class="eyebrow">03 / Shared trust — independent read</div>
+  </header>
+  <main style="display:grid;grid-template-columns:0.9fr 1.1fr;gap:90px;align-items:center;padding:104px 84px 0">
+    <div>
+      <h2 style="font-size:82px;line-height:.95">The writer does not certify itself.</h2>
+      <p style="margin-top:40px;color:var(--dim);font-size:22px;line-height:1.6;max-width:650px">
+        An explicit audit can write the decision context to DataHub. A separate
+        process then re-reads the <strong style="color:var(--paper)">current graph, policy hash, age, and recorded evidence</strong> before deciding whether that Receipt still holds.
+      </p>
+      <p style="margin-top:34px;color:var(--acid);font-size:19px;letter-spacing:.08em;text-transform:uppercase;line-height:1.7">
+        Missing or stale context becomes NOT VERIFIED.<br>It never becomes a false PASS.
+      </p>
+    </div>
+    <div style="border:1px solid var(--rule);background:var(--ink2)">
+      <div style="display:flex;gap:10px;align-items:center;padding:20px 26px;border-bottom:1px solid var(--rule)">
+        <span style="width:13px;height:13px;border-radius:50%;background:var(--rule)"></span>
+        <span style="width:13px;height:13px;border-radius:50%;background:var(--rule)"></span>
+        <span style="width:13px;height:13px;border-radius:50%;background:var(--rule)"></span>
+        <span style="margin-left:16px;color:var(--dim);font-size:15px;letter-spacing:.12em">SEPARATE PROCESS — READS DATAHUB THROUGH OFFICIAL MCP</span>
+      </div>
+      <div style="padding:34px 40px 38px">
+        <div style="display:grid;grid-template-columns:64px 1fr;gap:20px;padding:0 0 24px;border-bottom:1px solid var(--rule)">
+          <span class="eyebrow">01</span><div><strong style="display:block;font-family:var(--display);font-size:29px;font-weight:400">Explicit audit writes</strong><span style="display:block;margin-top:6px;color:var(--dim);font-size:18px">verdict · reason · evidence · policy · commit · checked_at</span></div>
+        </div>
+        <div style="padding:18px 0;text-align:center;color:var(--signal);font-size:28px">↓ <span style="margin-left:14px;color:var(--soft);font-family:var(--mono);font-size:17px">DataHub latest Receipt state</span></div>
+        <div style="display:grid;grid-template-columns:64px 1fr;gap:20px;padding:24px 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)">
+          <span class="eyebrow">02</span><div><strong style="display:block;font-family:var(--display);font-size:29px;font-weight:400">Independent reader re-checks</strong><span style="display:block;margin-top:6px;color:var(--dim);font-size:18px">current graph · policy hash · age · evidence</span></div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:24px">
+          <div style="padding:18px 14px;border:1px solid var(--rule)"><span class="eyebrow">Current PASS</span><strong style="display:block;margin-top:8px;color:var(--acid);font-size:20px">may continue</strong></div>
+          <div style="padding:18px 14px;border:1px solid var(--signal)"><span class="eyebrow">BLOCK</span><strong style="display:block;margin-top:8px;color:var(--signal);font-size:20px">stops</strong></div>
+          <div style="padding:18px 14px;border:1px solid var(--rule)"><span class="eyebrow">Missing / stale</span><strong style="display:block;margin-top:8px;color:var(--paper);font-size:20px">NOT VERIFIED</strong></div>
+        </div>
+      </div>
+    </div>
+  </main>
+  <footer class="foot">
+    <span>Latest-value state in DataHub — not an append-only history</span>
+    <span>sidq verify &lt;urn&gt;</span>
+  </footer>
+</body>
+</html>

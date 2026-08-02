@@ -1,7 +1,7 @@
-# ENGINE SPEC — wave 1 (binding)
+# ENGINE SPEC — implemented engine contract
 
-This file specifies **how** the engine is built; the product decisions
-specifies **what** must exist. On conflict, DECISION wins.
+This file describes the engine that exists in this repository. Historical
+delivery-wave plans are outside the current contract.
 
 Non-negotiable: **gates collect evidence, the policy engine decides.** No gate may
 return a verdict. No LLM call anywhere in this tree.
@@ -15,26 +15,29 @@ src/sidq/
   models.py            frozen dataclasses (below) — the only shared vocabulary
   resolver.py          git diff  →  TouchedAsset[]
   graph/
-    client.py          one wrapper over the DataHub read path (MCP) + write path
+    client.py          DataHub graph clients and the official MCP adapter
     fixtures.py        record/replay so gates are testable without docker
   gates/
     base.py            Gate protocol: collect(change, graph) -> list[Evidence]
     reality.py         Gate 0 — graph schema vs live source schema
     schema.py          Gate 1 — referenced tables/columns exist in the graph
     blast.py           Gate 2 — lineage impact of the change
-    governance.py      Gate 3 — PII tags / ownership / deprecation   (wave 5)
-    assertions.py      Gate 4 — assertion dependency breakage        (wave 5)
+    governance.py      Gate 3 — ownership / deprecation
+    doc_rot.py         catalog field descriptions vs referenced fields
+    lineage_rot.py     stored column lineage vs local model SQL
+    self_contradiction.py
+                       graph-internal schema, lineage, and governance checks
   policy/
     engine.py          Evidence[] + policy.yaml -> Verdict
     default_policy.yaml
-  receipt/             build / write / read the sidq receipt         (wave 3)
+  receipt/             build / write / read the sidq receipt
                        written through the OFFICIAL MCP mutation tools, not a side
                        channel: add_structured_properties (queryable body) +
                        add_tags (sidq:verified | sidq:blocked badge) +
                        save_document (full evidence). Requires
                        TOOLS_IS_MUTATION_ENABLED=true. See docs/RECON.md.
-  mcp_server/          our own MCP server                            (wave 2)
-  bot/                 Verdict -> PR comment markdown                (wave 4)
+  mcp_server/          our own three-tool MCP server
+  bot/                 Verdict -> PR comment markdown
   cli.py
 ```
 
@@ -64,7 +67,7 @@ class Evidence:
 @dataclass(frozen=True, slots=True)
 class Finding:
     rule_id: str
-    severity: str                         # "block" | "warn"
+    severity: str                         # "block" | "warn" | "info"
     message: str                          # rendered from the rule template
     evidence: tuple[Evidence, ...]
 
@@ -80,7 +83,7 @@ class Verdict:
 
 **Determinism contract:** identical `(diff, graph snapshot, policy file)` ⇒ byte-identical
 verdict JSON. All collections are sorted by a stable key before serialization. The
-`policy_hash` makes every attestation reproducible — this is a scoring asset, not a detail.
+`policy_hash` makes a captured verdict reproducible for the same inputs; it is not a signature or proof that the graph stayed unchanged.
 
 ## 3. Resolver (`resolver.py`) — the component v1 forgot
 
@@ -110,12 +113,22 @@ class Gate(Protocol):
 
 | Gate | Emits `Evidence.kind` | Notes |
 |---|---|---|
-| `reality` | `catalog_reality_mismatch` | Compares the graph's schema for each touched dataset against the **live source** (Postgres `information_schema`). `detail` carries `graph_fields`, `live_fields`, `missing_in_graph`, `missing_in_source`. **This is the project's signature — build it in wave 1, not later.** |
+| `reality` | `catalog_reality_mismatch` | Compares the graph's schema for each touched dataset against the **live source** (Postgres `information_schema`). `detail` carries `graph_fields`, `live_fields`, `missing_in_graph`, `missing_in_source`. |
 | `schema` | `unknown_field`, `unknown_dataset`, `type_mismatch` | Referenced tables/columns exist in the graph, types compatible. |
-| `blast` | `blast_radius` | Downstream impact per touched asset, via `get_lineage` **and `get_lineage_paths_between`** — record the *path*, not just a count; the path is the evidence a judge wants rendered. `detail`: `downstream_count`, `downstream_urns`, `paths`, `dashboards`, `critical_assets`, `cross_team_owners`, `depth`, `granularity` (`"column"` or `"table"` — set from RECON; if column-level lineage is absent in the sample, degrade to table-level and record that honestly). |
+| `blast` | `blast_radius` | Downstream impact per touched asset, via `get_lineage` **and `get_lineage_paths_between`** — record the *path*, not just a count; the path is the evidence a judge wants rendered. `detail`: `downstream_count`, `downstream_urns`, `paths`, `dashboards`, `critical_assets`, `cross_team_owners`, `pii_tags`, `depth`, `granularity` (`"column"` or `"table"` — set from RECON; if column-level lineage is absent in the sample, degrade to table-level and record that honestly). `pii_tags` is sensitivity context, not proof that the proposed change created a route. |
+| `governance` | `unowned_asset`, `deprecated_upstream` | Reads ownership and deprecation evidence for the changed asset. It does not infer route changes from the catalog's current graph. |
+| `doc_rot` | `doc_rot` | Checks whether catalog descriptions reference fields the stored schema does not contain. |
+| `lineage_rot` | `lineage_rot_missing`, `lineage_rot_extra`, `lineage_unverifiable` | Compares stored column-lineage claims with locally available model SQL and reports missing prerequisites explicitly. |
+| `self_contradiction` | catalog truth-check evidence kinds | Audits graph-internal schema, lineage, and governance claims without inventing live-source evidence. |
 
 Gates never raise on graph errors: a failed lookup becomes `Evidence(kind="graph_unavailable")`,
 which the default policy treats as **block** (fail closed — a gate that fails open is not a gate).
+
+The built-in change model has projected columns before and after a local SQL
+change, but no before/proposed lineage-edge delta or classified source-field proof.
+It therefore does not emit `pii_exposure` or `access_policy_conflict`. The policy
+retains rules for those kinds so explicit, proven route evidence can still be
+judged; current graph tags or downstream paths alone are insufficient.
 
 **Verified MCP call contract (2026-07-28 — `docs/MCP-CONTRACT.md`, real server, not docs).**
 Several signatures we had guessed were wrong and are now corrected: `search` rejects
@@ -136,6 +149,7 @@ Several signatures we had guessed were wrong and are now corrected: `search` rej
 
 ```yaml
 version: 1
+unhandled_evidence: block
 settings:
   wide_blast_radius_threshold: 5
 rules:
@@ -151,8 +165,9 @@ rules:
   - id: critical_downstream
     match:
       evidence_kind: blast_radius
-      where:
+      where_any:
         - { field: detail.critical_assets, op: not_empty }
+        - { field: detail.cross_team_owners, op: not_empty }
     severity: block
 
   - id: wide_blast_radius
@@ -164,14 +179,21 @@ rules:
 ```
 
 Supported ops only: `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `in`, `contains`, `empty`, `not_empty`.
-Unknown op or unknown field ⇒ hard config error at load time, not at decision time.
+`where` requires every condition; `where_any` requires at least one. Unknown op,
+unknown field, or unknown `$settings.*` reference ⇒ hard config error at load
+time. A runtime operand type that cannot be compared is
+`policy_evaluation_failed` and blocks rather than bypassing the rule.
 
 Resolution: any `block` ⇒ `BLOCK`; else any `warn` ⇒ `WARN`; else `PASS`.
-`reason_code` comes from the highest-severity rule that declares one.
-Evidence with **no matching rule** is retained in the verdict as informational — visible,
-never silently dropped.
+An `info` rule records an explicit observation without changing a passing
+decision. The first matching block rule that declares a `reason_code` supplies
+it. Evidence whose kind has rules but whose conditions do not match is retained
+as informational. Evidence whose kind has no rule follows `unhandled_evidence`:
+the shipped policy sets it to `block`, so a newly emitted kind cannot silently
+downgrade to PASS. Version-1 custom policies that omit the setting retain the
+legacy `info` behavior; they can opt into the fail-closed contract explicitly.
 
-## 6. CLI (`cli.py`) — wave 1 exit criterion
+## 6. CLI (`cli.py`)
 
 ```
 sidq check --diff HEAD~1..HEAD [--policy path] [--json]
@@ -201,7 +223,7 @@ canonical machine artifact that every other surface (MCP, bot, receipt) consumes
   the two divergences recorded below. These are regression tests — never edit an
   example to make a test pass; fix the engine.
 
-## 8. Wave 1 definition of done
+## 8. Current verification contract
 
 `pytest -q` green · `sidq check` produces a stable verdict JSON on the live
 quickstart graph · Gate 0 demonstrably fires after renaming a column in the live

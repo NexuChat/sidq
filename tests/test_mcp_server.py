@@ -149,6 +149,8 @@ def test_tool_listing_names_and_read_only_annotations() -> None:
     ]
     assert all(tool.annotations.read_only_hint is True for tool in listed.tools)
     assert all(tool.output_schema["type"] == "object" for tool in listed.tools)
+    search = next(tool for tool in listed.tools if tool.name == "search_verified")
+    assert "not a DataHub receipt reader" in search.description
 
 
 def test_check_change_schema_has_no_required_fields_but_reads_all_three(
@@ -783,6 +785,9 @@ def test_check_change_over_a_real_unified_diff_finds_the_removed_column(
 
     assert result["decision"] == "BLOCK"
     assert result["touched"][0]["removed_fields"] == ["cust_email"]
+    rules = [finding["rule_id"] for finding in result["findings"]]
+    assert "pii_exposure" not in rules
+    assert "critical_downstream" in rules
 
 
 @pytest.mark.parametrize(
@@ -850,6 +855,7 @@ def test_search_verified_partitions_by_verification_status(tmp_path: Path) -> No
 
     result = service.search_verified("x", 7)
 
+    assert result["verification_source"] == "sidq_mcp_store"
     assert [item["urn"] for item in result["verified"]] == [CUSTOMERS]
     assert [item["urn"] for item in result["rejected"]] == [rejected_urn]
     assert {item["urn"]: item["status"] for item in result["unverified"]} == {

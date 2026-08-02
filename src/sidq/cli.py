@@ -9,18 +9,22 @@ import subprocess
 import sys
 from collections.abc import Sequence
 from dataclasses import replace
+from datetime import timedelta
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
 from sidq.agent import (
     CatalogAuditor,
+    PriorReceipt,
+    recall,
     receipts_for,
     render,
     render_writeback,
     write_receipts,
 )
 from sidq.agent.auditor import DEFAULT_BUDGET
+from sidq.agent.swarm import SwarmWorker, observe, render_worker
 from sidq.gates.base import Gate
 from sidq.gates.blast import BlastRadiusGate
 from sidq.gates.doc_rot import DocRotGate
@@ -39,19 +43,30 @@ from sidq.graph.client import (
 from sidq.graph.live_source import LiveSourceClient
 from sidq.models import Evidence, Verdict
 from sidq.policy.engine import PolicyEngine, load_policy
-from sidq.receipt.read import get_verification_status, holds, render_verification
+from sidq.receipt.read import (
+    get_verification_status,
+    get_verification_statuses,
+    holds,
+    render_verification,
+)
 from sidq.receipt.write import StdioMCPReceiptToolCaller
 from sidq.repair import (
     UNREPAIRABLE,
     apply_repairs,
     propose_all,
     prove,
+    refresh_snapshot,
     render_applied,
     render_plan,
     unfixed,
+    verify_repairs,
 )
 from sidq.resolver import Resolver
 from sidq.serialization import canonical_json
+
+# Named here rather than reaching into the extractor, so `--model` with no value
+# and `ModelExtractor()` cannot drift apart in a help string a judge reads.
+_DEFAULT_CLAIM_MODEL = "ibm/granite4:1b-q4_1"
 
 
 class _UnavailableClient:
@@ -290,6 +305,16 @@ def _human(verdict: Verdict) -> str:
     return "\n".join([f"Sidq: {verdict.decision}", line, separator, *body])
 
 
+def _nonnegative_int(value: str) -> int:
+    try:
+        parsed = int(value)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError("must be a nonnegative integer") from error
+    if parsed < 0:
+        raise argparse.ArgumentTypeError("must be a nonnegative integer")
+    return parsed
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="sidq")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -324,13 +349,143 @@ def _parser() -> argparse.ArgumentParser:
         action="store_true",
         help="write a receipt back for every asset examined (off by default)",
     )
+    audit_parser.add_argument(
+        "--resume",
+        action="store_true",
+        help=(
+            "read the receipts previous runs wrote back and skip assets whose "
+            "receipt still holds, so the budget reaches assets no run has seen"
+        ),
+    )
+    audit_parser.add_argument(
+        "--timeout",
+        type=float,
+        default=15.0,
+        help="seconds to wait on the catalog before reporting it unreachable",
+    )
     audit_parser.add_argument("--json", action="store_true", dest="as_json")
+    claims_parser = commands.add_parser(
+        "claims",
+        help="test what the catalog's documentation asserts against the live source",
+    )
+    claims_parser.add_argument(
+        "urn", nargs="+", help="dataset URNs whose documentation should be tested"
+    )
+    claims_parser.add_argument(
+        "--server", default="http://localhost:8080", help="DataHub GMS URL"
+    )
+    claims_parser.add_argument(
+        "--source",
+        help=(
+            "read-only PostgreSQL connection string for the live source "
+            "(defaults to CLAIMS_SOURCE)"
+        ),
+    )
+    reader_mode = claims_parser.add_mutually_exclusive_group()
+    reader_mode.add_argument(
+        "--model",
+        nargs="?",
+        const=_DEFAULT_CLAIM_MODEL,
+        help=(
+            "also read sentences the deterministic reader declined, using a local "
+            "Ollama model. It proposes what to test and never what is true: a "
+            "claim it proposes still has to survive read-only SQL against the "
+            "source, and one that cannot be tested is dropped, not reported."
+        ),
+    )
+    reader_mode.add_argument(
+        "--reader",
+        action="store_true",
+        help=(
+            "also read declined sentences with the trained multilingual reader "
+            "in data/claims/reader/. Measured on a held-out split rather than "
+            "asserted: see docs/CLAIM-READER.md. Needs `pip install 'sidq[reader]'`."
+        ),
+    )
+    claims_parser.add_argument(
+        "--min-confidence",
+        type=float,
+        default=0.0,
+        help="ignore model proposals below this confidence (rules are always 1.0)",
+    )
+    claims_parser.add_argument(
+        "--budget", type=int, default=50, help="how many claims to test at most"
+    )
+    claims_parser.add_argument(
+        "--timeout",
+        type=float,
+        default=15.0,
+        help="seconds to wait on the catalog before reporting it unreachable",
+    )
+    claims_parser.add_argument("--json", action="store_true", dest="as_json")
+    swarm_parser = commands.add_parser(
+        "swarm",
+        help="audit as one worker of a swarm, cooperating only through receipts",
+    )
+    swarm_parser.add_argument(
+        "--worker-id",
+        required=True,
+        help="this worker's identity, recorded on every receipt it writes",
+    )
+    swarm_parser.add_argument(
+        "--swarm-run",
+        required=True,
+        help="the run all workers of this swarm share, so a ledger can be read back",
+    )
+    swarm_parser.add_argument(
+        "--server", default="http://localhost:8080", help="DataHub GMS URL"
+    )
+    swarm_parser.add_argument(
+        "--budget", type=int, default=DEFAULT_BUDGET, help="assets this worker examines"
+    )
+    swarm_parser.add_argument(
+        "--lineage-budget",
+        type=int,
+        default=0,
+        help=(
+            "assets whose column lineage the shared read resolves; defaults to "
+            "four times --budget because a swarm's workers rotate across the plan "
+            "and collectively cover far more ground than any one of them"
+        ),
+    )
+    swarm_parser.add_argument(
+        "--via-mcp",
+        action="store_true",
+        help="read the catalog through the official DataHub MCP server, not the SDK",
+    )
+    swarm_parser.add_argument(
+        "--timeout",
+        type=float,
+        default=15.0,
+        help="seconds to wait on the catalog before reporting it unreachable",
+    )
+    swarm_parser.add_argument("--json", action="store_true", dest="as_json")
+
+    ledger_parser = commands.add_parser(
+        "swarm-ledger",
+        help="read a swarm's work back out of the catalog, trusting no worker's word",
+    )
+    ledger_parser.add_argument("--swarm-run", required=True)
+    ledger_parser.add_argument(
+        "--server", default="http://localhost:8080", help="DataHub GMS URL"
+    )
+    ledger_parser.add_argument("--budget", type=int, default=DEFAULT_BUDGET)
+    ledger_parser.add_argument("--via-mcp", action="store_true")
+    ledger_parser.add_argument("--timeout", type=float, default=15.0)
+    ledger_parser.add_argument("--json", action="store_true", dest="as_json")
+
     verify_parser = commands.add_parser(
         "verify",
         help="read one asset's receipt back from DataHub and judge whether it holds",
     )
     verify_parser.add_argument("urn", help="the dataset URN to read a receipt for")
     verify_parser.add_argument("--policy")
+    verify_parser.add_argument(
+        "--max-age-days",
+        type=_nonnegative_int,
+        default=7,
+        help="maximum receipt age in days (default: 7)",
+    )
     verify_parser.add_argument("--json", action="store_true", dest="as_json")
     repair_parser = commands.add_parser(
         "repair",
@@ -349,6 +504,12 @@ def _parser() -> argparse.ArgumentParser:
         "--apply",
         action="store_true",
         help="write the proven repairs (off by default; this mutates the catalog)",
+    )
+    repair_parser.add_argument(
+        "--timeout",
+        type=float,
+        default=15.0,
+        help="seconds to wait on the catalog before reporting it unreachable",
     )
     repair_parser.add_argument("--json", action="store_true", dest="as_json")
     return parser
@@ -396,11 +557,141 @@ def _read_snapshot(arguments: Any) -> CatalogSnapshot | None:
         return None
     try:
         return CatalogSnapshot.from_datahub(
-            DataHubGraph(DatahubClientConfig(server=arguments.server))
+            DataHubGraph(
+                DatahubClientConfig(
+                    server=arguments.server,
+                    # The SDK's defaults retry a dead endpoint for minutes. A
+                    # judge who mistypes a port deserves a refusal, not a hang:
+                    # an unreachable catalog is an answer this tool can give in
+                    # seconds, and giving it slowly looks like a broken tool.
+                    timeout_sec=arguments.timeout,
+                    retry_max_times=1,
+                )
+            )
         )
     except Exception as error:  # noqa: BLE001 - the client raises several types
         print(f"sidq: could not read the catalog: {error}", file=sys.stderr)
         return None
+
+
+def _claims(arguments: Any) -> int:
+    """Test what the catalog's documentation asserts against the live source.
+
+    This is the one command where a model is allowed to participate, and the
+    shape of that participation is the point: it proposes *what to test* on the
+    sentences the deterministic reader would not commit to, and the verdict
+    still comes from row counts returned by read-only SQL. `--model` is opt-in;
+    without it the command runs on rules alone and produces the same verdicts,
+    only from fewer sentences.
+    """
+    import json
+
+    source = arguments.source or os.environ.get("CLAIMS_SOURCE")
+    if not source or not source.strip():
+        print(
+            "sidq: claims requires --source or the CLAIMS_SOURCE environment variable",
+            file=sys.stderr,
+        )
+        return 2
+
+    from sidq.claims.attest import DocumentationAttester, datasets_from, render
+    from sidq.claims.verify import ClaimVerifier
+    from sidq.graph.live_source import PostgresLiveSourceClient
+
+    try:
+        import psycopg
+    except ModuleNotFoundError:
+        print(
+            "sidq: this command reads a live PostgreSQL source; install the extra "
+            "with `pip install 'sidq[live]'`",
+            file=sys.stderr,
+        )
+        return 2
+
+    # The documentation is read from the catalog through the official MCP server,
+    # the same surface every other agent command uses. What it is tested against
+    # is a different system entirely — that separation is the check.
+    graph: Any = MCPGraphClient(StdioMCPToolCaller())
+    try:
+        datasets = datasets_from(graph, list(arguments.urn))
+    finally:
+        close = getattr(graph, "close", None)
+        if callable(close):
+            close()
+    if not datasets:
+        print("sidq: none of the named datasets could be read", file=sys.stderr)
+        return 2
+
+    # An unavailable reader is not a failed run. The rule-based reader still
+    # covers every sentence it was ever going to cover, and saying so is more
+    # useful than exiting with nothing done.
+    extra: Any = None
+    if arguments.reader:
+        from sidq.claims.reader import EmbeddingClaimReader
+
+        try:
+            extra = EmbeddingClaimReader()
+        except Exception as error:  # noqa: BLE001 - loading raises several types
+            print(f"sidq: reader unavailable, rules only ({error})", file=sys.stderr)
+    elif arguments.model:
+        from sidq.claims.extractor import ModelExtractor
+
+        try:
+            extra = ModelExtractor(arguments.model)
+        except Exception as error:  # noqa: BLE001 - the runtime raises its own types
+            print(f"sidq: model unavailable, rules only ({error})", file=sys.stderr)
+
+    def connect() -> Any:
+        # Read-only by construction: every compiled claim is a SELECT, and the
+        # session is set read-only as well so a mistake in compilation cannot
+        # become a write against someone's warehouse.
+        connection = psycopg.connect(source)
+        connection.read_only = True
+        return connection
+
+    live_source = PostgresLiveSourceClient(connect)
+    verifier = ClaimVerifier(live_source, connect)
+    run = DocumentationAttester(
+        verifier, extra=extra, min_confidence=arguments.min_confidence
+    ).run(datasets, budget=arguments.budget)
+    reader_identity: dict[str, object] | None = None
+    if extra is not None:
+        supplied_identity = getattr(extra, "identity", None)
+        if isinstance(supplied_identity, dict):
+            reader_identity = supplied_identity
+        else:
+            model_name = getattr(extra, "model", None)
+            if isinstance(model_name, str):
+                reader_identity = {"kind": "ollama", "model": model_name}
+
+    evidence = run.evidence()
+    verdict = PolicyEngine(None).decide(evidence, commit_sha=commit_sha_for_ref("HEAD"))
+    if arguments.as_json:
+        print(
+            json.dumps(
+                {
+                    "summary": run.summary(),
+                    "proposal_reader": reader_identity,
+                    "decision": verdict.decision,
+                    "policy_hash": verdict.policy_hash,
+                    "findings": [
+                        {
+                            "urn": item.urn,
+                            "column": item.claim.column,
+                            "origin": item.claim.origin,
+                            "sentence": item.claim.source_sentence,
+                            "status": item.verification.status,
+                            "violating_rows": item.verification.violating_row_count,
+                        }
+                        for item in run.admitted
+                    ],
+                },
+                indent=2,
+            )
+        )
+    else:
+        print("\n".join(render(run, verdict.decision, reader_identity=reader_identity)))
+    return 1 if verdict.decision == "BLOCK" else 0
 
 
 def _audit(arguments: Any) -> int:
@@ -414,8 +705,33 @@ def _audit(arguments: Any) -> int:
     if snapshot is None:
         return 2
 
-    result = CatalogAuditor(snapshot, budget=arguments.budget).run()
+    prior: dict[str, PriorReceipt] = {}
+    if arguments.resume:
+        # The memory lives in the catalog, so resuming is a read like any other.
+        # If the receipts cannot be read, the prior stays empty and everything
+        # is examined afresh — forgetting costs budget, never correctness.
+        caller = StdioMCPReceiptToolCaller()
+        try:
+            policy_hash = PolicyEngine(None).decide((), commit_sha="").policy_hash
+            prior = recall(
+                [entity.urn for entity in snapshot.entities],
+                caller,
+                current_policy_hash=policy_hash,
+            )
+        except Exception as error:  # noqa: BLE001 - MCP transports raise several types
+            print(
+                f"sidq: could not read prior receipts, re-examining everything: "
+                f"{error}",
+                file=sys.stderr,
+            )
+        finally:
+            close = getattr(caller, "close", None)
+            if callable(close):
+                close()
+
+    result = CatalogAuditor(snapshot, budget=arguments.budget, prior=prior).run()
     lines = list(render(result, catalog=arguments.server))
+    outcomes: list[Any] = []
 
     if arguments.write_receipts:
         # Opt-in, because this mutates a catalog the operator may not own. The
@@ -433,10 +749,33 @@ def _audit(arguments: Any) -> int:
         lines.extend(("", *render_writeback(outcomes)))
 
     if arguments.as_json:
-        sys.stdout.buffer.write(canonical_json(result.summary()) + b"\n")
+        output = result.summary()
+        if arguments.write_receipts:
+            failed_outcomes = [item for item in outcomes if not item.written]
+            output = {
+                **output,
+                "writes": {
+                    "attempted": len(outcomes),
+                    "written": len(outcomes) - len(failed_outcomes),
+                    "failed": len(failed_outcomes),
+                    "failures": [
+                        {
+                            "urn": item.urn,
+                            "verdict": item.verdict,
+                            "detail": item.detail,
+                        }
+                        for item in sorted(
+                            failed_outcomes,
+                            key=lambda item: (item.urn, item.verdict, item.detail),
+                        )
+                    ],
+                },
+            }
+        sys.stdout.buffer.write(canonical_json(output) + b"\n")
     else:
         print("\n".join(lines))
-    return 1 if result.findings else 0
+    write_failed = any(not item.written for item in outcomes)
+    return 1 if result.findings or write_failed else 0
 
 
 def _repair(arguments: Any) -> int:
@@ -453,20 +792,7 @@ def _repair(arguments: Any) -> int:
     result = CatalogAuditor(snapshot, budget=arguments.budget).run()
     plan = prove(snapshot, propose_all(result.findings, snapshot))
     lines = render_plan(plan, dry_run=not arguments.apply)
-
-    remaining = unfixed(result.findings, plan)
-    if remaining:
-        # Named, not counted away. The repairable checks are the minority, and a
-        # report that showed only what it could fix would read as if the rest were
-        # handled. Each unrepairable kind carries the reason it has no mechanical
-        # fix, so "we did not repair this" never looks like "there was nothing here".
-        lines.extend(("", f"Still standing, unrepaired: {len(remaining)}"))
-        for kind in sorted({item.kind for item in remaining}):
-            count = sum(1 for item in remaining if item.kind == kind)
-            lines.append(f"  {kind:<34} {count}")
-            reason = UNREPAIRABLE.get(kind)
-            if reason:
-                lines.append(f"    no mechanical repair: {reason}")
+    outcomes: list[Any] = []
 
     if arguments.apply:
         caller = StdioMCPReceiptToolCaller()
@@ -476,13 +802,236 @@ def _repair(arguments: Any) -> int:
             close = getattr(caller, "close", None)
             if callable(close):
                 close()
+        if any(item.applied for item in outcomes):
+            outcomes = verify_repairs(
+                snapshot,
+                outcomes,
+                lambda proposals, timeout: _read_repair_targets(
+                    snapshot,
+                    proposals,
+                    server=arguments.server,
+                    timeout=timeout,
+                ),
+                timeout=arguments.timeout,
+            )
+
+    remaining = list(unfixed(result.findings, plan))
+    failed_repairs = {
+        (item.proposal.finding_kind, item.proposal.subject)
+        for item in outcomes
+        if not item.closed and not item.unresolved and not item.collateral
+    }
+    remaining_keys = {(item.kind, item.subject) for item in remaining}
+    remaining.extend(
+        item
+        for item in result.findings
+        if (item.kind, item.subject) in failed_repairs
+        and (item.kind, item.subject) not in remaining_keys
+    )
+    unresolved = {
+        (finding.kind, finding.subject): finding
+        for outcome in outcomes
+        for finding in outcome.unresolved
+    }
+    collateral = {
+        (finding.kind, finding.subject): finding
+        for outcome in outcomes
+        for finding in outcome.collateral
+    }
+    remaining.extend(
+        Evidence(
+            finding.kind,
+            finding.subject,
+            {"repair_collateral": finding.detail} if finding.detail else {},
+        )
+        for key, finding in sorted({**unresolved, **collateral}.items())
+        if key not in {(item.kind, item.subject) for item in remaining}
+    )
+    if remaining:
+        # Named, not counted away. The repairable checks are the minority, and a
+        # report that showed only what it could fix would read as if the rest were
+        # handled. Each unrepairable kind carries the reason it has no mechanical
+        # fix, so "we did not repair this" never looks like "there was nothing here".
+        lines.extend(("", f"Still standing, unrepaired: {len(remaining)}"))
+        for kind in sorted({item.kind for item in remaining}):
+            count = sum(1 for item in remaining if item.kind == kind)
+            lines.append(f"  {kind:<34} {count}")
+            for item in sorted(
+                (item for item in remaining if item.kind == kind),
+                key=lambda item: item.subject,
+            ):
+                lines.append(f"    {item.subject}")
+                detail = item.detail.get("repair_collateral")
+                if detail:
+                    lines.append(f"      {detail}")
+            reason = UNREPAIRABLE.get(kind)
+            if reason:
+                lines.append(f"    no mechanical repair: {reason}")
+
+    if arguments.apply:
         lines.extend(("", *render_applied(outcomes)))
 
     if arguments.as_json:
-        sys.stdout.buffer.write(canonical_json(plan.summary()) + b"\n")
+        output = plan.summary()
+        if arguments.apply:
+            written = sum(1 for item in outcomes if item.applied)
+            verified = sum(1 for item in outcomes if item.closed)
+            output = {
+                **output,
+                "remaining": {
+                    "count": len(remaining),
+                    "findings": [
+                        {
+                            "kind": item.kind,
+                            "subject": item.subject,
+                            **(
+                                {"detail": item.detail["repair_collateral"]}
+                                if item.detail.get("repair_collateral")
+                                else {}
+                            ),
+                        }
+                        for item in sorted(
+                            remaining, key=lambda item: (item.kind, item.subject)
+                        )
+                    ],
+                    "kinds": {
+                        kind: sum(1 for item in remaining if item.kind == kind)
+                        for kind in sorted({item.kind for item in remaining})
+                    },
+                },
+                "writes": {
+                    "attempted": len(outcomes),
+                    "applied_unverified": written - verified,
+                    "failed": sum(1 for item in outcomes if not item.applied),
+                    "verified": verified,
+                    "written": written,
+                },
+            }
+        sys.stdout.buffer.write(canonical_json(output) + b"\n")
     else:
         print("\n".join(lines))
-    return 1 if remaining else 0
+    write_unclosed = any(not item.closed for item in outcomes)
+    return 1 if remaining or write_unclosed else 0
+
+
+def _read_repair_targets(
+    before: CatalogSnapshot,
+    proposals: Sequence[Any],
+    *,
+    server: str,
+    timeout: float,
+) -> CatalogSnapshot:
+    """Rebuild mutated state from direct entity reads, never from search."""
+    import queue
+    import threading
+
+    completed: queue.Queue[tuple[CatalogSnapshot | None, Exception | None]] = (
+        queue.Queue(maxsize=1)
+    )
+
+    def read() -> None:
+        graph: Any = None
+        try:
+            graph = MCPGraphClient(StdioMCPToolCaller(gms_url=server))
+            snapshot = refresh_snapshot(before, proposals, graph)
+        except Exception as error:  # noqa: BLE001 - MCP transports raise several types
+            completed.put((None, error))
+        else:
+            completed.put((snapshot, None))
+        finally:
+            close = getattr(graph, "close", None)
+            if callable(close):
+                close()
+
+    worker = threading.Thread(target=read, name="sidq-repair-readback", daemon=True)
+    worker.start()
+    worker.join(timeout=max(timeout, 0.0))
+    if worker.is_alive():
+        raise TimeoutError("direct repair read exceeded its bounded timeout")
+    snapshot, error = completed.get_nowait()
+    if error is not None:
+        raise error
+    if snapshot is None:
+        raise RuntimeError("direct repair read returned no snapshot")
+    return snapshot
+
+
+def replace_budget(arguments: Any, budget: int) -> Any:
+    """A shallow view of the parsed arguments with a different read budget."""
+    from copy import copy
+
+    widened = copy(arguments)
+    widened.budget = budget
+    return widened
+
+
+def _swarm(arguments: Any) -> int:
+    """One worker of a swarm: read fresh, decide, write now, move on.
+
+    Nothing here coordinates with the other workers. They are separate
+    processes, possibly on separate machines, and the only thing they share is
+    the catalog — so cooperation is whatever the receipts already in it say.
+    """
+    # Each worker enters the shared plan at its own offset, so the read must
+    # resolve column lineage well past one worker's own budget — otherwise a
+    # rotated worker lands on assets nothing fetched lineage for, correctly
+    # reports that it could not establish anything, and writes no receipt. The
+    # honesty rule is right; the read was simply too narrow for a swarm.
+    lineage = arguments.lineage_budget or arguments.budget * 4
+    snapshot = _read_snapshot(replace_budget(arguments, lineage))
+    if snapshot is None:
+        return 2
+
+    caller = StdioMCPReceiptToolCaller()
+    try:
+        result = SwarmWorker(
+            snapshot,
+            worker_id=arguments.worker_id,
+            swarm_run=arguments.swarm_run,
+            tool_caller=caller,
+            budget=arguments.budget,
+            commit_sha=commit_sha_for_ref("HEAD"),
+        ).run()
+    finally:
+        close = getattr(caller, "close", None)
+        if callable(close):
+            close()
+
+    if arguments.as_json:
+        sys.stdout.buffer.write(canonical_json(result.summary()) + b"\n")
+    else:
+        print("\n".join(render_worker(result)))
+    return 1 if result.findings or result.write_failures else 0
+
+
+def _swarm_ledger(arguments: Any) -> int:
+    """What the swarm did, read from the catalog rather than from the workers.
+
+    A swarm that reported its own success would be the self-attestation this
+    project refuses, so the ledger asks DataHub and nobody else.
+    """
+    snapshot = _read_snapshot(arguments)
+    if snapshot is None:
+        return 2
+
+    urns = [entity.urn for entity in snapshot.entities]
+    caller = StdioMCPToolCaller()
+    try:
+        statuses = get_verification_statuses(urns, caller)
+    except Exception as error:  # noqa: BLE001 - MCP transports raise several types
+        print(f"sidq: could not read the ledger: {error}", file=sys.stderr)
+        return 2
+    finally:
+        close = getattr(caller, "close", None)
+        if callable(close):
+            close()
+
+    report = observe(urns, statuses, swarm_run=arguments.swarm_run)
+    if arguments.as_json:
+        sys.stdout.buffer.write(canonical_json(report.summary()) + b"\n")
+    else:
+        print("\n".join(report.render()))
+    return 0
 
 
 def _verify(arguments: Any) -> int:
@@ -498,13 +1047,16 @@ def _verify(arguments: Any) -> int:
     recorded BLOCK. That is the answer, not a failure, so it stays distinct from
     the 2 returned when the catalog could not be read at all.
     """
-    caller = StdioMCPReceiptToolCaller()
+    caller = StdioMCPToolCaller()
     try:
         policy_hash = (
             PolicyEngine(arguments.policy).decide((), commit_sha="").policy_hash
         )
         status = get_verification_status(
-            arguments.urn, caller, current_policy_hash=policy_hash
+            arguments.urn,
+            caller,
+            current_policy_hash=policy_hash,
+            max_age=timedelta(days=arguments.max_age_days),
         )
     except Exception as error:  # noqa: BLE001 - MCP transports raise several types
         print(f"sidq: could not read the receipt: {error}", file=sys.stderr)
@@ -528,10 +1080,16 @@ def main(argv: Sequence[str] | None = None) -> int:
     arguments = _parser().parse_args(argv)
     if arguments.command == "audit":
         return _audit(arguments)
+    if arguments.command == "claims":
+        return _claims(arguments)
     if arguments.command == "verify":
         return _verify(arguments)
     if arguments.command == "repair":
         return _repair(arguments)
+    if arguments.command == "swarm":
+        return _swarm(arguments)
+    if arguments.command == "swarm-ledger":
+        return _swarm_ledger(arguments)
     if arguments.command == "explain":
         policy = load_policy()
         rule = next(

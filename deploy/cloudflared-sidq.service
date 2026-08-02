@@ -6,22 +6,31 @@ StartLimitIntervalSec=0
 
 [Service]
 Type=simple
-User=dev
-Group=dev
+DynamicUser=true
 UMask=0077
-ExecStart=/home/dev/bin/cloudflared --no-autoupdate tunnel run --token-file /etc/cloudflared/sidq.token
+LoadCredential=sidq.token:/etc/cloudflared/sidq.token
+ExecStart=/usr/local/bin/cloudflared-sidq --no-autoupdate tunnel run --token-file %d/sidq.token
 Restart=always
 RestartSec=5s
 NoNewPrivileges=true
 PrivateTmp=true
+PrivateDevices=true
 ProtectSystem=strict
-ProtectHome=read-only
+ProtectHome=true
+ProtectProc=invisible
+ProcSubset=pid
+ProtectHostname=true
+ProtectClock=true
 ProtectKernelTunables=true
 ProtectKernelModules=true
+ProtectKernelLogs=true
 ProtectControlGroups=true
+RestrictNamespaces=true
 LockPersonality=true
+RestrictRealtime=true
 RestrictSUIDSGID=true
 CapabilityBoundingSet=
+SystemCallArchitectures=native
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
 
 [Install]
