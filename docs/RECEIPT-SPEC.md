@@ -1,4 +1,4 @@
-# SIDQ RECEIPT SPEC — wave 3 (binding)
+# SIDQ RECEIPT SPEC — implemented receipt contract
 
 Verified facts: `docs/RECON.md`.
 
@@ -45,9 +45,17 @@ structured properties first; they are searchable and the custom-properties path 
 re-run the same policy on the same commit and get the same verdict, byte for byte. Say
 this out loud in the README — it is the difference between an attestation and a sticker.
 
-## 3. Consumption — `get_verification_status(urn)`
+## 3. Consumption — `sidq verify <urn>`
 
-Our MCP tool returns, for the asset's latest receipt:
+Receipt consumption is a CLI operation, not a fourth Sidq MCP tool. Run it from
+a process separate from the writer:
+
+```bash
+sidq verify 'urn:li:dataset:(urn:li:dataPlatform:postgres,example.table,PROD)' --json
+```
+
+It reads the latest receipt through the official DataHub MCP dependency and
+returns:
 
 ```json
 {
@@ -86,10 +94,13 @@ receipt that cannot go stale is a sticker.
 ## 4. Demo obligation (DECISION §6, scene 4)
 
 The PASS receipt must be **visible in the DataHub UI** (that is what the tag buys us), and
-a *different* agent must then call `get_verification_status` and change its behaviour
+a *different* process must then run `sidq verify` and change its behaviour
 because of the answer. Not a log line — a behaviour change: it declines, or it warns, or it
 picks a different asset. If the demo cannot show a third party acting on the receipt, the
 receipt is decorative and criterion #1 is only half won.
+
+Sidq's own `sidq-mcp` server exposes exactly three tools: `check_change`,
+`verify_context`, and `search_verified`. None is named as a receipt-status tool.
 
 ## 5. Hard rules
 

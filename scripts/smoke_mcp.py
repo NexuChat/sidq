@@ -68,8 +68,8 @@ def decode_result(tool_name: str, result: Any) -> Any:
             if getattr(item, "type", None) == "text"
         ]
         raise RuntimeError(f"{tool_name} failed: {'; '.join(messages)}")
-    if result.structuredContent and "result" in result.structuredContent:
-        return result.structuredContent["result"]
+    if result.structured_content and "result" in result.structured_content:
+        return result.structured_content["result"]
     for item in result.content:
         if getattr(item, "type", None) == "text":
             return json.loads(item.text)

@@ -16,6 +16,60 @@ Contributions are welcome under [`CONTRIBUTING.md`](CONTRIBUTING.md) and the
 
 Sidq is a DataHub-native verification layer for agents and data-code changes. It checks whether catalog context is truthful before an agent relies on it, then applies an explicit policy and leaves evidence that the next agent can read.
 
+## Install and connect
+
+Choose the boundary you actually need.
+
+**Offline — no DataHub or credentials.** The flagship verdict replay
+self-bootstraps its hash-locked Python environment on first use:
+
+```bash
+git clone https://github.com/NexuChat/sidq.git
+cd sidq
+make gate-demo
+```
+
+Run `make install` first instead when you want the environment installed without
+running the demo. Both paths require Python 3.12 and package-index access on the
+first run; the replay itself uses only committed evidence.
+
+**Connected — live DataHub.** Install Python 3.12, Docker with Compose, and
+[`uv`](https://docs.astral.sh/uv/getting-started/installation/), then follow the
+fresh-clone sequence in [`docs/SETUP.md`](docs/SETUP.md):
+
+```bash
+cd /absolute/path/to/sidq
+make mcp-install
+# Start DataHub OSS as shown in docs/SETUP.md, then:
+make demo-stack
+make mcp-smoke
+make live-loop
+```
+
+`make mcp-smoke` initializes `sidq-mcp` and requires its exact three-tool list,
+then exercises the official `mcp-server-datahub` against the live DataHub graph.
+`make demo-stack` connects the repository demo to an already-running external
+DataHub OSS quickstart. The repository's Compose file supplies only the controlled
+PostgreSQL source; it relies on an already-running DataHub and its
+`datahub_network`. These are connected components, not a single Compose graph.
+
+To attach Sidq's own server to Codex, use an absolute executable path and the
+absolute root of the data repository Sidq should inspect:
+
+```bash
+codex mcp add sidq --env DATAHUB_GMS_URL=http://localhost:8080 --env SIDQ_REPO_ROOT=/absolute/path/to/data-repository -- /absolute/path/to/sidq/.venv/bin/sidq-mcp
+codex mcp list
+```
+
+Start Codex and enter `/mcp` to confirm that `sidq` and its three tools are
+active. Secret tokens and DSNs belong in the parent environment and are
+forwarded by name in `.codex/config.toml`; do not put their values in the file.
+The exact configuration is in [`docs/MCP-SERVER.md`](docs/MCP-SERVER.md).
+
+The official `mcp-server-datahub` is Sidq's graph dependency. `sidq-mcp` is the
+separate Sidq server that exposes exactly three tools: `check_change`,
+`verify_context`, and `search_verified`.
+
 ## Judge runbook
 
 Four commands, in order of how much runtime infrastructure they need. Rows 1 and
@@ -25,7 +79,7 @@ file on first use, so that first run needs package-index access.
 | # | Command | Needs | What it proves | Takes |
 |---|---|---|---|---|
 | 1 | `make gate-demo` | Python 3.12; package downloads on first use; no DataHub or credentials | The published `BLOCK` verdict is re-derived from the committed graph recording, byte-identical, with the same `policy_hash`. Hand-editing an artifact fails this. | ~2s after bootstrap |
-| 2 | `make check` | Python 3.12; package downloads on first use | 764 tests, lint, format, types — the same code-quality and regression checks CI runs. | ~60s after bootstrap |
+| 2 | `make check` | Python 3.12; package downloads on first use | 815 tests, lint, format, types — the same code-quality and regression checks CI runs. | ~60s after bootstrap |
 | 3 | `make live-loop` | a running DataHub ([`docs/SETUP.md`](docs/SETUP.md)) | The whole agent loop over the **official MCP server only**: read → decide → write a receipt → a *separate process* reads it back → an asset carrying no receipt returns `NOT VERIFIED`. | ~60s |
 | 4 | `make repair-demo` | the same DataHub | The repair agent proposes a fix from catalog evidence, re-runs the deterministic engine against the catalog that fix *would* create, and shows what it proved and what it refused. | ~40s |
 
@@ -188,6 +242,19 @@ deterministic evidence, policy, and commit produce a byte-identical blocking
 decision, identified by `policy_hash` and `commit_sha`.
 
 ## Try it in one command
+
+From a fresh clone, start with the offline proof. It downloads the locked Python
+packages on first use, then re-derives the published decision with no DataHub:
+
+```bash
+make gate-demo
+```
+
+The printed hashes must match the clickable committed proof:
+[`verdict.json`](examples/01-blocked-pii-dashboard/verdict.json) and its rendered
+[`PR comment`](examples/01-blocked-pii-dashboard/pr-comment.md).
+
+With a live DataHub connected, the catalog audit is:
 
 Point Sidq at a catalog it has never seen. It ranks every asset by how much damage
 a lie about it would do — downstream consumers, PII tags, missing ownership,
@@ -437,11 +504,19 @@ writes SQL, and stops when the answer is that the catalog cannot be trusted.
 `search_verified` distinguishes `verified`, `unverified`, `stale`, `unverifiable`, and `rejected`; a failed graph lookup is `GRAPH_UNAVAILABLE`, not an empty search result. MCP responses use canonical JSON, so identical inputs and verification state produce byte-identical output. See [`docs/MCP-SERVER.md`](docs/MCP-SERVER.md) for the client configuration and wire examples.
 
 The repository also ships an installable Agent Skill that makes this verification
-sequence the agent's operating rule:
+sequence the agent's operating rule. Run the installer from the root of the
+target data repository where Codex will start, not from the Sidq repository:
 
 ```bash
-npx skills add NexuChat/sidq --skill datahub-verify
+cd /absolute/path/to/data-repository
+npx skills add NexuChat/sidq --skill datahub-verify --agent codex
 ```
+
+That installs the workflow under
+`/absolute/path/to/data-repository/.agents/skills/datahub-verify`; it does not
+install Sidq or attach an MCP server. Complete the MCP setup above and run
+`cd /absolute/path/to/sidq` followed by `make mcp-smoke` before relying on the
+skill.
 
 The same skill is proposed to DataHub's official skills repository in
 [datahub-project/datahub-skills#76](https://github.com/datahub-project/datahub-skills/pull/76).

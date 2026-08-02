@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import hashlib
+import http.client
 import json
 import os
 import re
 import subprocess
 import textwrap
 import threading
+from concurrent.futures import ThreadPoolExecutor
 from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
@@ -665,6 +667,242 @@ def test_handoff_has_explicit_judging_age_and_complete_semantic_context() -> Non
         assert required in description
 
 
+def test_readiness_requires_credential_file_and_authenticated_catalog_access(
+    monkeypatch, tmp_path
+) -> None:
+    from web import server
+
+    missing = tmp_path / "missing-token"
+    monkeypatch.setenv("SIDQ_DATAHUB_TOKEN_FILE", str(missing))
+    monkeypatch.setattr(
+        server,
+        "_datahub_ready",
+        lambda token: pytest.fail("missing credential reached the catalog probe"),
+    )
+
+    assert server._readiness_payload() == {
+        "status": "degraded",
+        "service": "sidq-landing",
+        "datahub": "unavailable",
+    }
+    server._reset_request_state_for_tests()
+
+    secret = "readiness-secret-must-not-leak"
+    token_file = tmp_path / "reader-token"
+    token_file.write_text(f"{secret}\n", encoding="utf-8")
+    monkeypatch.setenv("SIDQ_DATAHUB_TOKEN_FILE", str(token_file))
+    observed: list[str] = []
+    monkeypatch.setattr(
+        server, "_datahub_ready", lambda token: observed.append(token) or True
+    )
+
+    payload = server._readiness_payload()
+
+    assert payload == {
+        "status": "ready",
+        "service": "sidq-landing",
+        "datahub": "ok",
+    }
+    assert observed == [secret]
+    assert secret not in str(payload)
+    assert str(token_file) not in str(payload)
+
+
+def test_catalog_readiness_probe_uses_bearer_auth_and_a_read_only_graphql_query(
+    monkeypatch,
+) -> None:
+    from web import server
+
+    class Response:
+        status = 200
+
+        def __init__(self, body: dict) -> None:
+            self.body = body
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return None
+
+        def read(self, limit: int) -> bytes:
+            assert limit == server.MAX_READINESS_RESPONSE_BYTES
+            return json.dumps(self.body).encode("utf-8")
+
+    requests = []
+    response_body = {"data": {"search": {"total": 0}}}
+
+    def open_request(request, timeout):
+        requests.append(request)
+        assert timeout == server.READINESS_TIMEOUT_SECONDS
+        return Response(response_body)
+
+    monkeypatch.setenv("DATAHUB_GMS_URL", "http://127.0.0.1:8080")
+    monkeypatch.setattr(server.urllib.request, "urlopen", open_request)
+
+    assert server._datahub_ready("catalog-secret")
+    request = requests[0]
+    assert request.full_url == "http://127.0.0.1:8080/api/graphql"
+    assert request.method == "POST"
+    assert request.get_header("Authorization") == "Bearer catalog-secret"
+    assert b"search" in request.data and b"mutation" not in request.data.lower()
+
+    response_body.clear()
+    response_body["errors"] = [{"message": "denied"}]
+    assert not server._datahub_ready("catalog-secret")
+
+
+def test_readiness_result_is_cached_until_its_short_ttl_expires(
+    monkeypatch, tmp_path
+) -> None:
+    from web import server
+
+    secret = "readiness-cache-secret"
+    token_file = tmp_path / "reader-token"
+    token_file.write_text(secret, encoding="utf-8")
+    monkeypatch.setenv("SIDQ_DATAHUB_TOKEN_FILE", str(token_file))
+    current = [100.0]
+    monkeypatch.setattr(server.time, "monotonic", lambda: current[0])
+    refresh_started = threading.Event()
+    refresh_release = threading.Event()
+    probes: list[str] = []
+
+    def probe(token: str) -> bool:
+        probes.append(token)
+        if len(probes) == 1:
+            return True
+        refresh_started.set()
+        assert refresh_release.wait(timeout=2)
+        return False
+
+    monkeypatch.setattr(server, "_datahub_ready", probe)
+
+    assert server._readiness_payload()["status"] == "ready"
+    current[0] += server.READINESS_CACHE_TTL_SECONDS - 0.1
+    assert server._readiness_payload()["status"] == "ready"
+    assert probes == [secret]
+
+    current[0] += 0.1
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        refresh = executor.submit(server._readiness_payload)
+        assert refresh_started.wait(timeout=2)
+        stale = executor.submit(server._readiness_payload)
+        try:
+            stale_payload = stale.result(timeout=0.5)
+            assert not refresh.done()
+        finally:
+            refresh_release.set()
+        refreshed_payload = refresh.result(timeout=2)
+
+    assert stale_payload["status"] == "ready"
+    assert refreshed_payload["status"] == "degraded"
+    assert probes == [secret, secret]
+    assert secret not in repr(server._readiness_cache)
+
+
+def test_concurrent_readiness_requests_share_one_in_flight_probe(monkeypatch) -> None:
+    from web import server
+
+    secret = "single-flight-secret"
+    started = threading.Event()
+    release = threading.Event()
+    probes: list[str] = []
+    monkeypatch.setattr(server, "_read_credential", lambda name: secret)
+
+    def probe(token: str) -> bool:
+        probes.append(token)
+        started.set()
+        assert release.wait(timeout=2)
+        return True
+
+    monkeypatch.setattr(server, "_datahub_ready", probe)
+
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        owner = executor.submit(server._readiness_payload)
+        assert started.wait(timeout=2)
+        non_owners = [executor.submit(server._readiness_payload) for _ in range(7)]
+        try:
+            payloads = [future.result(timeout=0.5) for future in non_owners]
+            assert not owner.done()
+        finally:
+            release.set()
+        owner_payload = owner.result(timeout=2)
+
+    assert probes == [secret]
+    assert all(payload["status"] == "degraded" for payload in payloads)
+    assert owner_payload["status"] == "ready"
+    assert secret not in repr(server._readiness_cache)
+
+
+def test_readiness_probe_exception_is_degraded_and_negatively_cached(
+    monkeypatch,
+) -> None:
+    from web import server
+
+    secret = "exception-secret-must-not-leak"
+    probes: list[str] = []
+    monkeypatch.setattr(server, "_read_credential", lambda name: secret)
+
+    def failing_probe(token: str) -> bool:
+        probes.append(token)
+        raise RuntimeError(secret)
+
+    monkeypatch.setattr(server, "_datahub_ready", failing_probe)
+
+    first = server._readiness_payload()
+    second = server._readiness_payload()
+
+    assert (
+        first
+        == second
+        == {
+            "status": "degraded",
+            "service": "sidq-landing",
+            "datahub": "unavailable",
+        }
+    )
+    assert probes == [secret]
+    assert secret not in str(first)
+    assert secret not in repr(server._readiness_cache)
+
+
+@pytest.mark.parametrize(
+    ("status", "datahub", "expected_status"),
+    (("ready", "ok", 200), ("degraded", "unavailable", 503)),
+)
+def test_readiness_endpoint_serves_status_json_and_security_headers_over_loopback(
+    monkeypatch, status: str, datahub: str, expected_status: int
+) -> None:
+    from web import server
+
+    payload = {
+        "status": status,
+        "service": "sidq-landing",
+        "datahub": datahub,
+    }
+    monkeypatch.setattr(server, "_readiness_payload", lambda: payload)
+
+    with server.Server(("127.0.0.1", 0), server.Handler) as service:
+        thread = threading.Thread(target=service.serve_forever, daemon=True)
+        thread.start()
+        connection = http.client.HTTPConnection(*service.server_address, timeout=2)
+        try:
+            connection.request("GET", "/readyz")
+            response = connection.getresponse()
+            body = json.loads(response.read())
+        finally:
+            connection.close()
+            service.shutdown()
+            thread.join(timeout=2)
+
+    assert response.status == expected_status
+    assert body == payload
+    assert response.getheader("Content-Type") == "application/json"
+    assert response.getheader("Cache-Control") == "no-store"
+    for name, value in server.SECURITY_HEADERS.items():
+        assert response.getheader(name) == value
+
+
 def test_landing_uses_a_hardened_external_script_and_progress_text() -> None:
     html = (ROOT / "web/index.html").read_text(encoding="utf-8")
     script = (ROOT / "web/app.js").read_text(encoding="utf-8")
@@ -672,13 +910,13 @@ def test_landing_uses_a_hardened_external_script_and_progress_text() -> None:
 
     assert "username:" not in html.lower()
     assert "password:" not in html.lower()
-    assert '<script src="app.js?v=d9263c3ee817720b" defer></script>' in html
+    assert '<script src="app.js?v=48de92b937cbdd17" defer></script>' in html
     assert "X-Sidq-Demo" in script
     assert "/capability" in script and "X-Sidq-Capability" in script
     assert "setInterval" in script and "elapsed" in script
     assert "textContent" in script
     assert "innerHTML" not in script
-    assert '<link rel="stylesheet" href="styles.css?v=3c4f127fefdadc8f">' in html
+    assert '<link rel="stylesheet" href="styles.css?v=5e5b2fe90d1a2fc9">' in html
     assert "<style" not in html
     assert "style=" not in html
     assert not re.search(r"<script(?![^>]+\bsrc=)", html)

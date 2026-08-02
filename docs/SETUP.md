@@ -1,8 +1,90 @@
-# Reproducing the local Sidq/DataHub environment
+# Reproducing Sidq
 
-This is the exact sequence for recreating the environment reconnoitred on
-2026-07-28. Run it from a fresh checkout of this repository. The quickstart and
-datapack downloads require access to GitHub and the container registries.
+Sidq has two honest setup boundaries. The offline proof needs no DataHub. The
+connected journey uses DataHub OSS plus a separate, controlled PostgreSQL
+source. The quickstart, package, and datapack downloads require access to GitHub,
+the Python package index, and container registries.
+
+## Offline proof from a fresh clone
+
+Prerequisite: Python 3.12. `make gate-demo` creates the project environment from
+the committed hash-locked dependencies before it runs.
+
+```bash
+git clone https://github.com/NexuChat/sidq.git
+cd sidq
+make gate-demo
+```
+
+Use `make install` instead when you only want to create the environment. Neither
+command needs DataHub, Docker, credentials, or a live source.
+
+## Connected journey from a fresh clone
+
+Prerequisites: Python 3.12, Docker with the Compose plugin, and
+[`uv`](https://docs.astral.sh/uv/getting-started/installation/). Install `uv`
+with its official installer if it is not already available:
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+Then clone and run the connected targets:
+
+```bash
+git clone https://github.com/NexuChat/sidq.git
+cd sidq
+python3.12 --version
+docker compose version
+uv --version
+make install
+make mcp-install
+command -v datahub && command -v mcp-server-datahub
+DATAHUB_TELEMETRY_ENABLED=false \
+  datahub docker quickstart --version v1.5.0.6
+curl --fail --silent --show-error http://localhost:8080/health
+datahub init
+DATAHUB_TELEMETRY_ENABLED=false \
+  datahub datapack load showcase-ecommerce
+# Auth-enabled DataHub only: export DATAHUB_GMS_TOKEN before these targets.
+make demo-stack
+make mcp-smoke
+make live-loop
+```
+
+`make mcp-install` is idempotent and reinstalls the isolated official DataHub
+MCP tool when repairing a partial older installation. If either `command -v`
+check is empty, run `uv tool update-shell`, open a new shell, return to the
+repository, and repeat the checks.
+
+`datahub init` is interactive: keep credentials out of shell history and out of
+the repository. A default local quickstart may allow demo ingestion and the MCP
+smoke without an explicit token. For an auth-enabled DataHub, inject
+`DATAHUB_GMS_TOKEN` from your secret manager before either target. For a
+one-shell manual check, read it without echoing:
+
+```bash
+read -rsp "DataHub GMS token: " DATAHUB_GMS_TOKEN
+printf '\n'
+export DATAHUB_GMS_TOKEN
+make demo-stack
+make mcp-smoke
+```
+
+Do not add the value to `.env`, `.codex/config.toml`, a command line, or any
+tracked file. An HTTP `401` from `demo-stack` or the official MCP smoke means
+the token is missing or invalid for that DataHub; it is not a successful graph
+check. The ordinary unauthenticated local quickstart does not require inventing
+a token.
+
+With DataHub OSS already running, `make demo-stack` starts and ingests the
+repository demo against it. The repository's `demo/docker-compose.yml` supplies only the
+controlled PostgreSQL source. It does not start DataHub and depends on the
+already-running DataHub quickstart and its external `datahub_network`. The two
+components are connected, but they are not a single Compose graph.
+
+The remainder of this document records the pinned components and the manual
+commands behind those targets.
 
 ## Tested versions
 
@@ -31,7 +113,7 @@ The CLI and quickstart images intentionally have different versions. With
 ```bash
 cd sidq
 
-python3 -m venv .venv
+python3.12 -m venv .venv
 .venv/bin/python -m pip install --upgrade \
   pip==26.1.2 \
   setuptools==83.0.0
@@ -49,6 +131,9 @@ uv tool install --with acryl-datahub==1.6.0.16 \
 .venv/bin/python -m pip list --format=freeze |
   grep -E '^(mcp|pytest|ruff|sqlglot|PyYAML)=='
 ```
+
+For the supported automated equivalent, use `make install` followed by
+`make mcp-install`.
 
 That tool environment, unlike the project venv, necessarily resolves
 `setuptools==81.0.0` because the DataHub SDK requires `setuptools<82`. The
@@ -142,13 +227,17 @@ Observed completed record:
 }
 ```
 
-Then run the MCP-only smoke test. It starts `mcp-server-datahub` over stdio,
-connects a real MCP client, searches, reads schema, and reads downstream
-column lineage:
+Then run the two-layer MCP smoke test. `make mcp-smoke` first initializes
+`sidq-mcp`, requires exactly `check_change`, `verify_context`, and
+`search_verified`, and calls `verify_context` on the showcase customers URN.
+That read-only call traverses the real client → Sidq MCP → official DataHub MCP
+→ GMS chain and fails closed on `GRAPH_UNAVAILABLE`; its verification store is
+temporary and never writes into the checkout. The target then starts
+`mcp-server-datahub` directly over stdio, connects a second real MCP client,
+searches, reads schema, and reads downstream column lineage against DataHub:
 
 ```bash
-DATAHUB_GMS_URL=http://localhost:8080 \
-  .venv/bin/python scripts/smoke_mcp.py
+make mcp-smoke
 ```
 
 The verified run exited `0` and began:
@@ -189,7 +278,9 @@ also exposed.
 ## 4. Live Gate 0 source
 
 The showcase datapack is metadata-only, so the repository contains a separate,
-controlled PostgreSQL source. Start and ingest it:
+controlled PostgreSQL source. Its Compose file does not include DataHub: it
+joins the already-running quickstart's `datahub_network`. Start and ingest only
+that repository-owned source with:
 
 ```bash
 make demo-up
@@ -200,6 +291,11 @@ This starts `postgres:16-alpine` as `sidq-demo-postgres`, publishes it on
 `localhost:55432`, seeds 36 customers, 72 orders, and 144 order items, and
 ingests its tables/view using
 `acryldata/datahub-ingestion:v1.5.0.6`.
+
+On an existing demo volume, `demo-up` idempotently restores only the controlled
+`sidq` role's documented demo password, then verifies that password over the
+same remote Docker network used by ingestion. It never deletes the volume or
+its data. Use `make demo-down` only when that disposable data may be removed.
 
 Verify the live source:
 

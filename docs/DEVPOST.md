@@ -189,8 +189,9 @@ Sidq has three surfaces:
 - A stdio MCP server, `sidq-mcp`, with `verify_context`, `check_change`, and `search_verified`.
 
 The repository includes a cross-agent `datahub-verify` skill, installable with
-`npx skills add NexuChat/sidq --skill datahub-verify`. It is also under public
-upstream review at
+`npx skills add NexuChat/sidq --skill datahub-verify --agent codex`. It installs
+under `.agents/skills/datahub-verify`; the command does not install Sidq or
+attach MCP. It is also under public upstream review at
 [datahub-project/datahub-skills#76](https://github.com/datahub-project/datahub-skills/pull/76).
 That link is a contribution in review, not a claim of merge or endorsement.
 
@@ -244,10 +245,6 @@ disposable asset is part of the showcase sample.
 `lineage_rot` is not adjudicable on the shipped showcase sample because the datapack
 does not include the original model SQL. Sidq reports all 32 attempts as
 `unverifiable`; it does not label them clean or rotten.
-
-The assertion-dependency gate has no MCP path in the open-source DataHub server;
-the server reports data-quality tools as disabled. It is not presented as an MCP
-capability.
 
 Sidq does not provide a global trust score, continuous background drift sentinel,
 blanket write quarantine, or model-assisted blocking. Those boundaries keep the

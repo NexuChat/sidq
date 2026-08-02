@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import queue
+import tempfile
 import threading
 from collections.abc import Callable, Mapping, Sequence
 from concurrent.futures import Future
@@ -278,23 +279,24 @@ class StdioMCPToolCaller:
         from mcp import ClientSession
         from mcp.client.stdio import StdioServerParameters, stdio_client
 
-        env = _mcp_subprocess_environment(self._gms_url)
-        async with (
-            stdio_client(StdioServerParameters(command=self._command, env=env)) as (
-                read,
-                write,
-            ),
-            ClientSession(read, write) as session,
-        ):
-            await session.initialize()
-            self._startup.set_result(None)
-            while request := await anyio.to_thread.run_sync(self._requests.get):
-                name, arguments, result = request
-                try:
-                    response = await session.call_tool(name, dict(arguments))
-                    result.set_result(_tool_response_payload(response, name=name))
-                except BaseException as error:  # noqa: BLE001 -- preserve caller-visible failures
-                    result.set_exception(error)
+        with tempfile.TemporaryDirectory(prefix="sidq-datahub-mcp-home-") as home:
+            env = _mcp_subprocess_environment(self._gms_url, home=home)
+            async with (
+                stdio_client(StdioServerParameters(command=self._command, env=env)) as (
+                    read,
+                    write,
+                ),
+                ClientSession(read, write) as session,
+            ):
+                await session.initialize()
+                self._startup.set_result(None)
+                while request := await anyio.to_thread.run_sync(self._requests.get):
+                    name, arguments, result = request
+                    try:
+                        response = await session.call_tool(name, dict(arguments))
+                        result.set_result(_tool_response_payload(response, name=name))
+                    except BaseException as error:  # noqa: BLE001 -- preserve caller-visible failures
+                        result.set_exception(error)
 
     def __call__(self, name: str, arguments: Mapping[str, Any]) -> Any:
         self._start()
@@ -309,12 +311,14 @@ class StdioMCPToolCaller:
         self._thread = None
 
 
-def _mcp_subprocess_environment(gms_url: str) -> dict[str, str]:
+def _mcp_subprocess_environment(
+    gms_url: str, *, home: str | os.PathLike[str] = "/tmp"
+) -> dict[str, str]:
     """Return only the environment needed by the read-only DataHub MCP child."""
     environment = {
         "DATAHUB_GMS_URL": gms_url,
         "DATAHUB_TELEMETRY_ENABLED": "false",
-        "HOME": "/tmp",
+        "HOME": os.fspath(home),
         "LANG": os.environ.get("LANG", "C.UTF-8"),
         "LOGURU_LEVEL": "WARNING",
         "PATH": os.environ.get("PATH", "/usr/local/bin:/usr/bin:/bin"),

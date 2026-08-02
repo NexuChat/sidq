@@ -22,37 +22,54 @@ This skill complements the official DataHub skills:
 
 Use this skill before those workflows when the question is whether the context is safe to rely on. Verification is a gate and an explanation, not a replacement for the catalog skills.
 
-Install this repository's skill directly from GitHub:
+Install this repository's skill directly from GitHub while the shell is at the
+root of the target data repository where Codex will start:
 
 ```bash
-npx skills add NexuChat/sidq --skill datahub-verify
+cd /absolute/path/to/data-repository
+npx skills add NexuChat/sidq --skill datahub-verify --agent codex
 ```
 
-The command installs the instruction layer. Sidq itself and the MCP connection
-below remain explicit dependencies; if either is unavailable, report that the
-verification did not run.
+The command installs this workflow under
+`/absolute/path/to/data-repository/.agents/skills/datahub-verify`. It does not
+install Sidq, install the official DataHub server, or attach an MCP server. Sidq
+itself and the MCP connection below remain explicit dependencies; if either is
+unavailable, report that the verification did not run.
 
 ---
 
-## Connect the MCP server
+## Connect the MCP server in Codex
 
-Sidq exposes the three tools used by this skill over stdio. Add this exact shape to `.mcp.json` (replace the repository path and credentials for the environment):
+The official `mcp-server-datahub` is Sidq's graph dependency. `sidq-mcp` is the
+separate Sidq server that exposes the three tools used by this skill. From a
+shell, register it with absolute paths:
 
-```json
-{
-  "mcpServers": {
-    "sidq": {
-      "type": "stdio",
-      "command": "sidq-mcp",
-      "args": [],
-      "env": {
-        "DATAHUB_GMS_URL": "http://localhost:8080",
-        "SIDQ_REPO_ROOT": "/absolute/path/to/your/data-repository",
-        "SIDQ_POSTGRES_DSN": "postgresql://sidq:sidq@localhost:55432/warehouse"
-      }
-    }
-  }
-}
+```bash
+codex mcp add sidq --env DATAHUB_GMS_URL=http://localhost:8080 --env SIDQ_REPO_ROOT=/absolute/path/to/data-repository -- /absolute/path/to/sidq/.venv/bin/sidq-mcp
+codex mcp list
+```
+
+Start Codex and enter `/mcp` to verify that all three tools are active. Validate
+the connected setup from the separate Sidq repository first:
+
+```bash
+cd /absolute/path/to/sidq
+make mcp-smoke
+```
+
+Do not publish or store secret values. When a DataHub token or PostgreSQL DSN is
+needed, export it in the shell that launches Codex and forward its name from a
+trusted repository's `.codex/config.toml`:
+
+```toml
+[mcp_servers.sidq]
+command = "/absolute/path/to/sidq/.venv/bin/sidq-mcp"
+cwd = "/absolute/path/to/data-repository"
+env_vars = ["DATAHUB_GMS_TOKEN", "SIDQ_POSTGRES_DSN"]
+
+[mcp_servers.sidq.env]
+DATAHUB_GMS_URL = "http://localhost:8080"
+SIDQ_REPO_ROOT = "/absolute/path/to/data-repository"
 ```
 
 `SIDQ_POSTGRES_DSN` enables the live PostgreSQL `schema_drift` check. If it is absent, that check belongs in `unverifiable`. If the repository has more than one manifest model, set `SIDQ_SQL_PATH` to the model used by raw SQL calls. Verification history defaults to `$SIDQ_REPO_ROOT/.sidq/mcp-verifications.json`; `SIDQ_VERIFICATION_STORE` can override it.
@@ -95,20 +112,52 @@ The repository example `examples/01-blocked-pii-dashboard/verdict.json` is an ac
   "decision": "BLOCK",
   "findings": [
     {
-      "kind": "pii_exposure",
-      "subject": "urn:li:dataset:(urn:li:dataPlatform:dbt,b2fd91.order_entry_db.order_entry.customers,PROD)#cust_email",
+      "evidence": [
+        {
+          "detail": {
+            "changed_field": "cust_email"
+          },
+          "graph_links": [
+            "https://datahub.mlki.app/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Adbt%2Cb2fd91.order_entry_db.order_entry.customers%2CPROD%29"
+          ],
+          "kind": "pii_exposure",
+          "subject": "urn:li:dataset:(urn:li:dataPlatform:dbt,b2fd91.order_entry_db.order_entry.customers,PROD)#cust_email"
+        }
+      ],
       "message": "PII exposure is not permitted for urn:li:dataset:(urn:li:dataPlatform:dbt,b2fd91.order_entry_db.order_entry.customers,PROD)#cust_email.",
       "rule_id": "pii_exposure",
       "severity": "block"
     },
     {
-      "kind": "blast_radius",
+      "evidence": [
+        {
+          "detail": {
+            "downstream_count": 16
+          },
+          "graph_links": [
+            "https://datahub.mlki.app/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Adbt%2Cb2fd91.order_entry_db.order_entry.customers%2CPROD%29"
+          ],
+          "kind": "blast_radius",
+          "subject": "urn:li:dataset:(urn:li:dataPlatform:dbt,b2fd91.order_entry_db.order_entry.customers,PROD)"
+        }
+      ],
       "message": "This change affects 16 downstream consumers for urn:li:dataset:(urn:li:dataPlatform:dbt,b2fd91.order_entry_db.order_entry.customers,PROD).",
       "rule_id": "wide_blast_radius",
       "severity": "warn"
     },
     {
-      "kind": "blast_radius",
+      "evidence": [
+        {
+          "detail": {
+            "downstream_count": 16
+          },
+          "graph_links": [
+            "https://datahub.mlki.app/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Adbt%2Cb2fd91.order_entry_db.order_entry.customers%2CPROD%29"
+          ],
+          "kind": "blast_radius",
+          "subject": "urn:li:dataset:(urn:li:dataPlatform:dbt,b2fd91.order_entry_db.order_entry.customers,PROD)"
+        }
+      ],
       "message": "This change has critical or cross-team downstream consumers for urn:li:dataset:(urn:li:dataPlatform:dbt,b2fd91.order_entry_db.order_entry.customers,PROD).",
       "rule_id": "critical_downstream",
       "severity": "block"
@@ -137,7 +186,7 @@ Before relying on catalog schema, lineage, or metadata for an asset, call `verif
 
 `truthful: true` means every truth check that Sidq required for that asset completed without findings. If `truthful` is false, inspect `findings` and say plainly what disagrees. For example, `lineage_rot_missing` means the catalog claims a column edge that the available model SQL does not reproduce; do not silently use the catalog lineage as if it were current.
 
-If a live source, model SQL, column-level lineage, or constraint introspection is missing, report the named item in `unverifiable`. Sidq currently checks `schema_drift` (catalog schema versus live PostgreSQL), `lineage_rot` (stored column lineage versus local model SQL), and `constraint_reconciliation` (catalog constraint claims versus the constraints the source enforces). `lineage_rot` cannot be adjudicated without model SQL. The assertion-dependency gate has no MCP path in the open-source server. Do not claim any check passed when it was not run.
+If a live source, model SQL, column-level lineage, or constraint introspection is missing, report the named item in `unverifiable`. Sidq currently checks `schema_drift` (catalog schema versus live PostgreSQL), `lineage_rot` (stored column lineage versus local model SQL), and `constraint_reconciliation` (catalog constraint claims versus the constraints the source enforces). `lineage_rot` cannot be adjudicated without model SQL. Do not claim any check passed when it was not run.
 
 Read `constraint_contradicts_catalog` precisely: the catalog claimed a constraint the live source does not enforce, so a query that relies on that guarantee may be wrong. The reverse — the source enforcing something the catalog never mentioned — is deliberately not reported as a truth finding, because the catalog is silent rather than untruthful, and the schema aspect cannot express keys or check constraints at all. Do not present catalog silence to a user as a catalog lie.
 
@@ -209,7 +258,7 @@ Do not describe `policy_hash` + `commit_sha` as proof that the world is unchange
 - **Continuing after `BLOCK`.** Explain the named rule and offer a compliant alternative.
 - **Treating DataHub metadata as ground truth.** Run `verify_context(urn)` before relying on it.
 - **Calling an unverified result clean.** Distinguish `unverified`, `stale`, `unverifiable`, and `rejected`.
-- **Claiming checks Sidq cannot run.** State when model SQL or a live source is missing; mention that assertion-dependency has no MCP path in OSS.
+- **Claiming checks Sidq cannot run.** State when model SQL or a live source is missing.
 - **Treating a stale receipt as current.** Re-run verification after the freshness window or any relevant input change.
 
 ## Remember

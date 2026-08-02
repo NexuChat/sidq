@@ -6,7 +6,8 @@ Everyone taught AI to write SQL. We taught it **when to refuse** — and we leav
 
 **Hackathon:** Build with DataHub — The Agent Hackathon (deadline Aug 10, 2026 · 5PM ET)
 **License:** Apache-2.0 at repo root (hard requirement)
-**Required component:** DataHub + `mcp-server-datahub` — and we ship an MCP server of our own.
+**Required component:** DataHub + `mcp-server-datahub` — Sidq's graph dependency —
+and `sidq-mcp`, the three-tool server we ship.
 
 ## The gap
 
@@ -29,7 +30,7 @@ git diff (SQL / dbt)
 [1]  SCHEMA GATE     referenced tables/columns/types exist in the graph
 [2]  BLAST GATE      lineage impact: which downstream assets and dashboards break?
 [3]  GOVERNANCE GATE PII tags, ownership, deprecation, access policy
-[4]  ASSERTION GATE  does the change remove a field an existing assertion depends on?
+[4]  SELF-CHECK      graph claim ⟷ graph claim: schema, lineage, and governance
       │
       ▼  gates emit EVIDENCE only — never verdicts
 [P]  POLICY ENGINE   policy.yaml → PASS / WARN / BLOCK, per named rule, with evidence links
@@ -50,6 +51,10 @@ git diff (SQL / dbt)
 3. **GitHub PR bot** — a deterministic comment: verdict, the rule that fired, blast radius,
    receipt link, and exact reproduction command. Judges can picture installing it tomorrow.
 
+The official `mcp-server-datahub` is not a fourth Sidq surface. It is the graph
+dependency used to read DataHub and perform explicit receipt mutations;
+`sidq-mcp` is the agent-facing Sidq server above.
+
 ## The agents, and the memory they share
 
 `sidq audit` spends an explicit budget worst-first and names what it did not
@@ -66,7 +71,7 @@ coordination layer.
 
 | Criterion | Our answer |
 |---|---|
-| Depth of DataHub use **incl. write-back** | reads schema + lineage + governance + assertions; writes an attested receipt that a *different* agent reads back through our MCP tool |
+| Depth of DataHub use **incl. write-back** | reads schema + lineage + governance; writes an attested receipt that a *different* agent reads back with `sidq verify`; the agent-facing MCP remains exactly the three documented verification tools |
 | Technical execution | deterministic end-to-end on the judges' own quickstart; fixture-backed tests; byte-identical verdicts for identical inputs |
 | Originality | inverts the category — verification-first, source-agnostic; Gate 0 catches the catalog lying about live reality at PR time, with no daemon; and receipts double as shared agent memory, so bounded audits converge to full coverage |
 | Real-world usefulness | a CI gate plus an agent guardrail — the daily pain of every data platform team |

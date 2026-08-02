@@ -1,23 +1,45 @@
-# DELIVERY SPEC — the judge-facing surfaces (binding)
+# DELIVERY SPEC — historical delivery record
 
-Written 2026-07-28 to kill a risk that would
-otherwise surface on day 9.
+This document records the delivery decision made on 2026-07-28. It is
+**historical and superseded**, not the current implementation contract. The
+current runbook is [`../README.md`](../README.md) and the reproducible connected
+setup is [`SETUP.md`](SETUP.md).
 
-## The problem
+## Current state
+
+The current judge-facing landing at <https://sidq.mlki.app> is a dynamic hosted
+application. Its **Run it here** actions execute a fixed allowlist of real Sidq
+commands on the host; the browser shows a progress timer while the server waits,
+then receives bounded captured output. The actions accept no arbitrary command
+or request input. DataHub is separately hosted at
+<https://datahub.mlki.app>.
+
+The current local journeys are deliberately separate:
+
+- Offline: `make gate-demo` self-bootstraps and replays committed evidence with
+  no DataHub.
+- Connected: `make mcp-install`, `make demo-stack`, `make mcp-smoke`, then
+  `make live-loop` against DataHub OSS.
+
+The repository demo Compose file supplies only controlled PostgreSQL. It relies
+on an already-running DataHub and `datahub_network`; it is not a standalone
+DataHub deployment.
+
+## Historical problem
 
 The rules require *"a working project link judges can easily try."* Our DataHub runs in
 docker **on our machine**. A GitHub Action on GitHub's runners cannot reach it, and
 standing up the full quickstart inside a free runner (six containers, several GB) is slow
 and fragile. If we discover this late, the hero surface has no home.
 
-## Surface 0 — the landing page (added 2026-07-28 after the compliance audit)
+## Prior landing-page proposal (superseded)
 
 **Problem found:** `https://sidq.mlki.app` is live, but it serves the **DataHub UI** —
 the sponsor's own product, not ours. A judge clicking our "working project link" lands on a
 DataHub login screen. That does not satisfy the requirement in spirit and it burns the
 strongest thirty seconds we will ever get with a judge.
 
-**Resolution:** a single static page at the root of that hostname:
+**Resolution proposed at the time:** a minimal page at the root of that hostname:
 
 - two lines on what Sidq is
 - **one real verdict**, rendered from the canonical verdict JSON the engine already emits
@@ -28,11 +50,11 @@ strongest thirty seconds we will ever get with a judge.
 DataHub moves to a path or a second hostname. This page is fed by an artifact we already
 produce, so it costs close to nothing.
 
-**Hard boundary:** this is a landing page, not the "verdict panel" web app that
-the design deliberately dropped. If it starts acquiring routes, state, or a build
-step, it has failed. One file.
+That deliberately static proposal was later superseded by the current dynamic
+hosted landing described above. Its fixed command allowlist preserves the
+original security boundary while providing a runnable product surface.
 
-## The decision — three surfaces, no tunnel, no hosting
+## Prior delivery plan
 
 ### 1. Real sealed PR threads (the primary judge artifact)
 
@@ -87,21 +109,25 @@ in it, and Gate 0 catches the catalog lying about an asset the judges can see in
 Standing rule: every rule we show in the video must have a real subject in the graph. A
 rule that only fires on a hand-made fixture does not belong in the demo.
 
-**Known gap (accepted):** the OSS MCP server reports `Data Quality Tools DISABLED` and
-does not advertise assertion tools, so the assertion-dependency gate has no MCP path.
-It stays in the cut list, and if built at all it
-goes through the Python SDK, not MCP.
-
 ### 2. One-command local reproduction
 
-For a judge who wants to run it:
+The original combined command was retired because it blurred the offline replay,
+the controlled source, and the external DataHub dependency. The supported paths
+are now:
 
 ```bash
-make demo-up && make demo-ingest && make gate-demo
+make gate-demo
+
+# Connected, after installing Python 3.12, Docker/Compose, and uv:
+make mcp-install
+make demo-stack
+make mcp-smoke
+make live-loop
 ```
 
-Documented in the README with expected output pasted, so the judge can compare. This is
-what makes the project *real* rather than recorded.
+The first path has no DataHub. The second uses DataHub OSS plus the repository's
+controlled PostgreSQL source; the repository Compose file does not create the
+DataHub graph.
 
 ### 3. GitHub Action in fixture mode (optional, honest)
 
@@ -112,17 +138,18 @@ above were computed against a live graph. **Never let a fixture-mode run look li
 one** — the whole project is about not lying about provenance; the delivery layer does not
 get an exemption.
 
-## Explicitly rejected
+## Decisions recorded at the time
 
-- **Cloudflare Tunnel to local GMS.** Workable — we own the infrastructure — but it makes
+- **Cloudflare Tunnel to local GMS was rejected.** Workable — we own the infrastructure — but it makes
   the judged artifact depend on this machine being up during Aug 17–31 judging. A dead
   tunnel at judging time is a lost submission. Rejected on availability risk, not effort.
-- **Hosting DataHub anywhere.** Cost, time, and no scoring benefit.
-- **A self-hosted runner.** Same availability risk as the tunnel.
+- **Hosting DataHub was initially rejected.** That decision is superseded: the
+  current delivery includes the hosted DataHub and dynamic landing named above.
+- **A self-hosted runner was rejected.** Same availability risk as the tunnel.
 
-## Owner action required (blocking for wave 4, not before)
+## Historical owner action
 
 Which GitHub account/org hosts the two public repos — the main `sidq` repo and the
 demo repo? Automated tooling owns every git write, but creating a public repo and pushing needs the
-owner's `gh` auth to be pointed at the right account. Nothing else in the build is blocked
-on this, so it can be answered any time before wave 4.
+owner's `gh` auth to be pointed at the right account. This note is retained only
+as context for the earlier plan; it is not a current setup instruction.

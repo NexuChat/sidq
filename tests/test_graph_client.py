@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
+from types import SimpleNamespace
 
+import anyio
 import pytest
-from mcp.types import CallToolResult, TextContent
+from mcp.types import TextContent
 
 from sidq.graph.client import (
     DatasetInfo,
@@ -11,6 +14,7 @@ from sidq.graph.client import (
     LineagePath,
     LineageResult,
     MCPGraphClient,
+    StdioMCPToolCaller,
     _mcp_subprocess_environment,
     _tool_response_payload,
 )
@@ -38,9 +42,63 @@ def test_read_only_mcp_subprocess_environment_is_closed(monkeypatch) -> None:
     assert "UNRELATED_SECRET" not in environment
 
 
+def test_read_only_mcp_child_uses_and_cleans_up_a_private_temporary_home(
+    monkeypatch,
+) -> None:
+    import mcp
+    from mcp.client import stdio
+
+    observed: dict[str, Path] = {}
+
+    class StdioContext:
+        def __init__(self, parameters) -> None:
+            observed["home"] = Path(parameters.env["HOME"])
+
+        async def __aenter__(self):
+            home = observed["home"]
+            assert home.is_dir()
+            assert home != Path("/tmp")
+            assert home.stat().st_mode & 0o077 == 0
+            return object(), object()
+
+        async def __aexit__(self, *args) -> None:
+            assert observed["home"].is_dir()
+
+    class SessionContext:
+        def __init__(self, read, write) -> None:
+            del read, write
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args) -> None:
+            pass
+
+        async def initialize(self) -> None:
+            pass
+
+    monkeypatch.setattr(stdio, "stdio_client", StdioContext)
+    monkeypatch.setattr(mcp, "ClientSession", SessionContext)
+    caller = StdioMCPToolCaller(gms_url="https://catalog.example.test")
+    caller._requests.put(None)
+
+    anyio.run(caller._serve)
+
+    assert caller._startup.result() is None
+    assert not observed["home"].exists()
+
+
 def test_mcp_2_tool_result_uses_snake_case_response_fields() -> None:
-    response = CallToolResult(
-        content=[TextContent(type="text", text='{"fallback": false}')],
+    response = SimpleNamespace(
+        structured_content={"live": True},
+        is_error=False,
+    )
+
+    assert _tool_response_payload(response) == {"live": True}
+
+
+def test_mcp_1_tool_result_keeps_camel_case_response_compatibility() -> None:
+    response = SimpleNamespace(
         structuredContent={"live": True},
         isError=False,
     )

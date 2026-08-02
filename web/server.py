@@ -56,6 +56,9 @@ GLOBAL_START_WINDOW_SECONDS = 10 * 60
 GLOBAL_START_LIMIT = 20
 GLOBAL_CONCURRENCY = 2
 BUSY_RETRY_SECONDS = 5
+READINESS_TIMEOUT_SECONDS = 2
+READINESS_CACHE_TTL_SECONDS = 10
+MAX_READINESS_RESPONSE_BYTES = 32 * 1024
 MAX_OUTPUT_BYTES = 64 * 1024
 TRUNCATION_MARKER = "\n...[output truncated]"
 DEMO_REQUEST_HEADER = "X-Sidq-Demo"
@@ -68,7 +71,11 @@ MAX_CAPABILITY_TOKEN_LENGTH = 256
 MAX_CAPABILITY_EXPIRY_DIGITS = 20
 MAX_CAPABILITY_NONCE_LENGTH = 64
 HANDOFF_URN = "urn:li:dataset:(urn:li:dataPlatform:postgres,sidq.receipt.consumed,DEV)"
-DEFAULT_ALLOWED_ORIGINS = ("https://sidq.mlki.app",)
+DEFAULT_ALLOWED_ORIGINS = (
+    "https://sidq.mlki.app",
+    "http://127.0.0.1:8766",
+    "http://localhost:8766",
+)
 COMMAND_ENV_ALLOWLIST = frozenset(
     {
         "CLAIMS_SOURCE",
@@ -167,6 +174,8 @@ _client_run_started: dict[str, deque[float]] = {}
 _global_run_started: deque[float] = deque()
 _capability_signing_key = secrets.token_bytes(32)
 _consumed_capabilities: dict[str, float] = {}
+_readiness_lock = threading.Lock()
+_readiness_cache: tuple[float, bool] | None = None
 
 _INTERNAL_URL_RE = re.compile(
     r"https?://(?:localhost|127(?:\.\d{1,3}){3}|\[::1\]|"
@@ -462,12 +471,14 @@ def _capability_request_is_same_origin(headers: object) -> bool:
 
 def _reset_request_state_for_tests() -> None:
     """Reset bounded in-memory request state; never called by the service."""
-    global _global_slots, _command_locks
+    global _global_slots, _command_locks, _readiness_cache
     with _state_lock:
         _last_run_finished.clear()
         _client_run_started.clear()
         _global_run_started.clear()
         _consumed_capabilities.clear()
+    with _readiness_lock:
+        _readiness_cache = None
     _global_slots = threading.BoundedSemaphore(GLOBAL_CONCURRENCY)
     _command_locks = {name: threading.Lock() for name in RUNNABLE}
 
@@ -481,25 +492,80 @@ def _health_payload() -> dict[str, object]:
     }
 
 
-def _datahub_ready() -> bool:
+def _datahub_ready(token: str) -> bool:
     gms_url = os.environ.get("DATAHUB_GMS_URL", "http://localhost:8080").rstrip("/")
+    body = json.dumps(
+        {
+            "query": (
+                "query SidqLandingReadiness { "
+                'search(input: {type: DATASET, query: "*", start: 0, count: 1}) '
+                "{ total } }"
+            )
+        }
+    ).encode("utf-8")
+    request = urllib.request.Request(
+        f"{gms_url}/api/graphql",
+        data=body,
+        headers={
+            "Accept": "application/json",
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
     try:
-        with urllib.request.urlopen(f"{gms_url}/health", timeout=2) as response:
-            return response.status == 200
-    except (OSError, urllib.error.URLError):
+        with urllib.request.urlopen(
+            request, timeout=READINESS_TIMEOUT_SECONDS
+        ) as response:
+            payload = json.loads(response.read(MAX_READINESS_RESPONSE_BYTES))
+            return (
+                response.status == 200
+                and isinstance(payload, dict)
+                and not payload.get("errors")
+                and isinstance(payload.get("data"), dict)
+                and isinstance(payload["data"].get("search"), dict)
+            )
+    except (OSError, UnicodeError, ValueError, urllib.error.URLError):
         return False
 
 
 def _readiness_payload(
-    probe: Callable[[], bool] = _datahub_ready,
+    probe: Callable[[], bool] | None = None,
 ) -> dict[str, object]:
     """Readiness names the live dependency instead of returning a vague 503."""
-    ready = probe()
+    if probe is not None:
+        ready = probe()
+    else:
+        ready = _cached_datahub_readiness()
     return {
         "status": "ready" if ready else "degraded",
         "service": "sidq-landing",
         "datahub": "ok" if ready else "unavailable",
     }
+
+
+def _cached_datahub_readiness() -> bool:
+    """Bound public readiness probes without retaining credentials or errors."""
+    global _readiness_cache
+    cached = _readiness_cache
+    if cached is not None and time.monotonic() < cached[0]:
+        return cached[1]
+    if not _readiness_lock.acquire(blocking=False):
+        cached = _readiness_cache
+        return cached[1] if cached is not None else False
+    try:
+        now = time.monotonic()
+        if _readiness_cache is not None and now < _readiness_cache[0]:
+            return _readiness_cache[1]
+        try:
+            credential = _read_credential("SIDQ_DATAHUB_TOKEN_FILE")
+            ready = _datahub_ready(credential)
+        except Exception:  # noqa: BLE001 -- public readiness must fail closed
+            ready = False
+        _readiness_cache = (time.monotonic() + READINESS_CACHE_TTL_SECONDS, ready)
+        return ready
+    finally:
+        _readiness_lock.release()
 
 
 def _read_credential(path_variable: str) -> str:
