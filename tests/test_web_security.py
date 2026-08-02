@@ -195,68 +195,75 @@ def test_capability_tampering_is_rejected() -> None:
     )
 
 
-def test_unattributable_cloudflared_visitors_do_not_share_a_client_bucket(
+def test_trusted_cloudflared_visitors_get_independent_client_buckets(
     monkeypatch,
 ) -> None:
     from web import server
 
-    monkeypatch.delenv("SIDQ_TRUSTED_PROXIES", raising=False)
-    current = [100.0]
-    monkeypatch.setattr(server.time, "monotonic", lambda: current[0])
-    monkeypatch.setattr(server, "_run", lambda name: {"command": name})
+    monkeypatch.setenv("SIDQ_TRUSTED_PROXIES", "127.0.0.1/32")
+    monkeypatch.setattr(server.time, "monotonic", lambda: 100.0)
+    started: list[str] = []
+
+    def run(name: str) -> dict[str, str]:
+        started.append(name)
+        return {"command": name}
+
+    monkeypatch.setattr(server, "_run", run)
     responses: list = []
 
-    for visitor in range(server.CLIENT_RUN_LIMIT + 1):
-        current[0] = 100.0 + visitor * (server.COOLDOWN_SECONDS + 1)
-        forwarded = f"198.51.100.{visitor + 1}"
+    visitors = ("198.51.100.8", "203.0.113.19")
+    for forwarded in visitors:
+        for name in server.RUNNABLE:
+            capability = _handler(
+                server,
+                monkeypatch,
+                responses,
+                f"/capability?command={name}",
+            )
+            capability.headers[server.DEMO_REQUEST_HEADER] = (
+                server.CAPABILITY_REQUEST_VALUE
+            )
+            capability.headers["CF-Connecting-IP"] = forwarded
+            capability.headers.pop(server.CAPABILITY_HEADER)
+            capability.do_GET()
+            token = responses[-1][1]["capability"]
 
-        capability = _handler(
-            server,
-            monkeypatch,
-            responses,
-            "/capability?command=audit",
-        )
-        capability.headers[server.DEMO_REQUEST_HEADER] = server.CAPABILITY_REQUEST_VALUE
-        capability.headers["CF-Connecting-IP"] = forwarded
-        capability.headers.pop(server.CAPABILITY_HEADER)
-        capability.do_GET()
-        token = responses[-1][1]["capability"]
-
-        run = _handler(server, monkeypatch, responses, "/run/audit")
-        run.headers["CF-Connecting-IP"] = forwarded
-        run.headers[server.CAPABILITY_HEADER] = token
-        run.do_POST()
+            request = _handler(server, monkeypatch, responses, f"/run/{name}")
+            request.headers["CF-Connecting-IP"] = forwarded
+            request.headers[server.CAPABILITY_HEADER] = token
+            request.do_POST()
 
     run_responses = responses[1::2]
-    assert len(run_responses) == server.CLIENT_RUN_LIMIT + 1
+    assert len(run_responses) == len(visitors) * server.CLIENT_RUN_LIMIT
     assert all(status == 200 for status, _ in run_responses)
-    assert not server._client_run_started
-    assert len(server._global_run_started) == server.CLIENT_RUN_LIMIT + 1
-    assert 0 < len(server._consumed_capabilities) <= server.MAX_CONSUMED_CAPABILITIES
-    assert len(server._last_run_finished) == 1
+    assert {
+        identity: len(history)
+        for identity, history in server._client_run_started.items()
+    } == {identity: server.CLIENT_RUN_LIMIT for identity in visitors}
+    assert len(server._global_run_started) == len(visitors) * server.CLIENT_RUN_LIMIT
 
-    server._reset_request_state_for_tests()
-    for offset in range(server.GLOBAL_START_LIMIT):
-        token = server._issue_capability(None, "audit", now=100.0)[0]
-        validated = server._validate_capability(
-            {server.CAPABILITY_HEADER: token}, None, "audit", now=101.0
-        )
-        assert validated is not None
-        assert server._accept_run_start(None, validated, now=101.0) == (None, 0)
-
-    token = server._issue_capability(None, "audit", now=100.0)[0]
-    validated = server._validate_capability(
-        {server.CAPABILITY_HEADER: token}, None, "audit", now=101.0
+    server._last_run_finished.clear()
+    capability = _handler(
+        server,
+        monkeypatch,
+        responses,
+        "/capability?command=audit",
     )
-    assert validated is not None
+    capability.headers[server.DEMO_REQUEST_HEADER] = server.CAPABILITY_REQUEST_VALUE
+    capability.headers["CF-Connecting-IP"] = visitors[0]
+    capability.headers.pop(server.CAPABILITY_HEADER)
+    capability.do_GET()
+    token = responses[-1][1]["capability"]
+    request = _handler(server, monkeypatch, responses, "/run/audit")
+    request.headers["CF-Connecting-IP"] = visitors[0]
+    request.headers[server.CAPABILITY_HEADER] = token
+    request.do_POST()
 
-    scope, retry_after = server._accept_run_start(None, validated, now=101.0)
-
-    assert scope == "global"
-    assert retry_after == server.GLOBAL_START_WINDOW_SECONDS
-    assert not server._client_run_started
-    assert len(server._global_run_started) == server.GLOBAL_START_LIMIT
-    assert len(server._consumed_capabilities) == server.MAX_CONSUMED_CAPABILITIES
+    assert responses[-1][0] == 429
+    assert responses[-1][1]["error"].startswith("client run limit active")
+    assert len(started) == len(visitors) * server.CLIENT_RUN_LIMIT
+    assert len(server._client_run_started[visitors[0]]) == server.CLIENT_RUN_LIMIT
+    assert len(server._global_run_started) == len(visitors) * server.CLIENT_RUN_LIMIT
 
 
 def test_malformed_capability_with_huge_expiry_is_rejected_by_handler(
@@ -407,6 +414,43 @@ def test_cloudflare_client_ip_requires_an_explicit_trusted_proxy(
     assert server._client_identity("127.0.0.1", headers) == "203.0.113.19"
 
 
+def test_cloudflare_ipv6_clients_are_normalized_to_their_64(monkeypatch) -> None:
+    from web import server
+
+    monkeypatch.setenv("SIDQ_TRUSTED_PROXIES", "127.0.0.1/32")
+
+    first = server._client_identity(
+        "127.0.0.1", {"CF-Connecting-IP": "2001:db8:1234:5678::1"}
+    )
+    rotated = server._client_identity(
+        "127.0.0.1", {"CF-Connecting-IP": "2001:db8:1234:5678:abcd::99"}
+    )
+    other_network = server._client_identity(
+        "127.0.0.1", {"CF-Connecting-IP": "2001:db8:1234:5679::1"}
+    )
+
+    assert first == rotated == "2001:db8:1234:5678::/64"
+    assert other_network == "2001:db8:1234:5679::/64"
+
+
+def test_ipv4_mapped_cloudflare_clients_keep_exact_ipv4_identities(
+    monkeypatch,
+) -> None:
+    from web import server
+
+    monkeypatch.setenv("SIDQ_TRUSTED_PROXIES", "127.0.0.1/32")
+
+    first = server._client_identity(
+        "127.0.0.1", {"CF-Connecting-IP": "::ffff:203.0.113.19"}
+    )
+    second = server._client_identity(
+        "127.0.0.1", {"CF-Connecting-IP": "::ffff:203.0.113.20"}
+    )
+
+    assert first == "203.0.113.19"
+    assert second == "203.0.113.20"
+
+
 def test_invalid_cloudflare_client_ip_has_no_attributable_identity() -> None:
     from web import server
 
@@ -426,6 +470,56 @@ def test_one_judge_can_run_every_demo_but_not_evade_limits_by_alternating() -> N
     assert retry_after == server.CLIENT_WINDOW_SECONDS - 6
 
 
+def test_ipv6_rotation_within_64_cannot_evade_the_client_run_limit(
+    monkeypatch,
+) -> None:
+    from web import server
+
+    monkeypatch.setenv("SIDQ_TRUSTED_PROXIES", "127.0.0.1/32")
+    identities = [
+        server._client_identity(
+            "127.0.0.1", {"CF-Connecting-IP": f"2001:db8:1234:5678::{offset + 1}"}
+        )
+        for offset in range(server.CLIENT_RUN_LIMIT + 1)
+    ]
+    assert all(identity == "2001:db8:1234:5678::/64" for identity in identities)
+
+    for identity in identities[: server.CLIENT_RUN_LIMIT]:
+        token = server._issue_capability(identity, "audit", now=100.0)[0]
+        capability = server._validate_capability(
+            {server.CAPABILITY_HEADER: token}, identity, "audit", now=101.0
+        )
+        assert capability is not None
+        assert server._accept_run_start(identity, capability, now=101.0) == (None, 0)
+
+    rejected_identity = identities[-1]
+    token = server._issue_capability(rejected_identity, "audit", now=100.0)[0]
+    capability = server._validate_capability(
+        {server.CAPABILITY_HEADER: token}, rejected_identity, "audit", now=101.0
+    )
+    assert capability is not None
+
+    scope, retry_after = server._accept_run_start(
+        rejected_identity, capability, now=101.0
+    )
+
+    assert scope == "client"
+    assert retry_after == server.CLIENT_WINDOW_SECONDS
+    assert len(server._global_run_started) == server.CLIENT_RUN_LIMIT
+    assert len(server._consumed_capabilities) == server.CLIENT_RUN_LIMIT
+
+    other_identity = server._client_identity(
+        "127.0.0.1", {"CF-Connecting-IP": "2001:db8:1234:5679::1"}
+    )
+    token = server._issue_capability(other_identity, "audit", now=100.0)[0]
+    capability = server._validate_capability(
+        {server.CAPABILITY_HEADER: token}, other_identity, "audit", now=101.0
+    )
+    assert capability is not None
+    assert server._accept_run_start(other_identity, capability, now=101.0) == (None, 0)
+    assert len(server._global_run_started) == server.CLIENT_RUN_LIMIT + 1
+
+
 def test_global_rolling_start_cap_cannot_be_evaded_with_new_client_ips() -> None:
     from web import server
 
@@ -439,6 +533,41 @@ def test_global_rolling_start_cap_cannot_be_evaded_with_new_client_ips() -> None
 
     assert scope == "global"
     assert retry_after == server.GLOBAL_START_WINDOW_SECONDS - 25
+
+
+def test_global_cap_rejects_extra_attributable_start_without_accounting() -> None:
+    from web import server
+
+    accepted_capabilities: set[str] = set()
+    for offset in range(server.GLOBAL_START_LIMIT):
+        identity = f"198.51.100.{offset + 1}"
+        token = server._issue_capability(identity, "audit", now=100.0)[0]
+        capability = server._validate_capability(
+            {server.CAPABILITY_HEADER: token}, identity, "audit", now=101.0
+        )
+        assert capability is not None
+        assert server._accept_run_start(identity, capability, now=101.0) == (None, 0)
+        accepted_capabilities.add(capability[0])
+
+    rejected_identity = "203.0.113.19"
+    token = server._issue_capability(rejected_identity, "audit", now=100.0)[0]
+    capability = server._validate_capability(
+        {server.CAPABILITY_HEADER: token}, rejected_identity, "audit", now=101.0
+    )
+    assert capability is not None
+
+    scope, retry_after = server._accept_run_start(
+        rejected_identity, capability, now=101.0
+    )
+
+    assert scope == "global"
+    assert retry_after == server.GLOBAL_START_WINDOW_SECONDS
+    assert len(server._global_run_started) == server.GLOBAL_START_LIMIT
+    assert sum(len(history) for history in server._client_run_started.values()) == (
+        server.GLOBAL_START_LIMIT
+    )
+    assert set(server._consumed_capabilities) == accepted_capabilities
+    assert capability[0] not in server._consumed_capabilities
 
 
 def test_different_commands_can_run_together_up_to_the_global_cap(
@@ -910,13 +1039,13 @@ def test_landing_uses_a_hardened_external_script_and_progress_text() -> None:
 
     assert "username:" not in html.lower()
     assert "password:" not in html.lower()
-    assert '<script src="app.js?v=48de92b937cbdd17" defer></script>' in html
+    assert '<script src="app.js?v=27b228b29c6f27ff" defer></script>' in html
     assert "X-Sidq-Demo" in script
     assert "/capability" in script and "X-Sidq-Capability" in script
     assert "setInterval" in script and "elapsed" in script
     assert "textContent" in script
     assert "innerHTML" not in script
-    assert '<link rel="stylesheet" href="styles.css?v=be6f4e268c6f392e">' in html
+    assert '<link rel="stylesheet" href="styles.css?v=3801bf4fda5814b1">' in html
     assert "<style" not in html
     assert "style=" not in html
     assert not re.search(r"<script(?![^>]+\bsrc=)", html)
@@ -970,7 +1099,12 @@ def test_deployment_keeps_raw_services_local_and_secrets_out_of_units() -> None:
     )
     assert "LoadCredential=claims-dsn:/etc/sidq/claims.dsn" in landing
     assert "EnvironmentFile=" not in landing and "DATAHUB_GMS_TOKEN=" not in landing
-    assert "SIDQ_TRUSTED_PROXIES" not in landing
+    trusted_proxy_lines = [
+        line
+        for line in landing.splitlines()
+        if line.startswith("Environment=SIDQ_TRUSTED_PROXIES=")
+    ]
+    assert trusted_proxy_lines == ["Environment=SIDQ_TRUSTED_PROXIES=127.0.0.1/32"]
     assert "ProtectProc=invisible" in landing and "ProtectHome=true" in landing
     assert "/home/dev" not in landing
     assert "DynamicUser=true" in tunnel and "User=dev" not in tunnel

@@ -331,7 +331,12 @@ def _client_identity(peer: str, headers: object) -> str | None:
     forwarded = getattr(headers, "get", lambda *_: None)("CF-Connecting-IP")
     if forwarded:
         try:
-            return str(ipaddress.ip_address(forwarded.strip()))
+            forwarded_ip = ipaddress.ip_address(forwarded.strip())
+            if isinstance(forwarded_ip, ipaddress.IPv4Address):
+                return str(forwarded_ip)
+            if forwarded_ip.ipv4_mapped is not None:
+                return str(forwarded_ip.ipv4_mapped)
+            return str(ipaddress.IPv6Network((forwarded_ip, 64), strict=False))
         except ValueError:
             pass
     return None

@@ -11,6 +11,7 @@ UMask=0077
 WorkingDirectory=/opt/sidq/current
 Environment=SIDQ_LANDING_PORT=8766
 Environment=SIDQ_ALLOWED_ORIGINS=https://sidq.mlki.app
+Environment=SIDQ_TRUSTED_PROXIES=127.0.0.1/32
 Environment=SIDQ_VENV_DIR=/opt/sidq/runtime/venv
 Environment=SIDQ_RUNTIME_DIR=/opt/sidq/runtime
 Environment=SIDQ_COMMAND_PATH=/opt/sidq/runtime/venv/bin:/opt/sidq/runtime/mcp/bin:/usr/local/bin:/usr/bin:/bin

@@ -125,7 +125,7 @@ for (const button of runButtons) {
         throw new Error(`Server returned an invalid run response (HTTP ${response.status}).`);
       } else {
         runOutput.textContent = `$ ${result.command}\n\n${result.output}`;
-        runOutput.focus({ preventScroll: true });
+        runOutput.focus();
         runProgress.textContent = `${result.elapsed_seconds}s elapsed · expected about ${result.expected_seconds}s`;
         if (result.exit_code === 0) {
           runStatus.textContent = `${result.description} Exit 0.`;

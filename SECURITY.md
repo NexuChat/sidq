@@ -504,17 +504,18 @@ rolling start caps enters the bounded replay ledger; expired entries are
 removed. Tampering, expiry, a different command or attributable client, and
 replay all fail.
 
-The installed unit deliberately does not set `SIDQ_TRUSTED_PROXIES`, including
-for loopback. Therefore `CF-Connecting-IP` is ignored and cannot manufacture
-client identities. The socket peer is not treated as a client identity either:
-all Cloudflare Tunnel requests arrive from the same loopback peer, so a
-per-client bucket there would become a shared visitor lockout. Unattributable
-requests instead use the global rolling start cap, global concurrency, and
-per-command lock and cooldown without creating client-history entries. A future
-topology may set an explicit proxy network only after proving that untrusted
-clients cannot connect from that socket peer. These controls are replay and DoS
-containment, not user authentication and not a substitute for Cloudflare access
-controls.
+Remote traffic reaches the loopback-bound origin only through Cloudflare
+Tunnel. Cloudflare supplies the authoritative `CF-Connecting-IP`, and the
+installed unit explicitly trusts only its loopback peer with
+`SIDQ_TRUSTED_PROXIES=127.0.0.1/32`. Forwarded visitors therefore receive
+independent five-run client buckets instead of sharing the tunnel's socket
+address. Native IPv6 addresses are grouped by canonical `/64`; IPv4 and
+IPv4-mapped IPv6 addresses keep exact IPv4 identities. A local process can
+connect from loopback and spoof that header, but it remains subject to the
+global rolling start cap, global concurrency, and per-command lock and cooldown.
+Compromise of the local host is outside this remote threat boundary. These
+controls are replay and DoS containment, not user authentication and not a
+substitute for Cloudflare access controls.
 
 For DataHub-dependent subprocesses only, the server reads the Reader credential
 and exposes it to that child as `DATAHUB_GMS_TOKEN`; it never inherits the

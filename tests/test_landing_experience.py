@@ -76,12 +76,23 @@ def test_receipt_handoff_and_mcp_tools_are_distinct_and_truthful() -> None:
     html = _landing()
     handoff = html.split('id="agent-handoff"', 1)[1].split("</section>", 1)[0]
 
-    assert "An opted-in audit can write a reproducible receipt to DataHub." in handoff
-    assert "A separate reader checks the graph, policy, and age again." in handoff
-    assert "PASS continues. BLOCK, missing, or stale stops." in handoff
-    assert "three read-only MCP tools" in handoff
+    assert "A receipt is not authority." in handoff
+    assert (
+        "A separate reader re-reads the graph context and checks the receipt’s "
+        "policy hash and age again."
+    ) in handoff
+    assert "A current PASS continues; BLOCK, missing, or stale stops." in handoff
+    assert "An opted-in audit can write" not in handoff
+    assert 'class="handoff-path"' not in handoff
+    assert "<ol" not in handoff
+    assert handoff.index('data-run="handoff"') < handoff.index('id="run-status"')
+    assert handoff.index('id="run-output"') < handoff.index(
+        '<details class="mcp-tools">'
+    )
+    tools = handoff.split('<details class="mcp-tools">', 1)[1].split("</details>", 1)[0]
+    assert "three read-only mcp tools" in tools.lower()
     for tool in ("check_change", "verify_context", "search_verified"):
-        assert f"<code>{tool}</code>" in handoff
+        assert f"<code>{tool}</code>" in tools
     assert 'data-run="handoff"' in handoff
     assert "check_change writes" not in handoff
 
@@ -102,6 +113,15 @@ def test_general_trust_contract_precedes_the_pii_example() -> None:
         assert evidence in contract.lower()
     assert "when configured, the source itself" in contract
     assert "Missing evidence is named, never silently treated as clean." in contract
+    assert 'class="trust-path"' in contract and 'tabindex="0"' not in contract
+    for accessible_stage in (
+        "Context: Schema, lineage, governance, and documented claims arrive from DataHub.",
+        "Evidence check: Sidq cross-checks those claims",
+        "Decision: PASS, WARN, or BLOCK.",
+        "Receipt: An explicit audit can record the decision context",
+        "Next agent: It re-checks the receipt for itself",
+    ):
+        assert f'aria-label="{accessible_stage}' in contract
 
 
 def test_install_journey_publishes_exact_copyable_commands() -> None:
@@ -220,6 +240,8 @@ def test_copy_script_handles_every_button_and_keeps_server_errors() -> None:
     assert "innerHTML" not in script
     assert "catch (error)" in script
     assert "error.message" in script
+    assert "runOutput.focus()" in script
+    assert "preventScroll" not in script
 
 
 def test_mobile_hero_and_command_bidi_have_explicit_layout_guards() -> None:
@@ -229,7 +251,31 @@ def test_mobile_hero_and_command_bidi_have_explicit_layout_guards() -> None:
     assert re.search(r"\.hero\s*\{[^}]*padding:", mobile, flags=re.DOTALL)
     assert re.search(r"\.hero-note\s*\{[^}]*margin-top:", mobile, flags=re.DOTALL)
     assert re.search(
-        r"\.finding\s*\{[^}]*grid-template-columns:\s*1fr",
+        r"\.trust-loop\s*\{[^}]*padding:\s*36px 0",
+        mobile,
+        flags=re.DOTALL,
+    )
+    assert re.search(
+        r"\.trust-path\s*\{[^}]*grid-template-columns:\s*repeat\(6,",
+        mobile,
+        flags=re.DOTALL,
+    )
+    assert re.search(
+        r"\.trust-path li:nth-child\(4\),\s*\.trust-path li:nth-child\(5\)\s*\{[^}]*grid-column:\s*span 3",
+        mobile,
+        flags=re.DOTALL,
+    )
+    assert re.search(
+        r"\.trust-path p\s*\{[^}]*display:\s*none", mobile, flags=re.DOTALL
+    )
+    assert "overflow-x: auto" not in mobile
+    assert re.search(
+        r"\.verdict\s*\{[^}]*padding:\s*36px 0 44px",
+        mobile,
+        flags=re.DOTALL,
+    )
+    assert re.search(
+        r"\.finding\s*\{[^}]*grid-template-columns:\s*1fr[^}]*padding:\s*12px 0",
         mobile,
         flags=re.DOTALL,
     )
