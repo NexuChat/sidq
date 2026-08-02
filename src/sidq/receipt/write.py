@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import queue
+import tempfile
 import threading
 import time
 from collections.abc import Callable, Mapping, Sequence
@@ -19,7 +20,7 @@ ToolCaller = Callable[[str, Mapping[str, Any]], Any]
 Clock = Callable[[], float]
 Sleeper = Callable[[float], None]
 
-_CONFIRMATION_TIMEOUT_SECONDS = 8.0
+_CONFIRMATION_TIMEOUT_SECONDS = 30.0
 _CONFIRMATION_INITIAL_DELAY_SECONDS = 0.1
 _CONFIRMATION_MAX_DELAY_SECONDS = 1.0
 # Compensation has its own bound: long enough for ordinary MCP/DataHub latency,
@@ -110,51 +111,56 @@ class StdioMCPReceiptToolCaller:
         from mcp import ClientSession
         from mcp.client.stdio import StdioServerParameters, stdio_client
 
-        environment = _mcp_subprocess_environment(self._gms_url)
-        parameters = StdioServerParameters(
-            command=self._command, args=list(self._args), env=environment
-        )
-        async with (
-            stdio_client(parameters) as (read, write),
-            ClientSession(read, write) as session,
-        ):
-            await session.initialize()
-            self._startup.set_result(None)
-            while request := await anyio.to_thread.run_sync(self._requests.get):
-                name, arguments, result, deadline = request
-                if result.cancelled():
-                    continue
-                timeout = _remaining_seconds(deadline)
-                if timeout is not None and timeout <= 0:
-                    _set_future_exception_if_pending(
-                        result, TimeoutError(f"MCP {name} request timed out")
-                    )
-                    continue
-                try:
-                    if timeout is None:
-                        response = await session.call_tool(name, dict(arguments))
-                    else:
-                        with anyio.fail_after(timeout):
-                            response = await session.call_tool(name, dict(arguments))
-                    is_error = getattr(response, "is_error", None)
-                    if is_error is None:
-                        is_error = getattr(response, "isError", False)
-                    if is_error:
-                        messages = _text_messages(response.content)
-                        raise RuntimeError(f"MCP {name} failed: {' '.join(messages)}")
-                    structured = getattr(response, "structured_content", None)
-                    if structured is None:
-                        structured = getattr(response, "structuredContent", None)
-                    if structured is not None:
-                        _set_future_result_if_pending(result, structured)
-                    else:
-                        text = next(
-                            (text for text in _text_messages(response.content)),
-                            "{}",
+        with tempfile.TemporaryDirectory(prefix="sidq-receipt-mcp-") as home:
+            environment = _mcp_subprocess_environment(self._gms_url, home=home)
+            parameters = StdioServerParameters(
+                command=self._command, args=list(self._args), env=environment
+            )
+            async with (
+                stdio_client(parameters) as (read, write),
+                ClientSession(read, write) as session,
+            ):
+                await session.initialize()
+                self._startup.set_result(None)
+                while request := await anyio.to_thread.run_sync(self._requests.get):
+                    name, arguments, result, deadline = request
+                    if result.cancelled():
+                        continue
+                    timeout = _remaining_seconds(deadline)
+                    if timeout is not None and timeout <= 0:
+                        _set_future_exception_if_pending(
+                            result, TimeoutError(f"MCP {name} request timed out")
                         )
-                        _set_future_result_if_pending(result, json.loads(text))
-                except Exception as error:  # noqa: BLE001 - relay every MCP tool failure through its Future
-                    _set_future_exception_if_pending(result, error)
+                        continue
+                    try:
+                        if timeout is None:
+                            response = await session.call_tool(name, dict(arguments))
+                        else:
+                            with anyio.fail_after(timeout):
+                                response = await session.call_tool(
+                                    name, dict(arguments)
+                                )
+                        is_error = getattr(response, "is_error", None)
+                        if is_error is None:
+                            is_error = getattr(response, "isError", False)
+                        if is_error:
+                            messages = _text_messages(response.content)
+                            raise RuntimeError(
+                                f"MCP {name} failed: {' '.join(messages)}"
+                            )
+                        structured = getattr(response, "structured_content", None)
+                        if structured is None:
+                            structured = getattr(response, "structuredContent", None)
+                        if structured is not None:
+                            _set_future_result_if_pending(result, structured)
+                        else:
+                            text = next(
+                                (text for text in _text_messages(response.content)),
+                                "{}",
+                            )
+                            _set_future_result_if_pending(result, json.loads(text))
+                    except Exception as error:  # noqa: BLE001 - relay every MCP tool failure through its Future
+                        _set_future_exception_if_pending(result, error)
 
     def close(self) -> None:
         if self._thread is not None:
@@ -189,12 +195,12 @@ def _set_future_exception_if_pending(result: Future[Any], error: BaseException) 
             raise
 
 
-def _mcp_subprocess_environment(gms_url: str) -> dict[str, str]:
+def _mcp_subprocess_environment(gms_url: str, *, home: str) -> dict[str, str]:
     """Return only the environment needed by the receipt-writing MCP child."""
     environment = {
         "DATAHUB_GMS_URL": gms_url,
         "DATAHUB_TELEMETRY_ENABLED": "false",
-        "HOME": "/tmp",
+        "HOME": home,
         "LANG": os.environ.get("LANG", "C.UTF-8"),
         "LOGURU_LEVEL": "WARNING",
         "PATH": os.environ.get("PATH", "/usr/local/bin:/usr/bin:/bin"),
@@ -262,7 +268,11 @@ def _write_receipt_under_lock(
         tool_caller("get_entities", {"urns": [receipt.urn]}), receipt.urn
     )
     existing_sidq_values = _sidq_values(entity)
-    existing_badges = _managed_badges(entity)
+    existing_badges, ambiguous_badges = _managed_badge_state(entity)
+    if ambiguous_badges:
+        raise ReceiptWriteUnconfirmed(
+            f"write_unconfirmed: conflicting tag URN aliases for {receipt.urn}"
+        )
     context_hash = decision_context_hash(receipt.urn, entity, tool_caller)
     prepared = replace(receipt, context_hash=context_hash)
     saved = tool_caller(
@@ -369,22 +379,52 @@ def _write_receipt_under_lock(
 
 
 def _managed_badges(entity: Mapping[str, Any]) -> frozenset[str]:
-    tags: Any = entity.get("globalTags") or entity.get("global_tags") or {}
-    if isinstance(tags, Mapping):
-        tags = tags.get("tags") or []
-    if not isinstance(tags, Sequence) or isinstance(tags, (str, bytes)):
-        return frozenset()
+    return _managed_badge_state(entity)[0]
+
+
+def _managed_badge_state(entity: Mapping[str, Any]) -> tuple[frozenset[str], bool]:
     urns: set[str] = set()
-    for assignment in tags:
-        if not isinstance(assignment, Mapping):
-            continue
-        urn = assignment.get("tagUrn") or assignment.get("urn")
-        nested = assignment.get("tag")
-        if not urn and isinstance(nested, Mapping):
-            urn = nested.get("urn")
-        if isinstance(urn, str) and urn in _MANAGED_BADGES:
-            urns.add(urn)
-    return frozenset(urns)
+    ambiguous = False
+    for field in ("globalTags", "global_tags", "tags"):
+        surface_urns, surface_ambiguous = _tag_surface_urns(entity.get(field))
+        urns.update(surface_urns & _MANAGED_BADGES)
+        ambiguous = ambiguous or surface_ambiguous
+    return frozenset(urns), ambiguous
+
+
+def _tag_surface_urns(value: Any) -> tuple[set[str], bool]:
+    if isinstance(value, str):
+        return ({value} if value else set()), False
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
+        urns: set[str] = set()
+        ambiguous = False
+        for assignment in value:
+            assignment_urns, assignment_ambiguous = _tag_surface_urns(assignment)
+            urns.update(assignment_urns)
+            ambiguous = ambiguous or assignment_ambiguous
+        return urns, ambiguous
+    if not isinstance(value, Mapping):
+        return set(), False
+
+    direct_urns = {
+        urn
+        for urn in (value.get("tagUrn"), value.get("urn"))
+        if isinstance(urn, str) and urn
+    }
+    nested = value.get("tag")
+    if isinstance(nested, Mapping):
+        nested_urn = nested.get("urn")
+        if isinstance(nested_urn, str) and nested_urn:
+            direct_urns.add(nested_urn)
+
+    ambiguous = len(direct_urns) > 1
+    if "tags" not in value:
+        return direct_urns, ambiguous
+    wrapped_urns, wrapped_ambiguous = _tag_surface_urns(value.get("tags"))
+    return (
+        direct_urns | wrapped_urns,
+        ambiguous or wrapped_ambiguous or bool(direct_urns),
+    )
 
 
 def _restore_prior_receipt_state(
@@ -486,7 +526,8 @@ def _managed_state_belongs_to_attempt(
             return False
 
     allowed_badges = existing_badges | {desired_badge}
-    return _managed_badges(entity) <= allowed_badges
+    current_badges, ambiguous_badges = _managed_badge_state(entity)
+    return not ambiguous_badges and current_badges <= allowed_badges
 
 
 def _confirm_receipt_readback(
@@ -520,29 +561,56 @@ def _confirm_receipt_readback(
     deadline = monotonic() + timeout
     delay = min(initial_delay, max_delay)
     attempts = 0
+    last_mismatch: str | None = None
     while True:
         attempts += 1
-        entity = _single_entity(
-            _confirmation_call(
-                tool_caller,
+        try:
+            entity = _single_entity(
+                _confirmation_call(
+                    tool_caller,
+                    receipt.urn,
+                    deadline=deadline,
+                    monotonic=monotonic,
+                ),
                 receipt.urn,
-                deadline=deadline,
-                monotonic=monotonic,
-            ),
-            receipt.urn,
-        )
+            )
+        except ReceiptWriteUnconfirmed as error:
+            if last_mismatch is None:
+                raise
+            raise ReceiptWriteUnconfirmed(
+                f"{error}; last observed mismatch: {last_mismatch}"
+            ) from error
         actual = {
             name: tuple(sorted(values)) for name, values in _sidq_values(entity).items()
         }
         expected_badge = _BADGE_BY_VERDICT[receipt.verdict]
-        if actual == expected and _managed_badges(entity) == {expected_badge}:
+        actual_badges, ambiguous_badges = _managed_badge_state(entity)
+        if (
+            actual == expected
+            and not ambiguous_badges
+            and actual_badges == {expected_badge}
+        ):
             return attempts
+        missing = sorted(set(expected) - set(actual))
+        unexpected = sorted(set(actual) - set(expected))
+        differing = sorted(
+            name
+            for name in set(expected) & set(actual)
+            if expected[name] != actual[name]
+        )
+        last_mismatch = (
+            f"properties missing={missing!r}, unexpected={unexpected!r}, "
+            f"differing={differing!r}; "
+            "managed_badge="
+            f"{'match' if not ambiguous_badges and actual_badges == {expected_badge} else 'mismatch'}"
+        )
 
         remaining = deadline - monotonic()
         if remaining <= 0:
             raise ReceiptWriteUnconfirmed(
                 "write_unconfirmed: exact receipt was not visible through "
-                f"get_entities after {attempts} attempts for {receipt.urn}"
+                f"get_entities after {attempts} attempts for {receipt.urn}; "
+                f"last observed mismatch: {last_mismatch}"
             )
         sleep(min(delay, remaining))
         delay = min(delay * 2, max_delay)
