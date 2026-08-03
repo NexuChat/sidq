@@ -127,6 +127,9 @@ Sidq's own `sidq-mcp` server exposes exactly three tools: `check_change`,
 - In an opted-in writeback run, a `BLOCK` verdict is eligible for a receipt too.
   Recording a refusal is the whole thesis — writing
   only on success would be vanity.
-- Sidq holds write permission for the `sidq.*` namespace and its own tags **only**.
-  Say so in the README; a gate that can rewrite arbitrary metadata is a liability, and
-  judges will notice the restraint.
+- Receipt writeback holds write permission for the `sidq.*` namespace and Sidq's own
+  tags **only**. `sidq repair --apply` is a separate, opt-in surface: it writes tags,
+  terms and owners that the engine re-proved on the assets a finding named. Say so in
+  the README, and keep the two surfaces named separately — a gate that can silently
+  rewrite arbitrary metadata is a liability, and the restraint only counts if the
+  boundary is stated accurately.
