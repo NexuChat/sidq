@@ -5,9 +5,9 @@ exactly three tools over stdio. There are no LLM calls in the server or its trut
 checks.
 
 Every response is emitted twice by MCP: as `structuredContent` for clients and as
-canonical, minified JSON text for compatibility. The text is produced by
-`sidq.serialization.canonical_json`, so identical inputs and verification state
-produce byte-identical JSON.
+canonical, minified JSON text for compatibility. Canonical serialization makes
+an identical complete result byte-identical; responses containing runtime fields
+such as `checked_at` vary by execution.
 
 ## Two MCP servers, two jobs
 

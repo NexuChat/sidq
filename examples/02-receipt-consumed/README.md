@@ -3,9 +3,11 @@
 This is a live DataHub proof, run on 2026-07-28 against `localhost:8080`.
 The disposable asset is `urn:li:dataset:(urn:li:dataPlatform:postgres,sidq.receipt.consumed,DEV)`.
 
-The receipt body is queryable `sidq.*` structured properties; `commit_sha` and
-`policy_hash` make the policy decision reproducible. The writer owns only that
-namespace and the `sidq:verified` / `sidq:blocked` badges.
+The receipt body is queryable `sidq.*` structured properties; it records
+`commit_sha`, `policy_hash`, and a context hash as provenance. Reproducing the
+decision also requires the captured change, graph context, configuration, source
+evidence, and tool versions. The writer owns only that namespace and the
+`sidq:verified` / `sidq:blocked` badges.
 
 > **The `policy_hash` in the transcript below is historical, and that is the
 > point of publishing it.** The scripts compute the hash live from

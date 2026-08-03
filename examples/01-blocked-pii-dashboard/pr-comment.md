@@ -111,4 +111,4 @@ Only the deterministic policy findings in this section affect the merge decision
 
 ---
 
-Reproducibility: <code>policy_hash=66f48004804c5ce02955699710466b6d58ae7a868f876a4774e548c5c15920b8</code> · <code>commit_sha=5addb753788935d4d1aa6a9483c28c6fc124e5c7</code> · run <code>sidq check --diff 5addb753788935d4d1aa6a9483c28c6fc124e5c7^..5addb753788935d4d1aa6a9483c28c6fc124e5c7 --json</code>
+Fixture replay: run <code>make gate-demo</code>, which uses the committed diff, graph fixture, policy, pinned code revision, and canonical serialization. Provenance: <code>policy_hash=66f48004804c5ce02955699710466b6d58ae7a868f876a4774e548c5c15920b8</code> · <code>commit_sha=5addb753788935d4d1aa6a9483c28c6fc124e5c7</code>

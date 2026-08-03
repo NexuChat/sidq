@@ -119,10 +119,11 @@ never sends them outside your infrastructure. Query results never enter a model;
 the optional reader sees documentation text only. Self-hosted, Apache-2.0.
 
 **Reliability of results.** The policy verdict is deterministic for the same
-input evidence and policy, identified by `policy_hash` + `commit_sha`. CI guards
-the engine and pins the headline published counts to committed artifacts; links
-beside the remaining measurements identify their evidence and scope. Re-derive
-the flagship answer with `make gate-demo` and compare hashes.
+captured evidence and policy; `policy_hash` and `commit_sha` are provenance
+fields, not sufficient replay inputs. CI guards the engine and pins the
+headline published counts to committed artifacts; links beside the remaining
+measurements identify their evidence and scope. Re-derive the flagship answer
+with `make gate-demo` and compare hashes.
 
 Receipt staleness covers the current semantic entity metadata plus complete
 one-hop upstream and downstream lineage. Sidq's own receipt properties, badges,
@@ -247,8 +248,8 @@ The boundary is explicit. The deterministic findings are the only findings that 
 The blocking path contains no model calls. The optional documentation reader is
 the measured advisory lane: it can propose a read-only query and can extend
 `WARN` coverage, but it can never grant permission or produce `BLOCK`. The same
-deterministic evidence, policy, and commit produce a byte-identical blocking
-decision, identified by `policy_hash` and `commit_sha`.
+captured evidence and policy produce a byte-identical decision; the hashes
+identify recorded provenance but do not alone reproduce a live decision.
 
 ## Try it in one command
 
@@ -518,7 +519,7 @@ writes SQL, and stops when the answer is that the catalog cannot be trusted.
 | `check_change(diff)` | May an agent propose this data-code change? |
 | `search_verified(query)` | Which matching assets have fresh, truthful records in this Sidq MCP verification store? |
 
-`search_verified` distinguishes `verified`, `unverified`, `stale`, `unverifiable`, and `rejected`; a failed graph lookup is `GRAPH_UNAVAILABLE`, not an empty search result. Its response names `verification_source: sidq_mcp_store` so it cannot be confused with DataHub Receipt state. MCP responses use canonical JSON, so identical inputs and verification state produce byte-identical output. See [`docs/MCP-SERVER.md`](docs/MCP-SERVER.md) for the client configuration and wire examples.
+`search_verified` distinguishes `verified`, `unverified`, `stale`, `unverifiable`, and `rejected`; a failed graph lookup is `GRAPH_UNAVAILABLE`, not an empty search result. Its response names `verification_source: sidq_mcp_store` so it cannot be confused with DataHub Receipt state. Canonical JSON makes an identical complete response byte-identical; runtime fields such as `checked_at` must also be fixed. See [`docs/MCP-SERVER.md`](docs/MCP-SERVER.md) for the client configuration and wire examples.
 
 The repository also ships an installable Agent Skill that makes this verification
 sequence the agent's operating rule. Run the installer from the root of the
@@ -669,4 +670,4 @@ Only the deterministic policy findings in this section affect the merge decision
 
 ---
 
-Reproducibility: <code>policy_hash=66f48004804c5ce02955699710466b6d58ae7a868f876a4774e548c5c15920b8</code> · <code>commit_sha=5addb753788935d4d1aa6a9483c28c6fc124e5c7</code> · run <code>sidq check --diff 5addb753788935d4d1aa6a9483c28c6fc124e5c7^..5addb753788935d4d1aa6a9483c28c6fc124e5c7 --json</code>
+Fixture replay: run <code>make gate-demo</code>, which uses the committed diff, graph fixture, policy, pinned code revision, and canonical serialization. Provenance: <code>policy_hash=66f48004804c5ce02955699710466b6d58ae7a868f876a4774e548c5c15920b8</code> · <code>commit_sha=5addb753788935d4d1aa6a9483c28c6fc124e5c7</code>

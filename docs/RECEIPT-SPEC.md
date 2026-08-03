@@ -41,8 +41,10 @@ structured properties first; they are searchable and the custom-properties path 
 | `sidq.verifier` | string | `sidq@<version>` |
 | `sidq.evidence_url` | string | link to the PR comment / document |
 
-`policy_hash` + `commit_sha` make the captured verdict **reproducible**: anyone can
-re-run the same policy on the same commit and get the same verdict, byte for byte.
+`policy_hash` + `commit_sha` are **provenance**: they identify which policy and which
+code revision produced the captured verdict. A verdict is byte-reproducible only with
+the captured diff, graph/context snapshot, policy, configuration, code and tool
+versions, and canonical serialization — these two hashes alone are not enough.
 They do not sign the Receipt, make it tamper-proof, or prove that the catalog has
 not changed. The independently recomputed `context_hash`, policy comparison, and
 age check determine whether the latest Receipt still applies.
