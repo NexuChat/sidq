@@ -1,7 +1,7 @@
 [project]
 name = "sidq"
 version = "0.1.0"
-description = "DataHub-native pre-merge gate for data code, with attested Sidq receipts"
+description = "Evidence-first trust infrastructure for agents acting on DataHub context, with deterministic enforcement and re-checkable receipts."
 requires-python = ">=3.12,<3.13"
 license = "Apache-2.0"
 license-files = ["LICENSE"]

@@ -30,7 +30,7 @@ and `origin/main`; deployment is not inferred from a Git commit.
   state, never a fourth verdict.
 - “Deterministic” applies to enforcement for identical canonical evidence and
   policy, not to network collection or availability.
-- A Receipt is current queryable state, not authority, a signature, an
-  append-only ledger, or exactly-once coordination.
+- The structured Receipt body is the reader's sole receipt authority; it is not a
+  signature, append-only ledger, or exactly-once coordination mechanism.
 - “Live”, “fixture replay”, “measured once”, and “test guarantee” are not
   interchangeable; every row names its boundary.

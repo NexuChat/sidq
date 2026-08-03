@@ -22,7 +22,7 @@ test, every transitive platform service, or host compromise.
 | Severity | Finding | Resolution and proof |
 |---|---|---|
 | P1 | Receipt mutation acknowledgment could be mistaken for persistence. | Success now requires a fresh direct read to observe exact structured properties and exactly one correct managed badge. Timeout or mismatch returns `write_unconfirmed`; tests cover delayed, stale, partial, and acknowledged-no-op backends. |
-| P1 | A failed multi-tool Receipt write could leave misleading state. | The writer records prior state, writes the evidence document last, and performs bounded compensating rollback. Rollback re-reads before restoring, refuses to overwrite divergent external state, preserves a prior BLOCK/swarm provenance, and surfaces `rollback_incomplete` details. |
+| P1 | A failed multi-tool Receipt write could leave misleading state. | The writer records prior state, saves the evidence document first, applies the badge second, publishes structured properties last, and performs bounded compensating rollback. Rollback re-reads before restoring, refuses to overwrite divergent external state, preserves a prior BLOCK/swarm provenance, and surfaces `rollback_incomplete` details. |
 | P1 | Concurrent in-process writes to one URN could interleave. | A bounded 64-stripe per-URN lock serializes same-process attempts without an unbounded key registry. Cross-process limits remain documented below. |
 | P1 | `audit --write-receipts --json` hid rollback detail behind a summary. | JSON now includes deterministic attempted/written/failed counts and an untruncated failure list with URN, verdict, and detail. No-write JSON remains byte-identical. |
 | P1 | Public action execution needed a closed, abuse-resistant boundary. | The server accepts only five fixed argument arrays, rejects bodies/unknown commands, uses no shell interpolation, caps input/output/time/concurrency/rate, escapes output, validates capability replay, and never exposes a write flag. Tests cover XSS, traversal, proxy spoofing, IPv4/IPv6 identities, CSRF expectations, cooldowns, and redaction. |
@@ -40,7 +40,7 @@ DataHub's property, tag, and document tools do not form one transaction and the
 MCP surface has no compare-and-set primitive. The in-process lock cannot
 coordinate different Sidq processes. A process crash or an external writer can
 therefore leave partial state; a rollback can also conflict with a legitimate
-concurrent edit. Sidq contains the risk by writing the document last, requiring
+concurrent edit. Sidq contains the risk by saving the document first, requiring
 exact direct readback, checking the union of prior/attempted/current state before
 rollback, and returning failure instead of a Receipt success. This is honest
 best-effort compensation, not transactional exactly-once storage.

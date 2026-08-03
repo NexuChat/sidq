@@ -24,8 +24,8 @@ a budget that never changed.
 
 **The memory is shared without coordination.** Any sidq instance pointed at
 the same catalog reads the same receipts, so one agent resumes where another
-stopped. There is no ledger to sync and no server to stand up; the catalog is
-the ledger.
+stopped. There is no separate state store or server to sync; the catalog holds
+shared current verification memory.
 
 Failure is closed in the right direction: if the receipts cannot be read, the
 prior is empty and everything is re-examined. Forgetting costs budget;
