@@ -2,8 +2,10 @@
 
 [![CI](https://github.com/NexuChat/sidq/actions/workflows/ci.yml/badge.svg)](https://github.com/NexuChat/sidq/actions/workflows/ci.yml)
 
-> Agents read metadata graphs before they act. Sidq asks whether that context is
-> supported by evidence, and can stop an agent before it builds on a contradiction.
+> **Sidq** (صِدق) is Arabic for *truthfulness* — saying only what you have
+> verified. Agents read metadata graphs before they act. Sidq asks whether that
+> context is supported by evidence, and can stop an agent before it builds on a
+> contradiction.
 
 **Submission film:** rebuilt on real footage — a live catalog audit, the
 committed `BLOCK` replay, and one continuous session on the deployed console;

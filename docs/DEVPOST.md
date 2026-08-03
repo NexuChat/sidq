@@ -50,6 +50,9 @@ documentation.
 
 ## What it does
 
+The name is Arabic: *sidq* (صِدق) means truthfulness — saying only what you have
+verified. That is also the design rule the tool never breaks.
+
 Sidq is a DataHub-native verification layer for data-code changes and agents. It
 asks whether catalog context is truthful before an agent relies on it.
 
