@@ -941,10 +941,29 @@ def test_committed_judge_docs_do_not_contain_default_reader_credentials() -> Non
 
 
 def test_the_upstream_skill_contribution_is_linked_on_judge_surfaces() -> None:
-    contribution = "https://github.com/datahub-project/datahub-skills/pull/76"
+    """One open PR, cited identically everywhere it is cited.
 
-    assert contribution in README.read_text()
-    assert contribution in (ROOT / "docs/DEVPOST.md").read_text()
+    There were briefly two upstream pull requests for this skill, and closing the
+    superseded one left three documents pointing at a closed thread — a judge
+    checking the bonus criterion would have followed a dead link. Asserting that
+    every reference resolves to the same number is what makes the next
+    supersession a build failure rather than a stale citation.
+    """
+    contribution = "https://github.com/datahub-project/datahub-skills/pull/81"
+
+    cited = {
+        name: (ROOT / name).read_text(encoding="utf-8")
+        for name in ("README.md", "docs/DEVPOST.md", "ARCHITECTURE.md")
+    }
+    for name, text in cited.items():
+        assert contribution in text, name
+        others = re.findall(
+            r"datahub-project/datahub-skills/pull/(\d+)",
+            text,
+        )
+        assert set(others) == {"81"}, (
+            f"{name} cites a superseded PR: {sorted(set(others))}"
+        )
 
 
 def test_liveness_is_dependency_free_and_names_the_exact_demo_surface(

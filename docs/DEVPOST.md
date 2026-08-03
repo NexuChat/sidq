@@ -205,7 +205,7 @@ The repository includes a cross-agent `datahub-verify` skill, installable with
 `npx skills add NexuChat/sidq --skill datahub-verify --agent codex`. It installs
 under `.agents/skills/datahub-verify`; the command does not install Sidq or
 attach MCP. It is also under public upstream review at
-[datahub-project/datahub-skills#76](https://github.com/datahub-project/datahub-skills/pull/76).
+[datahub-project/datahub-skills#81](https://github.com/datahub-project/datahub-skills/pull/81).
 That link is a contribution in review, not a claim of merge or endorsement.
 
 The blocking path contains no model calls. The optional documentation reader may

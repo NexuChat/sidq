@@ -540,7 +540,7 @@ install Sidq or attach an MCP server. Complete the MCP setup above and run
 skill.
 
 The same skill is proposed to DataHub's official skills repository in
-[datahub-project/datahub-skills#76](https://github.com/datahub-project/datahub-skills/pull/76).
+[datahub-project/datahub-skills#81](https://github.com/datahub-project/datahub-skills/pull/81).
 The pull request is public review evidence, not a claim that DataHub has merged or
 endorsed it.
 
