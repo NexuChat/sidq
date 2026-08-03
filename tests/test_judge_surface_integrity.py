@@ -17,6 +17,7 @@ rough; the documents linked from the README are not.
 from __future__ import annotations
 
 import re
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -55,6 +56,17 @@ NOT_OURS_TO_SHIP = frozenset(
         "public/v4/proof/block-current.png",
     }
 )
+
+# What the release ships is what git tracks — not what happens to be on this
+# machine's disk. The basename fallback used to consult the working tree, so a
+# locally generated corpus made this guard pass here and fail on a fresh clone:
+# the exact split the guard exists to prevent, inside the guard itself.
+_TRACKED = frozenset(
+    subprocess.run(
+        ["git", "ls-files"], cwd=ROOT, capture_output=True, text=True, check=True
+    ).stdout.splitlines()
+)
+_TRACKED_NAMES = frozenset(Path(name).name for name in _TRACKED)
 
 _CITED_PATH = re.compile(
     r"`([A-Za-z0-9_./-]+\.(?:py|md|json|jsonl|yaml|yml|sql|toml|lock|svg|png|css|html|npz|gz))`"
@@ -122,16 +134,7 @@ def test_every_cited_repository_path_is_shipped(document: Path) -> None:
             # Resolve from the repo root, from the document, or by basename
             # anywhere — prose legitimately calls `src/sidq/models.py` just
             # `models.py` when the surrounding section already located it.
-            if (
-                (ROOT / cited).exists()
-                or (document.parent / cited).exists()
-                or any(
-                    candidate.is_file()
-                    for candidate in ROOT.rglob(Path(cited).name)
-                    if ".venv" not in candidate.parts
-                    and "node_modules" not in candidate.parts
-                )
-            ):
+            if cited in _TRACKED or Path(cited).name in _TRACKED_NAMES:
                 continue
             pytest.fail(
                 f"{document.relative_to(ROOT)} cites `{cited}`, which this "

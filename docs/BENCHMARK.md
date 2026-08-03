@@ -70,7 +70,7 @@ Count: 2623
 | `replace_explicit_select_with_star` | 200 | 2000 | 10% |
 | `change_aggregation_grain` | 100 | 300 | 33% |
 
-Showing 12 of 2623 diffs, sampled round-robin across families so every family that appears above is represented. The full set is in `data/benchmark/labelled.jsonl`.
+Showing 12 of 2623 diffs, sampled round-robin across families so every family that appears above is represented. The full set is written to `data/benchmark/labelled.jsonl` by `scripts/generate_mutations.py`; the file is regenerable and deliberately not shipped in this repository.
 
 ### change_aggregation_grain:models/marts/product_performance.sql:0000 (change_aggregation_grain)
 
@@ -618,7 +618,7 @@ Count: 6700
 | `rename_local_alias` | 400 | 500 | 80% |
 | `rename_cte` | 300 | 300 | 100% |
 
-Showing 12 of 6700 diffs, sampled round-robin across families so every family that appears above is represented. The full set is in `data/benchmark/labelled.jsonl`.
+Showing 12 of 6700 diffs, sampled round-robin across families so every family that appears above is represented. The full set is written to `data/benchmark/labelled.jsonl` by `scripts/generate_mutations.py`; the file is regenerable and deliberately not shipped in this repository.
 
 ### add_non_pii_derived_column:models/customer_revenue.sql:0000 (add_non_pii_derived_column)
 
