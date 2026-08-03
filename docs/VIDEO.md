@@ -2,8 +2,8 @@
 
 The verified upload candidate is
 `/home/dev/sidq-video/artifacts/video/sidq-final-en.mp4`. Its SHA-256 is
-`76c06985a980a7f6c6c251eb5e3a2878fa2a066b544a58aa0434dd397adedcdf`,
-its exact size is 19,683,508 bytes, and its container duration is
+`a842b49236a9eae12f5942106c5759d8d46c68efb6529abd71732379334bc6cc`,
+its exact size is 20,022,748 bytes, and its container duration is
 169.920 seconds — safely under three minutes. It is **not yet a submission
 artifact** because the public upload gate remains owner-only. It supersedes
 three earlier cuts preserved beside it (the 2026-08-02 film, the 2026-08-03
@@ -79,6 +79,8 @@ fails the contract suite.
   content edits.
 - The drawn receipt token appears only over the closing illustration chapter,
   never over real footage.
+- Chapters are joined by a five-frame dip through the dark backdrop — a felt
+  edit, far below the blackdetect threshold, never a content change.
 
 ## Source and owned media
 
@@ -94,8 +96,8 @@ fails the contract suite.
 
 ## Verified artifact
 
-- SHA-256: `76c06985a980a7f6c6c251eb5e3a2878fa2a066b544a58aa0434dd397adedcdf`;
-  exact size 19,683,508 bytes.
+- SHA-256: `a842b49236a9eae12f5942106c5759d8d46c68efb6529abd71732379334bc6cc`;
+  exact size 20,022,748 bytes.
 - Container duration: 169.920 seconds; 5,096 frames / 169.866667 seconds of
   authored video at 30 fps, 1920x1080, H.264 High, yuv420p, BT.709.
 - Audio: AAC-LC stereo at 48 kHz; narration only; measured at −16.2 LUFS
