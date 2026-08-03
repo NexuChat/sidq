@@ -47,6 +47,14 @@ def _landing() -> str:
 
 
 def test_landing_leads_with_one_decision_then_the_independent_handoff() -> None:
+    """Incident first, explanation after — never the other way round.
+
+    The abstract five-step trust contract used to sit between the hero and the
+    `BLOCK`, so the first thing a judge scrolled past was a diagram of how
+    verification works rather than one concrete refusal. The order is now the
+    refusal, the independent reader who re-checks it, and only then the contract
+    that generalises both.
+    """
     html = _landing()
     hero = html.split('<section class="hero', 1)[1].split("</section>", 1)[0]
 
@@ -54,8 +62,9 @@ def test_landing_leads_with_one_decision_then_the_independent_handoff() -> None:
     assert 'id="decision"' in html
     assert 'id="agent-handoff"' in html
     assert 'id="install-connect"' in html
-    assert html.index('id="trust-loop"') < html.index('id="decision"')
     assert html.index('id="decision"') < html.index('id="agent-handoff"')
+    assert html.index('id="agent-handoff"') < html.index('id="trust-loop"')
+    assert html.index('id="trust-loop"') < html.index('id="install-connect"')
     assert html.index('data-run="handoff"') < html.index('id="install-connect"')
     assert html.index('id="install-connect"') < html.index('class="deep-dives')
     assert "DataHub-native trust infrastructure" in hero
@@ -65,6 +74,16 @@ def test_landing_leads_with_one_decision_then_the_independent_handoff() -> None:
         "Sidq verifies schema, lineage, governance, ownership, and documented "
         "claims before an agent acts."
     ) in hero
+    # The numbered rail a reader uses to track position. Reordering sections and
+    # forgetting the labels produced two `04`s and two `05`s; an ascending run
+    # with no repeats is the cheapest way to notice that.
+    numbers = [
+        int(match.group(1))
+        for match in re.finditer(r'class="(?:eyebrow|kicker)">(\d+) / ', html)
+    ]
+    assert numbers == sorted(numbers), numbers
+    assert len(numbers) == len(set(numbers)), numbers
+
     assert hero.count('class="cta run"') == 1
     assert 'href="#decision">Watch Sidq block a risky change ↓</a>' in hero
     assert 'href="#install-connect">Run the proof ↓</a>' in hero

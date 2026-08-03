@@ -120,9 +120,14 @@ main {
   display: block;
 }
 
+/* The hero states the thesis and then gets out of the way. Its old floor plus
+   bottom padding reserved a full desktop screen for ~600px of content, which
+   pushed the one concrete refusal below the fold — and the refusal is the page's
+   argument. Trimmed only in the vertical; type scale, grid, and rhythm are
+   untouched. */
 .hero {
-  min-height: min(700px, calc(100vh - 88px));
-  padding: clamp(52px, 7vw, 100px) 0 clamp(62px, 8vw, 112px);
+  min-height: min(620px, calc(100vh - 88px));
+  padding: clamp(52px, 7vw, 100px) 0 clamp(48px, 6vw, 84px);
 }
 
 .hero-grid {
