@@ -1170,7 +1170,8 @@ def test_landing_uses_a_hardened_external_script_and_progress_text() -> None:
     assert "<style" not in html
     assert "style=" not in html
     assert not re.search(r"<script(?![^>]+\bsrc=)", html)
-    assert "body" in styles and ".logo" in styles
+    # The brand is set in type now; there is no logo bitmap to style.
+    assert "body" in styles and ".brand-name" in styles
 
     from web.server import SECURITY_HEADERS
 

@@ -67,7 +67,7 @@ def test_the_live_proof_is_reachable_before_any_of_the_argument() -> None:
     for element in ('id="run-status"', 'id="run-progress"', 'id="run-output"'):
         assert element in html, element
 
-    first_argument = html.index("exhibit-a-heading")
+    first_argument = html.index('id="exhibit-a-heading"')
     assert html.index('data-run="handoff"') < first_argument
     assert html.index('id="run-output"') < first_argument
 
@@ -82,8 +82,8 @@ def test_the_page_shows_a_contradiction_before_it_argues_about_one() -> None:
     """
     html = _landing()
 
-    contradiction = html.index("exhibit-a-heading")
-    refusal = html.index("exhibit-b-heading")
+    contradiction = html.index('id="exhibit-a-heading"')
+    refusal = html.index('id="exhibit-b-heading"')
     assert contradiction < refusal
 
     section = html[contradiction:refusal]
@@ -99,7 +99,9 @@ def test_the_page_shows_a_contradiction_before_it_argues_about_one() -> None:
 
 def test_the_verdict_is_stated_before_the_evidence_that_produced_it() -> None:
     html = _landing()
-    refusal = html[html.index("exhibit-b-heading") : html.index("receipt-heading")]
+    refusal = html[
+        html.index('id="exhibit-b-heading"') : html.index('id="receipt-heading"')
+    ]
 
     assert refusal.index("BLOCK") < refusal.index("critical_downstream")
     assert "cust_email" in refusal
@@ -112,7 +114,7 @@ def test_the_verdict_is_stated_before_the_evidence_that_produced_it() -> None:
 def test_all_four_receipt_dispositions_are_distinct_on_the_page() -> None:
     """A refusal is not an absence, and the page has to say so in its own words."""
     html = _landing()
-    receipt = html[html.index("receipt-heading") :]
+    receipt = html[html.index('id="receipt-heading"') :]
 
     for state in ("PASS", "WARN", "BLOCK", "NOT VERIFIED"):
         assert state in receipt, state
@@ -180,7 +182,7 @@ def test_the_page_never_ships_a_simulated_run() -> None:
 
 def test_the_reproduce_path_is_one_command_a_judge_can_paste() -> None:
     html = _landing()
-    reproduce = html[html.index("reproduce-heading") :]
+    reproduce = html[html.index('id="reproduce-heading"') :]
 
     assert "make gate-demo" in reproduce
     assert "git clone https://github.com/NexuChat/sidq.git" in reproduce

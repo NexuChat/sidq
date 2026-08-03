@@ -7,7 +7,7 @@
     <meta name="theme-color" content="#0a0a09">
     <link rel="canonical" href="https://sidq.mlki.app/">
     <meta property="og:type" content="website">
-    <meta property="og:title" content="Sidq — Provable Context for DataHub Agents">
+    <meta property="og:title" content="Sidq — Is the catalog lying?">
     <meta property="og:description" content="Evidence-first trust infrastructure with deterministic enforcement for agents that act on DataHub context.">
     <meta property="og:url" content="https://sidq.mlki.app/">
     <meta property="og:image" content="https://sidq.mlki.app/social-preview.png">
@@ -15,199 +15,207 @@
     <meta property="og:image:height" content="630">
     <meta property="og:image:alt" content="Sidq evidence graph ending in a deterministic BLOCK and an optional receipt">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="Sidq — Provable Context for DataHub Agents">
+    <meta name="twitter:title" content="Sidq — Is the catalog lying?">
     <meta name="twitter:description" content="Prove the context before the agent acts.">
     <meta name="twitter:image" content="https://sidq.mlki.app/social-preview.png">
     <link rel="icon" type="image/png" href="data:image/png;base64,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">
-    <title>Sidq — Provable Context for DataHub Agents</title>
-    <link rel="stylesheet" href="styles.css?v=ed29d1d1b0086097">
+    <title>Sidq — Is the catalog lying? Truth verification for DataHub agents</title>
+    <link rel="stylesheet" href="styles.css?v=15e53b89a6a5a8f3">
   </head>
 <body>
-<a class="skip-link" href="#main">Skip to main content</a>
-
-<header class="masthead">
-    <div class="masthead-inner wrap">
-      <span class="masthead-mark" aria-hidden="true">ص</span>
-      <div>
-        <p class="masthead-kicker">Evidence dossier</p>
-        <p class="masthead-name"><a href="#main">SIDQ <span lang="ar" class="masthead-ar">صدق</span></a></p>
+    <header class="masthead">
+      <div class="wrap masthead-inner">
+        <a class="brand" href="#main">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span class="brand-name">SIDQ <span lang="ar" class="brand-ar">صدق</span></span>
+        </a>
+        <nav class="top-nav" aria-label="Sections">
+          <a href="#exhibit-a-heading">The lie</a>
+          <a href="#exhibit-b-heading">The refusal</a>
+          <a href="#receipt-heading">The receipt</a>
+          <a href="#reproduce-heading">Reproduce</a>
+          <a href="/scope.html">Scope</a>
+        </nav>
+        <span class="live-pill"><span class="live-dot" aria-hidden="true"></span>Live</span>
       </div>
-      <p class="masthead-note">Catalog verification, before an agent acts</p>
-    </div>
-  </header>
+    </header>
 
-<main id="main">
+    <main id="main">
+      <section class="hero" aria-labelledby="hero-heading">
+        <div class="wrap hero-grid">
+          <div class="hero-copy">
+            <p class="eyebrow reveal">Catalog truth verification · DataHub-native</p>
+            <h1 id="hero-heading" class="reveal r1">Everyone is teaching agents to read the catalog.
+              <span class="lying">Nobody is asking whether it is lying.</span></h1>
+            <p class="sub reveal r2">Sidq checks schema, lineage, governance, and documented claims against evidence before an agent acts — <strong>PASS</strong>, <strong>WARN</strong>, or <strong>BLOCK</strong> — and writes a receipt the next agent independently re-verifies.</p>
+            <div class="cta-row reveal r3">
+              <button class="btn-primary" type="button" data-run="handoff" aria-controls="run-output">Run the live receipt read</button>
+              <a class="btn-ghost" href="#exhibit-a-heading">See a catalog contradict itself ↓</a>
+            </div>
+            <p class="quota reveal r3">Runs a real command on this host and prints the real output. 5 proof runs per client every 10 minutes; a refusal says which limit applied and when it resets.</p>
+          </div>
 
-  <section class="hero" aria-labelledby="hero-heading">
-    <div class="wrap">
-      <p class="exhibit-tag">FILE 00 · INTAKE</p>
-      <h1 id="hero-heading">Everyone is teaching agents to read the catalog.<br><span class="hero-accent">Nobody is asking whether it is lying.</span></h1>
-      <p class="hero-sub">Sidq verifies schema, lineage, governance, ownership, and documented claims before an agent acts. It returns <strong>PASS</strong>, <strong>WARN</strong>, or <strong>BLOCK</strong> — and writes an evidence receipt back to DataHub that the next agent re-checks.</p>
+          <div class="terminal handoff-run reveal r2" aria-busy="false">
+            <div class="terminal-bar">
+              <span class="tl-dot" aria-hidden="true"></span><span class="tl-dot" aria-hidden="true"></span><span class="tl-dot" aria-hidden="true"></span>
+              <span class="terminal-title">agent-b · independent receipt read</span>
+            </div>
+            <div class="terminal-body">
+              <p id="run-status" aria-live="polite">Agent B reads a receipt Agent A persisted in DataHub, then re-derives the answer itself. Read-only.</p>
+              <p id="run-progress" aria-live="polite" hidden></p>
+              <pre id="run-output" tabindex="-1" hidden></pre>
+              <details class="more-live">
+                <summary>Other live proofs</summary>
+                <p class="fine">All five live proofs are available above; each runs a fixed, read-only command from a closed table.</p>
+                <div class="run-row">
+                  <button class="chip" type="button" data-run="gate-demo" aria-controls="run-output">Offline verdict</button>
+                  <button class="chip" type="button" data-run="audit" aria-controls="run-output">Catalog audit</button>
+                  <button class="chip" type="button" data-run="repair" aria-controls="run-output">Repair agent</button>
+                  <button class="chip" type="button" data-run="claims" aria-controls="run-output">Measured claims</button>
+                </div>
+              </details>
+              <details class="mcp-tools">
+                <summary>Three read-only MCP tools</summary>
+                <p class="fine">No hidden mutation. Their verification store is not a DataHub Receipt reader — the independent Receipt read is the proof above.</p>
+                <p class="tool-row"><code>check_change</code><code>verify_context</code><code>search_verified</code></p>
+              </details>
+            </div>
+          </div>
+        </div>
+      </section>
 
-      <div class="run-panel">
-        <div class="handoff-run" aria-busy="false">
-          <button class="btn-run" type="button" data-run="handoff" aria-controls="run-output">Run the live receipt read</button>
-        <p class="run-fineprint">Runs a real command on the host and prints the real output. 5 proof runs per client every 10 minutes; a refusal says which limit applied and when it resets.</p>
+      <section class="exhibit" aria-labelledby="exhibit-a-heading">
+        <div class="wrap">
+          <p class="kicker"><span class="kicker-no">01</span> Exhibit A</p>
+          <h2 id="exhibit-a-heading">Two claims. Same catalog.<br>Both cannot be true.</h2>
+          <p class="lede">Sidq's read-only audit of <code>showcase-ecommerce</code> — the sample catalog DataHub itself ships — found internal contradictions. Here is one, whole.</p>
 
-        <div class="run-console" role="group" aria-label="Live command output">
-          <p id="run-status" aria-live="polite">Agent B reads a receipt Agent A persisted in DataHub, then re-derives the answer itself. Read-only.</p>
-          <p id="run-progress" aria-live="polite" hidden></p>
-          <pre id="run-output" tabindex="-1" hidden></pre>
-          <details class="more-live">
-            <summary>Other live proofs</summary>
-            <p class="more-live-note">All five live proofs are available above; each runs a fixed, read-only command.</p>
-            <div class="command-row run-row">
-              <button class="copy run" type="button" data-run="gate-demo" aria-controls="run-output">Offline verdict</button>
-              <button class="copy run" type="button" data-run="audit" aria-controls="run-output">Catalog audit</button>
-              <button class="copy run" type="button" data-run="repair" aria-controls="run-output">Repair agent</button>
-              <button class="copy run" type="button" data-run="claims" aria-controls="run-output">Measured claims</button>
+          <div class="clash" role="group" aria-label="Two contradicting catalog claims">
+            <div class="claim-card">
+              <p class="card-tag">Claim A · stored lineage</p>
+              <p class="claim-line"><code>order_details.billing_address_line1</code></p>
+              <p class="claim-feeds" aria-hidden="true">─── feeds ──▶</p>
+              <p class="claim-line"><code>Customer_Analytics_Measures.BILLING_ADDRESS_LINE1</code></p>
+            </div>
+            <div class="clash-x" aria-hidden="true"><span>✕</span></div>
+            <div class="claim-card claim-card--conflict">
+              <p class="card-tag">Claim B · that asset's own schema</p>
+              <p class="claim-line">Fields on <code>Customer_Analytics_Measures</code>:</p>
+              <p class="claim-line"><code>Customer LTV</code> · <code>Value</code></p>
+              <p class="claim-missing">The column the lineage names does not exist.</p>
+            </div>
+          </div>
+
+          <p class="verdict-line">Both statements live inside the catalog. <strong>No source system was consulted.</strong> They cannot both be true.</p>
+
+          <dl class="stats" aria-label="Audit results on the shipped sample catalog">
+            <div><dt class="stat-red">285</dt><dd>internal contradictions</dd></div>
+            <div><dt>67</dt><dd>datasets examined</dd></div>
+            <div><dt>5</dt><dd>assets they cluster in</dd></div>
+            <div><dt>0</dt><dd>source systems consulted</dd></div>
+          </dl>
+
+          <div class="section-run">
+            <button class="btn-secondary" type="button" data-run="audit" aria-controls="run-output">Hunt contradictions in the live catalog · ~45s</button>
+            <span class="fine">Real read-only audit over the official MCP server. Output prints in the console above.</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="exhibit" aria-labelledby="exhibit-b-heading">
+        <div class="wrap">
+          <p class="kicker"><span class="kicker-no">02</span> Exhibit B</p>
+          <div class="refusal-head">
+            <span class="block-chip">BLOCK</span>
+            <h2 id="exhibit-b-heading">An agent proposed removing <code>cust_email</code>.<br>Sidq refused — with evidence.</h2>
+          </div>
+
+          <div class="rule-table" role="table" aria-label="Findings behind the refusal">
+            <div class="rule-row" role="row">
+              <span class="pill pill-red" role="cell">BLOCK</span>
+              <code role="cell">critical_downstream</code>
+              <span role="cell">Verified downstream ownership crosses team boundaries, including <code>ORG_BACKEND_ENG</code> and eight additional owners.</span>
+            </div>
+            <div class="rule-row" role="row">
+              <span class="pill pill-amber" role="cell">WARN</span>
+              <code role="cell">wide_blast_radius</code>
+              <span role="cell">16 downstream consumers recorded, including a live Looker dashboard.</span>
+            </div>
+            <div class="rule-row" role="row">
+              <span class="pill pill-grey" role="cell">CONTEXT</span>
+              <code role="cell">PII_Data</code>
+              <span role="cell">The path carries PII metadata — supporting context, not the blocking cause.</span>
+            </div>
+          </div>
+
+          <p class="path-caption">Column-level lineage, followed hop by hop from the changed field to the thing that breaks:</p>
+          <ol class="pipeline" aria-label="Impact path across three platforms">
+            <li><span class="node-plat">dbt</span><code>order_entry.customers / cust_email</code></li>
+            <li><span class="node-plat">Snowflake</span><code>analytics.order_details</code></li>
+            <li><span class="node-plat">Looker</span><code>explore.order_details</code></li>
+            <li class="node-end"><span class="node-plat">Dashboard</span><code>dashboards.53</code><em>owned by another team</em></li>
+          </ol>
+
+          <div class="section-run">
+            <button class="btn-secondary" type="button" data-run="gate-demo" aria-controls="run-output">Re-derive this BLOCK from the committed fixture · ~15s</button>
+            <span class="fine">Byte-identical replay — no DataHub, no credentials. Output prints in the console above.</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="exhibit" aria-labelledby="receipt-heading">
+        <div class="wrap">
+          <p class="kicker"><span class="kicker-no">03</span> The receipt</p>
+          <h2 id="receipt-heading">The next agent verifies for itself.</h2>
+          <p class="lede">A receipt is not authority. A separate reader re-reads the graph context, re-checks policy hash and age, and answers on three axes it never collapses: does it apply, what did it decide, what may you do.</p>
+
+          <div class="dispositions">
+            <div class="disp disp-pass"><span class="disp-dot" aria-hidden="true"></span><strong>Current PASS</strong><span>Continue.</span></div>
+            <div class="disp disp-warn"><span class="disp-dot" aria-hidden="true"></span><strong>Current WARN</strong><span>Review or escalate.</span></div>
+            <div class="disp disp-block"><span class="disp-dot" aria-hidden="true"></span><strong>Current BLOCK</strong><span>Stop. Checked and refused — never shown as unverified.</span></div>
+            <div class="disp disp-unv"><span class="disp-dot" aria-hidden="true"></span><strong>NOT VERIFIED</strong><span>Missing, stale, or unreadable. Check again.</span></div>
+          </div>
+
+          <details class="method">
+            <summary>How the decision is reached — one picture</summary>
+            <div class="method-body">
+              <div class="architecture-frame" tabindex="0" role="region" aria-label="Architecture diagram. Scroll horizontally to inspect at small sizes.">
+                <img src="architecture.svg?v=f6a3172bea473f00" alt="A change or agent question passes five evidence gates, one policy engine emits PASS, WARN or BLOCK, an opted-in audit can write a receipt into DataHub, and a later reader re-verifies it.">
+              </div>
+              <p class="fine">Gates collect evidence. One engine decides. No model participates in a blocking decision. <a href="architecture.svg?v=f6a3172bea473f00" target="_blank" rel="noopener">Open full size ↗</a> · <a href="https://github.com/NexuChat/sidq/blob/main/ARCHITECTURE.md">ARCHITECTURE.md ↗</a></p>
             </div>
           </details>
-          <details class="mcp-tools">
-            <summary>Three read-only MCP tools</summary>
-            <p>No hidden mutation. Their verification store is not a DataHub Receipt reader. The independent Receipt read is the separate live proof above.</p>
-            <div><code>check_change</code><code>verify_context</code><code>search_verified</code></div>
-          </details>
         </div>
+      </section>
 
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="exhibit exhibit-a" aria-labelledby="exhibit-a-heading">
-    <div class="wrap">
-      <p class="exhibit-tag">EXHIBIT A</p>
-      <h2 id="exhibit-a-heading">The Contradiction</h2>
-
-      <div class="claims-grid">
-        <div class="claim-card">
-          <p class="claim-label">Claim A — stored lineage</p>
-          <p class="claim-body"><code>order_details.billing_address_line1</code><span class="arrow" aria-hidden="true">→ feeds →</span><code>Customer_Analytics_Measures.BILLING_ADDRESS_LINE1</code></p>
-        </div>
-        <div class="claim-card claim-card--alarm">
-          <p class="claim-label">Claim B — that asset's own schema</p>
-          <p class="claim-body">Fields are only <em>"Customer LTV, Value"</em> — no <code>BILLING_ADDRESS_LINE1</code>. The column the lineage names does not exist.</p>
-        </div>
-      </div>
-
-      <p class="verdict-line">Both statements are inside the catalog. No source system was consulted. <span class="mark-alarm">They cannot both be true.</span></p>
-
-      <dl class="stat-rail">
-        <div class="stat"><dt>Lineage / schema contradictions</dt><dd>285</dd></div>
-        <div class="stat"><dt>Datasets examined</dt><dd>67</dd></div>
-        <div class="stat"><dt>Target assets they cluster in</dt><dd>5</dd></div>
-        <div class="stat"><dt>Source systems consulted</dt><dd>0</dd></div>
-      </dl>
-      <p class="exhibit-footnote">Run against DataHub's own shipped sample catalog <code>showcase-ecommerce</code>.</p>
-    </div>
-  </section>
-
-  <section class="exhibit exhibit-b" aria-labelledby="exhibit-b-heading">
-    <div class="wrap">
-      <p class="exhibit-tag">EXHIBIT B</p>
-      <h2 id="exhibit-b-heading">The Refusal</h2>
-
-      <div class="verdict-block">
-        <p class="stamp">BLOCK</p>
-        <p class="verdict-desc">An agent proposed removing <code>cust_email</code> from <code>order_entry.customers</code>; Sidq refused.</p>
-      </div>
-
-      <table class="rule-table">
-        <caption class="sr-only">Rules evaluated for this proposed action</caption>
-        <thead>
-          <tr><th scope="col">Rule</th><th scope="col">Verdict</th><th scope="col">Finding</th></tr>
-        </thead>
-        <tbody>
-          <tr class="rule-row rule-row--block">
-            <th scope="row"><code>critical_downstream</code></th>
-            <td><span class="badge badge--block">BLOCK</span></td>
-            <td>Verified downstream ownership crosses team boundaries, including <code>ORG_BACKEND_ENG</code> and eight additional owners.</td>
-          </tr>
-          <tr class="rule-row">
-            <th scope="row"><code>wide_blast_radius</code></th>
-            <td><span class="badge badge--warn">WARN</span></td>
-            <td>16 downstream consumers recorded, including a live Looker dashboard.</td>
-          </tr>
-        </tbody>
-      </table>
-
-      <p class="context-note"><span class="context-label">Context —</span> the path carries <code>PII_Data</code> metadata: supporting context, not the blocking cause.</p>
-
-      <div class="custody">
-        <p class="custody-label">Chain of custody · column-level lineage</p>
-        <ol class="custody-chain">
-          <li><code>dbt order_entry.customers / cust_email</code></li>
-          <li><code>Snowflake analytics.order_details</code></li>
-          <li><code>Looker explore.order_details</code></li>
-          <li><code>Dashboard dashboards.53</code> <span class="custody-note">(owned by another team)</span></li>
-        </ol>
-      </div>
-    </div>
-  </section>
-
-  <section class="receipt" aria-labelledby="receipt-heading">
-    <div class="wrap">
-      <p class="exhibit-tag">EXHIBIT C</p>
-      <h2 id="receipt-heading">The Receipt</h2>
-      <div class="disposition-grid">
-        <div class="disposition">
-          <p class="disposition-state disposition-state--pass">PASS</p>
-          <p class="disposition-action">Continue.</p>
-        </div>
-        <div class="disposition">
-          <p class="disposition-state disposition-state--warn">WARN</p>
-          <p class="disposition-action">Review or escalate.</p>
-        </div>
-        <div class="disposition">
-          <p class="disposition-state disposition-state--block">BLOCK</p>
-          <p class="disposition-action">Stop — it was checked and refused. Never shown as unverified.</p>
-        </div>
-        <div class="disposition">
-          <p class="disposition-state disposition-state--unverified">NOT VERIFIED</p>
-          <p class="disposition-action">Missing, stale, or unreadable receipt. Check again.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="exhibit" aria-labelledby="exhibit-c-heading">
-    <div class="wrap">
-      <p class="file-tag">— Exhibit C · Method —</p>
-      <h2 id="exhibit-c-heading">How the decision is reached.</h2>
-      <p class="lede">Five gates collect evidence. One engine decides. Gates never emit verdicts, and no model participates in a blocking decision.</p>
-      <div class="architecture-frame" tabindex="0" role="region" aria-label="Architecture diagram. Scroll horizontally to inspect at small sizes.">
-        <img src="architecture.svg?v=f6a3172bea473f00" alt="A change or agent question passes five evidence gates, one policy engine emits PASS, WARN or BLOCK, an opted-in audit can write a receipt into DataHub, and a later reader re-verifies it.">
-      </div>
-      <a class="architecture-open" href="architecture.svg?v=f6a3172bea473f00" target="_blank" rel="noopener">Open full-size architecture ↗</a>
-      <p class="fine">Gates collect evidence. One engine decides. Receipts preserve decision context. Full spec: <a href="https://github.com/NexuChat/sidq/blob/main/ARCHITECTURE.md"><code>ARCHITECTURE.md</code> ↗</a></p>
-    </div>
-  </section>
-
-  
-
-  <section class="reproduce" aria-labelledby="reproduce-heading">
-    <div class="wrap">
-      <p class="exhibit-tag">APPENDIX</p>
-      <h2 id="reproduce-heading">Reproduce</h2>
-      <pre class="code-block"><code>git clone https://github.com/NexuChat/sidq.git
+      <section class="exhibit reproduce" aria-labelledby="reproduce-heading">
+        <div class="wrap">
+          <p class="kicker"><span class="kicker-no">04</span> Reproduce</p>
+          <h2 id="reproduce-heading">Re-derive the refusal on your machine.</h2>
+          <div class="repro-panel">
+            <code class="command-sequence">git clone https://github.com/NexuChat/sidq.git
 cd sidq
-make gate-demo</code></pre>
-    </div>
-  </section>
+make gate-demo</code>
+            <button class="chip" type="button" data-copy="git clone https://github.com/NexuChat/sidq.git&#10;cd sidq&#10;make gate-demo">Copy</button>
+          </div>
+          <p class="fine">No DataHub or credentials — the replay bootstraps a hash-locked environment and re-derives the published verdict byte-for-byte. Then open <code>examples/01-blocked-pii-dashboard/verdict.json</code> and compare hashes.</p>
+        </div>
+      </section>
 
-  <nav class="site-links" aria-label="Project links">
-    <a href="https://github.com/NexuChat/sidq">GitHub repository ↗</a>
-    <a href="https://datahub.mlki.app">Live DataHub ↗</a>
-    <a href="https://github.com/NexuChat/sidq/tree/main/examples">Evidence examples ↗</a>
-    <a href="/scope.html">Scope &amp; limits →</a>
-  </nav>
-</main>
+      <nav class="site-links wrap" aria-label="Project links">
+        <a href="https://github.com/NexuChat/sidq">GitHub ↗</a>
+        <a href="https://datahub.mlki.app">Live DataHub ↗</a>
+        <a href="https://github.com/NexuChat/sidq/tree/main/examples">Evidence examples ↗</a>
+        <a href="/scope.html">Scope &amp; limits →</a>
+      </nav>
+    </main>
 
-<footer class="site-footer shell">
-      <span>Sidq / DataHub-native context verification</span>
-      <span>One catalog. Many agents. No blind trust.</span>
-      <span id="release-identity">Release: unavailable</span>
+    <footer class="site-footer">
+      <div class="wrap footer-inner">
+        <span>Sidq / DataHub-native context verification</span>
+        <span>One catalog. Many agents. No blind trust.</span>
+        <span id="release-identity">Release: unavailable</span>
+      </div>
     </footer>
 
     <script src="app.js?v=54c62c820693bd74" defer></script>
