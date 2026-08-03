@@ -79,3 +79,6 @@ AGENTS.md
 # ships, and it is 31 KB.
 data/claims/reader/*-embeddings.npz
 catboost_info/
+
+# Local prompt scratchpad — never publish.
+prompt-end.md
