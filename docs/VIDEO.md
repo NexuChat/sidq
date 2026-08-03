@@ -82,7 +82,7 @@ fails the contract suite.
   content edits.
 - The drawn receipt token appears only over the closing illustration chapter,
   never over real footage.
-- Chapters are joined by a five-frame dip through the dark backdrop — a felt
+- Chapters are joined by a seven-frame dip through the dark backdrop — a felt
   edit, far below the blackdetect threshold, never a content change.
 
 ## Source and owned media
