@@ -2,8 +2,8 @@
 
 The verified upload candidate is
 `/home/dev/sidq-video/artifacts/video/sidq-final-en.mp4`. Its SHA-256 is
-`53b332cf3baa702880a29d3dc6ab76235e3d6d23d819a148aa3fcf8b49460343`,
-its exact size is 19,269,496 bytes, and its container duration is
+`76c06985a980a7f6c6c251eb5e3a2878fa2a066b544a58aa0434dd397adedcdf`,
+its exact size is 19,683,508 bytes, and its container duration is
 169.920 seconds — safely under three minutes. It is **not yet a submission
 artifact** because the public upload gate remains owner-only. It supersedes
 three earlier cuts preserved beside it (the 2026-08-02 film, the 2026-08-03
@@ -62,12 +62,15 @@ fails the contract suite.
   semantics, never presented as a recording).
 - Both browser captures keep the address bar visible, so a viewer can see
   which host answered — the deployed console and the public GitHub thread.
-- No capture is cut to hide waiting. Where a run is longer than its scene the
-  speed change is declared as a playback rate (audit ×1.45, pull-request
-  session ×1.4, console ×1.05, verify ×0.95; the gate replay and the agent
-  take play at natural speed, with 1.2 s of leading dead air trimmed from the
-  gate take), and the final frame is then held so the output stays readable —
-  a hold, not an edit.
+- No capture is cut to hide waiting; waiting is compressed in the open. The
+  audit chapter plays in three declared segments — the typed command at
+  natural speed, the 30 s of silent computation at ×6 so the wait is visible
+  but not endured, then the report printing at natural speed. The other
+  declared rates are pull-request session ×1.4, console ×1.05, verify ×0.95;
+  the gate replay and the agent take play at natural speed. Every terminal
+  take has its sub-two-second window-open dead air trimmed, and each
+  segment's final frame is then held so the output stays readable — a hold,
+  not an edit.
 - The receipt read on screen consumes a receipt persisted in DataHub before
   recording. The receipt write itself is described, never depicted as
   occurring, and is not presented as a live mutation. The DataHub-UI still is a real screenshot of
@@ -90,8 +93,8 @@ fails the contract suite.
 
 ## Verified artifact
 
-- SHA-256: `53b332cf3baa702880a29d3dc6ab76235e3d6d23d819a148aa3fcf8b49460343`;
-  exact size 19,269,496 bytes.
+- SHA-256: `76c06985a980a7f6c6c251eb5e3a2878fa2a066b544a58aa0434dd397adedcdf`;
+  exact size 19,683,508 bytes.
 - Container duration: 169.920 seconds; 5,096 frames / 169.866667 seconds of
   authored video at 30 fps, 1920x1080, H.264 High, yuv420p, BT.709.
 - Audio: AAC-LC stereo at 48 kHz; narration only; measured at −16.2 LUFS
