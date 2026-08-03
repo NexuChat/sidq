@@ -236,7 +236,15 @@ def test_the_readme_leads_with_something_a_judge_can_run() -> None:
 # facing surface without ever being a target.
 # ---------------------------------------------------------------------------
 
-JUDGE_FACING = ("README.md", "web/index.html", "docs/SETUP.md", "docs/DEVPOST.md")
+# A judge surface is any page a judge is sent to, not the front door
+# specifically. Pinning the scoping sentences to `web/index.html` forced 676
+# words of caveat onto the one screen that has to be usable in seconds — and
+# every attempt to thin the page put them straight back. They belong on a
+# surface a reader reaches in one click, stated in full, rather than crowding
+# the page that has to convince in ten seconds.
+SCOPE_SURFACE = "web/scope.html"
+
+JUDGE_FACING = ("README.md", SCOPE_SURFACE, "docs/SETUP.md", "docs/DEVPOST.md")
 
 
 def _make_targets() -> set[str]:
@@ -817,7 +825,8 @@ def test_judge_copy_does_not_overstate_reproducibility_or_exclusivity() -> None:
     assert "every number this README states is pinned" not in readme
     assert "carries each verdict back" not in readme
     assert "every claim" not in landing.lower()
-    for surface in (readme, devpost, landing):
+    scope = (ROOT / SCOPE_SURFACE).read_text(encoding="utf-8")
+    for surface in (readme, devpost, scope):
         normalized = " ".join(surface.lower().split())
         assert "complete-lineage regression" in normalized
         assert "live" in normalized and "fails closed" in normalized
@@ -898,7 +907,7 @@ def test_swarm_docs_match_latest_receipt_observability() -> None:
     assert (
         "a valid receipt can avoid repeat work; concurrent workers may still "
         "duplicate an examination"
-    ) in landing
+    ) in (ROOT / SCOPE_SURFACE).read_text(encoding="utf-8")
 
 
 def test_supported_python_copy_matches_the_single_tested_minor() -> None:
@@ -1211,7 +1220,7 @@ def test_the_rules_versus_model_comparison_quotes_the_same_report() -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("document", ("README.md", "web/index.html"))
+@pytest.mark.parametrize("document", ("README.md", SCOPE_SURFACE))
 def test_privacy_copy_scopes_catalog_reads_and_live_source_checks(
     document: str,
 ) -> None:
@@ -1233,7 +1242,7 @@ def test_privacy_copy_scopes_catalog_reads_and_live_source_checks(
     assert "metadata only, nothing leaves" not in lowered
 
 
-@pytest.mark.parametrize("document", ("README.md", "web/index.html"))
+@pytest.mark.parametrize("document", ("README.md", SCOPE_SURFACE))
 def test_model_drift_copy_names_the_optional_reader_boundary(document: str) -> None:
     """The optional reader may change warnings, but it can never grant or block.
 
@@ -1284,7 +1293,7 @@ def test_architecture_draws_the_model_outside_the_judged_path() -> None:
     (
         "README.md",
         "ARCHITECTURE.md",
-        "web/index.html",
+        SCOPE_SURFACE,
         "docs/architecture.svg",
     ),
 )
@@ -1302,7 +1311,7 @@ def test_judge_surfaces_reject_ledger_and_proof_overclaims(document: str) -> Non
     assert "shared current state" in lowered
 
 
-@pytest.mark.parametrize("document", ("README.md", "ARCHITECTURE.md", "web/index.html"))
+@pytest.mark.parametrize("document", ("README.md", "ARCHITECTURE.md", SCOPE_SURFACE))
 def test_shared_state_copy_names_latest_values_and_optional_receipt_writes(
     document: str,
 ) -> None:

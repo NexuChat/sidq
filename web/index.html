@@ -165,7 +165,7 @@
         </div>
         <div class="disposition">
           <p class="disposition-state disposition-state--unverified">NOT VERIFIED</p>
-          <p class="disposition-action">Missing, stale, or unreadable receipt. Check again. Missing or changed context fails closed; it never becomes a quiet pass.</p>
+          <p class="disposition-action">Missing, stale, or unreadable receipt. Check again.</p>
         </div>
       </div>
     </div>
@@ -180,31 +180,11 @@
         <img src="architecture.svg?v=f6a3172bea473f00" alt="A change or agent question passes five evidence gates, one policy engine emits PASS, WARN or BLOCK, an opted-in audit can write a receipt into DataHub, and a later reader re-verifies it.">
       </div>
       <a class="architecture-open" href="architecture.svg?v=f6a3172bea473f00" target="_blank" rel="noopener">Open full-size architecture ↗</a>
-      <p class="fine">Gates collect evidence. One engine decides. Receipts preserve decision context. A complete-lineage regression suite and a hostile-catalog suite guard the reader against malformed, misdirected, and invented-verdict payloads. Full spec: <a href="https://github.com/NexuChat/sidq/blob/main/ARCHITECTURE.md"><code>ARCHITECTURE.md</code> ↗</a></p>
+      <p class="fine">Gates collect evidence. One engine decides. Receipts preserve decision context. Full spec: <a href="https://github.com/NexuChat/sidq/blob/main/ARCHITECTURE.md"><code>ARCHITECTURE.md</code> ↗</a></p>
     </div>
   </section>
 
-  <section class="exhibit" aria-labelledby="exhibit-d-heading">
-    <div class="wrap">
-      <p class="file-tag">— Exhibit D · Scope —</p>
-      <h2 id="exhibit-d-heading">What it reads, what it never decides, what it stores.</h2>
-      <dl class="scope-list">
-        <div>
-          <dt>Data privacy</dt>
-          <dd>Catalog audits read metadata only — schemas, lineage, tags, owners — and receipt writes are explicit opt-ins into your catalog. The separate <code>sidq claims</code> attestation runs bounded read-only SQL inside the live source, returns counts plus at most ten violating samples, and never sends them outside your infrastructure. Query results never enter a model; the optional reader sees documentation text only. Self-hosted, Apache-2.0.</dd>
-        </div>
-        <div>
-          <dt>Model boundary</dt>
-          <dd>No model can block or grant permission. The deterministic rule ships in the blocking path; the optional documentation reader may extend <code>WARN</code> coverage after rules abstain, and it can never turn <code>PASS</code> into <code>BLOCK</code>. It loads a pinned revision and reports its head fingerprint and threshold, so changes are attributable.</dd>
-        </div>
-        <div>
-          <dt>Shared current state, not a ledger</dt>
-          <dd>With explicit optional receipt writes, DataHub holds the latest values — not append-only history, and no exactly-once coordination. <code>sidq audit --resume</code> re-checks that shared current state before spending its budget: a valid receipt can avoid repeat work; concurrent workers may still duplicate an examination.</dd>
-        </div>
-      </dl>
-      <p class="fine">Fixture evidence commit: <a href="https://github.com/NexuChat/sidq/commit/5addb753788935d4d1aa6a9483c28c6fc124e5c7"><code>5addb75</code> ↗</a> · canonical verdict: <a href="https://github.com/NexuChat/sidq/blob/main/examples/01-blocked-pii-dashboard/verdict.json"><code>verdict.json</code> ↗</a> · audit evidence: <a href="https://github.com/NexuChat/sidq/blob/main/examples/03-catalog-truth-report/report.json"><code>report.json</code> ↗</a></p>
-    </div>
-  </section>
+  
 
   <section class="reproduce" aria-labelledby="reproduce-heading">
     <div class="wrap">
@@ -220,6 +200,7 @@ make gate-demo</code></pre>
     <a href="https://github.com/NexuChat/sidq">GitHub repository ↗</a>
     <a href="https://datahub.mlki.app">Live DataHub ↗</a>
     <a href="https://github.com/NexuChat/sidq/tree/main/examples">Evidence examples ↗</a>
+    <a href="/scope.html">Scope &amp; limits →</a>
   </nav>
 </main>
 

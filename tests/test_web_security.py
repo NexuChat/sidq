@@ -1197,6 +1197,10 @@ def test_landing_external_static_assets_are_content_addressed() -> None:
         "styles.css",
     }
     for reference, asset in assets:
+        # A link to another *document* is navigation, not a cached sub-resource;
+        # versioning it would break the URL a judge is given.
+        if asset.suffix == ".html":
+            continue
         version = parse_qs(urlsplit(reference).query).get("v")
         expected = hashlib.sha256(asset.read_bytes()).hexdigest()[:16]
 
@@ -1221,6 +1225,11 @@ def test_static_serving_is_allowlisted_and_keeps_landing_assets_reachable() -> N
         if split.netloc and split.netloc not in public_hosts:
             continue
         candidate = split.path.lstrip("/")
+        # A link to another document is navigation; the asset scan is about
+        # sub-resources the page loads, which are the ones that need caching
+        # and content addressing.
+        if candidate.endswith(".html"):
+            continue
         if candidate and (web_root / candidate).is_file():
             referenced_assets.add("/" + candidate)
 
@@ -1230,7 +1239,14 @@ def test_static_serving_is_allowlisted_and_keeps_landing_assets_reachable() -> N
         "/social-preview.png",
         "/styles.css",
     }
-    assert server.PUBLIC_ASSET_PATHS == referenced_assets | {"/", "/index.html"}
+    # `/scope.html` is a second document, not an asset the console references
+    # as a file, so it is named here alongside the index rather than derived
+    # from a src/href scan.
+    assert server.PUBLIC_ASSET_PATHS == referenced_assets | {
+        "/",
+        "/index.html",
+        "/scope.html",
+    }
 
     with server.Server(("127.0.0.1", 0), server.Handler) as service:
         thread = threading.Thread(target=service.serve_forever, daemon=True)

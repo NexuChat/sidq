@@ -53,6 +53,7 @@ PUBLIC_ASSET_PATHS = frozenset(
         "/app.js",
         "/architecture.svg",
         "/index.html",
+        "/scope.html",
         # Referenced by og:image and twitter:image as an ABSOLUTE url, so it does
         # not appear in a relative href/src scan. Omitting it breaks the link
         # preview wherever the demo url is shared. social-preview.svg is the

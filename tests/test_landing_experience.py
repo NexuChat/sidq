@@ -117,7 +117,9 @@ def test_all_four_receipt_dispositions_are_distinct_on_the_page() -> None:
     for state in ("PASS", "WARN", "BLOCK", "NOT VERIFIED"):
         assert state in receipt, state
     assert "never shown as unverified" in receipt.lower()
-    assert "fails closed" in receipt.lower()
+    # The fail-closed boundary is stated in full one click away.
+    scope = (ROOT / "web" / "scope.html").read_text(encoding="utf-8").lower()
+    assert "fails closed" in scope
 
 
 def test_scoping_answers_survive_whatever_the_page_looks_like() -> None:
@@ -127,7 +129,9 @@ def test_scoping_answers_survive_whatever_the_page_looks_like() -> None:
     They are the limits of the claim, which is exactly the content a prettier
     page is most tempted to cut.
     """
-    text = " ".join(_landing().lower().split())
+    text = " ".join(
+        (ROOT / "web" / "scope.html").read_text(encoding="utf-8").lower().split()
+    )
 
     assert "catalog audits read metadata only" in text
     assert "no model can block" in text
@@ -136,7 +140,16 @@ def test_scoping_answers_survive_whatever_the_page_looks_like() -> None:
 
 
 def test_the_evidence_a_judge_would_open_is_linked() -> None:
+    """One click from the console, not crowded onto it.
+
+    The console has to be usable in seconds; the evidence a judge opens when
+    they want to check the claim lives on the scope page, which the console
+    links. What matters is that the trail exists and is one hop away.
+    """
     html = _landing()
+    scope = (ROOT / "web" / "scope.html").read_text(encoding="utf-8")
+
+    assert 'href="/scope.html"' in html
 
     for url in (
         "https://github.com/NexuChat/sidq/blob/main/examples/01-blocked-pii-dashboard/verdict.json",
@@ -144,7 +157,7 @@ def test_the_evidence_a_judge_would_open_is_linked() -> None:
         "https://github.com/NexuChat/sidq/commit/5addb753788935d4d1aa6a9483c28c6fc124e5c7",
         "https://datahub.mlki.app",
     ):
-        assert f'href="{url}"' in html, url
+        assert f'href="{url}"' in scope, url
 
 
 def test_the_page_never_ships_a_simulated_run() -> None:
