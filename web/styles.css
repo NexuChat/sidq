@@ -6,8 +6,8 @@
   color-scheme: dark;
   --bg: #07080b;
   --bg-2: #0b0d12;
-  --panel: rgba(255, 255, 255, 0.035);
-  --panel-2: rgba(255, 255, 255, 0.055);
+  --panel: #101114;
+  --panel-2: #151619;
   --line: rgba(255, 255, 255, 0.09);
   --line-strong: rgba(255, 255, 255, 0.16);
   --text: #eceef2;
@@ -29,10 +29,14 @@ html { scroll-behavior: smooth; scroll-padding-top: 76px; }
 body {
   min-width: 320px;
   margin: 0;
-  background:
+  /* An explicit background-color, with the atmosphere as background-image on
+     top. The single multi-layer shorthand left audit engines unable to resolve
+     the effective background, so they assumed white and reported light-on-white
+     contrast failures for a page that is dark. Same pixels, resolvable now. */
+  background-color: var(--bg);
+  background-image:
     radial-gradient(90rem 42rem at 88% -12%, rgba(255, 75, 60, 0.07), transparent 60%),
-    radial-gradient(70rem 40rem at -12% 108%, rgba(124, 177, 255, 0.05), transparent 60%),
-    var(--bg);
+    radial-gradient(70rem 40rem at -12% 108%, rgba(124, 177, 255, 0.05), transparent 60%);
   color: var(--text);
   font-family: var(--sans);
   font-size: 16px;
@@ -266,7 +270,8 @@ h1 {
 .terminal {
   border: 1px solid var(--line);
   border-radius: 14px;
-  background: linear-gradient(180deg, var(--panel-2), var(--panel)), var(--bg-2);
+  background-color: var(--panel);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 60%);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
     0 30px 70px rgba(0, 0, 0, 0.55);
@@ -491,15 +496,15 @@ h2 code { font-size: 0.88em; color: var(--red); }
   padding: clamp(20px, 2.4vw, 30px);
   border: 1px solid var(--line);
   border-radius: 14px;
-  background: linear-gradient(180deg, var(--panel-2), var(--panel));
+  background-color: var(--panel);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 60%);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .claim-card--conflict {
   border-color: rgba(255, 75, 60, 0.5);
-  background:
-    linear-gradient(180deg, rgba(255, 75, 60, 0.08), rgba(255, 75, 60, 0.02)),
-    var(--panel);
+  background-color: #1c1113;
+  background-image: linear-gradient(180deg, rgba(255, 75, 60, 0.06), transparent 70%);
   box-shadow: 0 0 40px rgba(255, 75, 60, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
@@ -634,14 +639,17 @@ h2 code { font-size: 0.88em; color: var(--red); }
   gap: 18px;
   align-items: start;
   padding: 18px 20px;
-  background: var(--panel);
+  background-color: var(--panel);
   font-size: 14.5px;
   line-height: 1.65;
 }
 
 .rule-row + .rule-row { border-top: 1px solid var(--line); }
 
-.rule-row:first-child { background: linear-gradient(90deg, rgba(255, 75, 60, 0.09), transparent 55%), var(--panel); }
+.rule-row:first-child {
+  background-color: var(--panel);
+  background-image: linear-gradient(90deg, rgba(255, 75, 60, 0.09), transparent 55%);
+}
 
 .rule-row > code { font-size: 13px; color: var(--text); overflow-wrap: anywhere; }
 
@@ -681,7 +689,7 @@ h2 code { font-size: 0.88em; color: var(--red); }
   padding: 14px 18px;
   border: 1px solid var(--line);
   border-radius: 12px;
-  background: var(--panel);
+  background-color: var(--panel);
 }
 
 .pipeline li:not(:last-child)::after {
@@ -726,7 +734,7 @@ h2 code { font-size: 0.88em; color: var(--red); }
   padding: 20px;
   border: 1px solid var(--line);
   border-radius: 13px;
-  background: var(--panel);
+  background-color: var(--panel);
   font-size: 14px;
   line-height: 1.6;
 }

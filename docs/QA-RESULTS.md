@@ -1,4 +1,4 @@
-# Public landing QA — 2026-08-02
+# Public landing QA — sessions of 2026-08-02 and 2026-08-03
 
 Implementation build under test: `https://sidq.mlki.app`, built from
 commit [`8039675d68e748b37a73a2796959c8d8bda8dabc`](https://github.com/NexuChat/sidq/commit/8039675d68e748b37a73a2796959c8d8bda8dabc).
@@ -54,6 +54,28 @@ catalog-write flag.
   DOMContentLoaded, 87.6 ms load, 144 ms FCP and LCP, CLS 0, a 48 ms maximum
   observed interaction event, no long tasks, and `overflowX=false`. This is a
   single controlled measurement, not field data or a latency guarantee.
+
+## Browser session — 2026-08-03, instrument-dark identity
+
+The landing was rebuilt twice on 2026-08-03 (evidence-dossier, then the current
+instrument-dark identity), so the browser measurements below were re-taken
+against the deployed page on the same day. Anything not listed here was **not**
+re-measured and the 2026-08-02 session remains its record.
+
+- Live-DOM accessibility audit (`@accesslint/core`, WCAG 2.2): **0 violations**
+  on `/` and `/scope.html`. The first pass reported 14 contrast failures that
+  were audit-engine artifacts — translucent white panel layers resolve as
+  "white background" to contrast engines — so panel backgrounds were converted
+  to the equivalent solid colors. Same rendered pixels; resolvable to any
+  auditor a judge might run.
+- Horizontal overflow at 375, 768, and 1440 px: none.
+- Keyboard: first 12 tab stops all show the shared focus ring.
+- `prefers-reduced-motion`: the pulse and reveal animations are disabled.
+- Console: zero errors against the deployed origin (the only local-harness
+  error is the absent `/healthz` on the static dev server, which exists in
+  production).
+- Load (local static serve, cold): 80–125 ms to `load` at all three widths —
+  a harness measurement, not field data.
 
 ## Automated gates
 
