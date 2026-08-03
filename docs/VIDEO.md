@@ -66,7 +66,8 @@ fails the contract suite.
   audit chapter plays in three declared segments — the typed command at
   natural speed, the 30 s of silent computation at ×6 so the wait is visible
   but not endured, then the report printing at natural speed. The other
-  declared rates are pull-request session ×1.4, console ×1.05, verify ×0.95;
+  declared playback rates are pull-request session ×1.4, console ×1.05,
+  verify ×0.95;
   the gate replay and the agent take play at natural speed. Every terminal
   take has its sub-two-second window-open dead air trimmed, and each
   segment's final frame is then held so the output stays readable — a hold,
