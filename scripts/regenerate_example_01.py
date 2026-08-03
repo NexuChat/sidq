@@ -226,9 +226,18 @@ def _skill_worked_example(verdict: dict) -> str:
 
 
 def _replace_skill_worked_example(text: str, section: str) -> str:
+    """Rewrite the generated block, leaving the rule that follows it separated.
+
+    The trailing newline is deliberate. Without it this regenerated the section
+    flush against the `---` that follows, which `markdownlint` rejects — and the
+    skill is a contribution to a repository that runs `markdownlint` over every
+    file. Two gates in this repo would then disagree forever: `make regen-check`
+    would demand the blank line be removed, and the sponsor's lint would demand
+    it be restored.
+    """
     pattern = r"### Worked example:.*?(?=\n---\n)"
     updated, replacements = re.subn(
-        pattern, section.rstrip(), text, count=1, flags=re.DOTALL
+        pattern, section.rstrip() + "\n", text, count=1, flags=re.DOTALL
     )
     if replacements != 1:
         raise RuntimeError("could not locate the generated skill worked example")

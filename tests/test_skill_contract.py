@@ -111,6 +111,28 @@ def test_the_skill_never_tells_an_agent_a_refusal_means_unchecked(skill: str) ->
     assert "Coverage is not permission." in skill
 
 
+def test_the_generated_block_leaves_the_blank_line_upstream_lint_requires(
+    skill: str,
+) -> None:
+    """Two gates in this repo once disagreed about one newline, permanently.
+
+    `scripts/regenerate_example_01.py` owns the worked-example section, and it
+    wrote that section flush against the horizontal rule below it.
+    `markdownlint` — which the sponsor's repository runs over every skill —
+    rejects that. `make regen-check` would have demanded the blank line be
+    removed on every run, and the upstream lint would have demanded it back.
+
+    A contradiction between two gates does not resolve itself; it gets suppressed
+    by whoever is in a hurry. So the shape the generator must emit is asserted.
+    """
+    from scripts.regenerate_example_01 import _replace_skill_worked_example
+
+    assert "governance decision.\n\n---\n" in skill
+
+    rewritten = _replace_skill_worked_example(skill, "### Worked example: rewritten\n")
+    assert "rewritten\n\n---\n" in rewritten
+
+
 def test_the_skill_tables_are_pipe_aligned_as_upstream_formats_them(
     skill: str,
 ) -> None:
