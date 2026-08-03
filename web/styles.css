@@ -1057,6 +1057,14 @@ h1 .question {
   width: 100%;
 }
 
+/* Stated before the button, not after the refusal. A judge who is rate-limited
+   without warning concludes the demo is broken. */
+.run-quota {
+  margin: 0 0 14px;
+  color: var(--paper-dim);
+  font: 400 clamp(0.68rem, 0.85vw, 0.78rem) / 1.6 var(--mono);
+}
+
 .handoff-run > p,
 .more-live + p {
   margin: 14px 0 0;

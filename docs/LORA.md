@@ -130,8 +130,11 @@ was refreshed and proves the training prompt is byte-identical to
 
 ### Method
 
-All three arms used the same 400 repository-held-out v2 examples in
-`data/lora/v2/eval.jsonl`. A and B ran sequentially in one GPU
+All three arms used the same 400 repository-held-out v2 examples. That eval
+split belonged to the historical experiment and is not shipped here, so the
+per-predicate table below cannot be re-derived from this repository — it is
+reported as a one-time measurement, not as something a reader can reproduce.
+A and B ran sequentially in one GPU
 `transformers` + `peft` runtime using deterministic JSON-schema-constrained
 decoding and the production strict JSON-to-claim validator; the only difference
 is that A disables the loaded PEFT adapter and B enables it. C is

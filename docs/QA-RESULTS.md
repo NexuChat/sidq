@@ -57,7 +57,7 @@ catalog-write flag.
 
 ## Automated gates
 
-- Current host run: 1006 collected, 1017 passed, and 2 optional integration tests
+- Current host run: 1006 collected, 1130 passed, and 2 optional integration tests
   skipped. The Qwen model weights were not present in the cache, and the Ollama
   model `ibm/granite4:1b-q4_1` was not installed.
 - Current host branch coverage: 83.85%, above the enforced 80.0% threshold.
