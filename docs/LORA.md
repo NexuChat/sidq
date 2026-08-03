@@ -1,5 +1,12 @@
 # Qwen3.5-0.8B LoRA evaluation
 
+> **Superseded evaluation.** The shipped claim reader is a linear head over
+> `microsoft/harrier-oss-v1-270m`. This document records a one-time historical
+> evaluation of a Qwen3.5-0.8B LoRA adapter that was tested as an alternative
+> and did not ship. The adapters and the v2 records described below are not
+> included in this public release, and the numbers here cannot be re-run from
+> this repository.
+
 ## Method
 
 All three arms used the same 400 repository-held-out examples in `data/claims/eval.jsonl`: 40 positives for each of five predicate types and 200 no-claim examples. A and B ran sequentially in one CPU-only `transformers` + `peft` runtime. Both use the byte-identical `ModelExtractor._prompt` formatter proven in `data/lora/prompt-proof.json`, deterministic decoding, a JSON-Schema grammar constraint, and the production strict JSON-to-claim validator. A disables the loaded PEFT adapter; B enables that exact adapter. C is `RuleBasedExtractor` and makes no model call. Progress checkpoints every 20 examples in `data/bakeoff/<arm>/progress.jsonl` and is resumed by index.
@@ -112,12 +119,14 @@ where the sentence itself expresses the constraint. The filtered corpus has
 positives are 513 `unique`, 82 `not_null`, 5 `accepted_values`, 1
 `relationships`, and 4 `expression`; the remaining 604 rows are negatives.
 
-`data/lora/adapter-v1/` remains the preserved v1 artifact. The new v2 adapter
-is `data/lora/adapter/`; it was trained from the deliberately unchanged
-`Qwen/Qwen3.5-0.8B` base with r=16, alpha=32, attention+MLP targets, one epoch,
-and learning rate 2e-4. Training used the shared GPU at the requested 16% cap
-(3.13 GiB peak reserved). `data/lora/prompt-proof.json` was refreshed and proves
-the training prompt is byte-identical to `ModelExtractor._prompt`.
+The v1 adapter (`data/lora/adapter-v1/`) and the v2 adapter (`data/lora/adapter/`)
+are not included in this public release. The results below are a one-time
+historical measurement of the v2 adapter, which was trained from the
+deliberately unchanged `Qwen/Qwen3.5-0.8B` base with r=16, alpha=32,
+attention+MLP targets, one epoch, and learning rate 2e-4. Training used the
+shared GPU at the requested 16% cap (3.13 GiB peak reserved). `data/lora/prompt-proof.json`
+was refreshed and proves the training prompt is byte-identical to
+`ModelExtractor._prompt`.
 
 ### Method
 
@@ -128,7 +137,8 @@ decoding and the production strict JSON-to-claim validator; the only difference
 is that A disables the loaded PEFT adapter and B enables it. C is
 `RuleBasedExtractor`. Evaluation used a tighter 12% CUDA allocation cap to
 leave room for the KYC service, which is within the required maximum of 16%.
-Results and resumable records are retained in `data/lora/v2/`.
+Results and resumable records from that run are not included in this
+repository; they existed only for the duration of the original experiment.
 
 Exact match requires type, column, and required values/expr. Type-only ignores
 predicate arguments. Positive accuracy is never averaged with negative

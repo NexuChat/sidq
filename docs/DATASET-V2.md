@@ -6,7 +6,7 @@ The v2 deterministic claim-expression filter retained 909 of 6844 prior positive
 
 A bare categorical parenthetical such as `Type of game (regular/playoff)` is rejected. It does not state that other values are invalid. Numeric parenthetical ranges such as `(0-100)` count when they match the test bounds because both bounds are explicitly stated.
 
-The previous adjacency-labelled files are preserved as `data/claims/train-v1.jsonl` and `data/claims/eval-v1.jsonl`. v2 keeps permissive-licence provenance, a repository-level hold-out, the identical-sentence cap of three, recorded seed, and both negative classes.
+The previous adjacency-labelled files (`data/claims/train-v1.jsonl` and `data/claims/eval-v1.jsonl`) are not part of the public release; the v2 files are the only dataset shipped. v2 keeps permissive-licence provenance, a repository-level hold-out, the identical-sentence cap of three, recorded seed, and both negative classes.
 
 ## Measurement consequence
 
