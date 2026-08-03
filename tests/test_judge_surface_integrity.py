@@ -54,6 +54,7 @@ NOT_OURS_TO_SHIP = frozenset(
         # production contract for it, and says so.
         "public/v4/audio/narration.provenance.json",
         "public/v4/proof/block-current.png",
+        "datahub-receipt-ui.png",
     }
 )
 

@@ -7,8 +7,10 @@
 > context is supported by evidence, and can stop an agent before it builds on a
 > contradiction.
 
-**Submission film:** rebuilt on real footage — a live catalog audit, the
-committed `BLOCK` replay, and one continuous session on the deployed console;
+**Submission film:** real footage in five of six chapters — the live catalog
+audit, the committed `BLOCK` replay ending on the public sealed PR thread, the
+deployed console, the receipt inside the DataHub UI with its independent
+`sidq verify` read, and the same agent run blind and guarded;
 production contract and artifact identity in [`docs/VIDEO.md`](docs/VIDEO.md).
 The submission video URL remains unset until the owner uploads the verified
 file and confirms logged-out playback. Public browser,
