@@ -10,6 +10,58 @@ yet a submission artifact** because that public upload gate remains owner-only.
 The older 175.317-second v2 exports and the rejected black-transition V4 render
 are stale and must not be submitted.
 
+Re-verified 2026-08-03: SHA-256 matches, size matches, `ffprobe` reports
+1920×1080 at 30 fps with 48 kHz AAC and a 169.216-second container, a complete
+`ffmpeg -v error -xerror` decode returns no error, and the sidecar SRT carries
+54 cues.
+
+## Known drift: scene 3 predates the receipt-state change
+
+**The film contains no false claim, and it is not current.** Both halves of that
+matter, so both are stated.
+
+Scene 3 is a labelled `LIVE CAPTURE` of a real session against the hosted page.
+It is a true recording of what that revision produced. Since it was captured, the
+receipt reader changed: `sidq verify` no longer prints `VERIFIED` for a current
+`PASS` — it prints `CURRENT RECEIPT · PASS · CONTINUE`, and `NOT VERIFIED` is now
+reserved for absent, stale, and unreadable receipts. The landing copy in the same
+frame was also replaced with the four dispositions.
+
+So the capture shows three strings the current code and page no longer produce:
+
+| In the capture | Now |
+|---|---|
+| `VERIFIED  urn:li:dataset:(…)` | `CURRENT RECEIPT · PASS · CONTINUE  urn:li:dataset:(…)` |
+| `receipt records PASS` | `receipt records PASS; continue` |
+| "A current PASS continues; BLOCK, missing, or stale stops." | the four-disposition list |
+
+The scene's narration — "It independently recomputes VERIFIED" — describes the
+act rather than quoting the output, and the on-screen `VERIFIED` badge is a
+designed overlay rather than part of the capture.
+
+**Re-capturing is blocked on deployment, not on effort.** The frame is a real
+browser session against `sidq.mlki.app`; it cannot honestly be re-captured until
+the current revision is pushed and deployed there. Re-recording the narration is
+separately blocked: the pipeline in this document requires OpenVoice V2 on the
+GPU named in the provenance and the private owner reference, neither of which is
+available on the build host.
+
+The owner therefore has one decision to make before submission, and it is a real
+trade, not a formality:
+
+1. **Deploy, re-capture scene 3, re-render.** The film matches the product a
+   judge will run. Costs a re-render of a currently verified artifact, and every
+   document quoting the SHA must be updated.
+2. **Ship the film as verified.** It stays a truthful recording of a real
+   session, correctly labelled, showing an earlier revision — which is ordinary
+   for a product video. A judge who watches and then runs `sidq verify` sees a
+   more informative headline than the one on screen, not a contradiction.
+
+Do not take a third path. A re-render that swaps the overlay while leaving the
+captured terminal stale would make the frame internally inconsistent, and a
+re-capture paired with the existing narration would put a spoken `VERIFIED` over
+a screen that no longer says it.
+
 ## Truth labels and evidence boundary
 
 - Explanatory graph, writeback, swarm, and repair scenes are labelled
