@@ -866,7 +866,6 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     def list_directory(self, path: str):
         del path
         self.send_error(404, "Directory listing disabled")
-        return None
 
     def do_HEAD(self) -> None:
         if self._redirect_forwarded_http():

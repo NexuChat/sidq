@@ -27,13 +27,13 @@ class _StaticAssetParser(HTMLParser):
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         for name, value in attrs:
-            if name in {"href", "src"} and value is not None:
-                self.references.append(value)
+            if value is None:
+                continue
             # og:image / twitter:image name an asset this origin must serve, but
             # they do it with an ABSOLUTE url in a meta content attribute. A
             # href/src-only scan cannot see them, and an allowlist derived from
             # such a scan silently 404s the link preview.
-            elif tag == "meta" and name == "content" and value is not None:
+            if name in {"href", "src"} or (tag == "meta" and name == "content"):
                 self.references.append(value)
 
 
@@ -1237,7 +1237,9 @@ def test_static_serving_is_allowlisted_and_keeps_landing_assets_reachable() -> N
         thread.start()
         try:
             for path in server.PUBLIC_ASSET_PATHS:
-                connection = http.client.HTTPConnection(*service.server_address, timeout=2)
+                connection = http.client.HTTPConnection(
+                    *service.server_address, timeout=2
+                )
                 try:
                     connection.request("GET", path)
                     response = connection.getresponse()
@@ -1258,7 +1260,9 @@ def test_static_serving_is_allowlisted_and_keeps_landing_assets_reachable() -> N
                 "/..%2f",
                 "//etc/passwd",
             ):
-                connection = http.client.HTTPConnection(*service.server_address, timeout=2)
+                connection = http.client.HTTPConnection(
+                    *service.server_address, timeout=2
+                )
                 try:
                     connection.request("GET", path)
                     response = connection.getresponse()
