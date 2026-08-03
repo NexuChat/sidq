@@ -15,52 +15,56 @@ Re-verified 2026-08-03: SHA-256 matches, size matches, `ffprobe` reports
 `ffmpeg -v error -xerror` decode returns no error, and the sidecar SRT carries
 54 cues.
 
-## Known drift: scene 3 predates the receipt-state change
+## The film is rebuilt from the product, never the reverse
 
-**The film contains no false claim, and it is not current.** Both halves of that
-matter, so both are stated.
+The composition is source, not an artifact to be preserved. When the product
+changes, the film is regenerated against it — the product is never bent, and its
+documentation is never softened, to keep an older render valid.
 
-Scene 3 is a labelled `LIVE CAPTURE` of a real session against the hosted page.
-It is a true recording of what that revision produced. Since it was captured, the
-receipt reader changed: `sidq verify` no longer prints `VERIFIED` for a current
-`PASS` — it prints `CURRENT RECEIPT · PASS · CONTINUE`, and `NOT VERIFIED` is now
-reserved for absent, stale, and unreadable receipts. The landing copy in the same
-frame was also replaced with the four dispositions.
+The current render predates the receipt-state change and is therefore
+**superseded**. Scene 3 is a `LIVE CAPTURE` showing three strings the product no
+longer produces:
 
-So the capture shows three strings the current code and page no longer produce:
-
-| In the capture | Now |
+| In the superseded render | The product now |
 |---|---|
 | `VERIFIED  urn:li:dataset:(…)` | `CURRENT RECEIPT · PASS · CONTINUE  urn:li:dataset:(…)` |
 | `receipt records PASS` | `receipt records PASS; continue` |
-| "A current PASS continues; BLOCK, missing, or stale stops." | the four-disposition list |
+| "A current PASS continues; BLOCK, missing, or stale stops." | the four dispositions |
 
-The scene's narration — "It independently recomputes VERIFIED" — describes the
-act rather than quoting the output, and the on-screen `VERIFIED` badge is a
-designed overlay rather than part of the capture.
+Its narration also says "It independently recomputes VERIFIED", which describes
+an output the reader no longer prints.
 
-**Re-capturing is blocked on deployment, not on effort.** The frame is a real
-browser session against `sidq.mlki.app`; it cannot honestly be re-captured until
-the current revision is pushed and deployed there. Re-recording the narration is
-separately blocked: the pipeline in this document requires OpenVoice V2 on the
-GPU named in the provenance and the private owner reference, neither of which is
-available on the build host.
+### Rebuild status
 
-The owner therefore has one decision to make before submission, and it is a real
-trade, not a formality:
+| Input | State |
+|---|---|
+| Narration script | ✅ rewritten. `s3` says the reader "recomputes for itself whether the receipt applies, and what it permits"; `s5` says a receipt "covers" rather than "holds" |
+| On-screen phrases and the scene-3 badge | ✅ `VERIFIED` → `CURRENT RECEIPT · PASS · CONTINUE`, badge → `PASS · CONTINUE` |
+| Typecheck and composition contract | ✅ `npm run typecheck` clean; 21 of 22 contract tests pass |
+| Render toolchain | ✅ verified by rendering a still end to end |
+| Narration audio for `s3` and `s5` | ⛔ needs OpenVoice V2 on the GPU named in the provenance plus the private owner reference — neither is on the build host |
+| Scene 3 live capture | ⛔ needs the current revision deployed to the hosted page, so the frame can be re-captured honestly |
 
-1. **Deploy, re-capture scene 3, re-render.** The film matches the product a
-   judge will run. Costs a re-render of a currently verified artifact, and every
-   document quoting the SHA must be updated.
-2. **Ship the film as verified.** It stays a truthful recording of a real
-   session, correctly labelled, showing an earlier revision — which is ordinary
-   for a product video. A judge who watches and then runs `sidq verify` sees a
-   more informative headline than the one on screen, not a contradiction.
+`s3` gained eight words against 5.7 seconds of headroom and still fits. `s5`
+gained five against 1.4 seconds and, at the pacing this narration is recorded to,
+no longer does — **its frame budget must be re-checked against the real measured
+length once it is re-recorded**, not against an estimate. The film has room for
+it: the current render is 169.2 seconds against a three-minute limit.
 
-Do not take a third path. A re-render that swaps the overlay while leaving the
-captured terminal stale would make the frame internally inconsistent, and a
-re-capture paired with the existing narration would put a spoken `VERIFIED` over
-a screen that no longer says it.
+**The 22nd contract test fails by design, and must stay failing until the audio
+is re-recorded.** `NARRATION_RECORDED_SHA` pins each mastered WAV to a hash of
+the exact sentences it was recorded from, and `s3` and `s5` are marked
+`RERECORD-REQUIRED`. A duration in `AUDIO_DURATIONS` is a measurement of a real
+file and is only true of the words that produced it; without this, editing a line
+would leave the timing-safety check validating the old chapter against the new
+script, and nothing else in the suite would notice. The failure names exactly
+which chapters to re-record.
+
+The one-second timing-safety check now skips those chapters rather than passing
+them. It was validating the new script against a WAV of different sentences,
+which manufactured confidence instead of checking anything.
+
+Neither blocker is a reason to ship the superseded render.
 
 ## Truth labels and evidence boundary
 
@@ -75,9 +79,9 @@ a screen that no longer says it.
   graph query, and it shows `critical_downstream` as the blocking rule with
   `wide_blast_radius` as supporting `WARN` evidence. It contains no
   `pii_exposure` finding.
-- The live sequence performs an independent receipt read and shows `VERIFIED`
-  for a persisted PASS/WARN Receipt. A separate `gate-demo` sequence re-derives
-  the fixture-backed `BLOCK` result.
+- The live sequence performs an independent receipt read of a persisted Receipt
+  and shows the reader's disposition for it. A separate `gate-demo` sequence
+  re-derives the fixture-backed `BLOCK` result.
 - The Receipt was written and inspected in DataHub before recording. The film
   demonstrates the independent read of that persisted Receipt; the illustrated
   writeback is not presented as a live mutation.
