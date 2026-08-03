@@ -93,21 +93,37 @@ def render_comment(
         for finding in advisory:
             lines.extend(("", *_render_finding(finding, advisory=True)))
 
-    command = reproduce_command or _default_reproduce_command(verdict)
-    lines.extend(
-        (
-            "",
-            "---",
-            "",
-            (
-                "Reproducibility: "
-                f"<code>policy_hash={_escape(verdict.policy_hash)}</code> · "
-                f"<code>commit_sha={_escape(verdict.commit_sha)}</code> · "
-                f"run <code>{_escape(command)}</code>"
-            ),
-        )
-    )
+    lines.extend(("", "---", "", _reproducibility(verdict, mode, reproduce_command)))
     return "\n".join(lines).rstrip() + "\n"
+
+
+def _reproducibility(verdict: Verdict, mode: str, reproduce_command: str | None) -> str:
+    """State what re-running actually reproduces, which differs by mode.
+
+    A fixture replay is byte-identical because every input is pinned: the diff,
+    the graph fixture, the policy, the code revision, and the serialization. A
+    live decision is not, and saying otherwise would be the claim this project
+    exists to refuse — `policy_hash` and `commit_sha` identify the policy and
+    the code, not the graph they read, and the graph is the input that moves.
+    """
+    provenance = (
+        f"Provenance: <code>policy_hash={_escape(verdict.policy_hash)}</code> · "
+        f"<code>commit_sha={_escape(verdict.commit_sha)}</code>"
+    )
+    if mode == "fixture":
+        command = reproduce_command or "make gate-demo"
+        return (
+            f"Fixture replay: run <code>{_escape(command)}</code>, which uses the "
+            "committed diff, graph fixture, policy, pinned code revision, and "
+            f"canonical serialization. {provenance}"
+        )
+    command = reproduce_command or _default_reproduce_command(verdict)
+    return (
+        f"Live decision: run <code>{_escape(command)}</code>. It reproduces this "
+        "verdict only against the same graph state — the recorded provenance "
+        "identifies the policy and code revision, not the graph they read. "
+        f"{provenance}"
+    )
 
 
 def _headline(

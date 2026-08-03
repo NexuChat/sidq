@@ -90,9 +90,10 @@ def test_published_fixture_comment_is_deterministic_and_decision_first() -> None
     assert "urn:li:dataset:" not in first
     assert f"policy_hash={verdict.policy_hash}" in first
     assert f"commit_sha={verdict.commit_sha}" in first
-    assert (
-        f"sidq check --diff {verdict.commit_sha}^..{verdict.commit_sha} --json" in first
-    )
+    # A fixture comment offers the replay that is actually byte-identical, not a
+    # live `sidq check` that would read whatever the graph says today.
+    assert "Fixture replay: run <code>make gate-demo</code>" in first
+    assert "sidq check --diff" not in first
     saved = EXAMPLE.with_name("pr-comment.md").read_text(encoding="utf-8")
     assert first == saved
     docs = (ROOT / "docs" / "PR-BOT.md").read_text(encoding="utf-8")
