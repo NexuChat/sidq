@@ -5,11 +5,11 @@
 > Agents read metadata graphs before they act. Sidq asks whether that context is
 > supported by evidence, and can stop an agent before it builds on a contradiction.
 
-**Verified final-film artifact (2:49.216 container):**
-[`docs/VIDEO.md`](docs/VIDEO.md). The upload-ready English MP4 has SHA-256
-`0811a494c3ee6f78f907c3f2d14908ca18df403d81e38d63093cfa7dab46beef`;
-the submission video URL remains unset until the owner uploads that exact file
-and confirms logged-out playback. Public browser,
+**Submission film:** rebuilt on real footage — a live catalog audit, the
+committed `BLOCK` replay, and one continuous session on the deployed console;
+production contract and artifact identity in [`docs/VIDEO.md`](docs/VIDEO.md).
+The submission video URL remains unset until the owner uploads the verified
+file and confirms logged-out playback. Public browser,
 accessibility, interaction, and deployment evidence: [`docs/QA-RESULTS.md`](docs/QA-RESULTS.md).
 Contributions are welcome under [`CONTRIBUTING.md`](CONTRIBUTING.md) and the
 [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md).

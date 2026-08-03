@@ -187,7 +187,9 @@ def test_the_published_video_url_is_never_asserted_before_it_exists() -> None:
         assert "youtube.com/watch" not in text
         assert "youtu.be/" not in text
     assert "remains unset until the owner uploads" in readme
-    assert "not yet a submission artifact" in video
+    # Whatever state the film is in — superseded, rebuilt, or verified — the
+    # document must say plainly that nothing is uploaded without the owner.
+    assert "must not be submitted" in video or "not yet a submission artifact" in video
 
 
 def test_the_landing_quota_copy_matches_what_the_server_enforces() -> None:

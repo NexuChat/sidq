@@ -1,90 +1,63 @@
 # Final-film artifact and production contract
 
-The verified local upload artifact is
-`/home/dev/sidq-video/artifacts/video/sidq-final-en.mp4`. Its SHA-256 is
-`0811a494c3ee6f78f907c3f2d14908ca18df403d81e38d63093cfa7dab46beef`
-and its exact size is 29,636,338 bytes. It remains a submission candidate until
-the owner uploads that exact file and confirms public logged-out playback. Its
-authored timeline is 169.167 seconds when rounded to milliseconds. It is **not
-yet a submission artifact** because that public upload gate remains owner-only.
-The older 175.317-second v2 exports and the rejected black-transition V4 render
-are stale and must not be submitted.
+**The film is being rebuilt on real footage (2026-08-03).** The previous
+artifact — SHA-256
+`0811a494c3ee6f78f907c3f2d14908ca18df403d81e38d63093cfa7dab46beef`,
+169.216 seconds — is **superseded**: it predates the
+receipt-state change, the instrument-dark landing identity, and the requirement
+that the film show the product operating rather than describing it. It must not
+be submitted.
 
-Re-verified 2026-08-03: SHA-256 matches, size matches, `ffprobe` reports
-1920×1080 at 30 fps with 48 kHz AAC and a 169.216-second container, a complete
-`ffmpeg -v error -xerror` decode returns no error, and the sidecar SRT carries
-54 cues.
+## The rebuild: real footage, one consistent voice
 
-## The film is rebuilt from the product, never the reverse
+Four captures were recorded on this host and are pinned by content hash under
+`public/v5/` with a provenance file each (command, evidence boundary, truth
+label, SHA-256):
 
-The composition is source, not an artifact to be preserved. When the product
-changes, the film is regenerated against it — the product is never bent, and its
-documentation is never softened, to keep an older render valid.
+| Capture | What it shows | Label |
+|---|---|---|
+| `cli-audit.mp4` (39.7 s) | `sidq audit --via-mcp --budget 4` against the live catalog — the sample being examined, ranked worst-consequence first, findings and abstentions | LIVE CAPTURE |
+| `cli-gate.mp4` (7.6 s) | `make gate-demo` re-deriving the committed `BLOCK`, byte-identical | REPRODUCIBLE OFFLINE REPLAY |
+| `cli-verify.mp4` (10.0 s) | `sidq verify` reading the persisted receipt: `CURRENT RECEIPT · PASS · CONTINUE` | LIVE CAPTURE |
+| `web-console.mp4` (30.2 s) | One continuous browser session on `sidq.mlki.app`: the contradiction, the refusal, then one real run with server output | LIVE CAPTURE |
 
-The current render predates the receipt-state change and is therefore
-**superseded**. Scene 3 is a `LIVE CAPTURE` showing three strings the product no
-longer produces:
+The narrative now answers why / what / when / how: scene 1 shows the audit of
+the shipped sample (why checking is needed and what is examined), scene 2 the
+pre-merge gate refusing a change (when Sidq runs), scene 3 the deployed console
+and the independent receipt read (how the next agent verifies), scenes 4–5 the
+writeback and shared-state semantics, scene 6 where Sidq sits in a workflow.
 
-| In the superseded render | The product now |
-|---|---|
-| `VERIFIED  urn:li:dataset:(…)` | `CURRENT RECEIPT · PASS · CONTINUE  urn:li:dataset:(…)` |
-| `receipt records PASS` | `receipt records PASS; continue` |
-| "A current PASS continues; BLOCK, missing, or stale stops." | the four dispositions |
-
-Its narration also says "It independently recomputes VERIFIED", which describes
-an output the reader no longer prints.
-
-### Rebuild status
-
-| Input | State |
-|---|---|
-| Narration script | ✅ rewritten. `s3` says the reader "recomputes for itself whether the receipt applies, and what it permits"; `s5` says a receipt "covers" rather than "holds" |
-| On-screen phrases and the scene-3 badge | ✅ `VERIFIED` → `CURRENT RECEIPT · PASS · CONTINUE`, badge → `PASS · CONTINUE` |
-| Typecheck and composition contract | ✅ `npm run typecheck` clean; 21 of 22 contract tests pass |
-| Render toolchain | ✅ verified by rendering a still end to end |
-| Narration audio for `s3` and `s5` | ⛔ needs OpenVoice V2 on the GPU named in the provenance plus the private owner reference — neither is on the build host |
-| Scene 3 live capture | ⛔ needs the current revision deployed to the hosted page, so the frame can be re-captured honestly |
-
-`s3` gained eight words against 5.7 seconds of headroom and still fits. `s5`
-gained five against 1.4 seconds and, at the pacing this narration is recorded to,
-no longer does — **its frame budget must be re-checked against the real measured
-length once it is re-recorded**, not against an estimate. The film has room for
-it: the current render is 169.2 seconds against a three-minute limit.
-
-**The 22nd contract test fails by design, and must stay failing until the audio
-is re-recorded.** `NARRATION_RECORDED_SHA` pins each mastered WAV to a hash of
-the exact sentences it was recorded from, and `s3` and `s5` are marked
-`RERECORD-REQUIRED`. A duration in `AUDIO_DURATIONS` is a measurement of a real
-file and is only true of the words that produced it; without this, editing a line
-would leave the timing-safety check validating the old chapter against the new
-script, and nothing else in the suite would notice. The failure names exactly
-which chapters to re-record.
-
-The one-second timing-safety check now skips those chapters rather than passing
-them. It was validating the new script against a WAV of different sentences,
-which manufactured confidence instead of checking anything.
-
-Neither blocker is a reason to ship the superseded render.
+All six chapters were re-recorded in one consistent voice:
+`qwen3-tts-instruct-flash` → loudnorm −16 LUFS → 48 kHz mono PCM. The
+OpenVoice owner-tone pass was **not** applied — it needs the GPU and private
+reference named in the earlier provenance, neither present on this host — and
+one consistent voice across six chapters was chosen over a mixed one. The full
+pipeline is recorded in `narration.provenance.json` (film repository — the captures and audio masters are not shipped in this repository); the narration text is
+pinned to the mastered audio by `NARRATION_RECORDED_SHA`, so editing a line
+without re-recording fails the contract suite.
 
 ## Truth labels and evidence boundary
 
-- Explanatory graph, writeback, swarm, and repair scenes are labelled
-  **ILLUSTRATION**. They do not depict a live catalog mutation or a live DataHub
-  UI session.
-- The persisted-receipt browser sequence is labelled **LIVE CAPTURE** and keeps
-  the address bar and cursor visible. Any removed command wait is named by cut
-  wait labels rather than presented as instantaneous execution.
-- The current deterministic `BLOCK` result is a newly captured browser replay
-  labelled **REPRODUCIBLE OFFLINE REPLAY**. It is fixture-backed, not a live
-  graph query, and it shows `critical_downstream` as the blocking rule with
-  `wide_blast_radius` as supporting `WARN` evidence. It contains no
-  `pii_exposure` finding.
-- The live sequence performs an independent receipt read of a persisted Receipt
-  and shows the reader's disposition for it. A separate `gate-demo` sequence
-  re-derives the fixture-backed `BLOCK` result.
-- The Receipt was written and inspected in DataHub before recording. The film
-  demonstrates the independent read of that persisted Receipt; the illustrated
-  writeback is not presented as a live mutation.
+- Every frame of real footage carries one of three labels, and the label is the
+  claim: **LIVE CAPTURE** (a real session against this host or the public
+  surface), **REPRODUCIBLE OFFLINE REPLAY** (the committed fixture,
+  re-derivable byte-for-byte by anyone), or **ILLUSTRATION** (designed motion
+  that depicts semantics, never presented as a recording).
+- The browser capture keeps the address bar and cursor visible, so a viewer can
+  see which host answered.
+- No capture is cut to hide waiting. Where a run is longer than its scene, the
+  speed change is declared as a playback rate (audit ×1.45, gate ×0.9, console
+  ×1.26) and the final frame is then held so the output stays readable — a
+  hold, not an edit.
+- Scene 1 is the live catalog audit: the sample being examined, ranked
+  worst-consequence first. Scene 2 teaches the change with an illustration,
+  then plays the fixture replay to its real `DECISION : BLOCK`. Scene 3 is one
+  continuous session on the deployed console ending in a real independent
+  receipt read: `CURRENT RECEIPT · PASS · CONTINUE`. Scenes 4–5 are labelled
+  illustrations of writeback and shared-state semantics. Scene 6 closes with
+  where Sidq runs.
+- The Receipt read on screen consumes a receipt persisted in DataHub before
+  recording; the illustrated writeback is not presented as a live mutation.
 
 ## Source and owned media
 
