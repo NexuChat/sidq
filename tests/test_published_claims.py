@@ -342,6 +342,16 @@ def test_the_test_count_in_the_judge_runbook_is_the_real_one() -> None:
     for evidence in (qa, claims, audit):
         assert f"{coverage}%" in evidence
 
+    # Any judge-facing document that quotes a suite size must quote this one.
+    # The rubric table in ARCHITECTURE.md was the first to restate it outside
+    # the runbook, and nothing would have caught it drifting.
+    for name in ("ARCHITECTURE.md", "README.md", "docs/CLAIMS-MATRIX.md"):
+        document = (ROOT / name).read_text(encoding="utf-8")
+        for quoted in re.findall(r"([\d,]{3,}) tests\b", document):
+            assert int(quoted.replace(",", "")) == actual, (
+                f"{name} says {quoted} tests; pytest collects {actual}"
+            )
+
 
 def test_the_landing_page_can_only_run_read_only_commands() -> None:
     """The page runs commands on the host, so what it *can* run is a guarded set.

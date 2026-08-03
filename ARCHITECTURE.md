@@ -74,14 +74,26 @@ choosing work. No sidecar database or daemon is required for this optimization.
 
 ## Rubric mapping
 
-| Criterion | Our answer |
-|---|---|
-| Depth of DataHub use **incl. write-back** | reads schema + lineage + governance; explicitly writes a queryable receipt that a *different* agent reads back with `sidq verify`; the agent-facing MCP remains exactly the three documented verification tools |
-| Technical execution | deterministic end-to-end on the judges' own quickstart; fixture-backed tests; byte-identical verdicts for identical inputs |
-| Originality | inverts the category — verification-first, source-agnostic; Gate 0 catches the catalog lying about live reality at PR time, with no daemon; optional current Receipt values let bounded audits resume from shared current state |
-| Real-world usefulness | a CI gate plus an agent guardrail — the daily pain of every data platform team |
-| Submission quality | public demo repo with real sealed PRs judges can read without installing anything |
-| Bonus | upstream `datahub-verify` skill |
+Each row names the artifact that settles it, so none of this has to be taken on
+trust.
+
+| Criterion | Our answer | Check it |
+|---|---|---|
+| **Agents that do real work** | `sidq audit` picks its own targets on a catalog it has never seen: it ranks by how much damage a lie would do, spends an explicit budget worst-first, and lets what it finds reorder what it looks at next — a contagious finding promotes the neighbour. `sidq swarm` runs independent workers that divide the same catalog with no coordinator. `sidq repair` proposes only fixes the deterministic engine re-proves against the catalog the fix *would* create, and refuses the rest with reasons. | `make converge-demo` · `make swarm-demo` · `make repair-demo` · [`examples/05`](examples/05-agent-that-stops/) |
+| **Depth of DataHub use, incl. write-back** | The entire loop runs on the official `mcp-server-datahub` and nothing else: read with `search`/`get_entities`/`list_schema_fields`/`get_lineage`, decide, write the Receipt through the official mutation tools, then **a separate process reads it back** and recomputes whether it still holds. Sidq also ships its own MCP server with exactly three read-only tools, and a Skill for the DataHub skills ecosystem. | `make live-loop` · [`docs/MCP-CONTRACT.md`](docs/MCP-CONTRACT.md) · [`skills/datahub-verify`](skills/datahub-verify/) |
+| **The catalog as shared state** | Receipts written into DataHub let a bounded audit resume where any other instance stopped — no sidecar database, no daemon, no lock. Coverage converges run over run under a budget that never changes. A recorded refusal counts as covered but authorizes nothing; the two are separate fields, not one boolean. | `make converge-demo` · [`docs/RECEIPT-SPEC.md`](docs/RECEIPT-SPEC.md#three-questions-three-fields) |
+| **Technical execution** | 1,019 tests at 83.85% branch coverage, including property tests and a hostile-catalog suite that feeds the reader malformed, misdirected, and invented-verdict payloads. The flagship verdict is byte-identical on replay. Published artifacts are generated and gate-checked, so a stale number fails the build rather than reaching a judge. | `make check` · `make gate-demo` · `make regen-check` |
+| **Originality** | Six products analyse the *code* in a PR. This asks whether the *catalog* is telling the truth — and proves the question is real on the sponsor's own shipped sample rather than on an example we built to fail. No model participates in a blocking decision; advisory findings can only ever warn, and the boundary is in the output schema. | [`docs/TRUTH-REPORT.md`](docs/TRUTH-REPORT.md) · [`examples/03`](examples/03-catalog-truth-report/) |
+| **Real-world usefulness** | A merge gate and an agent guardrail from one engine. The refusal a platform team actually needs is not "this SQL is invalid" but "this change breaks a dashboard owned by another team", and that is the committed example. | [`examples/01`](examples/01-blocked-pii-dashboard/) · sealed PRs [#1](https://github.com/NexuChat/sidq/pull/1)–[#4](https://github.com/NexuChat/sidq/pull/4) |
+| **Submission quality** | Four sealed PR threads a judge can read without installing anything, five worked examples, and a claims matrix that gives every public number its scope, its source of truth, and the command that reproduces it. Numbers are asserted against committed evidence by the test suite. | [`docs/CLAIMS-MATRIX.md`](docs/CLAIMS-MATRIX.md) · `tests/test_published_claims.py` |
+| **Bonus** | The `datahub-verify` Skill, prepared against `datahub-project/datahub-skills`' own prettier and markdownlint configs. A claim-extraction dataset published Apache-2.0 with attribution, notice, and a datasheet generated from the corpus itself. | [`skills/datahub-verify`](skills/datahub-verify/) · [`data/claims/DATASHEET.md`](data/claims/DATASHEET.md) |
+
+**What we do not claim.** The Receipt is not a signature, an append-only ledger,
+or exactly-once coordination — DataHub stores latest values and offers no
+cross-process compare-and-set. `policy_hash` and `commit_sha` make a *fixture*
+replay byte-identical; a live decision also depends on the graph it read.
+Reproducibility, staleness, and coverage are each scoped precisely in
+[`docs/CLAIMS-MATRIX.md`](docs/CLAIMS-MATRIX.md).
 
 ## Why we are not our neighbours
 
