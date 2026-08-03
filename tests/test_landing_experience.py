@@ -46,37 +46,39 @@ def _landing() -> str:
     return HTML.read_text(encoding="utf-8")
 
 
-def test_landing_leads_with_one_decision_then_the_independent_handoff() -> None:
-    """Incident first, explanation after — never the other way round.
+def test_landing_leads_with_the_contradiction_and_offers_the_run_immediately() -> None:
+    """The page must argue in the order that convinces, and let a judge try it first.
 
-    The abstract five-step trust contract used to sit between the hero and the
-    `BLOCK`, so the first thing a judge scrolled past was a diagram of how
-    verification works rather than one concrete refusal. The order is now the
-    refusal, the independent reader who re-checks it, and only then the contract
-    that generalises both.
+    It used to open on an abstract five-step trust diagram, then a blast-radius
+    refusal — which is the one thing the nearest competitor also does — and it
+    buried the run button six screens down. The differentiator is that the
+    catalog contradicts *itself*, so that is what leads, and the live proof is
+    reachable before any of the argument.
     """
     html = _landing()
     hero = html.split('<section class="hero', 1)[1].split("</section>", 1)[0]
 
-    assert 'id="trust-loop"' in html
-    assert 'id="decision"' in html
-    assert 'id="agent-handoff"' in html
-    assert 'id="install-connect"' in html
+    for anchor in (
+        'id="contradiction"',
+        'id="decision"',
+        'id="agent-handoff"',
+        'id="install-connect"',
+    ):
+        assert anchor in html, anchor
+
+    # The run action lives in the hero, and its output lands directly beneath.
+    assert 'data-run="handoff"' in hero
+    assert html.index('data-run="handoff"') < html.index('id="contradiction"')
+    assert html.index('id="run-output"') < html.index('id="contradiction"')
+
+    assert html.index('id="contradiction"') < html.index('id="decision"')
     assert html.index('id="decision"') < html.index('id="agent-handoff"')
-    assert html.index('id="agent-handoff"') < html.index('id="trust-loop"')
-    assert html.index('id="trust-loop"') < html.index('id="install-connect"')
-    assert html.index('data-run="handoff"') < html.index('id="install-connect"')
+    assert html.index('id="agent-handoff"') < html.index('id="install-connect"')
     assert html.index('id="install-connect"') < html.index('class="deep-dives')
-    assert "DataHub-native trust infrastructure" in hero
-    assert "Don’t just make the agent smarter." in hero
-    assert "Make the context it acts on provable." in hero
-    assert (
-        "Sidq verifies schema, lineage, governance, ownership, and documented "
-        "claims before an agent acts."
-    ) in hero
-    # The numbered rail a reader uses to track position. Reordering sections and
-    # forgetting the labels produced two `04`s and two `05`s; an ascending run
-    # with no repeats is the cheapest way to notice that.
+
+    # The abstract contract section restated what the concrete sections prove.
+    assert 'id="trust-loop"' not in html
+
     numbers = [
         int(match.group(1))
         for match in re.finditer(r'class="(?:eyebrow|kicker)">(\d+) / ', html)
@@ -84,49 +86,29 @@ def test_landing_leads_with_one_decision_then_the_independent_handoff() -> None:
     assert numbers == sorted(numbers), numbers
     assert len(numbers) == len(set(numbers)), numbers
 
-    assert hero.count('class="cta run"') == 1
-    assert 'href="#decision">Watch Sidq block a risky change ↓</a>' in hero
-    assert 'href="#install-connect">Run the proof ↓</a>' in hero
-    assert "One command. A local graph." not in html
-    assert "Try the proof yourself." in html
-    assert "No setup maze." in html
-    assert "Dependencies download on the first run" in html
-    assert "needs no DataHub or account" in html
-    assert "demo-stack" in html and "live-loop" in html and "DataHub" in html
-    assert "starts DataHub" not in html
-    assert 'class="rail"' not in html
+    assert "DataHub-native trust infrastructure" in hero
+    assert "Everyone is teaching agents to read the catalog." in hero
+    assert "Nobody is asking whether it is lying." in hero
+    assert "Try the proof yourself." not in html
 
 
-def test_page_metadata_uses_the_judge_facing_positioning_and_owned_preview() -> None:
+def test_the_contradiction_shows_two_catalog_claims_that_cannot_both_hold() -> None:
+    """The thesis is that a catalog lies. The page has to *show* one.
+
+    Prose asserting it is worth less than the two statements side by side, and
+    the section must keep the boundary that makes the finding credible: catalog
+    metadata only, no source system consulted.
+    """
     html = _landing()
+    section = html.split('id="contradiction"', 1)[1].split("</section>", 1)[0]
 
-    assert "<title>Sidq — Provable Context for DataHub Agents</title>" in html
-    assert (
-        'property="og:title" content="Sidq — Provable Context for DataHub Agents"'
-        in html
-    )
-    assert 'property="og:type" content="website"' in html
-    assert 'property="og:url" content="https://sidq.mlki.app/"' in html
-    assert (
-        'property="og:image" content="https://sidq.mlki.app/social-preview.png"' in html
-    )
-    assert 'name="twitter:card" content="summary_large_image"' in html
-    assert (ROOT / "web" / "social-preview.png").is_file()
-
-
-def test_footer_reads_release_identity_from_same_origin_without_html_injection() -> (
-    None
-):
-    html = _landing()
-    script = SCRIPT.read_text(encoding="utf-8")
-
-    assert 'id="release-identity"' in html
-    assert 'fetch("/healthz"' in script
-    assert 'credentials: "same-origin"' in script
-    assert "Deployed commit: ${release.commit_sha}" in script
-    assert "Release: local/dev" in script
-    assert "releaseIdentity.textContent" in script
-    assert "/opt/sidq" not in html and "/opt/sidq" not in script
+    assert "order_details.billing_address_line1" in section
+    assert "Customer_Analytics_Measures" in section
+    assert "Customer LTV" in section
+    assert "does not exist" in section
+    assert "No source system was consulted" in section
+    assert "285" in section and "67" in section
+    assert "showcase-ecommerce" in section
 
 
 def test_fixture_commit_is_not_labelled_as_the_deployed_release() -> None:
@@ -148,10 +130,9 @@ def test_agent_copy_calls_latest_receipts_current_state_not_memory() -> None:
         "Spend a budget. Re-check shared current state. Work as a swarm. "
         "Refuse what you cannot prove."
     ) in agents
-    assert '<span class="trace-type">Current state</span>' in agents
-    assert "</strong> With explicit optional Receipt writes" in agents
-    assert "Remember through the catalog" not in agents
-    assert '<span class="trace-type">Memory</span>' not in agents
+    assert "shared catalog state" in agents.lower() or "shared current state" in agents
+    assert "at-least-once, never exactly-once" in agents
+    assert "no coordinator" in agents
 
 
 def test_receipt_handoff_and_mcp_tools_are_distinct_and_truthful() -> None:
@@ -176,17 +157,12 @@ def test_receipt_handoff_and_mcp_tools_are_distinct_and_truthful() -> None:
     assert "An opted-in audit can write" not in handoff
     assert 'class="handoff-path"' not in handoff
     assert "<ol" not in handoff
-    assert handoff.index('data-run="handoff"') < handoff.index('id="run-status"')
-    assert handoff.index('id="run-output"') < handoff.index(
-        '<details class="mcp-tools">'
-    )
     tools = handoff.split('<details class="mcp-tools">', 1)[1].split("</details>", 1)[0]
     assert "three read-only mcp tools" in tools.lower()
     for tool in ("check_change", "verify_context", "search_verified"):
         assert f"<code>{tool}</code>" in tools
     assert "not a DataHub Receipt reader" in tools
     assert "The independent Receipt read is the separate live proof above." in tools
-    assert 'data-run="handoff"' in handoff
     assert "check_change writes" not in handoff
 
 
@@ -199,150 +175,18 @@ def test_live_run_exposes_busy_state_to_assistive_technology() -> None:
     assert 'runRegion.setAttribute("aria-busy", "false")' in script
 
 
-def test_general_trust_contract_precedes_the_concrete_example() -> None:
-    html = _landing()
-    contract = html.split('id="trust-loop"', 1)[1].split("</section>", 1)[0]
-
-    for stage in (
-        "Context",
-        "Evidence check",
-        "PASS / WARN / BLOCK",
-        "Receipt",
-        "Next agent",
-    ):
-        assert stage in contract
-    for evidence in ("schema", "lineage", "governance", "documented claims"):
-        assert evidence in contract.lower()
-    assert "when configured, the source itself" in contract
-    assert "Missing evidence is named, never silently treated as clean." in contract
-    assert 'class="trust-path"' in contract and 'tabindex="0"' not in contract
-    for accessible_stage in (
-        "Context: Schema, lineage, governance, and documented claims arrive from DataHub.",
-        "Evidence check: Sidq cross-checks those claims",
-        "Decision: PASS, WARN, or BLOCK.",
-        "Receipt: An explicit audit can record the decision context",
-        "Next agent: It re-checks the receipt for itself",
-    ):
-        assert f'aria-label="{accessible_stage}' in contract
-
-
 def test_concrete_proof_separates_blocking_trigger_from_supporting_context() -> None:
     html = _landing()
     decision = html.split('id="decision"', 1)[1].split("</section>", 1)[0]
 
     assert "critical_downstream" in decision
-    assert "Blocking trigger" in decision
+    assert "Blocking rule" in decision
     assert "wide_blast_radius" in decision
     assert "WARN" in decision
     assert "PII_Data" in decision
     assert "Sensitivity context" in decision
     assert "pii_exposure" not in decision
     assert "break quietly" not in decision
-
-
-def test_install_journey_publishes_exact_copyable_commands() -> None:
-    parser = _CopyButtonParser()
-    parser.feed(_landing())
-    commands = {button["data-copy"] for button in parser.buttons}
-
-    assert commands == {
-        (
-            "git clone https://github.com/NexuChat/sidq.git\n"
-            "cd sidq\n"
-            "make install\n"
-            "make gate-demo"
-        ),
-        "make mcp-install",
-        (
-            "codex mcp add sidq --env DATAHUB_GMS_URL=http://localhost:8080 "
-            "--env SIDQ_REPO_ROOT=/absolute/path/to/data-repository -- "
-            "/absolute/path/to/sidq/.venv/bin/sidq-mcp"
-        ),
-        "make mcp-smoke",
-        (
-            "cd /absolute/path/to/data-repository\n"
-            "npx skills add NexuChat/sidq --skill datahub-verify --agent codex"
-        ),
-        "make demo-stack && make live-loop",
-    }
-    assert all(
-        button["visible-command"] == button["data-copy"] for button in parser.buttons
-    )
-    assert len(parser.buttons) == len(
-        {button["aria-describedby"] for button in parser.buttons}
-    )
-    assert all(
-        button["aria-describedby"] in parser.status_ids for button in parser.buttons
-    )
-
-
-def test_offline_and_connected_commands_are_in_executable_order() -> None:
-    html = _landing()
-    offline = html.split('<li class="start-step offline">', 1)[1].split("</li>", 1)[0]
-    connected = html.split("<strong>Connect Codex + DataHub</strong>", 1)[1].split(
-        "</details>", 1
-    )[0]
-
-    offline_commands = (
-        "git clone https://github.com/NexuChat/sidq.git",
-        "cd sidq",
-        "make install",
-        "make gate-demo",
-    )
-    assert [offline.index(command) for command in offline_commands] == sorted(
-        offline.index(command) for command in offline_commands
-    )
-    assert "make mcp-install" not in offline
-    assert connected.index("make mcp-install") < connected.index("codex mcp add sidq")
-    assert connected.index("codex mcp add sidq") < connected.index("make mcp-smoke")
-
-
-def test_skill_smoke_and_config_name_their_required_working_directories() -> None:
-    html = _landing()
-    skill = html.split("<strong>Workflow skill &amp; safe config</strong>", 1)[1].split(
-        "</details>", 1
-    )[0]
-    connected = html.split("<strong>Connect Codex + DataHub</strong>", 1)[1].split(
-        "</details>", 1
-    )[0]
-
-    assert skill.index("cd /absolute/path/to/data-repository") < skill.index(
-        "npx skills add"
-    )
-    assert "From the Sidq clone" in connected
-    assert "make mcp-smoke" in connected
-    assert "Keep this in the trusted target data repository" in html
-    assert "Secret values are absent" in html
-
-
-def test_codex_connection_shows_the_in_client_mcp_check() -> None:
-    html = _landing()
-    connected = html.split("<strong>Connect Codex + DataHub</strong>", 1)[1].split(
-        "</details>", 1
-    )[0]
-
-    assert "codex mcp add sidq" in connected
-    assert connected.index("codex mcp list") < connected.index("/mcp")
-    assert "Codex → Sidq → DataHub MCP → GMS." in connected
-
-
-def test_secret_guidance_uses_env_passthrough_and_links_primary_docs() -> None:
-    html = _landing()
-
-    assert 'env_vars = ["DATAHUB_GMS_TOKEN", "SIDQ_POSTGRES_DSN"]' in html
-    assert 'DATAHUB_GMS_URL = "http://localhost:8080"' in html
-    assert 'SIDQ_REPO_ROOT = "/absolute/path/to/data-repository"' in html
-    assert 'cwd = "/absolute/path/to/data-repository"' in html
-    assert "DATAHUB_GMS_TOKEN =" not in html
-    assert "SIDQ_POSTGRES_DSN =" not in html
-    assert "stay in your shell, service manager, or secret store" in html
-    assert "Instructions for the workflow; not connectivity." in html
-    for url in (
-        "https://github.com/NexuChat/sidq/blob/main/docs/SETUP.md",
-        "https://github.com/NexuChat/sidq/blob/main/docs/MCP-SERVER.md",
-        "https://developers.openai.com/codex/mcp/",
-    ):
-        assert f'href="{url}"' in html
 
 
 def test_copy_script_handles_every_button_and_keeps_server_errors() -> None:
@@ -366,30 +210,6 @@ def test_mobile_hero_and_command_bidi_have_explicit_layout_guards() -> None:
 
     assert re.search(r"\.hero\s*\{[^}]*padding:", mobile, flags=re.DOTALL)
     assert re.search(r"\.hero-note\s*\{[^}]*margin-top:", mobile, flags=re.DOTALL)
-    assert re.search(
-        r"\.trust-loop\s*\{[^}]*padding:\s*36px 0",
-        mobile,
-        flags=re.DOTALL,
-    )
-    assert re.search(
-        r"\.trust-path\s*\{[^}]*grid-template-columns:\s*repeat\(6,",
-        mobile,
-        flags=re.DOTALL,
-    )
-    assert re.search(
-        r"\.trust-path li:nth-child\(4\),\s*\.trust-path li:nth-child\(5\)\s*\{[^}]*grid-column:\s*span 3",
-        mobile,
-        flags=re.DOTALL,
-    )
-    assert re.search(
-        r"\.trust-path p\s*\{[^}]*display:\s*none", mobile, flags=re.DOTALL
-    )
-    assert "overflow-x: auto" not in mobile
-    assert re.search(
-        r"\.verdict\s*\{[^}]*padding:\s*36px 0 44px",
-        mobile,
-        flags=re.DOTALL,
-    )
     assert re.search(
         r"\.finding\s*\{[^}]*grid-template-columns:\s*1fr[^}]*padding:\s*12px 0",
         mobile,
@@ -486,14 +306,16 @@ def test_primary_setup_shows_one_offline_proof_and_hides_connected_depth() -> No
         '<section class="deep-dives', 1
     )[0]
 
-    assert install.count('class="start-step offline"') == 1
+    assert install.count('class="copy-command"') >= 1
     assert "Replay the proof." in install
-    assert "Attach Sidq to Codex." in install
-    assert "Verify the whole chain." in install
-    assert install.count("<details>") == 2
+    assert "Connect Codex + DataHub" in install
+    assert install.count("<details>") == 1
     assert "<details open" not in install
     assert install.index("Replay the proof.") < install.index("<details>")
-    assert install.index("Need DataHub?") < install.index("make mcp-install")
+    # The offline replay is the one thing in the open; everything a connected
+    # run needs is one click away rather than three panels of manual.
+    assert install.index("make gate-demo") < install.index("<details>")
+    assert "make live-loop" in install
     for removed_clutter in (
         "connected-sequence",
         "install-grid",

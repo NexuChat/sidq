@@ -158,6 +158,29 @@ sudo /opt/sidq/runtime/mcp.next/bin/mcp-server-datahub --help >/dev/null
 sudo chown -R root:root /opt/sidq/runtime/venv.next /opt/sidq/runtime/mcp.next
 sudo chmod -R a+rX,a-w /opt/sidq/runtime/venv.next /opt/sidq/runtime/mcp.next
 sudo systemctl stop sidq-landing
+
+# Console scripts bake the interpreter path they were installed against into
+# their shebang, and `pyvenv.cfg`/`activate*` record the venv's own location.
+# Building at `.next` and renaming therefore ships a runtime whose every
+# entry point points at a directory that no longer exists: the service starts
+# fine, `/healthz` answers, and every demo returns "command unavailable"
+# because the spawn fails with exit 127. Rewrite the recorded paths while the
+# trees are still writable, before they are sealed and swapped.
+for runtime_name in venv mcp; do
+  sudo chmod -R u+w "/opt/sidq/runtime/${runtime_name}.next"
+  sudo find "/opt/sidq/runtime/${runtime_name}.next/bin" -maxdepth 1 -type f \
+    -exec sed -i \
+    "s#/opt/sidq/runtime/${runtime_name}\.next#/opt/sidq/runtime/${runtime_name}#g" {} +
+  sudo sed -i \
+    "s#/opt/sidq/runtime/${runtime_name}\.next#/opt/sidq/runtime/${runtime_name}#g" \
+    "/opt/sidq/runtime/${runtime_name}.next/pyvenv.cfg"
+  sudo find "/opt/sidq/runtime/${runtime_name}.next/bin/__pycache__" \
+    -name '*.pyc' -delete 2>/dev/null || true
+  sudo chmod -R a+rX,a-w "/opt/sidq/runtime/${runtime_name}.next"
+  sudo test -z "$(sudo grep -rl "runtime/${runtime_name}.next" \
+    "/opt/sidq/runtime/${runtime_name}.next/bin" \
+    "/opt/sidq/runtime/${runtime_name}.next/pyvenv.cfg" 2>/dev/null)"
+done
 sudo install -d -o root -g root -m 0755 \
   /opt/sidq/runtime/compatibility.previous
 for compatibility_input in requirements-dev.lock pyproject.toml uv.lock \
@@ -188,6 +211,20 @@ Leave the service stopped, rerun the applicable release or rollback procedure,
 and verify its health checks. Keep `venv.previous` and `mcp.previous` until that
 verification succeeds; they are recovery evidence and must be inspected before
 a later rebuild if either path still exists.
+
+**Verify a demo, not just liveness.** `/healthz` proves the landing process can
+serve requests; it does not prove the runtime it spawns commands from is intact.
+A runtime with unrewritten shebangs answers `/healthz` and `/readyz` perfectly
+and fails every demo with `command unavailable`. Before considering a rebuild
+finished, run one demo end to end and read its output:
+
+```bash
+sudo -u sidq-landing env PATH=/opt/sidq/runtime/venv/bin:/usr/bin:/bin \
+  /opt/sidq/runtime/venv/bin/sidq --help >/dev/null
+```
+
+A non-zero exit here — 127 in particular — means the entry points still point at
+a build-time path.
 
 ## Recover or retire a swapped runtime
 
