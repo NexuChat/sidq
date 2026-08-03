@@ -84,9 +84,15 @@ class AuditRun:
     verified: list[str] = field(default_factory=list)
     # Examined, but nothing could be established either way — never 'clean'.
     unestablished: list[str] = field(default_factory=list)
-    # (urn, reason) — skipped because a prior receipt still holds. Not examined
-    # this run and never counted as if it had been; the receipt vouches, we don't.
+    # (urn, reason) — skipped because a current PASS/WARN receipt already covers
+    # the asset. Not examined this run and never counted as if it had been; the
+    # receipt vouches, we don't.
     vouched: list[tuple[str, str]] = field(default_factory=list)
+    # (urn, reason) — skipped because a current receipt records a refusal. Also
+    # covered, also not examined this run, and deliberately not in `vouched`:
+    # these assets are blocked, and a report that folded them into "vouched"
+    # would read as approval of the exact thing the engine refused.
+    refused: list[tuple[str, str]] = field(default_factory=list)
     order: list[Target] = field(default_factory=list)
     # Evidence kept per asset so a receipt can be built later without re-auditing.
     evidence_by_urn: dict[str, list[Evidence]] = field(default_factory=dict)
@@ -110,6 +116,7 @@ class AuditRun:
             "verified_clean": len(self.verified),
             "unestablished": len(self.unestablished),
             "vouched_by_receipt": len(self.vouched),
+            "blocked_by_receipt": len(self.refused),
             "promoted_by_a_finding": len(self.promoted),
         }
 
@@ -207,18 +214,26 @@ class CatalogAuditor:
                 continue
             seen.add(target.urn)
 
-            # A holding receipt is a memoised verdict: the engine is
+            # A current receipt is a memoised verdict: the engine is
             # deterministic, so unchanged asset + unchanged policy would
             # reproduce exactly what a previous run already wrote back.
             # Re-deriving it would spend budget to learn nothing, and the
             # budget's whole purpose is to reach the assets no run has seen.
-            # `holds()` was recomputed by this reader at recall time — stale,
-            # blocked, and absent receipts all fail it and stay in the queue.
-            # Not even a promotion pierces this: a neighbour's lie is evidence
-            # about the neighbour, not a change to this asset's content.
+            # The test is coverage, not authorization — a current BLOCK was
+            # examined and refused, and re-refusing it every run is precisely
+            # the starvation that left the tail of the catalog unreached. Stale,
+            # absent, and unreadable receipts cover nothing and stay in the
+            # queue. Not even a promotion pierces this: a neighbour's lie is
+            # evidence about the neighbour, not a change to this asset's content.
             prior = self._prior.get(target.urn)
-            if prior is not None and prior.holds:
-                result.vouched.append((target.urn, prior.reason))
+            if prior is not None and prior.covers:
+                # Skipped for the same reason, reported as two different facts:
+                # a refusal that still stands must never be summarised as a
+                # prior run vouching for the asset.
+                if prior.refused:
+                    result.refused.append((target.urn, prior.reason))
+                else:
+                    result.vouched.append((target.urn, prior.reason))
                 continue
 
             if len(result.examined) >= self._budget:
@@ -376,7 +391,14 @@ def render(result: AuditRun, *, catalog: str) -> list[str]:
         # the reader is taking.
         lines.append(
             f"  vouched         {len(result.vouched)} "
-            "(a prior receipt still holds; budget spent elsewhere)"
+            "(a current receipt already covers them; budget spent elsewhere)"
+        )
+    if result.refused:
+        # Never folded into 'vouched'. These assets carry a current refusal, and
+        # the reader has to see that they are blocked rather than approved.
+        lines.append(
+            f"  BLOCKED         {len(result.refused)} "
+            "(a current receipt records a refusal; stop, do not act on them)"
         )
     if result.unestablished:
         lines.append(

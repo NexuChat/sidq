@@ -285,7 +285,10 @@ def test_a_malformed_receipt_payload_never_vouches() -> None:
         {"entities": [{"urn": urn, "structuredProperties": {"properties": [{}]}}]},
     ):
         prior = recall([urn], lambda name, args, p=payload: p)
-        assert prior[urn].holds is False, f"payload vouched wrongly: {payload!r}"
+        # Neither half: garbage authorizes nothing, and it covers nothing
+        # either, so the asset stays in the queue to be examined for real.
+        assert prior[urn].may_continue is False, f"payload vouched wrongly: {payload!r}"
+        assert prior[urn].covers is False, f"payload covered wrongly: {payload!r}"
 
 
 def test_a_receipt_with_a_future_timestamp_still_expires_by_policy_hash() -> None:
@@ -326,13 +329,18 @@ def test_a_receipt_with_a_future_timestamp_still_expires_by_policy_hash() -> Non
     )
 
     # Neither a future date nor an unchanged policy can replace freshness proof.
-    assert under_new[urn].holds is False
+    assert under_new[urn].covers is False
     assert "policy hash changed" in under_new[urn].reason
-    assert under_old[urn].holds is False
+    assert under_old[urn].covers is False
     assert "no decision context hash" in under_old[urn].reason
 
 
-def test_a_receipt_recording_block_never_vouches_however_fresh() -> None:
+def test_a_receipt_recording_block_never_authorizes_however_fresh() -> None:
+    """A refusal can cover an asset. It can never license acting on one.
+
+    This is the half of the old boolean that was right, kept exactly: whatever
+    else changed about how a BLOCK is counted, nothing may read it as approval.
+    """
     from sidq.agent import recall
 
     urn = "urn:li:dataset:(urn:li:dataPlatform:dbt,blocked,PROD)"
@@ -363,8 +371,12 @@ def test_a_receipt_recording_block_never_vouches_however_fresh() -> None:
 
     prior = recall([urn], lambda n, a: payload, current_policy_hash="sha256:p", now=now)
 
-    assert prior[urn].holds is False
-    assert "refusal" in prior[urn].reason
+    assert prior[urn].may_continue is False
+    # This payload carries no decision-context hash, so it is not even current:
+    # applicability is settled before the verdict is read, and an unprovable
+    # context outranks a recorded refusal.
+    assert prior[urn].covers is False
+    assert "no decision context hash" in prior[urn].reason
 
 
 def test_a_transport_that_raises_does_not_silently_pass_the_catalog() -> None:
@@ -484,7 +496,8 @@ def test_a_receipt_for_a_different_asset_never_vouches() -> None:
     agents trusting the graph cannot itself trust the graph to reply about the
     right asset.
     """
-    from sidq.receipt.read import get_verification_status, holds
+    from sidq.receipt.read import get_verification_status
+    from sidq.receipt.state import ReceiptState, judge
 
     asked = "urn:li:dataset:(urn:li:dataPlatform:dbt,wanted,PROD)"
     other = "urn:li:dataset:(urn:li:dataPlatform:dbt,someone.else,PROD)"
@@ -512,20 +525,26 @@ def test_a_receipt_for_a_different_asset_never_vouches() -> None:
         }
 
     status = get_verification_status(asked, wrong_asset)
-    vouches, reason = holds(status)
+    judgment = judge(status)
 
-    assert vouches is False
-    assert reason == "no receipt on this asset"
+    assert judgment.state is ReceiptState.ABSENT
+    assert judgment.may_continue is False
+    assert judgment.covers is False
+    assert judgment.reason == "no receipt on this asset"
 
 
 def test_a_verdict_the_engine_cannot_emit_vouches_for_nothing() -> None:
     """Three verdicts exist. A catalog cannot invent a fourth and be believed."""
-    from sidq.receipt.read import holds
+    from sidq.receipt.state import ReceiptState, judge
 
     for invented in ("VERIFIED", "OK", "APPROVED", "pass", "SAFE"):
-        vouches, reason = holds({"verdict": invented, "stale": False})
-        assert vouches is False, f"{invented} was believed"
-        assert "unrecognised verdict" in reason
+        judgment = judge({"verdict": invented, "stale": False})
+        assert judgment.state is ReceiptState.INVALID, f"{invented} was believed"
+        assert judgment.may_continue is False, f"{invented} was believed"
+        # An invented verdict cannot buy coverage either — otherwise a catalog
+        # could retire an asset from the audit queue just by writing nonsense.
+        assert judgment.covers is False, f"{invented} bought coverage"
+        assert "unrecognised verdict" in judgment.reason
 
 
 def test_a_receipt_is_refused_for_anything_that_is_not_a_dataset_urn() -> None:

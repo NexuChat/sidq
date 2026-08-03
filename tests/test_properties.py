@@ -129,13 +129,18 @@ _SETTINGS = settings(
 def test_the_budget_accounts_for_every_asset(
     snapshot: CatalogSnapshot, budget: int
 ) -> None:
-    """Nothing may vanish: every asset is examined, deferred, or vouched."""
+    """Nothing may vanish: every asset is examined, deferred, vouched, or blocked.
+
+    `refused` is a fourth bucket rather than a subset of `vouched` — an asset a
+    prior run refused is accounted for, but not by anybody vouching for it.
+    """
     result = CatalogAuditor(snapshot, budget=budget).run()
 
     accounted = (
         set(result.examined)
         | {target.urn for target in result.deferred}
         | {urn for urn, _ in result.vouched}
+        | {urn for urn, _ in result.refused}
     )
     assert accounted == {entity.urn for entity in snapshot.entities}
     assert len(result.examined) <= budget

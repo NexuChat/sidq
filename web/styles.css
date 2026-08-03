@@ -961,15 +961,35 @@ h1 .question {
 
 .handoff-explanation {
   margin: 0;
-  padding: 20px 0;
+  padding: 20px 0 14px;
   border-top: 1px solid var(--paper-dim);
-  border-bottom: 1px solid var(--rule);
   color: var(--paper-dim);
   font-size: clamp(0.78rem, 1vw, 0.92rem);
   line-height: 1.7;
 }
 
 .handoff-explanation strong {
+  color: var(--paper);
+}
+
+/* The four dispositions, listed rather than folded into the sentence above:
+   a reader has to be able to see that a refusal is its own answer, distinct
+   from "not verified". */
+.handoff-dispositions {
+  margin: 0;
+  padding: 0 0 20px;
+  border-bottom: 1px solid var(--rule);
+  list-style: none;
+  color: var(--paper-dim);
+  font-size: clamp(0.78rem, 1vw, 0.92rem);
+  line-height: 1.7;
+}
+
+.handoff-dispositions li + li {
+  margin-top: 6px;
+}
+
+.handoff-dispositions strong {
   color: var(--paper);
 }
 

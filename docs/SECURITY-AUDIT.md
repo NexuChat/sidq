@@ -72,8 +72,8 @@ make check
   Ruff check: pass
   Ruff format --check: pass
   mypy src/: pass
-  pytest: 983 collected, 981 passed, 2 skipped
-  branch coverage: 83.50% (minimum 80%)
+  pytest: 1006 collected, 1004 passed, 2 skipped
+  branch coverage: 83.85% (minimum 80%)
 
 uv audit --locked --no-cache
   125 packages audited; no known application-lock vulnerability

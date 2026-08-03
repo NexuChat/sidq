@@ -7,14 +7,22 @@ deferred forever. The state needed to fix that already exists, and it does not
 live in a file beside the agent. It lives in the catalog, as the receipts a
 previous run wrote back.
 
-`recall` reads those receipts and answers one question per asset: does the
-receipt still hold? The judgment is `holds()` — the same one every other
-receipt consumer uses — recomputed by this reader, never trusted from storage.
-An asset whose receipt holds can be skipped without loss, and the reason is
-worth stating precisely: the engine is deterministic, so a receipt is a
-memoised verdict keyed by the asset's content and the policy hash. Staleness
-is the cache invalidation — asset changed, receipt aged out, policy changed —
-and anything stale, blocked, or absent goes back in the queue.
+`recall` reads those receipts and answers one question per asset: **has this
+asset already been examined under conditions that still apply?** That is the
+coverage axis of `judge()` — the same judgment every other receipt consumer
+uses — recomputed by this reader, never trusted from storage. A covered asset
+can be skipped without loss, and the reason is worth stating precisely: the
+engine is deterministic, so a receipt is a memoised verdict keyed by the
+asset's content and the policy hash. Staleness is the cache invalidation —
+asset changed, receipt aged out, policy changed — and anything stale, absent,
+or unreadable goes back in the queue.
+
+Coverage is deliberately not authorization. A current BLOCK covers its asset:
+the engine looked, and it refused. Re-deriving that refusal every run is how
+the resume path used to starve, spending the whole budget re-refusing the same
+assets while the untouched tail was never reached. What a BLOCK does *not* do
+is authorize anything — `PriorReceipt.action` carries that separately, and the
+report renders a refusal as a refusal rather than as a vouch.
 
 Two properties follow that matter more than the budget arithmetic.
 
@@ -38,19 +46,43 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
-from sidq.receipt.read import ToolCaller, get_verification_statuses, holds
+from sidq.receipt.read import ToolCaller, get_verification_statuses
+from sidq.receipt.state import Action, ReceiptState, judge
 
 
 @dataclass(frozen=True, slots=True)
 class PriorReceipt:
-    """One asset's remembered verdict, and this reader's judgment of it."""
+    """One asset's remembered verdict, and this reader's judgment of it.
+
+    The three axes stay separate all the way to the caller. `covers` answers
+    "was it examined"; `action` answers "what may be done about it"; `state`
+    answers "does the receipt still apply". A planner that only wants to know
+    whether to spend budget reads `covers` and nothing else.
+    """
 
     urn: str
-    holds: bool
+    covers: bool
     reason: str
+    state: ReceiptState = ReceiptState.ABSENT
+    verdict: str | None = None
+    action: Action = Action.RECHECK
     # Which worker wrote the receipt, when a swarm wrote it. Empty otherwise —
     # a solo run has nobody to credit, and inventing an id would be a lie.
     worker_id: str = ""
+
+    @property
+    def refused(self) -> bool:
+        """A current receipt recording a refusal: covered, but never a vouch."""
+        return self.action is Action.STOP
+
+    @property
+    def may_continue(self) -> bool:
+        """Whether this receipt authorizes acting — true only for a current PASS.
+
+        Deliberately not the same question as `covers`. Every caller that used
+        to ask one boolean now has to say which of the two it meant.
+        """
+        return self.action is Action.CONTINUE
 
 
 def recall(
@@ -78,11 +110,14 @@ def recall(
     )
     prior: dict[str, PriorReceipt] = {}
     for urn, status in statuses.items():
-        still_holds, reason = holds(status)
+        judgment = judge(status)
         prior[urn] = PriorReceipt(
             urn=urn,
-            holds=still_holds,
-            reason=reason,
+            covers=judgment.covers,
+            reason=judgment.reason,
+            state=judgment.state,
+            verdict=judgment.verdict,
+            action=judgment.action,
             worker_id=str(status.get("worker_id") or ""),
         )
     return prior

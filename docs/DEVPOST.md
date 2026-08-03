@@ -84,11 +84,15 @@ all.
 
 The audit can also resume from shared current state. With explicit Receipt
 writeback, `sidq audit --resume` re-checks the latest receipt values before
-planning. A valid current value can steer budget toward an unexamined asset;
-stale, blocked, missing, or unreadable values return the asset to consideration.
-DataHub stores latest values, not append-only history, and does not provide
-exactly-once coordination. A skipped asset is reported as `vouched`, never as
-verified by this run.
+planning. A current value steers budget toward an unexamined asset; stale,
+missing, or unreadable values return the asset to consideration. A recorded
+refusal is current, so it also frees budget — re-deriving the same `BLOCK` every
+run is how the tail of a catalog never gets read — and it is reported as
+`BLOCKED`, never as a vouch, and it authorizes nothing. The reader keeps those
+questions apart by design: whether a receipt applies, what it decided, and what
+it permits are three answers, not one boolean. DataHub stores latest values, not
+append-only history, and does not provide exactly-once coordination. A skipped
+asset is reported as `vouched`, never as verified by this run.
 
 The same mechanism works across space, not only time. Several auditor processes
 can work one catalog simultaneously with no message bus, no lock service, no

@@ -86,7 +86,7 @@ file on first use, so that first run needs package-index access.
 | # | Command | Needs | What it proves | Takes |
 |---|---|---|---|---|
 | 1 | `make gate-demo` | Python 3.12; package downloads on first use; no DataHub or credentials | The published `BLOCK` verdict is re-derived from the committed graph recording, byte-identical, with the same `policy_hash`. Hand-editing an artifact fails this. | ~2s after bootstrap |
-| 2 | `make check` | Python 3.12; package downloads on first use | 983 tests, lint, format, types — 981 passed, 2 optional integrations skipped, with 83.50% branch coverage; the same gates CI runs. | ~60s after bootstrap |
+| 2 | `make check` | Python 3.12; package downloads on first use | 1006 tests, lint, format, types — 1004 passed, 2 optional integrations skipped, with 83.85% branch coverage; the same gates CI runs. | ~60s after bootstrap |
 | 3 | `make live-loop` | a running DataHub ([`docs/SETUP.md`](docs/SETUP.md)) | The whole agent loop over the **official MCP server only**: read → decide → write a receipt → a *separate process* reads it back → an asset carrying no receipt returns `NOT VERIFIED`. | ~60s |
 | 4 | `make repair-demo` | the same DataHub | The repair agent proposes a fix from catalog evidence, re-runs the deterministic engine against the catalog that fix *would* create, and shows what it proved and what it refused. | ~40s |
 
@@ -360,10 +360,12 @@ converts an asset nobody could examine into a clean one.
 An explicit optional `--write-receipts` run records the latest Sidq receipt values
 in DataHub. They are shared current state, not append-only history. `--resume`
 reads them back
-before planning: an asset whose receipt still holds — same policy hash, not aged
-out, and the same semantic entity plus complete one-hop lineage context — is
-skipped, and the whole budget
-flows to assets no run has reached. Coverage converges run over run under a
+before planning: an asset a current receipt already covers — same policy hash,
+not aged out, and the same semantic entity plus complete one-hop lineage
+context — is skipped, and the whole budget
+flows to assets no run has reached. A recorded refusal counts as covered, because
+"we checked and refused" is knowledge rather than a gap; it is reported as
+`BLOCKED`, never folded into `vouched`, and it authorizes nothing. Coverage converges run over run under a
 budget that never changed. A Sidq instance with access to the same catalog can
 re-check those latest values before choosing work. No separate state store is
 required for this optimization; the receipt values do not constitute an audit ledger.
@@ -382,11 +384,12 @@ the first could not reach:
 
 Nothing is skipped on trust. The reader recomputes the receipt's validity itself,
 with the same judgment every receipt consumer uses; a receipt that is stale,
-records a `BLOCK`, or cannot be read at all fails that check and the asset goes
-back in the queue — if the receipts are unreadable, the prior is empty and
-everything is re-examined. Forgetting costs budget, never correctness. And the
-report says `vouched`, never `verified`, for anything it skipped: whose word you
-are taking is part of the answer.
+absent, or unreadable covers nothing and the asset goes back in the queue — if
+the receipts are unreadable, the prior is empty and everything is re-examined.
+Forgetting costs budget, never correctness. And the report says `vouched`, never
+`verified`, for anything it skipped, and `BLOCKED` rather than `vouched` for a
+standing refusal: whose word you are taking, and what that word was, are both
+part of the answer.
 
 ### The whole loop, on the official MCP server, in one command
 

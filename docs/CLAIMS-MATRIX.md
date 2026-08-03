@@ -9,7 +9,7 @@ and `origin/main`; deployment is not inferred from a Git commit.
 
 | Public claim | Exact scope and evidence class | Source of truth / artifact | Reproduce | Revision |
 |---|---|---|---|---|
-| The required suite collects 983 tests: 981 pass and 2 optional integrations skip; total branch coverage is 83.50%. | Host run, Python 3.12.3; guaranteed by the test/coverage gate for this revision. The skips are the uncached Qwen embedding integration and unavailable local Ollama model integration. | `pyproject.toml`, `Makefile`, [`QA-RESULTS.md`](QA-RESULTS.md) | `make check`; for reasons: `.venv/bin/pytest -q -rs --no-cov` | `8039675` implementation baseline; re-run on the document revision before release |
+| The required suite collects 1006 tests: 1004 pass and 2 optional integrations skip; total branch coverage is 83.85%. | Host run, Python 3.12.3; guaranteed by the test/coverage gate for this revision. The skips are the uncached Qwen embedding integration and unavailable local Ollama model integration. | `pyproject.toml`, `Makefile`, [`QA-RESULTS.md`](QA-RESULTS.md) | `make check`; for reasons: `.venv/bin/pytest -q -rs --no-cov` | `8039675` implementation baseline; re-run on the document revision before release |
 | The committed removal of `cust_email` is `BLOCK`. | Fixture-backed deterministic replay, not a live graph query. `critical_downstream` is the blocking rule because 9 cross-team owners are recorded. `wide_blast_radius` is supporting `WARN`; `PII_Data` is sensitivity context only. | [`verdict.json`](../examples/01-blocked-pii-dashboard/verdict.json), [`pr-comment.md`](../examples/01-blocked-pii-dashboard/pr-comment.md) | `make gate-demo`; `.venv/bin/python scripts/regenerate_example_01.py --check` | Evidence commit `5addb753788935d4d1aa6a9483c28c6fc124e5c7`; policy `66f48004804c5ce02955699710466b6d58ae7a868f876a4774e548c5c15920b8` |
 | The example records 16 downstream consumers and one path with 8 nodes / 7 hops. | Fixture-backed column lineage through the BI field, then entity-level chart/dashboard hops. The count alone does not block. | [`verdict.json`](../examples/01-blocked-pii-dashboard/verdict.json) | `jq '.findings[] | select(.rule_id=="critical_downstream") | .evidence[0].detail | {downstream_count,paths}' examples/01-blocked-pii-dashboard/verdict.json` | Same fixture/policy revision above |
 | A read-only catalog snapshot examined all 67 `showcase-ecommerce` datasets and found 285 persisted `lineage_field_missing` contradictions concentrated in 5 target assets. | Measured catalog-only snapshot. It does not claim that the underlying source systems are wrong. A separate check recorded 29 consumed-but-unowned assets. | [`report.json`](../examples/03-catalog-truth-report/report.json), [`TRUTH-REPORT.md`](TRUTH-REPORT.md) | `jq '.scope, .summary' examples/03-catalog-truth-report/report.json`; derive the five targets with `jq '[.evidence[] | select(.kind=="lineage_field_missing") | .detail.edge.target_dataset] | unique | length' .../report.json` | Committed snapshot in the document revision |
@@ -27,7 +27,13 @@ and `origin/main`; deployment is not inferred from a Git commit.
 ## Interpretation rules
 
 - `PASS`, `WARN`, and `BLOCK` are policy verdicts. `NOT VERIFIED` is a reader
-  state, never a fourth verdict.
+  state, never a fourth verdict, and it covers exactly three cases: the receipt
+  is absent, stale, or unreadable. A current receipt recording `BLOCK` is
+  reported as `CURRENT RECEIPT · BLOCK · STOP`.
+- Coverage and authorization are separate claims. A current receipt covers its
+  asset whatever the verdict — that is what lets a bounded audit converge — while
+  only a current `PASS` authorizes an agent to continue unaided. See
+  [`RECEIPT-SPEC.md`](RECEIPT-SPEC.md#three-questions-three-fields).
 - “Deterministic” applies to enforcement for identical canonical evidence and
   policy, not to network collection or availability.
 - The structured Receipt body is the reader's sole receipt authority; it is not a

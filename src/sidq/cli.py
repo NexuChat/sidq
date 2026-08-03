@@ -46,9 +46,9 @@ from sidq.policy.engine import PolicyEngine, load_policy
 from sidq.receipt.read import (
     get_verification_status,
     get_verification_statuses,
-    holds,
     render_verification,
 )
+from sidq.receipt.state import Action, judge
 from sidq.receipt.write import RECEIPT_TOOLS, StdioMCPReceiptToolCaller
 from sidq.repair import (
     REPAIR_TOOLS,
@@ -1047,8 +1047,10 @@ def _verify(arguments: Any) -> int:
     Staleness is computed here, never read from the catalog: the catalog stores
     what was decided, and whether that still applies is this reader's judgment.
 
-    Exit code 1 means the receipt does not currently hold — absent, stale, or a
-    recorded BLOCK. That is the answer, not a failure, so it stays distinct from
+    Exit code 1 means the caller may not proceed on this receipt — a current
+    refusal, or nothing applicable to read (absent, stale, unreadable). Those are
+    different answers and the output says which; they share an exit code because
+    a script's only safe move in either case is to stop. Both stay distinct from
     the 2 returned when the catalog could not be read at all.
     """
     caller = StdioMCPToolCaller()
@@ -1070,14 +1072,20 @@ def _verify(arguments: Any) -> int:
         if callable(close):
             close()
 
-    verified, _ = holds(status)
+    judgment = judge(status)
     if arguments.as_json:
+        # Every axis is emitted separately. A consumer that wants "may I act"
+        # reads `action`; one that wants "was this examined" reads
+        # `covers_asset`; one that wants "does the receipt apply" reads
+        # `receipt_state`. There is no single boolean to misread.
         sys.stdout.buffer.write(
-            canonical_json({**status, "verified": verified}) + b"\n"
+            canonical_json({**status, **judgment.as_dict()}) + b"\n"
         )
     else:
         print("\n".join(render_verification(arguments.urn, status)))
-    return 0 if verified else 1
+    # WARN is not a refusal: it authorizes acting with review, so it does not
+    # fail the command. STOP and RECHECK both do.
+    return 0 if judgment.action in {Action.CONTINUE, Action.REVIEW} else 1
 
 
 def main(argv: Sequence[str] | None = None) -> int:

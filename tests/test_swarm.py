@@ -19,7 +19,13 @@ from datetime import UTC, datetime, timedelta
 from threading import Barrier, Event, Lock, Thread, current_thread
 
 from sidq.agent.auditor import Target
-from sidq.agent.swarm import SwarmWorker, WorkerRun, observe, rotate_for
+from sidq.agent.swarm import (
+    SwarmWorker,
+    WorkerRun,
+    observe,
+    render_worker,
+    rotate_for,
+)
 from sidq.gates.self_contradiction import CatalogEntity, CatalogField, CatalogSnapshot
 from sidq.models import Verdict
 from sidq.policy.engine import PolicyEngine
@@ -215,11 +221,15 @@ def test_a_worker_skips_an_asset_a_peers_receipt_still_vouches_for() -> None:
     assert other.urn in result.examined
 
 
-def test_a_worker_re_examines_a_receipt_that_records_block_or_has_gone_stale() -> None:
-    """`holds()` already draws this line; a swarm worker that skipped on a
-    refusal or a stale checked_at would be treating "we refused" or "we
-    checked long ago under a different policy" as a current pass — quietly
-    promoting a refusal into a clean bill."""
+def test_a_worker_re_examines_a_stale_receipt_but_not_a_current_refusal() -> None:
+    """The two halves of the coverage rule, on the two receipts that test it.
+
+    A stale PASS proves nothing about the asset as it is now, so the worker
+    looks again. A current BLOCK *was* an examination — re-deriving the same
+    refusal every pass is the starvation this model exists to end — so the
+    worker moves on. What it must not do is file that refusal under a vouch:
+    the asset is covered and blocked, never covered and approved.
+    """
     blocked = _dataset("blocked", owners=("urn:li:corpuser:a",))
     stale = _dataset("stale", owners=("urn:li:corpuser:a",))
     hub = FakeDataHub()
@@ -235,9 +245,71 @@ def test_a_worker_re_examines_a_receipt_that_records_block_or_has_gone_stale() -
         now=lambda: NOW,
     ).run()
 
-    assert set(result.examined) == {blocked.urn, stale.urn}
+    assert set(result.examined) == {stale.urn}
+    assert result.refused == [blocked.urn]
     assert result.vouched_by_peer == []
     assert result.vouched_unattributed == []
+    assert result.summary()["blocked_by_receipt"] == 1
+
+
+def test_a_refusal_is_never_reported_as_a_peer_vouching_for_the_asset() -> None:
+    """Same skip, two different facts — and a person reads them differently."""
+    blocked = _dataset("blocked", owners=("urn:li:corpuser:a",))
+    hub = FakeDataHub()
+    _seed_receipt(
+        hub,
+        blocked.urn,
+        decision="BLOCK",
+        checked_at=NOW,
+        swarm_run="swarm-1",
+        worker_id="worker-peer",
+    )
+
+    result = SwarmWorker(
+        CatalogSnapshot((blocked,)),
+        worker_id="worker-self",
+        swarm_run="swarm-1",
+        tool_caller=hub,
+        budget=5,
+        now=lambda: NOW,
+    ).run()
+
+    assert result.vouched_by_peer == []
+    assert result.refused == [blocked.urn]
+    rendered = "\n".join(render_worker(result))
+    assert "BLOCKED" in rendered
+    assert "vouched" not in rendered
+
+
+def test_a_worker_does_not_re_refuse_the_same_asset_round_after_round() -> None:
+    """The starvation regression, stated as the property it broke.
+
+    With a budget of one and a standing refusal on the worst asset, every round
+    used to spend its whole budget re-refusing that asset, and the rest of the
+    catalog was never reached. Coverage now moves the budget along.
+    """
+    blocked = _dataset("blocked", owners=("urn:li:corpuser:a",))
+    unseen = _dataset("unseen", owners=("urn:li:corpuser:a",))
+    hub = FakeDataHub()
+    _seed_receipt(hub, blocked.urn, decision="BLOCK", checked_at=NOW)
+
+    def one_round() -> set[str]:
+        return set(
+            SwarmWorker(
+                CatalogSnapshot((blocked, unseen)),
+                worker_id="worker-self",
+                swarm_run="swarm-1",
+                tool_caller=hub,
+                budget=1,
+                now=lambda: NOW,
+            )
+            .run()
+            .examined
+        )
+
+    assert one_round() == {unseen.urn}
+    # And once the tail is covered too, no round re-examines anything.
+    assert one_round() == set()
 
 
 # ---------------------------------------------------------------------------

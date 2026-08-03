@@ -9,6 +9,8 @@ from typing import Any
 
 from sidq.serialization import canonical_json
 
+from .state import judge
+
 ToolCaller = Callable[[str, Mapping[str, Any]], Any]
 _PREFIX = "urn:li:structuredProperty:sidq."
 
@@ -572,40 +574,17 @@ def _staleness(
     return False, None
 
 
-def holds(status: Mapping[str, Any]) -> tuple[bool, str]:
-    """Decide whether a receipt read back from DataHub still vouches for an asset.
-
-    Three separate things can be true of a receipt, and only one of them is
-    "verified": it can be absent, it can be present but no longer applicable, or it
-    can be present and record a refusal. Collapsing those into a boolean would let
-    "we never checked" read the same as "we checked and it passed", which is the
-    exact failure this project exists to prevent — so the reason travels with the
-    answer and every caller has to render it.
-    """
-    verdict = status.get("verdict")
-    if not verdict:
-        return False, "no receipt on this asset"
-    if verdict not in {"PASS", "WARN", "BLOCK"}:
-        # The engine emits exactly three verdicts. Anything else was not written
-        # by this engine, so it vouches for nothing — a catalog cannot invent a
-        # fourth verdict and have it read as approval.
-        return False, f"receipt records an unrecognised verdict ({verdict})"
-    if verdict == "BLOCK":
-        return (
-            False,
-            f"receipt records a refusal ({status.get('reason_code') or verdict})",
-        )
-    if status.get("stale"):
-        return False, f"receipt is stale: {status.get('stale_reason') or 'unknown'}"
-    return True, f"receipt records {verdict}"
-
-
 def render_verification(urn: str, status: Mapping[str, Any]) -> list[str]:
-    """Human-readable readback, showing the provenance the verdict rests on."""
-    verified, reason = holds(status)
+    """Human-readable readback, showing the provenance the verdict rests on.
+
+    The headline comes from `judge`, so the three axes a receipt answers on stay
+    distinguishable to a person: a current refusal reads as a refusal, and
+    `NOT VERIFIED` is reserved for receipts that are absent, stale, or unreadable.
+    """
+    judgment = judge(status)
     lines = [
-        f"{'VERIFIED' if verified else 'NOT VERIFIED'}  {urn}",
-        f"  {reason}",
+        f"{judgment.label}  {urn}",
+        f"  {judgment.reason}",
     ]
     for label, key in (
         ("checked at", "checked_at"),

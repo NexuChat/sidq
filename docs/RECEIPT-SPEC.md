@@ -72,9 +72,57 @@ returns:
   "context_hash": "sha256:...",
   "rules_fired": [],
   "stale": true,
-  "stale_reason": "asset decision context changed"
+  "stale_reason": "asset decision context changed",
+  "receipt_state": "STALE",
+  "action": "RECHECK",
+  "covers_asset": false,
+  "judgment": "receipt is stale: asset decision context changed"
 }
 ```
+
+### Three questions, three fields
+
+A receipt is asked three different things, and Sidq answers them separately
+because the answers genuinely differ. Collapsing them into one boolean is how a
+refusal came to be printed as "nobody checked", and how a refused asset came to
+be re-examined every run while the rest of the catalog went unread.
+
+| Field | Question | Values |
+|---|---|---|
+| `receipt_state` | Does this receipt apply right now? | `CURRENT` · `STALE` · `ABSENT` · `INVALID` |
+| `verdict` | What did the engine decide? | `PASS` · `WARN` · `BLOCK` |
+| `action` | What may the reader do? | `CONTINUE` · `REVIEW_OR_ESCALATE` · `STOP` · `RECHECK` |
+| `covers_asset` | Has the asset been examined under conditions that still hold? | `true` · `false` |
+
+`receipt_state` is decided **before** the verdict is read, so a refusal that has
+gone stale is `STALE`, not a standing `BLOCK`. Applicability then fixes the rest:
+
+| State + verdict | `action` | `covers_asset` | Rendered as |
+|---|---|---|---|
+| `CURRENT` + `PASS` | `CONTINUE` | `true` | `CURRENT RECEIPT · PASS · CONTINUE` |
+| `CURRENT` + `WARN` | `REVIEW_OR_ESCALATE` | `true` | `CURRENT RECEIPT · WARN · REVIEW_OR_ESCALATE` |
+| `CURRENT` + `BLOCK` | `STOP` | `true` | `CURRENT RECEIPT · BLOCK · STOP` |
+| `STALE` / `ABSENT` / `INVALID` | `RECHECK` | `false` | `NOT VERIFIED` |
+
+Two consequences are load-bearing:
+
+- **A current `BLOCK` covers its asset.** "We checked and refused" is knowledge,
+  not a gap, so `sidq audit --resume` and the swarm move their budget on instead
+  of re-deriving the same refusal forever. It authorizes nothing: `action` stays
+  `STOP`.
+- **`NOT VERIFIED` means only absent, stale, or unreadable.** It is a reader
+  state, never a fourth verdict, and never the label on a receipt that says
+  `BLOCK`.
+
+`INVALID` covers a receipt this engine did not write — an unrecognised verdict —
+and one whose freshness could not be established at all, such as a payload
+missing the computed staleness marker. Neither buys coverage, so a hostile or
+broken catalog cannot retire an asset from the audit queue by writing nonsense.
+
+Exit codes follow `action`: `0` for `CONTINUE` and `REVIEW_OR_ESCALATE`, `1` for
+`STOP` and `RECHECK`, and `2` when the catalog could not be read at all. `STOP`
+and `RECHECK` share an exit code because a script's only safe move is the same
+in both cases; the printed headline is what tells them apart.
 
 **Receipts expire — this is the point.** `stale` is computed, never stored:
 

@@ -142,9 +142,18 @@ def test_receipt_handoff_and_mcp_tools_are_distinct_and_truthful() -> None:
     assert "A receipt is not authority." in handoff
     assert (
         "A separate reader re-reads the graph context and checks the receipt’s "
-        "policy hash and age again."
+        "policy hash and age again"
     ) in handoff
-    assert "A current PASS continues; BLOCK, missing, or stale stops." in handoff
+    # All four dispositions, stated separately. A page that folded a refusal in
+    # with "not verified" would misdescribe the one behaviour the demo exists to
+    # show — and the four lines are what a judge reads to see they are distinct.
+    assert "<strong>Current PASS</strong> → continue." in handoff
+    assert "<strong>Current WARN</strong> → review or escalate." in handoff
+    assert "<strong>Current BLOCK</strong> → stop." in handoff
+    assert "never shown as unverified" in handoff
+    assert (
+        "<strong>Missing, stale, or unreadable</strong> → <code>NOT VERIFIED</code>"
+    ) in handoff
     assert "An opted-in audit can write" not in handoff
     assert 'class="handoff-path"' not in handoff
     assert "<ol" not in handoff

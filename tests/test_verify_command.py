@@ -1,9 +1,11 @@
 """Reading a receipt back: the quarter of the loop a writer cannot prove itself.
 
 A writer reporting its own success proves nothing. These pin the judgment a
-*separate* reader makes about a receipt it found — and specifically that the three
-ways a receipt can fail to vouch for an asset (absent, stale, refusal) never
-collapse into the same answer as "checked and passed".
+*separate* reader makes about a receipt it found — and specifically that the
+three questions it answers stay apart. Whether the receipt *applies* is not
+whether it *authorizes*, and neither is whether the asset was *examined*. A
+current refusal is the case where all three differ at once: it applies, it
+authorizes nothing, and it means the asset was very much looked at.
 """
 
 from __future__ import annotations
@@ -15,7 +17,7 @@ import pytest
 
 from sidq import cli
 from sidq.cli import main
-from sidq.receipt import holds, render_verification
+from sidq.receipt import Action, ReceiptState, judge, render_verification
 
 _URN = "urn:li:dataset:(urn:li:dataPlatform:postgres,sidq.receipt.consumed,DEV)"
 
@@ -38,40 +40,125 @@ def _status(**overrides: Any) -> dict[str, Any]:
     return status
 
 
-def test_a_pass_receipt_that_still_applies_verifies() -> None:
-    verified, reason = holds(_status())
+def test_a_current_pass_covers_the_asset_and_authorizes_continuing() -> None:
+    judgment = judge(_status())
 
-    assert verified
-    assert "PASS" in reason
+    assert judgment.state is ReceiptState.CURRENT
+    assert judgment.action is Action.CONTINUE
+    assert judgment.covers
+    assert judgment.may_continue
 
 
-def test_an_absent_receipt_is_not_verified() -> None:
+def test_a_current_warn_covers_the_asset_but_only_authorizes_review() -> None:
+    """WARN is not a refusal and not a green light; it is a handoff to a person."""
+    judgment = judge(_status(verdict="WARN"))
+
+    assert judgment.state is ReceiptState.CURRENT
+    assert judgment.action is Action.REVIEW
+    assert judgment.covers
+    assert not judgment.may_continue
+
+
+def test_a_current_block_covers_the_asset_and_authorizes_nothing() -> None:
+    """The case the old boolean got wrong in both directions at once.
+
+    It was reported as uncovered — which starved the resume path into
+    re-examining refused assets forever — and rendered as `NOT VERIFIED`, which
+    told a reader nobody had looked. A refusal is the most examined an asset
+    ever gets. What it must never do is authorize acting.
+    """
+    judgment = judge(_status(verdict="BLOCK", reason_code="PII_EXPOSURE"))
+
+    assert judgment.state is ReceiptState.CURRENT
+    assert judgment.action is Action.STOP
+    assert judgment.covers
+    assert judgment.refused
+    assert not judgment.may_continue
+    assert "PII_EXPOSURE" in judgment.reason
+
+
+def test_an_absent_receipt_covers_nothing_and_authorizes_nothing() -> None:
     """The failure this whole project exists to prevent: unchecked reading as clean."""
-    verified, reason = holds(_status(verdict=None))
+    judgment = judge(_status(verdict=None))
 
-    assert not verified
-    assert "no receipt" in reason
-
-
-def test_a_stale_receipt_is_not_verified_and_says_why() -> None:
-    verified, reason = holds(_status(stale=True, stale_reason="policy_hash changed"))
-
-    assert not verified
-    assert "policy_hash changed" in reason
+    assert judgment.state is ReceiptState.ABSENT
+    assert judgment.action is Action.RECHECK
+    assert not judgment.covers
+    assert "no receipt" in judgment.reason
 
 
-def test_a_block_receipt_is_not_verified() -> None:
-    verified, reason = holds(_status(verdict="BLOCK", reason_code="PII_EXPOSURE"))
+def test_a_stale_receipt_covers_nothing_and_says_why() -> None:
+    judgment = judge(_status(stale=True, stale_reason="policy_hash changed"))
 
-    assert not verified
-    assert "PII_EXPOSURE" in reason
+    assert judgment.state is ReceiptState.STALE
+    assert judgment.action is Action.RECHECK
+    assert not judgment.covers
+    assert "policy_hash changed" in judgment.reason
+
+
+def test_a_stale_block_is_stale_rather_than_a_refusal_that_still_stands() -> None:
+    """Applicability is settled before the verdict is even read.
+
+    A refusal about an asset that has since changed is not a standing refusal —
+    it is a decision whose subject moved. Reporting it as a current BLOCK would
+    both overstate what is known and, worse, let it count as coverage.
+    """
+    judgment = judge(
+        _status(
+            verdict="BLOCK",
+            reason_code="PII_EXPOSURE",
+            stale=True,
+            stale_reason="asset decision context changed",
+        )
+    )
+
+    assert judgment.state is ReceiptState.STALE
+    assert judgment.action is Action.RECHECK
+    assert not judgment.covers
+    assert not judgment.refused
+    assert "asset decision context changed" in judgment.reason
+
+
+@pytest.mark.parametrize("invented", ["APPROVED", "pass", "OK", "BLOCKED", " PASS"])
+def test_an_invented_verdict_grants_neither_coverage_nor_action(invented: str) -> None:
+    """A catalog cannot mint a fourth verdict and have it read as anything."""
+    judgment = judge(_status(verdict=invented))
+
+    assert judgment.state is ReceiptState.INVALID
+    assert judgment.action is Action.RECHECK
+    assert not judgment.covers
+    assert not judgment.may_continue
+
+
+def test_a_status_that_is_not_a_mapping_is_unreadable_rather_than_trusted() -> None:
+    judgment = judge(None)  # type: ignore[arg-type]
+
+    assert judgment.state is ReceiptState.INVALID
+    assert not judgment.covers
+    assert not judgment.may_continue
+
+
+def test_only_absent_stale_and_unreadable_receipts_render_as_not_verified() -> None:
+    """`NOT VERIFIED` is reserved for "nobody could tell you", nothing else."""
+    current = {
+        verdict: render_verification(_URN, _status(verdict=verdict))[0]
+        for verdict in ("PASS", "WARN", "BLOCK")
+    }
+
+    assert current["PASS"].startswith("CURRENT RECEIPT · PASS · CONTINUE")
+    assert current["WARN"].startswith("CURRENT RECEIPT · WARN · REVIEW_OR_ESCALATE")
+    assert current["BLOCK"].startswith("CURRENT RECEIPT · BLOCK · STOP")
+    assert not any("NOT VERIFIED" in line for line in current.values())
+
+    for absent_or_stale in (_status(verdict=None), _status(stale=True)):
+        assert render_verification(_URN, absent_or_stale)[0].startswith("NOT VERIFIED")
 
 
 def test_the_rendering_shows_the_provenance_the_verdict_rests_on() -> None:
     lines = render_verification(_URN, _status(rules_fired=["pii_exposure"]))
 
     text = "\n".join(lines)
-    assert text.startswith("VERIFIED  ")
+    assert text.startswith("CURRENT RECEIPT · PASS · CONTINUE  ")
     assert "sha256:deadbeef" in text
     assert "pii_exposure" in text
 

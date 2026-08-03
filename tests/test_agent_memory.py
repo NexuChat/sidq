@@ -1,10 +1,15 @@
 """The auditor's memory: does coverage converge, and is a skip ever dishonest?
 
 The property under test is the one the module docstring claims: a receipt that
-still holds is a memoised verdict, so skipping it loses nothing — and everything
-else about the skip must stay visible. A vouched asset that showed up as
-"verified clean", or received a fresh receipt it did not earn, would be the
+still applies is a memoised verdict, so skipping it loses nothing — and
+everything else about the skip must stay visible. A vouched asset that showed up
+as "verified clean", or received a fresh receipt it did not earn, would be the
 agent taking credit for work a previous run did.
+
+The skip is decided on coverage, never on authorization. That distinction is
+load-bearing in both directions and both are pinned here: a current refusal must
+free the budget (or the tail of the catalog is never reached), and it must never
+be reported as a vouch (or a refusal reads as approval).
 """
 
 from __future__ import annotations
@@ -20,6 +25,7 @@ from sidq.gates.self_contradiction import (
     LineageEdge,
 )
 from sidq.receipt.read import decision_context_hash
+from sidq.receipt.state import Action, ReceiptState
 
 NOW = datetime(2026, 8, 2, 12, 0, 0, tzinfo=UTC)
 
@@ -34,14 +40,33 @@ def _dataset(name: str, **kwargs: object) -> CatalogEntity:
 
 
 def _vouches(urn: str) -> PriorReceipt:
-    return PriorReceipt(urn=urn, holds=True, reason="receipt records PASS")
+    return PriorReceipt(
+        urn=urn,
+        covers=True,
+        reason="receipt records PASS",
+        state=ReceiptState.CURRENT,
+        verdict="PASS",
+        action=Action.CONTINUE,
+    )
+
+
+def _refuses(urn: str) -> PriorReceipt:
+    """Covered and blocked: examined by a previous run, and not to be acted on."""
+    return PriorReceipt(
+        urn=urn,
+        covers=True,
+        reason="receipt records a current refusal (PII_EXPOSURE); stop",
+        state=ReceiptState.CURRENT,
+        verdict="BLOCK",
+        action=Action.STOP,
+    )
 
 
 # ---------------------------------------------------------------------------
 # The skip itself: budget flows past vouched assets, and the report says so.
 
 
-def test_a_holding_receipt_frees_the_budget_for_an_unseen_asset() -> None:
+def test_a_covering_receipt_frees_the_budget_for_an_unseen_asset() -> None:
     """Without memory, budget 1 re-examines the worst asset forever."""
     entities = tuple(
         _dataset(f"m{index}", owners=("urn:li:corpuser:a",)) for index in range(3)
@@ -80,14 +105,17 @@ def test_a_vouched_asset_earns_no_fresh_receipt() -> None:
     assert receipts_for(result, commit_sha="abc") == []
 
 
-def test_a_receipt_that_does_not_hold_is_re_examined() -> None:
-    """Stale, blocked, and absent receipts are the same answer: look again."""
+def test_a_receipt_that_covers_nothing_is_re_examined() -> None:
+    """Stale, absent, and unreadable receipts are the same answer: look again."""
     entities = (_dataset("only", owners=("urn:li:corpuser:a",)),)
     prior = {
         entities[0].urn: PriorReceipt(
             urn=entities[0].urn,
-            holds=False,
+            covers=False,
             reason="receipt is stale: asset schema changed after the last verification",
+            state=ReceiptState.STALE,
+            verdict="PASS",
+            action=Action.RECHECK,
         )
     }
 
@@ -95,9 +123,45 @@ def test_a_receipt_that_does_not_hold_is_re_examined() -> None:
 
     assert result.examined == [entities[0].urn]
     assert result.vouched == []
+    assert result.refused == []
 
 
-def test_a_promotion_does_not_pierce_a_holding_receipt() -> None:
+def test_a_current_refusal_frees_the_budget_instead_of_being_re_refused() -> None:
+    """The starvation bug, as the property that now holds.
+
+    Budget of one; the worst asset carries a standing refusal. The old rule
+    tested authorization, so the refusal failed it, so every run re-examined
+    that same asset and `unseen` was never reached — under any number of runs.
+    """
+    refused = _dataset("refused", owners=("urn:li:corpuser:a",))
+    unseen = _dataset("unseen", owners=("urn:li:corpuser:a",))
+    snapshot = CatalogSnapshot((refused, unseen))
+    prior = {refused.urn: _refuses(refused.urn)}
+
+    result = CatalogAuditor(snapshot, budget=1, prior=prior).run()
+
+    assert result.examined == [unseen.urn]
+    assert result.deferred == []
+    assert result.refused == [(refused.urn, prior[refused.urn].reason)]
+
+
+def test_a_refusal_is_reported_as_blocked_and_never_as_vouched() -> None:
+    """Covered by a receipt, but the two ways of being covered read differently."""
+    refused = _dataset("refused", owners=("urn:li:corpuser:a",))
+    prior = {refused.urn: _refuses(refused.urn)}
+
+    result = CatalogAuditor(CatalogSnapshot((refused,)), budget=5, prior=prior).run()
+    report = "\n".join(render(result, catalog="test"))
+
+    assert result.vouched == []
+    assert result.verified == []
+    assert result.summary()["blocked_by_receipt"] == 1
+    assert result.summary()["vouched_by_receipt"] == 0
+    assert "BLOCKED         1" in report
+    assert "vouched" not in report
+
+
+def test_a_promotion_does_not_pierce_a_covering_receipt() -> None:
     """A neighbour's lie is evidence about the neighbour, not a change here."""
     liar = _dataset("liar", owners=("urn:li:corpuser:a",))
     neighbour = _dataset("neighbour", owners=("urn:li:corpuser:a",))
@@ -209,11 +273,28 @@ def test_recall_judges_each_receipt_now_rather_than_trusting_it() -> None:
 
     prior = recall(urns, caller, current_policy_hash="sha256:p", now=NOW)
 
-    assert prior[urns[0]].holds is True
-    assert prior[urns[1]].holds is False
-    assert "refusal" in prior[urns[1]].reason
-    assert prior[urns[2]].holds is False
-    assert prior[urns[2]].reason == "no receipt on this asset"
+    passed, blocked, unwritten = (prior[urn] for urn in urns)
+
+    assert (passed.state, passed.action, passed.covers) == (
+        ReceiptState.CURRENT,
+        Action.CONTINUE,
+        True,
+    )
+    # Covered, refused, and not authorized — all three at once, which is the
+    # combination a single boolean could never express.
+    assert (blocked.state, blocked.action, blocked.covers) == (
+        ReceiptState.CURRENT,
+        Action.STOP,
+        True,
+    )
+    assert blocked.refused and not blocked.may_continue
+    assert "refusal" in blocked.reason
+    assert (unwritten.state, unwritten.action, unwritten.covers) == (
+        ReceiptState.ABSENT,
+        Action.RECHECK,
+        False,
+    )
+    assert unwritten.reason == "no receipt on this asset"
 
 
 def test_recall_fails_closed_on_a_policy_change_and_on_age() -> None:
@@ -235,9 +316,11 @@ def test_recall_fails_closed_on_a_policy_change_and_on_age() -> None:
         now=NOW,
     )
 
-    assert repoliced[urn].holds is False
+    assert repoliced[urn].state is ReceiptState.STALE
+    assert repoliced[urn].covers is False
     assert "policy hash changed" in repoliced[urn].reason
-    assert aged[urn].holds is False
+    assert aged[urn].state is ReceiptState.STALE
+    assert aged[urn].covers is False
     assert "maximum verification age" in aged[urn].reason
 
 

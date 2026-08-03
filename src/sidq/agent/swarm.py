@@ -45,7 +45,8 @@ from sidq.gates.self_contradiction import CatalogSnapshot, SelfContradictionGate
 from sidq.models import Evidence
 from sidq.policy.engine import PolicyEngine
 from sidq.receipt.build import build_receipt
-from sidq.receipt.read import ToolCaller, get_verification_status, holds
+from sidq.receipt.read import ToolCaller, get_verification_status
+from sidq.receipt.state import judge
 
 
 @dataclass
@@ -57,10 +58,15 @@ class WorkerRun:
     examined: list[str] = field(default_factory=list)
     written: list[str] = field(default_factory=list)
     findings: list[Evidence] = field(default_factory=list)
-    # (urn, worker_id) — an asset skipped because another worker's receipt held.
+    # (urn, worker_id) — an asset skipped because a peer's current PASS/WARN
+    # receipt already covers it.
     vouched_by_peer: list[tuple[str, str]] = field(default_factory=list)
     # Skipped on a receipt with no worker id: an earlier solo run, or this one.
     vouched_unattributed: list[str] = field(default_factory=list)
+    # Skipped because a current receipt records a refusal. Covered, so the
+    # worker moves on rather than re-refusing it every pass — but kept apart
+    # from the vouched lists, because a refusal is not a peer's approval.
+    refused: list[str] = field(default_factory=list)
     write_failures: list[tuple[str, str]] = field(default_factory=list)
 
     def summary(self) -> dict[str, object]:
@@ -72,6 +78,7 @@ class WorkerRun:
             "findings": len(self.findings),
             "vouched_by_peer": len(self.vouched_by_peer),
             "vouched_unattributed": len(self.vouched_unattributed),
+            "blocked_by_receipt": len(self.refused),
             "write_failures": len(self.write_failures),
         }
 
@@ -138,8 +145,15 @@ class SwarmWorker:
             # swarm and four solo runs racing each other.
             status = self._read_status(target.urn, policy_hash)
             if status is not None:
-                still_holds, _ = holds(status)
-                if still_holds:
+                # Coverage, not authorization: another worker having already
+                # examined this asset is what lets this one move on, whatever
+                # the verdict was. A refusal is recorded separately so the
+                # worker's account never reads as a peer vouching for it.
+                judgment = judge(status)
+                if judgment.covers:
+                    if judgment.refused:
+                        result.refused.append(target.urn)
+                        continue
                     peer = str(status.get("worker_id") or "")
                     if peer and peer != self._worker_id:
                         result.vouched_by_peer.append((target.urn, peer))
@@ -216,7 +230,12 @@ def render_worker(run: WorkerRun) -> list[str]:
     if run.vouched_unattributed:
         lines.append(
             f"  vouched (earlier) {len(run.vouched_unattributed)} "
-            "(a receipt from before this swarm still holds)"
+            "(a receipt from before this swarm still covers them)"
+        )
+    if run.refused:
+        lines.append(
+            f"  BLOCKED           {len(run.refused)} "
+            "(a current receipt records a refusal; covered, not approved)"
         )
     if run.write_failures:
         lines.append(f"  write failures    {len(run.write_failures)}")
@@ -287,7 +306,11 @@ def observe(
 
 
 def _is_current_receipt(status: Mapping[str, object]) -> bool:
-    return (
-        status.get("verdict") in {"PASS", "WARN", "BLOCK"}
-        and status.get("stale") is False
-    )
+    """The ledger counts coverage, so it asks the one judgment every reader uses.
+
+    Counting a current BLOCK here is deliberate: the ledger reports which assets
+    the swarm has *examined*, and a refusal is an examination. It is the same
+    coverage axis the workers skip on, from the same function, so the two can
+    never drift into disagreeing about what the run actually covered.
+    """
+    return judge(status).covers

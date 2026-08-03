@@ -65,9 +65,10 @@ dependency used to read DataHub and perform explicit receipt mutations;
 reach. `sidq repair` proposes only what the engine re-proves, and refuses the
 rest with reasons. When an operator explicitly enables the optional Receipt write,
 DataHub stores the latest receipt values, not append-only history. `sidq audit
---resume` reads that shared current state back, skips every asset whose
-receipt still holds under the current policy hash, and spends the whole budget
-on assets no run has seen. Coverage converges under a fixed budget, and any
+--resume` reads that shared current state back, skips every asset a current
+receipt already covers under the current policy hash — including one recording a
+refusal, which is reported as `BLOCKED` and authorizes nothing — and spends the
+whole budget on assets no run has seen. Coverage converges under a fixed budget, and any
 Sidq instance with access to the same catalog can re-check the latest values before
 choosing work. No sidecar database or daemon is required for this optimization.
 

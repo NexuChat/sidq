@@ -347,8 +347,9 @@ It audits over official MCP, writes receipts back over official MCP, then reads
 one back from a separate process and asks about a fourth asset that carries no
 receipt — discovered at run time by `scripts/find_unreceipted.py`, because the
 resuming audit eventually receipts any asset a recipe could name in advance. The
-run recorded on 2026-07-30 examined 5 assets, wrote 5 receipts, returned
-`VERIFIED` for `order_entry.customers`, and `NOT VERIFIED — no receipt on this
+run recorded on 2026-07-30 examined 5 assets, wrote 5 receipts, returned a
+current `PASS` receipt for `order_entry.customers` — which this revision renders
+as `CURRENT RECEIPT · PASS · CONTINUE` — and `NOT VERIFIED — no receipt on this
 asset` for the discovered asset. Once every dataset carries a receipt, the step
 reports convergence instead.
 

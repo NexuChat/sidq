@@ -1248,27 +1248,44 @@ def test_swarm_ledger_is_read_from_datahub_and_transport_errors_fail_closed(
     assert callers[-1].closed
 
 
-@pytest.mark.parametrize(("verified", "code"), ((True, 0), (False, 1)))
+@pytest.mark.parametrize(
+    ("status", "code", "headline"),
+    (
+        ({"verdict": "PASS", "stale": False}, 0, "CURRENT RECEIPT · PASS · CONTINUE"),
+        (
+            {"verdict": "WARN", "stale": False},
+            0,
+            "CURRENT RECEIPT · WARN · REVIEW_OR_ESCALATE",
+        ),
+        ({"verdict": "BLOCK", "stale": False}, 1, "CURRENT RECEIPT · BLOCK · STOP"),
+        ({"verdict": None}, 1, "NOT VERIFIED"),
+        ({"verdict": "PASS", "stale": True}, 1, "NOT VERIFIED"),
+        # No freshness marker at all: unreadable, not fresh.
+        ({"verdict": "PASS"}, 1, "NOT VERIFIED"),
+    ),
+)
 def test_verify_reports_receipt_state_from_a_separate_reader(
-    monkeypatch, capsys, verified: bool, code: int
+    monkeypatch, capsys, status: dict, code: int, headline: str
 ) -> None:
+    """Exit code and headline together, because neither alone is the answer.
+
+    A refusal and an absent receipt share exit 1 — a script's only safe move is
+    to stop in both cases — so the printed headline is what distinguishes "we
+    checked and refused" from "nobody checked".
+    """
     transport = _Closable()
-    status = {"verdict": "PASS" if verified else "BLOCK"}
     monkeypatch.setattr(cli, "StdioMCPToolCaller", lambda: transport)
     monkeypatch.setattr(cli, "get_verification_status", lambda *args, **kwargs: status)
-    monkeypatch.setattr(cli, "holds", lambda supplied: (verified, "reason"))
-    monkeypatch.setattr(
-        cli, "render_verification", lambda urn, supplied: [f"verified={verified}"]
-    )
 
     assert cli._verify(_arguments()) == code
-    assert f"verified={verified}" in capsys.readouterr().out
+    assert headline in capsys.readouterr().out
     assert transport.closed
 
 
-def test_verify_json_includes_the_recomputed_status(monkeypatch, capsysbinary) -> None:
+def test_verify_json_reports_each_axis_separately(monkeypatch, capsysbinary) -> None:
+    """No single boolean to misread: state, action, and coverage are all emitted."""
     transport = _Closable()
-    status = {"verdict": "PASS", "policy_hash": "policy"}
+    status = {"verdict": "BLOCK", "stale": False, "policy_hash": "policy"}
     monkeypatch.setattr(cli, "StdioMCPToolCaller", lambda: transport)
     monkeypatch.setattr(
         cli,
@@ -1278,13 +1295,16 @@ def test_verify_json_includes_the_recomputed_status(monkeypatch, capsysbinary) -
         ),
     )
     monkeypatch.setattr(cli, "get_verification_status", lambda *args, **kwargs: status)
-    monkeypatch.setattr(cli, "holds", lambda supplied: (True, "fresh"))
 
-    assert cli._verify(_arguments(as_json=True)) == 0
+    assert cli._verify(_arguments(as_json=True)) == 1
     assert json.loads(capsysbinary.readouterr().out) == {
         "policy_hash": "policy",
-        "verdict": "PASS",
-        "verified": True,
+        "stale": False,
+        "verdict": "BLOCK",
+        "receipt_state": "CURRENT",
+        "action": "STOP",
+        "covers_asset": True,
+        "judgment": "receipt records a current refusal (BLOCK); stop",
     }
     assert transport.closed
 
