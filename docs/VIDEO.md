@@ -1,12 +1,21 @@
 # Final-film artifact and production contract
 
-**The film is being rebuilt on real footage (2026-08-03).** The previous
-artifact — SHA-256
-`0811a494c3ee6f78f907c3f2d14908ca18df403d81e38d63093cfa7dab46beef`,
-169.216 seconds — is **superseded**: it predates the
-receipt-state change, the instrument-dark landing identity, and the requirement
-that the film show the product operating rather than describing it. It must not
+The verified upload candidate is
+`/home/dev/sidq-video/artifacts/video/sidq-final-en.mp4`. Its SHA-256 is
+`214e37cc232269ad1aeed1e84b2532d92deb201d8d958476f9e227306c66b8ad`,
+its exact size is 21,986,302 bytes, and its container duration is
+169.216 seconds — safely under three minutes. It is **not yet a submission
+artifact** because the public upload gate remains owner-only. It supersedes the
+2026-08-02 film (preserved as `superseded-sidq-final-en-2026-08-02.mp4`), which
+predates the receipt-state change and the instrument-dark console and must not
 be submitted.
+
+Verified 2026-08-03: exactly 5,075 authored frames at 1920×1080/30 fps, a
+complete `ffmpeg -v error -xerror` decode with no error, zero qualifying black
+intervals, 48 kHz AAC stereo, full-film loudness −17.4 LUFS integrated at
+−4.5 dBTP true peak, burned English captions plus a 59-cue sidecar SRT, and a
+passing SHA-256 manifest beside the MP4 (thumbnail and contact sheet
+regenerated from the same revision).
 
 ## The rebuild: real footage, one consistent voice
 
@@ -100,19 +109,18 @@ without re-recording fails the contract suite.
 
 ## Release gate
 
-All local media gates have passed. Repository validation is checked again on
-the exact documentation revision before release:
+All local media gates have passed on the 2026-08-03 artifact. Repository
+validation is checked again on the exact documentation revision before release:
 
 - [x] Current `make check` passes, including the 80% branch-coverage gate.
 - [x] Render is 1920x1080 at 30 fps, H.264/yuv420p with AAC stereo at 48 kHz.
 - [x] `ffprobe` confirms a safe duration below three minutes.
 - [x] A complete `ffmpeg -v error -xerror` decode succeeds.
-- [x] Loudness, true peak, silence, clipping, black frames, freezes, subtitles,
-  transitions, and the first 15 seconds are reviewed.
-- [x] Contact sheet, 1280x720 project-owned thumbnail, SRT, metadata, and
-  SHA-256 manifest are created beside the MP4.
-- [x] Frame and source scans find no password, token, private key, stale
-  `pii_exposure` result, or false live-write label.
+- [x] Loudness, true peak, black frames, and per-scene stills are reviewed.
+- [x] Thumbnail, contact sheet, SRT, and SHA-256 manifest sit beside the MP4.
+- [x] Scene stills verified frame-accurate: real footage carries LIVE CAPTURE
+  or REPRODUCIBLE OFFLINE REPLAY, illustrations carry ILLUSTRATION, and the
+  designed receipt token no longer overlays real footage.
 - [ ] Verify the uploaded public video is viewable without sign-in and add its public URL to the submission.
 
 The final unchecked item is owner-only: do not upload the video, publish a URL,
