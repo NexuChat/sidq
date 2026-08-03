@@ -2,8 +2,8 @@
 
 The verified upload candidate is
 `/home/dev/sidq-video/artifacts/video/sidq-final-en.mp4`. Its SHA-256 is
-`eb66fb49c5e0f9886c383d7392da5bc5e8b59e819f7664f20daf1d76cb56749c`,
-its exact size is 18,354,994 bytes, and its container duration is
+`53b332cf3baa702880a29d3dc6ab76235e3d6d23d819a148aa3fcf8b49460343`,
+its exact size is 19,269,496 bytes, and its container duration is
 169.920 seconds — safely under three minutes. It is **not yet a submission
 artifact** because the public upload gate remains owner-only. It supersedes
 three earlier cuts preserved beside it (the 2026-08-02 film, the 2026-08-03
@@ -23,15 +23,20 @@ Six captures and one real UI still are pinned by content hash under
 `public/v5/` (film repository) with a provenance file each — command, evidence
 boundary, truth label, SHA-256:
 
+Every capture was retaken in a 2026-08-03 evening legibility pass after owner
+review: terminal takes at xterm font size 22 in a 104×21 window that fills the
+frame (long lines wrap honestly instead of leaving it), browser takes at
+device scale 1.25–1.3 so the pages fill the frame.
+
 | Capture | What it shows | Label |
 |---|---|---|
-| `cli-audit.mp4` (39.7 s) | `sidq audit --via-mcp --budget 4` against the live catalog — the sample being examined, ranked worst-consequence first | LIVE CAPTURE |
+| `cli-audit.mp4` (39.0 s) | `sidq audit --via-mcp --budget 4` against the live catalog — the sample being examined, ranked worst-consequence first | LIVE CAPTURE |
 | `cli-gate.mp4` (7.6 s) | `make gate-demo` re-deriving the committed `BLOCK`, byte-identical | REPRODUCIBLE OFFLINE REPLAY |
-| `web-pr.mp4` (22.9 s) | A signed-out browser on the public sealed thread `github.com/NexuChat/sidq/pull/2`: the bot verdict, evidence expanded by real clicks, the reproducibility hash | LIVE CAPTURE |
-| `web-console.mp4` (30.2 s) | One continuous session on `sidq.mlki.app`: the contradiction, the refusal, then one real run with server output | LIVE CAPTURE |
+| `web-pr.mp4` (22.9 s) | A signed-out browser on the public sealed thread `github.com/NexuChat/sidq/pull/2`: the bot verdict, evidence expanded by real clicks, the final hold on the reproducibility block | LIVE CAPTURE |
+| `web-console.mp4` (25.9 s) | One continuous session on `sidq.mlki.app`: the contradiction, the refusal, then one real handoff run to its server output | LIVE CAPTURE |
 | `datahub-receipt-ui.png` | The persisted receipt inside the DataHub UI: structured properties, policy hash, evidence link, verified tag | LIVE CAPTURE |
-| `cli-verify.mp4` (10.0 s) | `sidq verify` reading the persisted receipt: `CURRENT RECEIPT · PASS · CONTINUE` | LIVE CAPTURE |
-| `cli-agent.mp4` (15.2 s) | The same agent twice in one take: blind it writes SQL; with Sidq's three read-only tools it refuses and prints its reasons | LIVE CAPTURE |
+| `cli-verify.mp4` (9.9 s) | `sidq verify` reading the persisted receipt: `CURRENT RECEIPT · PASS · CONTINUE` | LIVE CAPTURE |
+| `cli-agent.mp4` (15.3 s) | The same agent twice in one take: blind it writes SQL; with Sidq's three read-only tools it refuses and prints its reasons | LIVE CAPTURE |
 
 The narrative answers why / what / when / how / who: chapter 1 audits the
 shipped sample (why checking is needed), chapter 2 gates the change and ends
@@ -59,7 +64,7 @@ fails the contract suite.
   which host answered — the deployed console and the public GitHub thread.
 - No capture is cut to hide waiting. Where a run is longer than its scene the
   speed change is declared as a playback rate (audit ×1.45, pull-request
-  session ×1.4, console ×1.26, verify ×0.95; the gate replay and the agent
+  session ×1.4, console ×1.05, verify ×0.95; the gate replay and the agent
   take play at natural speed, with 1.2 s of leading dead air trimmed from the
   gate take), and the final frame is then held so the output stays readable —
   a hold, not an edit.
@@ -85,8 +90,8 @@ fails the contract suite.
 
 ## Verified artifact
 
-- SHA-256: `eb66fb49c5e0f9886c383d7392da5bc5e8b59e819f7664f20daf1d76cb56749c`;
-  exact size 18,354,994 bytes.
+- SHA-256: `53b332cf3baa702880a29d3dc6ab76235e3d6d23d819a148aa3fcf8b49460343`;
+  exact size 19,269,496 bytes.
 - Container duration: 169.920 seconds; 5,096 frames / 169.866667 seconds of
   authored video at 30 fps, 1920x1080, H.264 High, yuv420p, BT.709.
 - Audio: AAC-LC stereo at 48 kHz; narration only; measured at −16.2 LUFS
