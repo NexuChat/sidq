@@ -2,8 +2,8 @@
 
 The verified upload candidate is
 `/home/dev/sidq-video/artifacts/video/sidq-final-en.mp4`. Its SHA-256 is
-`a842b49236a9eae12f5942106c5759d8d46c68efb6529abd71732379334bc6cc`,
-its exact size is 20,022,748 bytes, and its container duration is
+`8c7e1b0ddd5cb9c13d93596c7b20d9853f506e91ceaaf6ec168b4a53287f9f9c`,
+its exact size is 42,117,064 bytes, and its container duration is
 169.920 seconds — safely under three minutes. It is **not yet a submission
 artifact** because the public upload gate remains owner-only. It supersedes
 three earlier cuts preserved beside it (the 2026-08-02 film, the 2026-08-03
@@ -71,7 +71,10 @@ fails the contract suite.
   the gate replay and the agent take play at natural speed. Every terminal
   take has its sub-two-second window-open dead air trimmed, and each
   segment's final frame is then held so the output stays readable — a hold,
-  not an edit.
+  not an edit. Held frames carry a slow declared push (a designed zoom of a
+  real frame, never a content change), lower-third phrase chips are
+  transient so no footage line stays covered, and a two-and-a-half-second
+  title card opens the film over the first dimmed seconds of the live take.
 - The receipt read on screen consumes a receipt persisted in DataHub before
   recording. The receipt write itself is described, never depicted as
   occurring, and is not presented as a live mutation. The DataHub-UI still is a real screenshot of
@@ -96,8 +99,8 @@ fails the contract suite.
 
 ## Verified artifact
 
-- SHA-256: `a842b49236a9eae12f5942106c5759d8d46c68efb6529abd71732379334bc6cc`;
-  exact size 20,022,748 bytes.
+- SHA-256: `8c7e1b0ddd5cb9c13d93596c7b20d9853f506e91ceaaf6ec168b4a53287f9f9c`;
+  exact size 42,117,064 bytes.
 - Container duration: 169.920 seconds; 5,096 frames / 169.866667 seconds of
   authored video at 30 fps, 1920x1080, H.264 High, yuv420p, BT.709.
 - Audio: AAC-LC stereo at 48 kHz; narration only; measured at −16.2 LUFS
