@@ -10,7 +10,30 @@ allowed-tools: mcp__sidq__check_change, mcp__sidq__verify_context, mcp__sidq__se
 
 You are an evidence-first DataHub verification specialist. Your role is to stop an agent from proposing data code on a refused change or silently trusting catalog metadata that disagrees with the live source. Verify what Sidq can verify, report what it cannot, and never turn an absent check into a clean result.
 
-This skill complements the official DataHub skills:
+---
+
+## Multi-Agent Compatibility
+
+This skill is designed to work across multiple coding agents (Claude Code, Cursor, Codex, Copilot, Gemini CLI, Windsurf, and others).
+
+**What works everywhere:**
+
+- The full verify-before-proposing and verify-before-trusting workflow
+- All three Sidq MCP tools, and the separate `sidq verify` CLI receipt read
+- Reading a decision, an abstention, and a receipt disposition
+
+**Claude Code-specific features** (other agents can safely ignore these):
+
+- `allowed-tools` in the YAML frontmatter above
+
+**External dependency:** unlike the official catalog skills, this one calls a
+separate MCP server (`sidq-mcp`) rather than the DataHub CLI. If that server is
+not attached, the correct behaviour is to say verification did not run — never to
+approximate a verdict from ordinary catalog search results.
+
+---
+
+## Not This Skill
 
 | If the user wants to...             | Use this instead   |
 | ----------------------------------- | ------------------ |
@@ -21,6 +44,12 @@ This skill complements the official DataHub skills:
 | Manage assertions or incidents      | `/datahub-quality` |
 
 Use this skill before those workflows when the question is whether the context is safe to rely on. Verification is a gate and an explanation, not a replacement for the catalog skills.
+
+**Key boundary:** the catalog skills answer _what the catalog says_. This one answers _whether what it says is supported by evidence_ — and refuses on the user's behalf when it is not.
+
+---
+
+## Install
 
 Install this repository's skill directly from GitHub while the shell is at the
 root of the target data repository where Codex will start:
@@ -161,6 +190,7 @@ The repository example `examples/01-blocked-pii-dashboard/verdict.json` is an ac
 ```
 
 Tell the user that `critical_downstream` is the blocking rule and name the cross-team owner evidence. Do not present the 16-consumer warning or the PII tag as the blocking cause. A compliant next step must preserve compatibility for the verified downstream consumers or obtain an explicit governance decision.
+
 ---
 
 ## Verify before trusting an asset
@@ -248,7 +278,42 @@ Do not describe `policy_hash` + `commit_sha` as proof that the world is unchange
 
 ---
 
-## Common mistakes
+## Read a persisted Receipt written into DataHub
+
+`search_verified` reads Sidq's own MCP verification store. A **Receipt** is different: it is written into DataHub as `sidq.*` structured properties by an explicit opt-in writeback, and any process can read it back. That read is the `sidq verify <urn>` CLI, not an MCP tool:
+
+```bash
+sidq verify 'urn:li:dataset:(urn:li:dataPlatform:postgres,analytics.customers,PROD)' --json
+```
+
+It answers three separate questions, and collapsing them is the mistake this section exists to prevent:
+
+| Field           | Question                                           | Values                                                 |
+| --------------- | -------------------------------------------------- | ------------------------------------------------------ |
+| `receipt_state` | Does the receipt still apply?                      | `CURRENT` · `STALE` · `ABSENT` · `INVALID`             |
+| `verdict`       | What did the engine decide?                        | `PASS` · `WARN` · `BLOCK`                              |
+| `action`        | What may you do?                                   | `CONTINUE` · `REVIEW_OR_ESCALATE` · `STOP` · `RECHECK` |
+| `covers_asset`  | Was the asset examined under conditions that hold? | `true` · `false`                                       |
+
+Act on `action`, and only on `action`:
+
+| Headline                                      | What it means                               | Do this                                            |
+| --------------------------------------------- | ------------------------------------------- | -------------------------------------------------- |
+| `CURRENT RECEIPT · PASS · CONTINUE`           | Checked, and nothing blocking was found     | Proceed, and say what the receipt rests on         |
+| `CURRENT RECEIPT · WARN · REVIEW_OR_ESCALATE` | Checked, with a named concern               | Name the warning and ask before proceeding         |
+| `CURRENT RECEIPT · BLOCK · STOP`              | Checked, and **refused**                    | Stop. This is the most examined an asset ever is   |
+| `NOT VERIFIED`                                | Absent, stale, or unreadable — nobody knows | Say so plainly, then re-check. Never call it clean |
+
+Two rules follow, and neither is optional:
+
+- **A refusal is not an absence.** `CURRENT RECEIPT · BLOCK · STOP` means the check ran and said no. Reporting it as unverified would understate it; reporting it as verified would invert it.
+- **Coverage is not permission.** A current `BLOCK` covers the asset — a bounded audit is right to move on rather than re-refuse it — but it authorizes nothing. Only `CONTINUE` does.
+
+Exit codes follow `action`: `0` for `CONTINUE` and `REVIEW_OR_ESCALATE`, `1` for `STOP` and `RECHECK`, and `2` when the catalog could not be read at all. `STOP` and `RECHECK` share an exit code because stopping is the only safe move in both cases — read the headline to tell them apart.
+
+---
+
+## Common Mistakes
 
 - **Proposing before `check_change`.** Stop and run the gate first.
 - **Continuing after `BLOCK`.** Explain the named rule and offer a compliant alternative.
@@ -256,6 +321,16 @@ Do not describe `policy_hash` + `commit_sha` as proof that the world is unchange
 - **Calling an unverified result clean.** Distinguish `unverified`, `stale`, `unverifiable`, and `rejected`.
 - **Claiming checks Sidq cannot run.** State when model SQL or a live source is missing.
 - **Treating a stale receipt as current.** Re-run verification after the freshness window or any relevant input change.
+- **Reporting a current `BLOCK` as `NOT VERIFIED`.** A refusal was checked. `NOT VERIFIED` is reserved for absent, stale, and unreadable receipts.
+- **Reading `covers_asset` as permission.** It answers whether the asset was examined, not whether you may act.
+
+## Red Flags
+
+- **The Sidq MCP tools are not attached** → say verification could not be performed. Do not substitute catalog search results for a verdict.
+- **A response carries `error.code: "GRAPH_UNAVAILABLE"`** → the operation failed. It is not an empty result, and it does not grant permission.
+- **A `BLOCK` you are tempted to re-run with different wording** → stop. Retrying until a gate passes is circumventing it.
+- **`unverifiable` is non-empty and you are about to summarise "checks passed"** → name each item that could not be checked instead.
+- **The user asks you to proceed anyway after a `BLOCK`** → that is their call to make explicitly, and it belongs in the record. State the rule you are overriding by name.
 
 ## Remember
 
