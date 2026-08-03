@@ -26,9 +26,14 @@ class _StaticAssetParser(HTMLParser):
         self.references: list[str] = []
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        del tag
         for name, value in attrs:
             if name in {"href", "src"} and value is not None:
+                self.references.append(value)
+            # og:image / twitter:image name an asset this origin must serve, but
+            # they do it with an ABSOLUTE url in a meta content attribute. A
+            # href/src-only scan cannot see them, and an allowlist derived from
+            # such a scan silently 404s the link preview.
+            elif tag == "meta" and name == "content" and value is not None:
                 self.references.append(value)
 
 
@@ -1160,6 +1165,7 @@ def test_landing_uses_a_hardened_external_script_and_progress_text() -> None:
     assert "setInterval" in script and "elapsed" in script
     assert "textContent" in script
     assert "innerHTML" not in script
+    assert '<span id="release-identity">Release: unavailable</span>' in html
     assert f'<link rel="stylesheet" href="styles.css?v={styles_version}">' in html
     assert "<style" not in html
     assert "style=" not in html
@@ -1196,6 +1202,73 @@ def test_landing_external_static_assets_are_content_addressed() -> None:
 
         assert version == [expected], reference
         assert re.fullmatch(r"[0-9a-f]{16}", version[0])
+
+
+def test_static_serving_is_allowlisted_and_keeps_landing_assets_reachable() -> None:
+    from web import server
+
+    web_root = ROOT / "web"
+    parser = _StaticAssetParser()
+    parser.feed((web_root / "index.html").read_text(encoding="utf-8"))
+    # Same-origin means either a relative reference or an absolute one pointing at
+    # the public host; both oblige this server to serve the file.
+    public_hosts = {"sidq.mlki.app"}
+    referenced_assets = set()
+    for reference in parser.references:
+        split = urlsplit(reference)
+        if split.scheme in {"data", "mailto"}:
+            continue
+        if split.netloc and split.netloc not in public_hosts:
+            continue
+        candidate = split.path.lstrip("/")
+        if candidate and (web_root / candidate).is_file():
+            referenced_assets.add("/" + candidate)
+
+    assert referenced_assets == {
+        "/app.js",
+        "/architecture.svg",
+        "/social-preview.png",
+        "/styles.css",
+    }
+    assert server.PUBLIC_ASSET_PATHS == referenced_assets | {"/", "/index.html"}
+
+    with server.Server(("127.0.0.1", 0), server.Handler) as service:
+        thread = threading.Thread(target=service.serve_forever, daemon=True)
+        thread.start()
+        try:
+            for path in server.PUBLIC_ASSET_PATHS:
+                connection = http.client.HTTPConnection(*service.server_address, timeout=2)
+                try:
+                    connection.request("GET", path)
+                    response = connection.getresponse()
+                    response.read()
+                finally:
+                    connection.close()
+                assert response.status == 200, path
+
+            for path in (
+                "/server.py",
+                "/other.py",
+                "/__pycache__/",
+                "/__pycache__/server.cpython-312.pyc",
+                "/.gitignore",
+                "/__pycache__",
+                "/../",
+                "/%2e%2e",
+                "/..%2f",
+                "//etc/passwd",
+            ):
+                connection = http.client.HTTPConnection(*service.server_address, timeout=2)
+                try:
+                    connection.request("GET", path)
+                    response = connection.getresponse()
+                    response.read()
+                finally:
+                    connection.close()
+                assert response.status == 404, path
+        finally:
+            service.shutdown()
+            thread.join(timeout=2)
 
 
 def test_deployment_keeps_raw_services_local_and_secrets_out_of_units() -> None:

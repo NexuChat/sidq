@@ -29,6 +29,7 @@ import ipaddress
 import json
 import math
 import os
+import posixpath
 import re
 import secrets
 import shlex
@@ -46,6 +47,20 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 REPO = ROOT.parent
+PUBLIC_ASSET_PATHS = frozenset(
+    {
+        "/",
+        "/app.js",
+        "/architecture.svg",
+        "/index.html",
+        # Referenced by og:image and twitter:image as an ABSOLUTE url, so it does
+        # not appear in a relative href/src scan. Omitting it breaks the link
+        # preview wherever the demo url is shared. social-preview.svg is the
+        # generation source and is deliberately NOT public.
+        "/social-preview.png",
+        "/styles.css",
+    }
+)
 VENV_ROOT = Path(os.environ.get("SIDQ_VENV_DIR", str(REPO / ".venv")))
 VENV = VENV_ROOT / "bin"
 RUNTIME = Path(os.environ.get("SIDQ_RUNTIME_DIR", str(REPO)))
@@ -186,6 +201,22 @@ _INTERNAL_URL_RE = re.compile(
 )
 _RELEASE_SHA_RE = re.compile(r"[0-9a-fA-F]{40}\Z")
 _RELEASES_ROOT = Path("/opt/sidq/releases")
+
+
+def _normalised_static_path(request_target: str) -> str | None:
+    """Return a safe, normalised origin-form path, or reject the request."""
+    parsed = urllib.parse.urlsplit(request_target)
+    if parsed.scheme or parsed.netloc:
+        return None
+    try:
+        path = urllib.parse.unquote(parsed.path, errors="surrogatepass")
+    except UnicodeDecodeError:
+        path = urllib.parse.unquote(parsed.path)
+    if not path.startswith("/"):
+        return None
+    if any(part in (".", "..") for part in path.split("/")):
+        return None
+    return posixpath.normpath(path)
 
 
 def _truncate_output(output: str) -> str:
@@ -823,6 +854,19 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             )
             return
         super().do_GET()
+
+    def send_head(self):
+        """Serve only landing-page assets, retaining stdlib path containment."""
+        path = _normalised_static_path(self.path)
+        if path not in PUBLIC_ASSET_PATHS:
+            self.send_error(404, "File not found")
+            return None
+        return super().send_head()
+
+    def list_directory(self, path: str):
+        del path
+        self.send_error(404, "Directory listing disabled")
+        return None
 
     def do_HEAD(self) -> None:
         if self._redirect_forwarded_http():

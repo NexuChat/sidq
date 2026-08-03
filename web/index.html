@@ -416,7 +416,7 @@ SIDQ_REPO_ROOT = "/absolute/path/to/data-repository"</code></pre>
           </div>
           <div class="qa">
             <dt>Reliability</dt>
-            <dd><strong>Byte-identical verdicts.</strong> Same input + policy ⇒ same output, pinned by <code>policy_hash</code> and <code>commit_sha</code>. A CI-enforced suite guards the headline reproducibility claims — re-derive and compare, don't trust.</dd>
+            <dd><strong>Byte-identical verdicts.</strong> Same captured diff, graph snapshot, policy, configuration, code revision, and canonical serialization ⇒ same output. A CI-enforced suite guards the headline reproducibility claims — re-derive and compare, don't trust.</dd>
           </div>
           <div class="qa">
             <dt>Model drift</dt>
@@ -461,7 +461,7 @@ SIDQ_REPO_ROOT = "/absolute/path/to/data-repository"</code></pre>
     <footer class="shell">
       <span>Sidq / DataHub-native context verification</span>
       <span>One catalog. Many agents. No blind trust.</span>
-      <span id="release-identity">Release: checking…</span>
+      <span id="release-identity">Release: unavailable</span>
     </footer>
 
     <script src="app.js?v=54c62c820693bd74" defer></script>
