@@ -2,10 +2,8 @@
 
 [![CI](https://github.com/NexuChat/sidq/actions/workflows/ci.yml/badge.svg)](https://github.com/NexuChat/sidq/actions/workflows/ci.yml)
 
-> **Sidq** (صِدق) is Arabic for *truthfulness* — saying only what you have
-> verified. Agents read metadata graphs before they act. Sidq asks whether that
-> context is supported by evidence, and can stop an agent before it builds on a
-> contradiction.
+> Agents read metadata graphs before they act. Sidq asks whether that context is
+> supported by evidence, and can stop an agent before it builds on a contradiction.
 
 **Submission film:** real footage in five of six chapters — the live catalog
 audit, the committed `BLOCK` replay ending on the public sealed PR thread, the
@@ -21,6 +19,21 @@ Contributions are welcome under [`CONTRIBUTING.md`](CONTRIBUTING.md) and the
 ![How Sidq decides: a change or agent question passes five evidence gates, one policy engine emits PASS, WARN or BLOCK, and optional writeback records current receipt values in DataHub as shared current state.](docs/architecture.svg)
 
 Sidq is a DataHub-native verification layer for agents and data-code changes. It checks whether catalog context is truthful before an agent relies on it, then applies an explicit policy and leaves evidence that the next agent can read.
+
+## Why the name
+
+**صِدق** — *sidq* — is the Arabic word for truthfulness. Not honesty as a
+sentiment: the discipline of saying only what you can stand behind.
+
+The tool is named after the rule it enforces. A check that could not complete
+is never reported as clean. A receipt never claims more than the evidence
+inside it. A reader that cannot re-verify a receipt says `NOT VERIFIED` and
+fails closed. An agent that cannot confirm the catalog refuses to build on it.
+Every one of those behaviors is the same single idea, and Arabic has one word
+for it.
+
+That is also why the name is the correct kind of untranslatable: a judge who
+asks what "Sidq" means gets the entire design philosophy in the answer.
 
 ## Install and connect
 

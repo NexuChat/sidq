@@ -48,10 +48,16 @@ documentation.
 - Dependency and local setup: [`docs/SETUP.md`](SETUP.md)
 - Third-party data provenance: [`data/claims/ATTRIBUTION.md`](../data/claims/ATTRIBUTION.md)
 
-## What it does
+## Why the name
 
-The name is Arabic: *sidq* (صِدق) means truthfulness — saying only what you have
-verified. That is also the design rule the tool never breaks.
+**صِدق** — *sidq* — is the Arabic word for truthfulness: the discipline of
+saying only what you can stand behind. The tool is named after the rule it
+enforces — a check that could not complete is never reported as clean, a
+receipt never claims more than the evidence inside it, and an agent that
+cannot confirm the catalog refuses to build on it. The name is the
+specification.
+
+## What it does
 
 Sidq is a DataHub-native verification layer for data-code changes and agents. It
 asks whether catalog context is truthful before an agent relies on it.
