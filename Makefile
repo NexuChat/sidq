@@ -91,12 +91,14 @@ lock:
 regen: | $(VENV)/.sidq-dev-lock $(BENCH_VENV)/.sidq-bench-lock
 	$(VENV)/bin/python scripts/regenerate_example_01.py
 	$(VENV)/bin/python scripts/measure_reconcile.py
+	$(VENV)/bin/python scripts/datasheet_stats.py
 	$(BENCH_VENV)/bin/python scripts/train_preflight.py
 	$(BENCH_VENV)/bin/python scripts/eval_preflight.py
 
 regen-check: | $(VENV)/.sidq-dev-lock $(BENCH_VENV)/.sidq-bench-lock
 	$(VENV)/bin/python scripts/regenerate_example_01.py --check
 	$(VENV)/bin/python scripts/measure_reconcile.py --check
+	$(VENV)/bin/python scripts/datasheet_stats.py --check
 	$(BENCH_VENV)/bin/python scripts/train_preflight.py --check
 	$(BENCH_VENV)/bin/python scripts/eval_preflight.py --check
 
