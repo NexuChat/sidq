@@ -91,7 +91,9 @@ def test_a_failed_readback_is_not_confused_with_a_failed_verification(
     monkeypatch.setattr("sidq.cli.StdioMCPToolCaller", _Broken)
     monkeypatch.setattr(
         "sidq.cli.StdioMCPReceiptToolCaller",
-        lambda: pytest.fail("verify must not start a mutation-enabled MCP transport"),
+        lambda *args, **kwargs: pytest.fail(
+            "verify must not start a mutation-enabled MCP transport"
+        ),
     )
 
     assert main(["verify", _URN]) == 2
@@ -111,7 +113,9 @@ def test_verify_exits_one_when_the_asset_has_no_receipt(
     monkeypatch.setattr("sidq.cli.StdioMCPToolCaller", _Empty)
     monkeypatch.setattr(
         "sidq.cli.StdioMCPReceiptToolCaller",
-        lambda: pytest.fail("verify must not start a mutation-enabled MCP transport"),
+        lambda *args, **kwargs: pytest.fail(
+            "verify must not start a mutation-enabled MCP transport"
+        ),
     )
 
     assert main(["verify", _URN]) == 1

@@ -187,6 +187,14 @@ def _closure(
     )
 
 
+# Every tool a proposal can name, and therefore everything `apply_repairs` can
+# ever dispatch: `_write_tool` produces the first two, `_propose_owner` the
+# third, and no other function in this module constructs a Proposal. A repair
+# transport is given exactly this and nothing else — notably not
+# `save_document` or the structured-property tools, which belong to receipts.
+REPAIR_TOOLS = frozenset({"add_tags", "add_terms", "add_owners"})
+
+
 def _write_tool(markers: Sequence[str]) -> tuple[str | None, str]:
     """Which official MCP tool writes this marker back, by what the marker *is*.
 

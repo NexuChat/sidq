@@ -36,26 +36,77 @@ _MANAGED_BADGES = frozenset(_BADGE_BY_VERDICT.values())
 _SIDQ_PROPERTY_PREFIX = "urn:li:structuredProperty:sidq."
 _URN_WRITE_LOCKS = tuple(threading.Lock() for _ in range(64))
 
+# The two tools every receipt-shaped caller needs to read what it is about to
+# decide on: the entity aspects themselves (`_single_entity` below, plus
+# `read.py`) and the one-hop lineage that `decision_context_hash` folds into the
+# context hash. Consuming a receipt needs nothing else.
+RECEIPT_READ_TOOLS = frozenset({"get_entities", "get_lineage"})
+
+# Exactly the mutations `write_receipt` and its rollback issue, and nothing
+# more: the evidence document, the managed verdict badge, and Sidq's own
+# structured properties. `add_terms` and `add_owners` are absent because no
+# receipt path calls them — that absence is the point.
+RECEIPT_TOOLS = RECEIPT_READ_TOOLS | frozenset(
+    {
+        "save_document",
+        "add_tags",
+        "remove_tags",
+        "add_structured_properties",
+        "remove_structured_properties",
+    }
+)
+
 
 class ReceiptWriteUnconfirmed(RuntimeError):
     """The mutations returned, but the exact receipt was not readable in time."""
+
+
+class ToolNotAllowed(PermissionError):
+    """A tool name outside the allowlist this caller was constructed with."""
 
 
 class StdioMCPReceiptToolCaller:
     """A synchronous caller for the official MCP server with mutations enabled.
 
     This is deliberately receipt-local: the graph reader owns a read-only
-    session, while this boundary advertises the narrow write privilege required
-    to persist Sidq's own receipt namespace and badges.
+    session, while this boundary runs a child with mutations enabled. That
+    privilege is bounded by ``allowed_tools``, a **required** constructor
+    argument — the class cannot be built without one, because a permissive
+    default is precisely how such a boundary silently reopens. Anything not on
+    the list raises :class:`ToolNotAllowed` in the calling thread, before the
+    MCP session is started or a request is queued, so a rejected tool name
+    never reaches the subprocess.
+
+    The allowlist constrains the *object*: which tools this session may invoke
+    at all. It is orthogonal to, and does not replace, the data-level limits
+    that keep the receipt payload inside Sidq's namespace (``_MANAGED_BADGES``
+    here, ``property_urn`` in ``bootstrap.py``).
+
+    Callers pass one of the sets derived from the paths they actually drive:
+    ``RECEIPT_READ_TOOLS``, ``RECEIPT_TOOLS``, or ``sidq.repair.REPAIR_TOOLS``.
     """
 
     def __init__(
         self,
+        allowed_tools: frozenset[str],
         command: str = "mcp-server-datahub",
         *,
         args: tuple[str, ...] = (),
         gms_url: str | None = None,
     ) -> None:
+        # A ``frozenset`` specifically: a mutable set would let any holder of a
+        # reference widen this caller's privilege after construction, which is
+        # the same fail-open hole one indirection further out.
+        if not isinstance(allowed_tools, frozenset):
+            raise TypeError(
+                "allowed_tools must be a frozenset of tool names, not "
+                f"{type(allowed_tools).__name__}"
+            )
+        if not allowed_tools or not all(
+            isinstance(name, str) and name for name in allowed_tools
+        ):
+            raise ValueError("allowed_tools must be a non-empty set of tool names")
+        self._allowed_tools = allowed_tools
         self._command = command
         self._args = args
         self._gms_url = gms_url or os.environ.get(
@@ -66,6 +117,11 @@ class StdioMCPReceiptToolCaller:
         ] = queue.Queue()
         self._thread: threading.Thread | None = None
         self._startup: Future[None] = Future()
+
+    @property
+    def allowed_tools(self) -> frozenset[str]:
+        """The tools this caller may invoke. Read-only by construction."""
+        return self._allowed_tools
 
     def __call__(self, name: str, arguments: Mapping[str, Any]) -> Any:
         return self._call(name, arguments, deadline=None)
@@ -81,6 +137,13 @@ class StdioMCPReceiptToolCaller:
     def _call(
         self, name: str, arguments: Mapping[str, Any], *, deadline: float | None
     ) -> Any:
+        # First statement on the only path to ``session.call_tool``: refuse
+        # here, in the calling thread, before a transport exists to carry it.
+        if name not in self._allowed_tools:
+            raise ToolNotAllowed(
+                f"tool {name!r} is not permitted by this caller; allowed tools: "
+                + ", ".join(sorted(self._allowed_tools))
+            )
         if self._thread is None:
             self._thread = threading.Thread(
                 target=self._run, name="sidq-receipt-mcp", daemon=True

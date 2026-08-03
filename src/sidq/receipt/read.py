@@ -30,9 +30,12 @@ def get_verification_status(
 
     owns_caller = tool_caller is None
     if tool_caller is None:
-        from .write import StdioMCPReceiptToolCaller
+        from .write import RECEIPT_READ_TOOLS, StdioMCPReceiptToolCaller
 
-        tool_caller = StdioMCPReceiptToolCaller()
+        # Consuming a receipt reads; it never writes. This transport is given
+        # the read tools only, so the mutation-enabled child it starts cannot
+        # be used to change anything.
+        tool_caller = StdioMCPReceiptToolCaller(RECEIPT_READ_TOOLS)
     try:
         entity = _single_entity(tool_caller("get_entities", {"urns": [urn]}), urn)
         recorded_context_hash = _one(_sidq_values(entity), "context_hash")

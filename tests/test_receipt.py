@@ -6,7 +6,7 @@ import re
 import sys
 import threading
 import time
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from concurrent.futures import Future
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -36,13 +36,17 @@ from sidq.receipt.read import (
     get_verification_statuses,
 )
 from sidq.receipt.write import (
+    RECEIPT_READ_TOOLS,
+    RECEIPT_TOOLS,
     ReceiptWriteUnconfirmed,
     StdioMCPReceiptToolCaller,
+    ToolNotAllowed,
     _document_reference,
     _mcp_subprocess_environment,
     write_receipt,
 )
 from sidq.receipt.write import _managed_badges as _parsed_managed_badges
+from sidq.repair import REPAIR_TOOLS
 from sidq.serialization import canonical_json
 
 URN = "urn:li:dataset:(urn:li:dataPlatform:postgres,sidq.receipt.test,DEV)"
@@ -1804,7 +1808,7 @@ class _ImmediateQueue:
 
 
 def test_receipt_stdio_caller_returns_tool_result_and_closes(monkeypatch) -> None:
-    caller = StdioMCPReceiptToolCaller()
+    caller = StdioMCPReceiptToolCaller(RECEIPT_TOOLS)
     caller._requests = _ImmediateQueue()  # type: ignore[assignment]
     monkeypatch.setattr("sidq.receipt.write.threading.Thread", _ImmediateThread)
     monkeypatch.setattr(caller, "_run", lambda: caller._startup.set_result(None))
@@ -1842,7 +1846,7 @@ def test_mutating_mcp_subprocess_environment_is_closed(monkeypatch, tmp_path) ->
 
 
 def test_receipt_stdio_uses_and_removes_a_private_temporary_home(monkeypatch) -> None:
-    caller = StdioMCPReceiptToolCaller()
+    caller = StdioMCPReceiptToolCaller(RECEIPT_TOOLS)
     captured_homes: list[Path] = []
 
     class _Session:
@@ -1882,7 +1886,7 @@ def test_receipt_stdio_uses_and_removes_a_private_temporary_home(monkeypatch) ->
 
 
 def test_receipt_stdio_startup_timeout_is_relayed(monkeypatch) -> None:
-    caller = StdioMCPReceiptToolCaller()
+    caller = StdioMCPReceiptToolCaller(RECEIPT_TOOLS)
 
     class _AnyIO:
         @staticmethod
@@ -1897,7 +1901,7 @@ def test_receipt_stdio_startup_timeout_is_relayed(monkeypatch) -> None:
 
 
 def test_receipt_stdio_bounded_request_times_out_during_startup(monkeypatch) -> None:
-    caller = StdioMCPReceiptToolCaller()
+    caller = StdioMCPReceiptToolCaller(RECEIPT_TOOLS)
     entered = threading.Event()
     release = threading.Event()
 
@@ -1941,7 +1945,7 @@ class _MCPResponse:
 def test_receipt_stdio_bounded_request_times_out_without_poisoning_session(
     monkeypatch,
 ) -> None:
-    caller = StdioMCPReceiptToolCaller()
+    caller = StdioMCPReceiptToolCaller(frozenset({"first", "second"}))
 
     class _Session:
         def __init__(self, read: object, write: object) -> None:
@@ -1982,7 +1986,7 @@ def test_receipt_stdio_bounded_request_times_out_without_poisoning_session(
 
 
 def test_receipt_stdio_bounded_request_expires_while_queued(monkeypatch) -> None:
-    caller = StdioMCPReceiptToolCaller()
+    caller = StdioMCPReceiptToolCaller(frozenset({"first", "second", "third"}))
     first_entered = threading.Event()
     release_first = threading.Event()
     calls: list[str] = []
@@ -2057,7 +2061,7 @@ def test_receipt_stdio_bounded_request_expires_while_queued(monkeypatch) -> None
 def test_receipt_stdio_caller_rejects_malformed_or_error_mcp_responses(
     monkeypatch, response: _MCPResponse, exception: type[Exception]
 ) -> None:
-    caller = StdioMCPReceiptToolCaller()
+    caller = StdioMCPReceiptToolCaller(RECEIPT_TOOLS)
     result: Future[object] = Future()
     requests = [("add_tags", {}, result, None), None]
 
@@ -2097,6 +2101,192 @@ def test_receipt_stdio_caller_rejects_malformed_or_error_mcp_responses(
 
     with pytest.raises(exception):
         result.result()
+
+
+def _guarded_caller(
+    monkeypatch,
+    allowed_tools: frozenset[str],
+    respond: Callable[[str, dict[str, Any]], Any] | None = None,
+) -> tuple[StdioMCPReceiptToolCaller, list[tuple[str, dict[str, Any]]]]:
+    """A real allowlisted transport whose MCP session records what reaches it.
+
+    The recording is the point: a refusal must be observable as *nothing
+    dispatched*, not merely as an exception raised somewhere downstream of a
+    call that already left the process.
+    """
+
+    dispatched: list[tuple[str, dict[str, Any]]] = []
+
+    class _Session:
+        def __init__(self, read: object, write: object) -> None:
+            pass
+
+        async def initialize(self) -> None:
+            return None
+
+        async def call_tool(self, name: str, arguments: dict[str, Any]) -> _MCPResponse:
+            dispatched.append((name, arguments))
+            payload = respond(name, arguments) if respond else {"ok": True}
+            return _MCPResponse(json.dumps(payload))
+
+        async def __aenter__(self) -> Self:
+            return self
+
+        async def __aexit__(self, *args: object) -> None:
+            return None
+
+    monkeypatch.setattr(mcp, "ClientSession", _Session)
+    monkeypatch.setattr(
+        mcp.client.stdio,
+        "stdio_client",
+        lambda parameters: _AsyncContext((object(), object())),
+    )
+    monkeypatch.setattr(
+        mcp.client.stdio, "StdioServerParameters", lambda **kwargs: kwargs
+    )
+    return StdioMCPReceiptToolCaller(allowed_tools), dispatched
+
+
+def test_the_write_transport_cannot_be_built_without_an_allowlist() -> None:
+    """The privilege has to be stated at construction, every single time."""
+
+    with pytest.raises(TypeError):
+        StdioMCPReceiptToolCaller()  # type: ignore[call-arg]
+    # A mutable set would let any holder of the reference widen the privilege
+    # after construction, which is the same hole one indirection further out.
+    with pytest.raises(TypeError, match="frozenset"):
+        StdioMCPReceiptToolCaller({"add_tags"})  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="non-empty"):
+        StdioMCPReceiptToolCaller(frozenset())
+
+
+def test_receipt_scoped_transport_refuses_the_repair_tools(monkeypatch) -> None:
+    """A receipt session may not write terms or owners on anyone's assets."""
+
+    caller, dispatched = _guarded_caller(monkeypatch, RECEIPT_TOOLS)
+    try:
+        for tool in ("add_terms", "add_owners"):
+            with pytest.raises(ToolNotAllowed, match=tool):
+                caller(tool, {"entity_urns": [URN]})
+        assert dispatched == []
+        assert caller._thread is None
+
+        # `add_tags` stays reachable because the verdict badge is written with
+        # it; what keeps that write inside Sidq's namespace is the badge URN,
+        # not the tool name.
+        assert caller("add_tags", {"tag_urns": ["urn:li:tag:sidq:verified"]}) == {
+            "ok": True
+        }
+        assert [name for name, _ in dispatched] == ["add_tags"]
+    finally:
+        caller.close()
+
+
+def test_repair_scoped_transport_accepts_only_the_proposal_tools(monkeypatch) -> None:
+    """The repair session gets exactly what `propose` can emit, and no more."""
+
+    caller, dispatched = _guarded_caller(monkeypatch, REPAIR_TOOLS)
+    try:
+        for tool in ("add_tags", "add_terms", "add_owners"):
+            assert caller(tool, {"entity_urns": [URN]}) == {"ok": True}
+        assert [name for name, _ in dispatched] == [
+            "add_tags",
+            "add_terms",
+            "add_owners",
+        ]
+
+        for tool in ("save_document", "add_structured_properties", "remove_tags"):
+            with pytest.raises(ToolNotAllowed, match=tool):
+                caller(tool, {"entity_urns": [URN]})
+        assert len(dispatched) == 3
+    finally:
+        caller.close()
+
+
+def test_an_unknown_tool_never_reaches_the_session_in_any_scope(monkeypatch) -> None:
+    """Fail closed: an unlisted name is refused before a transport exists."""
+
+    for allowed in (RECEIPT_TOOLS, RECEIPT_READ_TOOLS, REPAIR_TOOLS):
+        caller, dispatched = _guarded_caller(monkeypatch, allowed)
+        try:
+            with pytest.raises(ToolNotAllowed, match="delete_entities"):
+                caller("delete_entities", {"urns": [URN]})
+            with pytest.raises(ToolNotAllowed, match="delete_entities"):
+                caller.call_with_timeout("delete_entities", {"urns": [URN]}, timeout=5)
+            assert dispatched == []
+            assert caller._thread is None
+        finally:
+            caller.close()
+
+
+def test_the_receipt_write_path_completes_through_the_allowlisted_transport(
+    monkeypatch,
+) -> None:
+    """Every tool `write_receipt` uses is on the receipt list, in write order."""
+
+    receipt = build_receipt(
+        URN, _verdict(), checked_at=datetime(2026, 8, 2, tzinfo=UTC)
+    )
+    properties: dict[str, list[str]] = {}
+    tags: set[str] = set()
+
+    def respond(name: str, arguments: dict[str, Any]) -> Any:
+        if name == "get_entities":
+            return {
+                "entities": [
+                    {
+                        "urn": URN,
+                        "globalTags": {"tags": [{"tag": {"urn": urn}} for urn in tags]},
+                        "structuredProperties": {
+                            "properties": [
+                                {
+                                    "structuredProperty": {"urn": urn},
+                                    "values": [
+                                        {"stringValue": value} for value in values
+                                    ],
+                                }
+                                for urn, values in properties.items()
+                            ]
+                        },
+                    }
+                ]
+            }
+        if name == "get_lineage":
+            direction = "upstreams" if arguments["upstream"] else "downstreams"
+            return {
+                direction: {
+                    "total": 0,
+                    "returned": 0,
+                    "hasMore": False,
+                    "searchResults": [],
+                }
+            }
+        if name == "add_structured_properties":
+            properties.update(arguments["property_values"])
+        if name == "add_tags":
+            tags.update(arguments["tag_urns"])
+        return {"success": True, "urn": "urn:li:document:sidq-receipt"}
+
+    caller, dispatched = _guarded_caller(monkeypatch, RECEIPT_TOOLS, respond)
+    try:
+        written = write_receipt(receipt, caller)
+    finally:
+        caller.close()
+
+    # Document first, badge second, structured properties last — the order the
+    # allowlist must not disturb — then the direct confirmation read.
+    assert [name for name, _ in dispatched] == [
+        "get_entities",
+        "get_lineage",
+        "get_lineage",
+        "save_document",
+        "add_tags",
+        "add_structured_properties",
+        "get_entities",
+    ]
+    assert {name for name, _ in dispatched} <= RECEIPT_TOOLS
+    assert written["confirmed"] is True
+    assert written["receipt"]["evidence_url"] == "urn:li:document:sidq-receipt"
 
 
 def test_a_stale_transcript_hash_must_be_labelled_historical() -> None:

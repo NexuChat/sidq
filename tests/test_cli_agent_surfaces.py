@@ -21,6 +21,8 @@ from sidq.gates.self_contradiction import (
 from sidq.graph.client import DatasetInfo, SchemaField
 from sidq.mcp_server import server as mcp_server
 from sidq.models import Evidence, Verdict
+from sidq.receipt.write import RECEIPT_TOOLS
+from sidq.repair import REPAIR_TOOLS
 
 URN = "urn:li:dataset:(urn:li:dataPlatform:postgres,warehouse.public.orders,PROD)"
 
@@ -42,7 +44,8 @@ def test_mcp_module_entrypoint_returns_server_status(monkeypatch) -> None:
 
 
 class _Closable:
-    def __init__(self) -> None:
+    def __init__(self, allowed_tools: frozenset[str] | None = None) -> None:
+        self.allowed_tools = allowed_tools
         self.closed = False
 
     def close(self) -> None:
@@ -372,8 +375,8 @@ def test_audit_resumes_writes_receipts_and_names_unreached_failures(
     )
     callers: list[_Closable] = []
 
-    def caller() -> _Closable:
-        created = _Closable()
+    def caller(allowed_tools: frozenset[str]) -> _Closable:
+        created = _Closable(allowed_tools)
         callers.append(created)
         return created
 
@@ -414,6 +417,8 @@ def test_audit_resumes_writes_receipts_and_names_unreached_failures(
     assert "audit http://datahub" in captured.out
     assert "receipt written" in captured.out
     assert len(callers) == 2 and all(item.closed for item in callers)
+    # Both receipt transports are opened with receipt privileges only.
+    assert [item.allowed_tools for item in callers] == [RECEIPT_TOOLS] * 2
 
 
 def test_audit_write_failure_exits_nonzero_without_clean_success(
@@ -436,7 +441,9 @@ def test_audit_write_failure_exits_nonzero_without_clean_success(
     monkeypatch.setattr(cli, "_read_snapshot", lambda arguments: object())
     monkeypatch.setattr(cli, "CatalogAuditor", _Auditor)
     monkeypatch.setattr(cli, "render", lambda run, *, catalog: ["audit clean"])
-    monkeypatch.setattr(cli, "StdioMCPReceiptToolCaller", lambda: transport)
+    monkeypatch.setattr(
+        cli, "StdioMCPReceiptToolCaller", lambda allowed_tools: transport
+    )
     monkeypatch.setattr(cli, "receipts_for", lambda run, *, commit_sha: ["receipt"])
     monkeypatch.setattr(cli, "write_receipts", lambda receipts, caller: [failed])
     monkeypatch.setattr(
@@ -505,7 +512,9 @@ def test_audit_json_names_every_rollback_incomplete_write(
     monkeypatch.setattr(cli, "_read_snapshot", lambda arguments: object())
     monkeypatch.setattr(cli, "CatalogAuditor", _Auditor)
     monkeypatch.setattr(cli, "render", lambda run, *, catalog: ["unused"])
-    monkeypatch.setattr(cli, "StdioMCPReceiptToolCaller", lambda: transport)
+    monkeypatch.setattr(
+        cli, "StdioMCPReceiptToolCaller", lambda allowed_tools: transport
+    )
     monkeypatch.setattr(
         cli,
         "receipts_for",
@@ -576,7 +585,9 @@ def test_audit_json_reports_success_and_zero_eligible_writes(
     monkeypatch.setattr(cli, "_read_snapshot", lambda arguments: object())
     monkeypatch.setattr(cli, "CatalogAuditor", _Auditor)
     monkeypatch.setattr(cli, "render", lambda run, *, catalog: ["unused"])
-    monkeypatch.setattr(cli, "StdioMCPReceiptToolCaller", lambda: transport)
+    monkeypatch.setattr(
+        cli, "StdioMCPReceiptToolCaller", lambda allowed_tools: transport
+    )
     monkeypatch.setattr(cli, "receipts_for", lambda run, *, commit_sha: receipts)
     monkeypatch.setattr(cli, "write_receipts", write)
     monkeypatch.setattr(cli, "render_writeback", lambda supplied: ["unused"])
@@ -621,7 +632,9 @@ def test_repair_names_what_remains_and_applies_only_the_proven_plan(
     )
     monkeypatch.setattr(cli, "unfixed", lambda findings, supplied: (finding,))
     monkeypatch.setitem(cli.UNREPAIRABLE, "orphan_lineage", "needs source authority")
-    monkeypatch.setattr(cli, "StdioMCPReceiptToolCaller", lambda: transport)
+    monkeypatch.setattr(
+        cli, "StdioMCPReceiptToolCaller", lambda allowed_tools: transport
+    )
     monkeypatch.setattr(
         cli,
         "apply_repairs",
@@ -920,7 +933,15 @@ def _wire_repair_journey(
     transport = _MutationTransport()
     monkeypatch.setattr(cli, "_read_snapshot", lambda arguments: snapshot)
     monkeypatch.setattr(cli, "CatalogAuditor", _Auditor)
-    monkeypatch.setattr(cli, "StdioMCPReceiptToolCaller", lambda: transport)
+
+    def receipt_caller(allowed_tools: frozenset[str]) -> _MutationTransport:
+        # `repair --apply` writes on assets Sidq does not own, so it must be
+        # handed the proposal tools and never the receipt namespace.
+        assert allowed_tools == REPAIR_TOOLS
+        transport.allowed_tools = allowed_tools
+        return transport
+
+    monkeypatch.setattr(cli, "StdioMCPReceiptToolCaller", receipt_caller)
     monkeypatch.setattr(cli, "StdioMCPToolCaller", lambda **kwargs: object())
     monkeypatch.setattr(cli, "MCPGraphClient", lambda caller: _DirectReader())
     return transport, backend
@@ -1122,7 +1143,9 @@ def test_swarm_worker_closes_transport_and_reports_findings(
             return result
 
     monkeypatch.setattr(cli, "_read_snapshot", lambda arguments: object())
-    monkeypatch.setattr(cli, "StdioMCPReceiptToolCaller", lambda: transport)
+    monkeypatch.setattr(
+        cli, "StdioMCPReceiptToolCaller", lambda allowed_tools: transport
+    )
     monkeypatch.setattr(cli, "SwarmWorker", _Worker)
     monkeypatch.setattr(cli, "commit_sha_for_ref", lambda ref: "c" * 40)
     monkeypatch.setattr(cli, "render_worker", lambda supplied: ["worker alpha"])
@@ -1156,7 +1179,9 @@ def test_swarm_write_failures_are_rendered_and_exit_nonzero_without_findings(
         },
     )
     monkeypatch.setattr(cli, "_read_snapshot", lambda arguments: object())
-    monkeypatch.setattr(cli, "StdioMCPReceiptToolCaller", lambda: transport)
+    monkeypatch.setattr(
+        cli, "StdioMCPReceiptToolCaller", lambda allowed_tools: transport
+    )
     monkeypatch.setattr(cli, "commit_sha_for_ref", lambda ref: "a" * 40)
     monkeypatch.setattr(
         cli,
@@ -1186,6 +1211,7 @@ def test_swarm_ledger_is_read_from_datahub_and_transport_errors_fail_closed(
     callers: list[_Closable] = []
 
     def caller() -> _Closable:
+        """The read-only graph transport, which takes no allowlist."""
         created = _Closable()
         callers.append(created)
         return created
@@ -1198,7 +1224,9 @@ def test_swarm_ledger_is_read_from_datahub_and_transport_errors_fail_closed(
     monkeypatch.setattr(
         cli,
         "StdioMCPReceiptToolCaller",
-        lambda: pytest.fail("ledger reads must not enable mutation tools"),
+        lambda *args, **kwargs: pytest.fail(
+            "ledger reads must not enable mutation tools"
+        ),
     )
     monkeypatch.setattr(
         cli, "get_verification_statuses", lambda urns, transport: {URN: {}}
@@ -1245,7 +1273,9 @@ def test_verify_json_includes_the_recomputed_status(monkeypatch, capsysbinary) -
     monkeypatch.setattr(
         cli,
         "StdioMCPReceiptToolCaller",
-        lambda: pytest.fail("receipt reads must not enable mutation tools"),
+        lambda *args, **kwargs: pytest.fail(
+            "receipt reads must not enable mutation tools"
+        ),
     )
     monkeypatch.setattr(cli, "get_verification_status", lambda *args, **kwargs: status)
     monkeypatch.setattr(cli, "holds", lambda supplied: (True, "fresh"))

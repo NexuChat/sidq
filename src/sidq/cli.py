@@ -49,8 +49,9 @@ from sidq.receipt.read import (
     holds,
     render_verification,
 )
-from sidq.receipt.write import StdioMCPReceiptToolCaller
+from sidq.receipt.write import RECEIPT_TOOLS, StdioMCPReceiptToolCaller
 from sidq.repair import (
+    REPAIR_TOOLS,
     UNREPAIRABLE,
     apply_repairs,
     propose_all,
@@ -710,7 +711,7 @@ def _audit(arguments: Any) -> int:
         # The memory lives in the catalog, so resuming is a read like any other.
         # If the receipts cannot be read, the prior stays empty and everything
         # is examined afresh — forgetting costs budget, never correctness.
-        caller = StdioMCPReceiptToolCaller()
+        caller = StdioMCPReceiptToolCaller(RECEIPT_TOOLS)
         try:
             policy_hash = PolicyEngine(None).decide((), commit_sha="").policy_hash
             prior = recall(
@@ -737,7 +738,7 @@ def _audit(arguments: Any) -> int:
         # Opt-in, because this mutates a catalog the operator may not own. The
         # receipt carries the policy's verdict, not the agent's opinion, and only
         # for assets the agent actually examined.
-        caller = StdioMCPReceiptToolCaller()
+        caller = StdioMCPReceiptToolCaller(RECEIPT_TOOLS)
         try:
             outcomes = write_receipts(
                 receipts_for(result, commit_sha=commit_sha_for_ref("HEAD")), caller
@@ -795,7 +796,10 @@ def _repair(arguments: Any) -> int:
     outcomes: list[Any] = []
 
     if arguments.apply:
-        caller = StdioMCPReceiptToolCaller()
+        # Repair writes tags, terms, and owners on someone else's assets. It has
+        # no business in the receipt namespace, so it is handed the proposal
+        # tools alone — never RECEIPT_TOOLS.
+        caller = StdioMCPReceiptToolCaller(REPAIR_TOOLS)
         try:
             outcomes = apply_repairs(plan, caller, dry_run=False)
         finally:
@@ -982,7 +986,7 @@ def _swarm(arguments: Any) -> int:
     if snapshot is None:
         return 2
 
-    caller = StdioMCPReceiptToolCaller()
+    caller = StdioMCPReceiptToolCaller(RECEIPT_TOOLS)
     try:
         result = SwarmWorker(
             snapshot,

@@ -14,7 +14,13 @@ from sidq.repair.apply import (
     render_plan,
     verify_repairs,
 )
-from sidq.repair.proposals import UNREPAIRABLE, Proposal, propose, propose_all
+from sidq.repair.proposals import (
+    REPAIR_TOOLS,
+    UNREPAIRABLE,
+    Proposal,
+    propose,
+    propose_all,
+)
 from sidq.repair.prove import (
     AppliedRepairProof,
     RepairOutcome,
@@ -26,6 +32,7 @@ from sidq.repair.prove import (
 )
 
 __all__ = [
+    "REPAIR_TOOLS",
     "UNREPAIRABLE",
     "AppliedRepairProof",
     "ApplyOutcome",

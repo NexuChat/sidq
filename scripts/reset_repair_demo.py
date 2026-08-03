@@ -30,6 +30,9 @@ SOURCE = (
 )
 COLUMN = "customer_id"
 MARKER = "urn:li:tag:b2fd91.PII_Data"
+# The reset undoes one propagation. One tool does that, so one tool is all the
+# transport is allowed to call.
+RESET_TOOLS = frozenset({"remove_tags"})
 
 
 def main() -> int:
@@ -70,7 +73,7 @@ def main() -> int:
         print("reset: nothing to undo — the sample already shows the contradiction")
         return 0
 
-    caller = StdioMCPReceiptToolCaller()
+    caller = StdioMCPReceiptToolCaller(RESET_TOOLS)
     try:
         caller(
             "remove_tags",
