@@ -48,6 +48,10 @@ documentation.
 - Dependency and local setup: [`docs/SETUP.md`](SETUP.md)
 - Third-party data provenance: [`data/claims/ATTRIBUTION.md`](../data/claims/ATTRIBUTION.md)
 
+**Agents trust the DataHub graph before they act. Sidq checks whether the
+graph is telling the truth — and stops the agent when the evidence does not
+hold.**
+
 ## Why the name
 
 **صِدق** — *sidq* — is the Arabic word for truthfulness: the discipline of
