@@ -2,18 +2,18 @@
 
 The verified upload candidate is
 `/home/dev/sidq-video/artifacts/video/sidq-final-en.mp4`. Its SHA-256 is
-`8c7e1b0ddd5cb9c13d93596c7b20d9853f506e91ceaaf6ec168b4a53287f9f9c`,
-its exact size is 42,117,064 bytes, and its container duration is
-169.920 seconds — safely under three minutes. It is **not yet a submission
+`d620ab6dd38b68aba4834eb044e8addfc0c90f0418296475d4695c4fc4c60144`,
+its exact size is 40,235,578 bytes, and its container duration is
+165.589 seconds — safely under three minutes. It is **not yet a submission
 artifact** because the public upload gate remains owner-only. It supersedes
 three earlier cuts preserved beside it (the 2026-08-02 film, the 2026-08-03
 morning cut, and the 2026-08-03 Ethan-voiced cut rejected by the owner after
 audition); none of them may be submitted.
 
-Verified 2026-08-03: exactly 5,096 authored frames at 1920×1080/30 fps, a
+Verified 2026-08-03: exactly 4,966 authored frames at 1920×1080/30 fps, a
 complete `ffmpeg -v error -xerror` decode with no error, zero qualifying black
 intervals, 48 kHz AAC stereo, full-film loudness −16.2 LUFS integrated at
-−4.5 dBTP true peak, burned English captions plus a 66-cue sidecar SRT, and a
+−4.5 dBTP true peak, burned English captions plus a 58-cue sidecar SRT, and a
 passing SHA-256 manifest beside the MP4 (thumbnail and contact sheet
 regenerated from the same revision).
 
@@ -26,17 +26,17 @@ boundary, truth label, SHA-256:
 Every capture was retaken in a 2026-08-03 evening legibility pass after owner
 review: terminal takes at xterm font size 22 in a 104×21 window that fills the
 frame (long lines wrap honestly instead of leaving it), browser takes at
-device scale 1.25–1.3 so the pages fill the frame.
+device scale 1.25–1.3 so the pages fill the frame. A final cursorless retake re-recorded every capture with the pointer excluded from the grab.
 
 | Capture | What it shows | Label |
 |---|---|---|
-| `cli-audit.mp4` (39.0 s) | `sidq audit --via-mcp --budget 4` against the live catalog — the sample being examined, ranked worst-consequence first | LIVE CAPTURE |
-| `cli-gate.mp4` (7.6 s) | `make gate-demo` re-deriving the committed `BLOCK`, byte-identical | REPRODUCIBLE OFFLINE REPLAY |
+| `cli-audit.mp4` (46.4 s) | `sidq audit --via-mcp --budget 4` against the live catalog — the sample being examined, ranked worst-consequence first | LIVE CAPTURE |
+| `cli-gate.mp4` (7.7 s) | `make gate-demo` re-deriving the committed `BLOCK`, byte-identical | REPRODUCIBLE OFFLINE REPLAY |
 | `web-pr.mp4` (22.9 s) | A signed-out browser on the public sealed thread `github.com/NexuChat/sidq/pull/2`: the bot verdict, evidence expanded by real clicks, the final hold on the reproducibility block | LIVE CAPTURE |
-| `web-console.mp4` (25.9 s) | One continuous session on `sidq.mlki.app`: the contradiction, the refusal, then one real handoff run to its server output | LIVE CAPTURE |
+| `web-console.mp4` (25.4 s) | One continuous session on `sidq.mlki.app`: the contradiction, the refusal, then one real handoff run to its server output | LIVE CAPTURE |
 | `datahub-receipt-ui.png` | The persisted receipt inside the DataHub UI: structured properties, policy hash, evidence link, verified tag | LIVE CAPTURE |
-| `cli-verify.mp4` (9.9 s) | `sidq verify` reading the persisted receipt: `CURRENT RECEIPT · PASS · CONTINUE` | LIVE CAPTURE |
-| `cli-agent.mp4` (15.3 s) | The same agent twice in one take: blind it writes SQL; with Sidq's three read-only tools it refuses and prints its reasons | LIVE CAPTURE |
+| `cli-verify.mp4` (11.9 s) | `sidq verify` reading the persisted receipt: `CURRENT RECEIPT · PASS · CONTINUE` | LIVE CAPTURE |
+| `cli-agent.mp4` (16.3 s) | The same agent twice in one take: blind it writes SQL; with Sidq's three read-only tools it refuses and prints its reasons | LIVE CAPTURE |
 
 The narrative answers why / what / when / how / who: chapter 1 audits the
 shipped sample (why checking is needed), chapter 2 gates the change and ends
@@ -64,7 +64,7 @@ fails the contract suite.
   which host answered — the deployed console and the public GitHub thread.
 - No capture is cut to hide waiting; waiting is compressed in the open. The
   audit chapter plays in three declared segments — the typed command at
-  natural speed, the 30 s of silent computation at ×6 so the wait is visible
+  natural speed, the 37 s of silent computation at ×7.5 so the wait is visible
   but not endured, then the report printing at natural speed. The other
   declared playback rates are pull-request session ×1.4, console ×1.05,
   verify ×0.95;
@@ -99,15 +99,15 @@ fails the contract suite.
 
 ## Verified artifact
 
-- SHA-256: `8c7e1b0ddd5cb9c13d93596c7b20d9853f506e91ceaaf6ec168b4a53287f9f9c`;
-  exact size 42,117,064 bytes.
-- Container duration: 169.920 seconds; 5,096 frames / 169.866667 seconds of
+- SHA-256: `d620ab6dd38b68aba4834eb044e8addfc0c90f0418296475d4695c4fc4c60144`;
+  exact size 40,235,578 bytes.
+- Container duration: 165.589 seconds; 4,966 frames / 165.533333 seconds of
   authored video at 30 fps, 1920x1080, H.264 High, yuv420p, BT.709.
 - Audio: AAC-LC stereo at 48 kHz; narration only; measured at −16.2 LUFS
   integrated and −4.5 dBTP.
-- Captions: burned English captions plus `sidq-demo.en.srt`, 66 ordered cues.
+- Captions: burned English captions plus `sidq-demo.en.srt`, 58 ordered cues.
 - Complete `ffmpeg -v error -xerror` decode: pass. `ffprobe -count_frames`:
-  exactly 5,096 video frames. `blackdetect`: no qualifying interval; silence
+  exactly 4,966 video frames. `blackdetect`: no qualifying interval; silence
   findings are the authored chapter gaps where narration ends and the capture
   stays on screen.
 - Per-scene stills from the shipped MP4 were reviewed frame-accurate. This
