@@ -132,9 +132,10 @@ All local media gates have passed on the 2026-08-03 artifact:
 - [x] Scene stills verified frame-accurate: real footage carries LIVE CAPTURE
   or REPRODUCIBLE OFFLINE REPLAY, illustrations carry ILLUSTRATION, and the
   designed receipt token never overlays real footage.
-- [x] The owner auditioned five narrator candidates on a private preview and
-  chose the shipped voice; watching the assembled final cut is part of the
-  owner upload step below.
+- [x] The owner auditioned five narrator candidates on a private preview,
+  chose the shipped voice, watched the assembled cuts through several
+  review rounds, and approved this artifact as the upload candidate on
+  2026-08-04.
 - [ ] Verify the uploaded public video is viewable without sign-in and add its public URL to the submission.
 
 The final unchecked item is owner-only: do not upload the video, publish a URL,
