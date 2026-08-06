@@ -134,8 +134,8 @@ that repair would create: it must resolve the finding, introduce no new one, and
 the surviving set must still hold when applied together. In the complete-lineage
 regression, that gate refuses the obvious one-column PII fix because it creates a
 new untagged consumer downstream; the next proposal covers the whole
-field-lineage closure — 6 columns across dbt, Snowflake and Looker — in one MCP
-call, and the engine proves it. Four of the six regression checks produce no
+field-lineage closure — every column the marker has to reach for the finding to
+actually be resolved — in one MCP call, and the engine proves it. Four of the six regression checks produce no
 proposal at all, each with its reason recorded, because an agent with an answer
 for all six would be inventing four. The live showcase is adjudicated separately:
 if its lineage evidence is incomplete, the dry run fails closed, rejects the

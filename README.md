@@ -180,7 +180,7 @@ still holds.
 
 We scanned DataHub's own shipped `showcase-ecommerce` sample using read-only catalog metadata. All **67 datasets** were examined, surfacing **285 internal contradictions**, concentrated in **5 assets** — plus **29 consumed-but-unowned assets** spread across the sample. The concentration is the point, not a caveat: a handful of PowerBI measure assets carry hundreds of lineage edges into fields their own stored schemas do not have, and nothing flags it. This is not a claim that DataHub's source systems are broken. It is a narrower, hand-checkable finding: the catalog contains claims that contradict other claims visible in the catalog. A curated, officially shipped sample already contains this much inconsistency; nothing in the sample checks for it before an agent builds on it.
 
-One example is `powerbi … Customer_Analytics_Measures`. Its stored schema has exactly two fields: `Value` and `Customer LTV`. It nevertheless carries **58 column-lineage edges**, **57 of which target fields that do not exist** in that schema. The complete evidence is in [`docs/TRUTH-REPORT.md`](docs/TRUTH-REPORT.md) and [`examples/03-catalog-truth-report/report.json`](examples/03-catalog-truth-report/report.json).
+One example is `powerbi … Customer_Analytics_Measures`. Its stored schema has exactly two fields: `Value` and `Customer LTV`. The catalog nevertheless records **57 column-lineage edges into fields that schema does not contain**. Each of the 57 is an individual finding you can read: the complete evidence is in [`docs/TRUTH-REPORT.md`](docs/TRUTH-REPORT.md) and [`examples/03-catalog-truth-report/report.json`](examples/03-catalog-truth-report/report.json).
 
 The negative result matters too. `lineage_rot` could not be adjudicated on this sample because the datapack ships no model SQL. All **32/32** attempts were `unverifiable`; Sidq refused to call them rot without a code-versus-catalog comparison. A tool that knows when to stay silent is the product.
 
@@ -507,9 +507,9 @@ Refused — proposed, then disproved:
 ```
 
 A one-hop repair does not fix a leak, it moves it. In that complete-lineage
-regression, the next proposal covers the whole field-lineage closure — 6 columns
-across dbt, Snowflake and Looker — as a single MCP call, and *that* one the engine
-proves. The live catalog is adjudicated separately: when lineage evidence is
+regression, the next proposal covers the whole field-lineage closure — every
+column the marker has to reach for the finding to actually be resolved — as a
+single MCP call, and *that* one the engine proves. The live catalog is adjudicated separately: when lineage evidence is
 incomplete, the public dry run fails closed, rejects the proposal, and writes
 nothing. Its counts are a catalog-dependent snapshot, not inherited proof from
 the regression fixture.

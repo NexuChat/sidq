@@ -76,8 +76,19 @@ def test_the_unowned_asset_count_matches_the_evidence() -> None:
     )
 
 
-def test_the_powerbi_example_numbers_match_the_evidence() -> None:
-    """The README singles out one asset: 58 lineage edges, 57 targeting nothing."""
+def test_the_powerbi_example_number_is_the_one_the_evidence_holds() -> None:
+    """The README singles out one asset. Its number must be countable in the file.
+
+    It used to claim the asset "carries 58 column-lineage edges, 57 of which
+    target fields that do not exist". The 57 is one committed finding per edge
+    and a reader can count them. The 58 was a total-edge figure for that asset
+    that no committed artifact records — `report.json` stores the findings, and
+    its `scope.lineage_edges` counts the whole catalog, not one asset. A number
+    a judge cannot trace is the exact defect this project exists to catch, so
+    the total was dropped rather than evidenced from a live run nobody can
+    repeat. This guard pins the surviving claim to the evidence and keeps the
+    unprovable one from coming back.
+    """
     raw = json.loads(TRUTH_REPORT.read_text(encoding="utf-8"))
     text = README.read_text(encoding="utf-8")
     subject = "Customer_Analytics_Measures"
@@ -90,16 +101,19 @@ def test_the_powerbi_example_numbers_match_the_evidence() -> None:
     assert findings, f"{subject} must still appear in the audit evidence"
 
     claimed = {
-        int(value) for value in re.findall(r"\*\*(\d+) column-lineage edges", text)
+        int(value)
+        for value in re.findall(
+            r"\*\*(\d+) column-lineage edges into fields that schema does not", text
+        )
     }
-    claimed_missing = {
-        int(value) for value in re.findall(r"\*\*(\d+) of which target fields", text)
-    }
-    assert claimed, "the README must still quote the edge count"
-    assert claimed_missing, "the README must still quote the missing-target count"
-    assert max(claimed_missing) == len(findings), (
-        f"README claims {max(claimed_missing)} missing targets for {subject}; "
+    assert claimed, "the README must still quote the missing-target edge count"
+    assert max(claimed) == len(findings), (
+        f"README claims {max(claimed)} contradicted edges for {subject}; "
         f"the evidence file has {len(findings)}"
+    )
+    assert "58 column-lineage edges" not in text, (
+        "the per-asset total-edge count has no committed evidence; state only "
+        "the contradicted edges, which report.json records one by one"
     )
 
 
@@ -743,6 +757,16 @@ def test_judge_copy_does_not_overstate_reproducibility_or_exclusivity() -> None:
         normalized = " ".join(surface.lower().split())
         assert "complete-lineage regression" in normalized
         assert "live" in normalized and "fails closed" in normalized
+        # The regression proves the *mechanism* — a one-hop fix is refused, the
+        # whole-closure proposal is accepted. It does not prove any particular
+        # column count on any particular platform: `test_repair_agent.py` runs
+        # a synthetic three-node chain, and the "6 columns across dbt, Snowflake
+        # and Looker" figure came from a live run whose output was never
+        # committed. Describing the closure by its rule costs nothing and is
+        # true of every catalog; quoting a count the repository cannot produce
+        # is the defect this project exists to catch.
+        assert "6 columns across" not in normalized
+        assert "six columns across" not in normalized
     assert "against the live showcase catalog the engine refused it" not in readme
     assert "shipped the 6-column closure" not in landing
     assert "sidq repair --via-mcp --apply` writes it" not in readme
