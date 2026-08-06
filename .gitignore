@@ -85,3 +85,6 @@ prompt-end.md
 
 # Submission audit — internal working area, never judge-facing
 submission-audit/
+
+# Local QA artifacts — screenshots and page snapshots, never shipped
+output/
