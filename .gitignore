@@ -82,3 +82,6 @@ catboost_info/
 
 # Local prompt scratchpad — never publish.
 prompt-end.md
+
+# Submission audit — internal working area, never judge-facing
+submission-audit/
