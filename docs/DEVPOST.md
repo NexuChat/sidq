@@ -16,8 +16,9 @@ agent inherit a verifiable decision.
 
 **Live DataHub:** https://datahub.mlki.app
 
-**Public video:** <PUBLIC_VIDEO_URL> *(must be the corrected replacement, not the
-superseded 175.317-second v2 export)*
+**Public video:** https://www.youtube.com/watch?v=R4GdN36Lsno *(the approved
+175.595-second cut, SHA-256 `86c6faf7…` — verified against the superseded
+exports before upload)*
 
 **Testing instructions** *(paste into the Devpost Testing instructions field
 visible to judges; never into the public description, repository, video, issue,
@@ -339,12 +340,12 @@ field:
 
 ## Owner-only remaining actions
 
-- [ ] Upload the verified V4 English artifact
+- [x] Uploaded 2026-08-06: the approved artifact
   `/home/dev/sidq-video/artifacts/video/sidq-final-en.mp4` (SHA-256
-  `0811a494c3ee6f78f907c3f2d14908ca18df403d81e38d63093cfa7dab46beef`)
-  to public YouTube, Vimeo, or Youku, verify logged-out playback, and replace
-  `<PUBLIC_VIDEO_URL>` in the Devpost submission. Do not upload the superseded
-  175.317-second v2 MP4s or the rejected black-transition V4 render.
+  `86c6faf7de2f149628940026a7c889fe1e20520e53079f087ce22ea811ddd690`) is
+  public at <https://www.youtube.com/watch?v=R4GdN36Lsno>; identity and
+  signed-out verification recorded in `VIDEO.md`. The superseded exports were
+  not uploaded.
 - [ ] Paste the Reader credentials privately into Devpost Testing instructions,
   replace both placeholders there only, and paste the exact disclosure above into
   its corresponding field.

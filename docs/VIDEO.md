@@ -1,14 +1,17 @@
 # Final-film artifact and production contract
 
-The verified upload candidate is
-`/home/dev/sidq-video/artifacts/video/sidq-final-en.mp4`. Its SHA-256 is
+The submission film is
+`/home/dev/sidq-video/artifacts/video/sidq-final-en.mp4`, public since
+2026-08-06 at <https://www.youtube.com/watch?v=R4GdN36Lsno> (upload and URL
+publication were owner-only actions, performed by the owner). Its SHA-256 is
 `86c6faf7de2f149628940026a7c889fe1e20520e53079f087ce22ea811ddd690`,
 its exact size is 41,410,417 bytes, and its container duration is
-175.595 seconds — safely under three minutes. It is **not yet a submission
-artifact** because the public upload gate remains owner-only. It supersedes
+175.595 seconds — safely under three minutes. It supersedes
 three earlier cuts preserved beside it (the 2026-08-02 film, the 2026-08-03
 morning cut, and the 2026-08-03 Ethan-voiced cut rejected by the owner after
-audition); none of them may be submitted.
+audition); none of them may be submitted, and none were uploaded — do not
+upload the video again under any other URL, because two live copies of the
+submission film would leave a judge unsure which one the entry means.
 
 Verified 2026-08-03: exactly 5,266 authored frames at 1920×1080/30 fps, a
 complete `ffmpeg -v error -xerror` decode with no error, zero qualifying black
@@ -136,7 +139,14 @@ All local media gates have passed on the 2026-08-03 artifact:
   chose the shipped voice, watched the assembled cuts through several
   review rounds, and approved this artifact as the upload candidate on
   2026-08-04.
-- [ ] Verify the uploaded public video is viewable without sign-in and add its public URL to the submission.
+- [x] The owner uploaded the artifact and published its URL on 2026-08-06:
+  <https://www.youtube.com/watch?v=R4GdN36Lsno>, title "Sidq — Provable
+  Context Before DataHub Agents Act" on the NexuChat channel. Verified the
+  same day from a clean signed-out session: privacy is public (not unlisted),
+  oEmbed resolves full metadata, and the served thumbnail is a frame of the
+  approved cut carrying its LIVE CAPTURE label and burned caption. The
+  datacenter egress used for the check hits YouTube's bot interstitial before
+  the stream itself, so end-to-end playback was confirmed by the owner on a
+  residential connection.
 
-The final unchecked item is owner-only: do not upload the video, publish a URL,
-edit Devpost, or press Submit without explicit owner authorization.
+Do not edit Devpost or press Submit without explicit owner authorization.

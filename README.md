@@ -10,8 +10,9 @@ audit, the committed `BLOCK` replay ending on the public sealed PR thread, the
 deployed console, the receipt inside the DataHub UI with its independent
 `sidq verify` read, and the same agent run blind and guarded;
 production contract and artifact identity in [`docs/VIDEO.md`](docs/VIDEO.md).
-The submission video URL remains unset until the owner uploads the verified
-file and confirms logged-out playback. Public browser,
+Watch it at
+[youtube.com/watch?v=R4GdN36Lsno](https://www.youtube.com/watch?v=R4GdN36Lsno).
+Public browser,
 accessibility, interaction, and deployment evidence: [`docs/QA-RESULTS.md`](docs/QA-RESULTS.md).
 Contributions are welcome under [`CONTRIBUTING.md`](CONTRIBUTING.md) and the
 [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md).

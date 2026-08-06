@@ -755,7 +755,8 @@ def test_submission_copy_does_not_publish_a_stale_video_or_deny_catalog_io() -> 
 
     assert "The 2:26 film" not in readme
     assert "youtu.be/5izxVeQ11dY" not in readme
-    assert "**Public video:** <PUBLIC_VIDEO_URL>" in devpost
+    assert "**Public video:** https://www.youtube.com/watch?v=R4GdN36Lsno" in devpost
+    assert "<PUBLIC_VIDEO_URL>" not in devpost
     assert "not the input to that loop, nor its output" not in devpost
 
 

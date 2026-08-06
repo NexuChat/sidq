@@ -170,27 +170,34 @@ def test_no_placeholder_survived_into_a_published_document(document: Path) -> No
     assert not found, f"{document.relative_to(ROOT)} still contains {sorted(found)}"
 
 
-def test_the_published_video_url_is_never_asserted_before_it_exists() -> None:
-    """The film is verified locally and not uploaded; both must stay said.
+def test_the_published_video_url_is_the_same_one_everywhere() -> None:
+    """The film went public on 2026-08-06; every surface must cite that URL.
 
-    A judge-facing document that linked a video URL before the owner uploaded it
-    would be the one unrecoverable kind of wrong claim — checkable in one click,
-    and false.
+    Until the owner uploaded, this guard asserted the opposite — that no URL
+    was published anywhere. The invariant that survives the flip is oneness:
+    a judge who follows the video link from the README, the runbook, or the
+    submission copy must land on the same watch page, and no stray YouTube id
+    from a draft or a superseded cut may sit beside it.
     """
-    # Normalised, because both statements are wrapped across lines and a guard
-    # that a reflow can silence is not a guard.
-    readme = " ".join((ROOT / "README.md").read_text(encoding="utf-8").split())
-    video = " ".join(
-        (ROOT / "docs" / "VIDEO.md").read_text(encoding="utf-8").split()
-    ).lower()
+    canonical_id = "R4GdN36Lsno"
+    canonical_url = f"https://www.youtube.com/watch?v={canonical_id}"
 
-    for text in (readme, video):
-        assert "youtube.com/watch" not in text
-        assert "youtu.be/" not in text
-    assert "remains unset until the owner uploads" in readme
-    # Whatever state the film is in — superseded, rebuilt, or verified — the
-    # document must say plainly that nothing is uploaded without the owner.
-    assert "must not be submitted" in video or "not yet a submission artifact" in video
+    # Normalised, because the citations wrap across lines and a guard that a
+    # reflow can silence is not a guard.
+    surfaces = {
+        name: " ".join((ROOT / name).read_text(encoding="utf-8").split())
+        for name in ("README.md", "docs/VIDEO.md", "docs/DEVPOST.md")
+    }
+
+    for name, text in surfaces.items():
+        assert canonical_url in text, f"{name} must cite the published film"
+        for match in re.finditer(
+            r"(?:youtube\.com/(?:watch\?v=|embed/)|youtu\.be/)([\w-]{11})", text
+        ):
+            assert match.group(1) == canonical_id, (
+                f"{name} cites a YouTube id other than the published film: "
+                f"{match.group(1)}"
+            )
 
 
 def test_the_landing_quota_copy_matches_what_the_server_enforces() -> None:
