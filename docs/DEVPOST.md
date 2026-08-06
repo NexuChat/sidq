@@ -4,7 +4,8 @@
 
 **Project name:** Sidq
 
-**Tagline:** Provable context before DataHub agents act.
+**Tagline:** Sidq verifies DataHub context before agents act — and blocks
+actions the evidence cannot support.
 
 **Primary challenge:** Agents That Do Real Work — Sidq reads DataHub through
 MCP, acts on its evidence, writes optional receipts back, and lets the next
@@ -49,9 +50,8 @@ documentation.
 - Dependency and local setup: [`docs/SETUP.md`](SETUP.md)
 - Third-party data provenance: [`data/claims/ATTRIBUTION.md`](../data/claims/ATTRIBUTION.md)
 
-**Agents trust the DataHub graph before they act. Sidq checks whether the
-graph is telling the truth — and stops the agent when the evidence does not
-hold.**
+**Everyone is building agents that read the metadata catalog and trust it.
+Sidq is the one asking whether the catalog is lying.**
 
 ## Why the name
 
