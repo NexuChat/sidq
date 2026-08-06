@@ -860,14 +860,24 @@ def test_supported_python_copy_matches_the_single_tested_minor() -> None:
 
 
 def test_devpost_has_submission_fields_and_no_committed_demo_password() -> None:
+    """The submission copy must name judge access without publishing a secret.
+
+    This guard used to require the phrases "Testing instructions" and "visible to
+    judges", because the plan was to hide the judge account in Devpost's private
+    testing-instructions box. Checking the live submission form on 2026-08-06
+    settled it: this hackathon has fourteen fields and none of them is that box.
+    Anything a judge needs in order to reach the catalog is public by necessity,
+    which is exactly why the published account has to be read-only. The guard now
+    pins that reasoning instead of the field that does not exist, so nobody
+    restores the old instruction and then wonders where to paste it.
+    """
     text = (ROOT / "docs" / "DEVPOST.md").read_text()
+    normalized = " ".join(text.split())
 
     for required in (
-        "Testing instructions",
         "Reader",
         "<READER_USERNAME>",
         "<READER_PASSWORD>",
-        "visible to judges",
         "AI coding assistants",
         "pre-existing",
         "feedback",
@@ -876,6 +886,13 @@ def test_devpost_has_submission_fields_and_no_committed_demo_password() -> None:
         "Live project",
     ):
         assert required in text
+    assert "no private field" in normalized, (
+        "the copy must say why the judge account is public, or the next reader "
+        "will look for a testing-instructions box that this form does not have"
+    )
+    assert "must be read-only" in normalized or "must therefore be read-only" in (
+        normalized
+    )
     assert "password `datahub`" not in text
     assert "username `datahub`" not in text
 

@@ -21,9 +21,11 @@ agent inherit a verifiable decision.
 175.595-second cut, SHA-256 `86c6faf7…` — verified against the superseded
 exports before upload)*
 
-**Testing instructions** *(paste into the Devpost Testing instructions field
-visible to judges; never into the public description, repository, video, issue,
-or screenshot)*:
+**Judge access** *(this hackathon's submission form has no private field —
+verified 2026-08-06 against the live form, which has fourteen fields and not one
+of them is a testing-instructions box. Anything a judge needs to reach the live
+catalog is therefore public by necessity, so the account named here must be
+read-only and nothing else may be published beside it)*:
 
 ```text
 Open https://datahub.mlki.app and sign in with the read-only Reader account.
@@ -37,10 +39,12 @@ verdict" to re-derive the committed BLOCK result. The public buttons are fixed,
 read-only demonstrations and accept no request payload.
 ```
 
-Replace both placeholders in Devpost immediately before submission. Do not
-replace them in this file. The account supplied to judges must have the Reader
-role only; verify in DataHub that it cannot edit tags, properties, ownership, or
-documentation.
+Replace both placeholders in the Devpost description immediately before
+submission. Do not replace them in this file. The account supplied to judges
+must have the Reader role only; verify in DataHub that it cannot edit tags,
+properties, ownership, or documentation. Publishing a read-only account on a
+disposable sample catalog is fine; publishing one that can write is not, because
+the assets a judge would edit by accident are the receipts they came to verify.
 
 **Evidence links:**
 
@@ -323,11 +327,12 @@ field:
 - [ ] Public video link is viewable without sign-in and is under three minutes.
 - [ ] The AI coding-assistant disclosure is pasted exactly and the pre-existing
   third-party data disclosure is included.
-- [ ] The Devpost Testing instructions field visible to judges contains working
-  `<READER_USERNAME>` / `<READER_PASSWORD>` replacements for a Reader-only
-  account; no credential is copied into public fields or committed files.
-- [x] The Reader account has been tested to confirm that metadata write controls
-  are unavailable.
+- [ ] The Devpost description names a Reader-only account for the live catalog.
+  This hackathon has no private field, so the account is public by necessity and
+  must therefore be read-only; the administrator login must never be the one
+  published.
+- [ ] The Reader account has been tested against the live deployment to confirm
+  that metadata write controls are unavailable.
 - [ ] Optional: If pursuing a $50 Most Valuable Feedback bonus prize, submit
   the organizer's feedback form and retain its confirmation; the form is not
   required for project submission.
@@ -346,9 +351,9 @@ field:
   public at <https://www.youtube.com/watch?v=R4GdN36Lsno>; identity and
   signed-out verification recorded in `VIDEO.md`. The superseded exports were
   not uploaded.
-- [ ] Paste the Reader credentials privately into Devpost Testing instructions,
-  replace both placeholders there only, and paste the exact disclosure above into
-  its corresponding field.
+- [ ] Replace the published administrator login in the Devpost description with
+  the Reader-only account, and paste the exact disclosure above into its
+  corresponding field.
 - [ ] Press **Submit**. Optionally complete the organizer's feedback form if
   pursuing its separate bonus.
 
@@ -371,9 +376,9 @@ runnable set is a closed table of fixed argument lists with no request input, an
 it contains no command that can write to a catalog. `/healthz` proves that the
 landing process is alive; `/readyz` separately reports the live DataHub dependency.
 
-Live DataHub: https://datahub.mlki.app. Reader-only judge credentials belong in
-the Devpost Testing instructions field above; this public file contains
-placeholders only.
+Live DataHub: https://datahub.mlki.app. The judge account named in the Devpost
+description must be Reader-only, because this hackathon's form has no private
+field to hide it in; this public file contains placeholders only.
 
 Local reproduction:
 
