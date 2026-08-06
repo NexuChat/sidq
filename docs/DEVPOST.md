@@ -280,9 +280,9 @@ those evidence kinds when a caller supplies explicit, proven route evidence.
 does not include the original model SQL. Sidq reports all 32 attempts as
 `unverifiable`; it does not label them clean or rotten.
 
-Sidq does not provide a global trust score, continuous background drift sentinel,
-blanket write quarantine, or model-assisted blocking. Those boundaries keep the
-decision explicit and reproducible.
+Sidq does not provide a global trust score, a continuous background drift
+monitor, blanket write quarantine, or model-assisted blocking. Those boundaries
+keep the decision explicit and reproducible.
 
 ## Required disclosures
 
