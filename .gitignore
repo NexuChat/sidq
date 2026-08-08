@@ -88,3 +88,6 @@ submission-audit/
 
 # Local QA artifacts — screenshots and page snapshots, never shipped
 output/
+
+# Playwright MCP session captures — same reason, different tool's default path
+.playwright-mcp/
