@@ -182,22 +182,38 @@ def test_the_published_video_url_is_the_same_one_everywhere() -> None:
     canonical_id = "R4GdN36Lsno"
     canonical_url = f"https://www.youtube.com/watch?v={canonical_id}"
 
+    # Every judge surface, not the three that happened to carry a link on the
+    # day this was written: CLAIMS-MATRIX.md and QA-RESULTS.md also cite the
+    # film, and a stray id in either is just as reachable from the README.
     # Normalised, because the citations wrap across lines and a guard that a
     # reflow can silence is not a guard.
     surfaces = {
-        name: " ".join((ROOT / name).read_text(encoding="utf-8").split())
-        for name in ("README.md", "docs/VIDEO.md", "docs/DEVPOST.md")
+        document.relative_to(ROOT): " ".join(
+            document.read_text(encoding="utf-8").split()
+        )
+        for document in (*JUDGE_SURFACES, ROOT / "web" / "index.html")
     }
 
+    # Every shape YouTube serves a video under, so a `shorts/` or `live/` link
+    # to a re-upload cannot slip past a regex written for `watch?v=`.
+    citation = re.compile(
+        r"(?:youtube\.com/(?:watch\?[\w=&%-]*?v=|embed/|shorts/|live/|v/)"
+        r"|youtu\.be/)([\w-]{11})"
+    )
+
+    cited = 0
     for name, text in surfaces.items():
-        assert canonical_url in text, f"{name} must cite the published film"
-        for match in re.finditer(
-            r"(?:youtube\.com/(?:watch\?v=|embed/)|youtu\.be/)([\w-]{11})", text
-        ):
+        for match in citation.finditer(text):
+            cited += 1
             assert match.group(1) == canonical_id, (
                 f"{name} cites a YouTube id other than the published film: "
                 f"{match.group(1)}"
             )
+    assert cited, "no judge surface cites the published film at all"
+
+    for name in ("README.md", "docs/VIDEO.md", "docs/DEVPOST.md"):
+        text = surfaces[Path(name)]
+        assert canonical_url in text, f"{name} must cite the published film"
 
 
 def test_the_landing_quota_copy_matches_what_the_server_enforces() -> None:

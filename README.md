@@ -104,7 +104,7 @@ file on first use, so that first run needs package-index access.
 | # | Command | Needs | What it proves | Takes |
 |---|---|---|---|---|
 | 1 | `make gate-demo` | Python 3.12; package downloads on first use; no DataHub or credentials | The published `BLOCK` verdict is re-derived from the committed graph recording, byte-identical, with the same `policy_hash`. Hand-editing an artifact fails this. | ~2s after bootstrap |
-| 2 | `make check` | Python 3.12; package downloads on first use | 1121 tests, lint, format, types — 1119 passed, 2 optional integrations skipped, with 83.85% branch coverage; the same gates CI runs. | ~60s after bootstrap |
+| 2 | `make check` | Python 3.12; package downloads on first use | 1123 tests, lint, format, types — 1121 passed, 2 optional integrations skipped, with 83.85% branch coverage; the same gates CI runs. | ~60s after bootstrap |
 | 3 | `make live-loop` | a running DataHub ([`docs/SETUP.md`](docs/SETUP.md)) | The whole agent loop over the **official MCP server only**: read → decide → write a receipt → a *separate process* reads it back → an asset carrying no receipt returns `NOT VERIFIED`. | ~60s |
 | 4 | `make repair-demo` | the same DataHub | The repair agent proposes a fix from catalog evidence, re-runs the deterministic engine against the catalog that fix *would* create, and shows what it proved and what it refused. | ~40s |
 
@@ -495,21 +495,38 @@ six would be inventing four of them.
 the catalog the repair would create.** It must resolve the finding, introduce no
 new one, and the surviving set must still hold when applied together.
 
-That gate changed the design rather than decorating it. The complete-lineage
-regression first tries a PII repair that tags only the column the finding named.
-The engine refuses it:
+That gate changed the design rather than decorating it. The committed regression
+(`test_a_one_hop_repair_is_refused_because_it_moves_the_leak`, a tagged source
+feeding an untagged middle feeding an untagged sink) first tries a PII repair
+that tags only the column the finding named. The engine refuses it:
 
 ```
 Refused — proposed, then disproved:
-  order_details#customer_id
+  warehouse.middle#email
     resolves the finding but introduces 1 new one(s)
-    would introduce: pii_leak_untagged on …looker…explore.order_details#customer_id
+    would introduce: pii_leak_untagged on urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.sink,PROD)#email
 ```
 
-A one-hop repair does not fix a leak, it moves it. In that complete-lineage
-regression, the next proposal covers the whole field-lineage closure — every
-column the marker has to reach for the finding to actually be resolved — as a
-single MCP call, and *that* one the engine proves. The live catalog is adjudicated separately: when lineage evidence is
+Read the first line of that refusal carefully: the one-hop repair *does* resolve
+the finding it was proposed for. It is refused for what it creates. A one-hop
+repair does not fix a leak, it moves it. The proposal the engine accepts instead
+covers the field-lineage closure — every column the marker reaches downstream
+that does not already declare it, here `warehouse.middle#email` and
+`warehouse.sink#email` — as a single MCP call:
+
+```
+Proven — the engine re-ran and confirmed each one:
+  warehouse.middle#email
+    add_tags(urn:li:tag:demo.PII_Data)
+    because email upstream carries urn:li:tag:demo.PII_Data, and the catalog's own field lineage carries it into 2 column(s) that do not declare it
+    covers 2 columns in one call:
+      warehouse.middle#email
+      warehouse.sink#email
+```
+
+The closure is defined by reachability, not by which columns a check would
+flag; it is wide on purpose, because a marker that stops halfway is the leak
+again. The live catalog is adjudicated separately: when lineage evidence is
 incomplete, the public dry run fails closed, rejects the proposal, and writes
 nothing. Its counts are a catalog-dependent snapshot, not inherited proof from
 the regression fixture.

@@ -90,7 +90,9 @@ def test_the_powerbi_example_number_is_the_one_the_evidence_holds() -> None:
     unprovable one from coming back.
     """
     raw = json.loads(TRUTH_REPORT.read_text(encoding="utf-8"))
-    text = README.read_text(encoding="utf-8")
+    # Normalised: a guard a markdown reflow can silence is not a guard, and the
+    # retired "58" could otherwise walk back in across a line break.
+    text = " ".join(README.read_text(encoding="utf-8").split())
     subject = "Customer_Analytics_Measures"
 
     findings = [
@@ -100,6 +102,15 @@ def test_the_powerbi_example_number_is_the_one_the_evidence_holds() -> None:
     ]
     assert findings, f"{subject} must still appear in the audit evidence"
 
+    # The README says *edges*; the evidence file stores *findings*. Those are
+    # the same number only while each finding carries a distinct edge, so pin
+    # that rather than trusting today's data to keep the two words honest.
+    edges = {json.dumps(item["detail"]["edge"], sort_keys=True) for item in findings}
+    assert len(edges) == len(findings), (
+        f"{len(findings)} findings collapse to {len(edges)} distinct edges; "
+        "the README may no longer describe them as edges"
+    )
+
     claimed = {
         int(value)
         for value in re.findall(
@@ -107,9 +118,11 @@ def test_the_powerbi_example_number_is_the_one_the_evidence_holds() -> None:
         )
     }
     assert claimed, "the README must still quote the missing-target edge count"
-    assert max(claimed) == len(findings), (
-        f"README claims {max(claimed)} contradicted edges for {subject}; "
-        f"the evidence file has {len(findings)}"
+    # Every claimed value, not just the largest: a wrong second figure sitting
+    # beside the right one is still a wrong figure on a judge-facing page.
+    assert claimed == {len(edges)}, (
+        f"README claims {sorted(claimed)} contradicted edges for {subject}; "
+        f"the evidence file has {len(edges)}"
     )
     assert "58 column-lineage edges" not in text, (
         "the per-asset total-edge count has no committed evidence; state only "
@@ -773,6 +786,65 @@ def test_judge_copy_does_not_overstate_reproducibility_or_exclusivity() -> None:
     assert "may write a jointly proven plan" in readme
 
 
+def test_the_readme_repair_transcript_is_output_the_repository_can_produce() -> None:
+    """The transcript a judge reads must be what the committed code prints.
+
+    Banning the retired "6 columns across dbt, Snowflake and Looker" figure was
+    only half the repair: the README went on quoting an engine transcript from
+    that same uncommitted live run — a Looker explore and a `customer_id` column
+    that appear nowhere in `test_repair_agent.py`, whose fixture is a synthetic
+    three-node dbt chain on `email`. A count nobody can reproduce and a
+    transcript nobody can reproduce are the same defect. This guard re-runs the
+    regression and demands the README quote what actually came out.
+    """
+    sys.path.insert(0, str(ROOT / "tests"))
+    from test_repair_agent import _PII, _pii_chain, _pii_finding, _urn
+
+    from sidq.repair import propose, prove, render_plan
+
+    snapshot = _pii_chain()
+    closure = propose(_pii_finding(_urn("middle")), snapshot)
+    assert closure is not None
+    one_hop = type(closure)(
+        finding_kind=closure.finding_kind,
+        subject=closure.subject,
+        tool=closure.tool,
+        arguments={
+            "tag_urns": [_PII],
+            "entity_urns": [_urn("middle")],
+            "column_paths": ["email"],
+        },
+        rationale="one hop only",
+    )
+
+    text = " ".join(README.read_text(encoding="utf-8").split())
+    for plan, heading in (
+        (prove(snapshot, [one_hop]), "Refused"),
+        (prove(snapshot, [closure]), "Proven"),
+    ):
+        rendered = render_plan(plan)
+        start = next(i for i, line in enumerate(rendered) if line.startswith(heading))
+        # The whole block, in order — not a bag of lines. Checking membership
+        # one line at a time is how a swapped subject slips through: the real
+        # subject still appears further down the page, so every line is "found"
+        # while the transcript as printed says something else.
+        block = " ".join(
+            " ".join(line.split())
+            for line in rendered[start:]
+            if line.strip() and not line.startswith("Nothing was written")
+        )
+        assert block in text, (
+            "the README quotes a repair transcript the engine does not print; "
+            f"expected this block verbatim: {block!r}"
+        )
+
+    # The refusal is interesting *because* the rejected repair resolved its own
+    # finding. A README that hides that reads as "the fix did not work", which
+    # is the opposite of the point and is contradicted by `test_repair_agent.py`.
+    assert prove(snapshot, [one_hop]).rejected[0].resolved
+    assert "does resolve the finding" in text.replace("*", "")
+
+
 def test_submission_copy_does_not_publish_a_stale_video_or_deny_catalog_io() -> None:
     readme = README.read_text(encoding="utf-8")
     devpost = (ROOT / "docs" / "DEVPOST.md").read_text(encoding="utf-8")
@@ -782,6 +854,61 @@ def test_submission_copy_does_not_publish_a_stale_video_or_deny_catalog_io() -> 
     assert "**Public video:** https://www.youtube.com/watch?v=R4GdN36Lsno" in devpost
     assert "<PUBLIC_VIDEO_URL>" not in devpost
     assert "not the input to that loop, nor its output" not in devpost
+
+
+def test_one_film_identity_across_every_document_that_states_one() -> None:
+    """Two linked docs describing two different films is a one-click defect.
+
+    `QA-RESULTS.md` documented the superseded 2026-08-02 export as "the upload
+    artifact" — its SHA, its byte count, its duration, its cue count — for three
+    days after a different file was uploaded, while `VIDEO.md`, one README link
+    away, gave the real numbers. Nothing caught it: the guards pinned the URL and
+    the SHA separately, and neither noticed the documents disagreed. Every figure
+    that identifies the film is pinned here, in one place, for every surface.
+
+    The superseded values may still appear — the corrected record explains what
+    changed — but only where the same passage calls them superseded, because a
+    retired number a reader can still find is exactly what this project exists
+    to catch.
+    """
+    final = {
+        "86c6faf7de2f149628940026a7c889fe1e20520e53079f087ce22ea811ddd690",
+        "41,410,417",
+        "175.595",
+    }
+    superseded = {
+        "0811a494c3ee6f78f907c3f2d14908ca18df403d81e38d63093cfa7dab46beef",
+        "29,636,338",
+        "169.216",
+        "5,075",
+    }
+    # A passage is a blank-line paragraph, one bullet, or one table row. Whole
+    # paragraphs are too coarse for CLAIMS-MATRIX.md, where the entire table is
+    # one block and a policy hash three rows away would read as the film's.
+    passage = re.compile(r"\n\s*\n|\n(?=\s*(?:[-*+]\s|\|))")
+
+    for document in sorted(ROOT.glob("docs/*.md")) + [README]:
+        name = document.relative_to(ROOT)
+        for chunk in passage.split(document.read_text(encoding="utf-8")):
+            flat = " ".join(chunk.split())
+            retired = "supersede" in flat.lower()
+
+            stale = sorted(value for value in superseded if value in flat)
+            assert not stale or retired, (
+                f"{name} states {stale} without calling them superseded; "
+                "a judge reading this passage learns the wrong film"
+            )
+
+            # A document need not repeat every figure, but a passage that names
+            # the artifact and gives it a hash must give it the right hash —
+            # that is how the wrong SHA sat in QA-RESULTS.md for three days.
+            if "sidq-final-en.mp4" not in flat or retired:
+                continue
+            for digest in re.findall(r"\b[0-9a-f]{64}\b", flat):
+                assert digest in final, (
+                    f"{name} pairs the film artifact with {digest[:8]}…, which "
+                    "is not the SHA-256 of the submitted file"
+                )
 
 
 def test_receipt_docs_define_the_fail_closed_semantic_staleness_boundary() -> None:

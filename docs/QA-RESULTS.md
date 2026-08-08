@@ -79,7 +79,7 @@ re-measured and the 2026-08-02 session remains its record.
 
 ## Automated gates
 
-- Host run of 2026-08-03: 1133 collected, 1119 passed, and 2 optional
+- Host run of 2026-08-06: 1123 collected, 1121 passed, and 2 optional
   integration tests skipped. The Qwen model weights were not present in the
   cache, and the Ollama model `ibm/granite4:1b-q4_1` was not installed.
 - Host branch coverage on that run: 83.85%, above the enforced 80.0% threshold.
@@ -96,22 +96,29 @@ re-measured and the 2026-08-02 session remains its record.
 
 ## Final-film media QA
 
-- Upload artifact:
+- Submitted artifact:
   `/home/dev/sidq-video/artifacts/video/sidq-final-en.mp4`, SHA-256
-  `0811a494c3ee6f78f907c3f2d14908ca18df403d81e38d63093cfa7dab46beef`,
-  29,636,338 bytes.
-- `ffprobe` reported a 169.216-second container with 5,075 decoded 1920x1080
+  `86c6faf7de2f149628940026a7c889fe1e20520e53079f087ce22ea811ddd690`,
+  41,410,417 bytes. Public since 2026-08-06 at
+  <https://www.youtube.com/watch?v=R4GdN36Lsno>.
+- `ffprobe` reported a 175.595-second container with 5,266 decoded 1920x1080
   H.264 frames at 30 fps and AAC-LC 48 kHz stereo audio. Full strict decode
   passed; no qualifying black interval was detected.
-- Audio measured -16.1 LUFS integrated and -4.5 dBTP. Silence and freeze reports
+- Audio measured -16.2 LUFS integrated and -4.5 dBTP. Silence and freeze reports
   were manually matched to authored gaps, evidence holds, and static designed
   scenes; the rejected replay transition is absent from the final artifact.
 - Two-second full-film contact sheets, transitions, first 15 seconds, captions,
   package text, and high-confidence secret/stale-claim patterns were reviewed.
   An independent final proof review returned no actionable finding.
-- The adjacent SHA-256 manifest verifies the MP4, 54-cue SRT, 1280x720
-  project-owned thumbnail, six-frame contact sheet, and upload metadata. Public
-  upload and logged-out playback verification remain owner-only.
+- The adjacent SHA-256 manifest `sidq-video-sha256.txt` carries four entries and
+  verifies each: the MP4, the 61-cue sidecar SRT, the 1280x720 project-owned
+  thumbnail, and the contact sheet.
+- This section described the superseded 2026-08-02 export until 2026-08-06
+  (SHA-256 `0811a494…`, 29,636,338 bytes, 169.216 seconds). That file is kept
+  beside the final one as `superseded-sidq-final-en-2026-08-02.mp4` and was never
+  uploaded. The record is corrected here rather than deleted, because a stale
+  number that a reader could still find is exactly the failure this project
+  exists to catch. `VIDEO.md` is authoritative for film identity.
 
 ## Dependency audit
 

@@ -22,8 +22,8 @@ agent inherit a verifiable decision.
 exports before upload)*
 
 **Judge access** *(this hackathon's submission form has no private field —
-verified 2026-08-06 against the live form, which has fourteen fields and not one
-of them is a testing-instructions box. Anything a judge needs to reach the live
+verified 2026-08-06 against the live form: not one of its fields is a
+testing-instructions box. Anything a judge needs to reach the live
 catalog is therefore public by necessity, so the account named here must be
 read-only and nothing else may be published beside it)*:
 
@@ -136,10 +136,11 @@ what it cannot fix. Proposals come from catalog evidence only, and nothing is
 offered for writing until the deterministic engine has re-run against the catalog
 that repair would create: it must resolve the finding, introduce no new one, and
 the surviving set must still hold when applied together. In the complete-lineage
-regression, that gate refuses the obvious one-column PII fix because it creates a
-new untagged consumer downstream; the next proposal covers the whole
-field-lineage closure — every column the marker has to reach for the finding to
-actually be resolved — in one MCP call, and the engine proves it. Four of the six regression checks produce no
+regression, that gate refuses the obvious one-column PII fix even though it does
+resolve the finding it was proposed for, because it creates a new untagged
+consumer downstream; the accepted proposal covers the field-lineage closure —
+every column the marker reaches downstream that does not already declare it — in
+one MCP call, and the engine proves it. Four of the six regression checks produce no
 proposal at all, each with its reason recorded, because an agent with an answer
 for all six would be inventing four. The live showcase is adjudicated separately:
 if its lineage evidence is incomplete, the dry run fails closed, rejects the
@@ -324,7 +325,9 @@ field:
 
 - [x] Repository link is public and opens without authentication.
 - [x] Live project and live DataHub links return HTTP 200 from a logged-out browser.
-- [ ] Public video link is viewable without sign-in and is under three minutes.
+- [x] Public video link is viewable without sign-in and is under three minutes:
+  <https://www.youtube.com/watch?v=R4GdN36Lsno>, 175.595 seconds, verified
+  signed-out 2026-08-06.
 - [ ] The AI coding-assistant disclosure is pasted exactly and the pre-existing
   third-party data disclosure is included.
 - [ ] The Devpost description names a Reader-only account for the live catalog.
