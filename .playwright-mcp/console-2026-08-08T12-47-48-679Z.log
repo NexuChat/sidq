@@ -1,0 +1,5 @@
+[    2041ms] [VERBOSE] [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) %o @ https://datahub.mlki.app/login:0
+[    8964ms] [LOG] [MFE Loader] Raw YAML: subNavigationMode: false
+microFrontends: []
+ @ https://datahub.mlki.app/assets/index-BVLvn_MR.js:39390
+[   12009ms] [LOG] Download the Apollo DevTools for a better development experience: %s https://chrome.google.com/webstore/detail/apollo-client-developer-t/jdkknkkbebbapilgoeccciglkfbmbnfm @ https://datahub.mlki.app/assets/index-BVLvn_MR.js:40

@@ -1,0 +1,18 @@
+- generic [ref=f1e6]:
+  - dialog "Welcome to DataHub":
+    - generic [ref=f1e7]:
+      - paragraph [ref=f1e15]: Welcome to DataHub
+      - generic [ref=f1e18]:
+        - generic [ref=f1e19]:
+          - generic [ref=f1e20]:
+            - paragraph [ref=f1e21]: Username
+            - generic [ref=f1e22]: "*"
+          - textbox "Enter username" [ref=f1e30]
+        - generic [ref=f1e31]:
+          - generic [ref=f1e32]:
+            - paragraph [ref=f1e33]: Password
+            - generic [ref=f1e34]: "*"
+          - textbox "********" [ref=f1e42]
+      - generic [ref=f1e44]:
+        - button "Sign in with SSO" [ref=f1e45] [cursor=pointer]
+        - button "Login" [disabled] [ref=f1e47]

@@ -39,12 +39,22 @@ verdict" to re-derive the committed BLOCK result. The public buttons are fixed,
 read-only demonstrations and accept no request payload.
 ```
 
-Replace both placeholders in the Devpost description immediately before
-submission. Do not replace them in this file. The account supplied to judges
-must have the Reader role only; verify in DataHub that it cannot edit tags,
-properties, ownership, or documentation. Publishing a read-only account on a
-disposable sample catalog is fine; publishing one that can write is not, because
-the assets a judge would edit by accident are the receipts they came to verify.
+The placeholders stay placeholders here. The live values are published in the
+Devpost description, which is the one place they belong — a credential copied
+into two places is a credential that will disagree with itself.
+
+Done 2026-08-08: the published account holds DataHub's `Reader` role and nothing
+else. Verified against the live deployment rather than assumed — every platform
+privilege reads false, `addTag` and `updateDataset` both return HTTP 403
+`UNAUTHORIZED`, and a catalog search returns all 86 datasets, so it can read
+everything a judge came to check and change none of it.
+
+That verification is the reason this section exists. The credential published
+before it — the DataHub quickstart's `datahub` / `datahub` — was an administrator
+login, and by the time it was checked it had also stopped working: native
+authentication replaced it on 2026-08-01 and nobody re-tested the published copy,
+so a judge following the submission would have met "Invalid Credentials". A
+credential nobody re-tested is the same defect as a number nobody re-derived.
 
 **Evidence links:**
 
@@ -209,11 +219,13 @@ The engine is deterministic Python. Gates collect structured evidence. The polic
 engine alone decides. The same input, graph snapshot, and policy file produce a
 byte-identical verdict identified by `policy_hash` and `commit_sha`.
 
-Sidq has three surfaces:
+Sidq has four surfaces, the same four the README enumerates:
 
+- The catalog auditor, which chooses where to point the engine and reports its own
+  coverage gaps.
+- A stdio MCP server, `sidq-mcp`, with `verify_context`, `check_change`, and `search_verified`.
 - A CLI: `.venv/bin/sidq check --file ... --json` or `.venv/bin/sidq check --diff ... --json`.
 - A GitHub PR bot that renders the decision, provenance, evidence, impact paths, and reproduction command.
-- A stdio MCP server, `sidq-mcp`, with `verify_context`, `check_change`, and `search_verified`.
 
 `search_verified` classifies matches against the separate Sidq MCP
 `VerificationStore`; it is not a DataHub Receipt reader. `sidq verify <urn>` is
@@ -328,17 +340,19 @@ field:
 - [x] Public video link is viewable without sign-in and is under three minutes:
   <https://www.youtube.com/watch?v=R4GdN36Lsno>, 175.595 seconds, verified
   signed-out 2026-08-06.
-- [ ] The AI coding-assistant disclosure is pasted exactly and the pre-existing
-  third-party data disclosure is included.
-- [ ] The Devpost description names a Reader-only account for the live catalog.
+- [x] The AI coding-assistant disclosure is pasted exactly and the pre-existing
+  third-party data disclosure is included; both are verified present in the live
+  description, along with the Apache-2.0 statement and the excluded-source note.
+- [x] The Devpost description names a Reader-only account for the live catalog.
   This hackathon has no private field, so the account is public by necessity and
   must therefore be read-only; the administrator login must never be the one
   published.
-- [ ] The Reader account has been tested against the live deployment to confirm
-  that metadata write controls are unavailable.
-- [ ] Optional: If pursuing a $50 Most Valuable Feedback bonus prize, submit
-  the organizer's feedback form and retain its confirmation; the form is not
-  required for project submission.
+- [x] The Reader account has been tested against the live deployment to confirm
+  that metadata write controls are unavailable: all platform privileges false,
+  `addTag` and `updateDataset` refused with HTTP 403, catalog reads unaffected.
+- [x] The $50 Most Valuable Feedback bonus is answered inside the submission
+  itself — the four feedback questions are submission fields, not a separate
+  form — and it is independent of the main prizes.
 - [x] Evidence links above open at the submitted repository revision.
 - [x] `make gate-demo` and `make check` were run from that revision; paste only
   their actual results into the final submission.
@@ -354,11 +368,12 @@ field:
   public at <https://www.youtube.com/watch?v=R4GdN36Lsno>; identity and
   signed-out verification recorded in `VIDEO.md`. The superseded exports were
   not uploaded.
-- [ ] Replace the published administrator login in the Devpost description with
-  the Reader-only account, and paste the exact disclosure above into its
-  corresponding field.
-- [ ] Press **Submit**. Optionally complete the organizer's feedback form if
-  pursuing its separate bonus.
+- [x] Replaced 2026-08-08: the published administrator login is gone from the
+  Devpost description; the Reader-only account is published in its place, and the
+  disclosure above is pasted into the description.
+- [x] Submitted 2026-07-31 and re-saved 2026-08-08 with the complete answer set,
+  including the four Most Valuable Feedback answers. The original submission
+  timestamp is unchanged.
 
 ## Optional opportunities (not submission requirements)
 

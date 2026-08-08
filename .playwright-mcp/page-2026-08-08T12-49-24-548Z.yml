@@ -1,0 +1,466 @@
+- generic [active] [ref=f2e1]:
+  - banner [ref=f2e2]:
+    - navigation [ref=f2e4]:
+      - list:
+        - listitem [ref=f2e5]:
+          - link "" [ref=f2e6] [cursor=pointer]:
+            - /url: "#"
+        - listitem [ref=f2e8]:
+          - link [ref=f2e10] [cursor=pointer]:
+            - /url: https://devpost.com
+            - img "Devpost" [ref=f2e11]
+        - text:  
+        - listitem [ref=f2e12]:
+          - list [ref=f2e13]:
+            - listitem [ref=f2e14]:
+              - link "Log in" [ref=f2e15] [cursor=pointer]:
+                - /url: https://secure.devpost.com/users/login?ref=top-nav-login
+        - listitem [ref=f2e16]:
+          - generic [ref=f2e17]: 
+      - list [ref=f2e19]:
+        - generic [ref=f2e20]:
+          - link "Join a hackathon" [ref=f2e21] [cursor=pointer]:
+            - /url: "#join-a-hackathon"
+            - generic [ref=f2e23]: 
+            - text: 
+          - text:   
+          - link "Host a hackathon" [ref=f2e24] [cursor=pointer]:
+            - /url: "#host-a-hackathon"
+            - text: Host a hackathon
+            - generic [ref=f2e25]: 
+            - text: 
+          - text:      
+          - link "Resources" [ref=f2e26] [cursor=pointer]:
+            - /url: "#resources"
+            - text: Resources
+            - generic [ref=f2e27]: 
+            - text: 
+    - text:                  
+  - generic [ref=f2e28]:
+    - generic [ref=f2e29]:
+      - generic [ref=f2e31]:
+        - heading "Sidq" [level=1] [ref=f2e32]
+        - paragraph [ref=f2e33]: Sidq verifies DataHub context before agents act — and blocks actions the evidence cannot support.
+      - generic [ref=f2e35]:
+        - link "♥ Like" [ref=f2e38] [cursor=pointer]:
+          - /url: https://secure.devpost.com/users/register?flow%5Bdata%5D%5Bsoftware_id%5D=1367475&flow%5Bname%5D=like_software&return_to=https%3A%2F%2Fdevpost.com%2Fsoftware%2Fsidq-is-the-graph-lying
+          - generic [ref=f2e39]: ♥
+          - text: Like
+        - link "“ Comment" [ref=f2e40] [cursor=pointer]:
+          - /url: /software/sidq-is-the-graph-lying#updates
+          - generic [ref=f2e41]: “
+          - text: Comment
+    - navigation [ref=f2e42]:
+      - list [ref=f2e45]:
+        - listitem [ref=f2e46]:
+          - heading [level=4] [ref=f2e47]:
+            - link "Story" [ref=f2e48] [cursor=pointer]:
+              - /url: /software/sidq-is-the-graph-lying
+        - listitem [ref=f2e49]:
+          - heading [level=4] [ref=f2e50]:
+            - link "Updates" [ref=f2e51] [cursor=pointer]:
+              - /url: /software/sidq-is-the-graph-lying#updates
+    - article [ref=f2e52]:
+      - generic [ref=f2e53]:
+        - generic [ref=f2e54]:
+          - list [ref=f2e56]:
+            - button [ref=f2e57] [cursor=pointer]:
+              - generic [ref=f2e58]: 
+            - generic [ref=f2e60]:
+              - listitem [ref=f2e63]:
+                - link [ref=f2e64] [cursor=pointer]:
+                  - /url: https://d112y698adiu2z.cloudfront.net/photos/production/software_photos/005/040/963/datas/original.png
+                - generic [ref=f2e66]: 
+              - tabpanel [ref=f2e68]:
+                - listitem [ref=f2e70]:
+                  - iframe [ref=f2e72]:
+                    - generic [ref=f7e1]:
+                      - generic "YouTube Video Player" [ref=f7e3]
+                      - generic [ref=f7e5]:
+                        - generic:
+                          - generic:
+                            - generic [ref=f7e6] [cursor=pointer]
+                            - button "Play video" [ref=f7e10] [cursor=pointer]
+                            - button "Hide player controls" [ref=f7e14] [cursor=pointer]
+                            - generic [ref=f7e16]:
+                              - generic [ref=f7e21]:
+                                - generic [ref=f7e22]:
+                                  - link "Sidq — Provable Context Before DataHub Agents Act" [ref=f7e23] [cursor=pointer]:
+                                    - /url: https://www.youtube.com/watch?v=R4GdN36Lsno
+                                  - link "NexuChat" [ref=f7e24] [cursor=pointer]:
+                                    - /url: /channel/UCZEnVuF5ciAR7pLsODQ6boQ
+                                - generic [ref=f7e26]:
+                                  - button [ref=f7e27] [cursor=pointer]:
+                                    - img "thumbnail-image" [ref=f7e28]
+                                  - generic [ref=f7e30]:
+                                    - generic: NexuChat
+                                    - generic: No subscribers
+                              - generic [ref=f7e31]:
+                                - button "Share" [ref=f7e34] [cursor=pointer]
+                                - link "Watch on YouTube" [ref=f7e45] [cursor=pointer]:
+                                  - /url: https://www.youtube.com/watch?v=R4GdN36Lsno
+                                  - generic [ref=f7e46]: Watch on
+              - tabpanel [ref=f2e73]:
+                - listitem [ref=f2e75]:
+                  - link [ref=f2e76] [cursor=pointer]:
+                    - /url: https://d112y698adiu2z.cloudfront.net/photos/production/software_photos/005/040/960/datas/original.png
+                  - generic [ref=f2e78]: 
+              - tabpanel [ref=f2e80]:
+                - listitem [ref=f2e82]:
+                  - link [ref=f2e83] [cursor=pointer]:
+                    - /url: https://d112y698adiu2z.cloudfront.net/photos/production/software_photos/005/040/958/datas/original.png
+                  - generic [ref=f2e85]: 
+              - tabpanel [ref=f2e87]:
+                - listitem [ref=f2e89]:
+                  - link [ref=f2e90] [cursor=pointer]:
+                    - /url: https://d112y698adiu2z.cloudfront.net/photos/production/software_photos/005/040/961/datas/original.png
+                  - generic [ref=f2e92]: 
+              - tabpanel [ref=f2e94]:
+                - listitem [ref=f2e96]:
+                  - link [ref=f2e97] [cursor=pointer]:
+                    - /url: https://d112y698adiu2z.cloudfront.net/photos/production/software_photos/005/040/962/datas/original.png
+                  - generic [ref=f2e99]: 
+              - tabpanel [ref=f2e101]:
+                - listitem [ref=f2e103]:
+                  - link [ref=f2e104] [cursor=pointer]:
+                    - /url: https://d112y698adiu2z.cloudfront.net/photos/production/software_photos/005/040/963/datas/original.png
+                  - generic [ref=f2e106]: 
+              - listitem [ref=f2e110]:
+                - iframe [ref=f2e112]:
+                  - generic [ref=f8e1]:
+                    - generic "YouTube Video Player" [ref=f8e3]
+                    - generic [ref=f8e5]:
+                      - generic:
+                        - generic:
+                          - generic [ref=f8e6] [cursor=pointer]
+                          - button "Play video" [ref=f8e10] [cursor=pointer]
+                          - button "Hide player controls" [ref=f8e12] [cursor=pointer]
+                          - generic [ref=f8e14]:
+                            - generic [ref=f8e19]:
+                              - generic [ref=f8e20]:
+                                - link "Sidq — Provable Context Before DataHub Agents Act" [ref=f8e21] [cursor=pointer]:
+                                  - /url: https://www.youtube.com/watch?v=R4GdN36Lsno
+                                - link "NexuChat" [ref=f8e22] [cursor=pointer]:
+                                  - /url: /channel/UCZEnVuF5ciAR7pLsODQ6boQ
+                              - generic [ref=f8e24]:
+                                - button [ref=f8e25] [cursor=pointer]
+                                - generic [ref=f8e27]:
+                                  - generic: NexuChat
+                                  - generic: No subscribers
+                            - generic [ref=f8e28]:
+                              - button "Share" [ref=f8e31] [cursor=pointer]
+                              - link "Watch on YouTube" [ref=f8e42] [cursor=pointer]:
+                                - /url: https://www.youtube.com/watch?v=R4GdN36Lsno
+                                - generic [ref=f8e43]: Watch on
+              - listitem [ref=f2e115]:
+                - link [ref=f2e116] [cursor=pointer]:
+                  - /url: https://d112y698adiu2z.cloudfront.net/photos/production/software_photos/005/040/960/datas/original.png
+                - generic [ref=f2e118]: 
+              - listitem [ref=f2e122]:
+                - link [ref=f2e123] [cursor=pointer]:
+                  - /url: https://d112y698adiu2z.cloudfront.net/photos/production/software_photos/005/040/958/datas/original.png
+                - generic [ref=f2e125]: 
+              - listitem [ref=f2e129]:
+                - link [ref=f2e130] [cursor=pointer]:
+                  - /url: https://d112y698adiu2z.cloudfront.net/photos/production/software_photos/005/040/961/datas/original.png
+                - generic [ref=f2e132]: 
+              - listitem [ref=f2e136]:
+                - link [ref=f2e137] [cursor=pointer]:
+                  - /url: https://d112y698adiu2z.cloudfront.net/photos/production/software_photos/005/040/962/datas/original.png
+                - generic [ref=f2e139]: 
+              - listitem [ref=f2e143]:
+                - link [ref=f2e144] [cursor=pointer]:
+                  - /url: https://d112y698adiu2z.cloudfront.net/photos/production/software_photos/005/040/963/datas/original.png
+                - generic [ref=f2e146]: 
+            - button [ref=f2e148] [cursor=pointer]:
+              - generic [ref=f2e149]: 
+            - tablist [ref=f2e150]:
+              - tab "1 of 6" [selected] [ref=f2e151] [cursor=pointer]: • 1
+              - tab "2 of 6" [ref=f2e152] [cursor=pointer]: • 2
+              - tab "3 of 6" [ref=f2e153] [cursor=pointer]: • 3
+              - tab "4 of 6" [ref=f2e154] [cursor=pointer]: • 4
+              - tab "5 of 6" [ref=f2e155] [cursor=pointer]: • 5
+              - tab "6 of 6" [ref=f2e156] [cursor=pointer]: • 6
+          - generic [ref=f2e157]:
+            - paragraph [ref=f2e158]: Everyone builds agents that read the metadata graph and trust it blindly. Sidq asks whether the graph is lying — and stops the agent before it builds on the lie.
+            - paragraph [ref=f2e159]: We pointed it at the sample catalog DataHub itself ships. Read-only, no credentials, it examined all 67 datasets and found 285 internal contradictions concentrated in 5 assets — including one whose stored schema has 2 fields while the catalog records 57 column-lineage edges pointing at fields that schema does not contain.
+            - paragraph [ref=f2e160]:
+              - text: "▶ Watch it happen (2:56):"
+              - link "https://www.youtube.com/watch?v=R4GdN36Lsno" [ref=f2e161] [cursor=pointer]:
+                - /url: https://www.youtube.com/watch?v=R4GdN36Lsno
+              - text: "⚡ Run it yourself, zero install:"
+              - link "https://sidq.mlki.app" [ref=f2e162] [cursor=pointer]:
+                - /url: https://sidq.mlki.app
+              - text: "— the Run it here buttons execute the real commands on our host, live. 🔁 Reproduce everything: one clone, four make commands, 1,123 tests."
+            - paragraph [ref=f2e163]: Inspiration
+            - paragraph [ref=f2e164]: "Every agent framework this year taught agents to read the metadata graph — schema, lineage, ownership — and treat it as ground truth. Nobody asked the prior question: is the graph telling the truth? The moment that turned suspicion into a project: we opened the sample catalog DataHub itself ships and found it quietly contradicting itself 285 times. If the curated demo catalog lies, production catalogs lie more — and agents build on those lies at machine speed."
+            - paragraph [ref=f2e165]: What it does
+            - paragraph [ref=f2e166]: Sidq is a DataHub-native verification layer for data-code changes and agents. It asks whether catalog context is truthful before an agent relies on it.
+            - paragraph [ref=f2e167]: Sidq separates evidence collection from judgment. It compares catalog schema with a live PostgreSQL source, reconciles the constraints the catalog claims against the constraints that source actually enforces, checks catalog lineage and descriptions where the required source material exists, resolves changed SQL to DataHub assets, follows downstream impact, and checks governance evidence such as PII, ownership, and deprecation. Its policy engine emits exactly PASS, WARN, or BLOCK. A graph failure is fail-closed. A deterministic finding is the only kind that can block.
+            - paragraph [ref=f2e168]: "The clearest example is STALE_CONTEXT: the live demo renames raw.customers.email to email_address without re-ingesting DataHub. Sidq sees the graph and source disagree and blocks the context rather than letting an agent build on it."
+            - paragraph [ref=f2e169]: For a code change that removes cust_email, Sidq follows real column lineage through dbt, Snowflake, Looker, and a Looker dashboard. It sees the live PII_Data tag and returns BLOCK. The published example records 16 downstream consumers.
+            - paragraph [ref=f2e170]: "The whole loop runs over the official DataHub MCP server in one command, make live-loop: the agent reads with search, get_entities, list_schema_fields, and get_lineage; the policy decides; the receipt is written with the MCP mutation tools; and a separate process reads it back and recomputes its own verdict. A fourth step asks about an asset carrying no receipt — chosen at run time, since the resuming audit eventually reaches any asset named in advance — and gets NOT VERIFIED: a bounded run records what it could not afford to read instead of passing it over in silence, and assets in that state get no receipt at all."
+            - paragraph [ref=f2e171]: The audit also resumes — through the catalog, not beside it. sidq audit --resume reads the receipts previous runs wrote back and skips every asset whose receipt still holds under the current policy hash, so the whole budget flows to assets no run has reached. Coverage converges run over run under a budget that never changed, and any Sidq instance resumes where any other stopped, because the state is the catalog itself. The judgment is recomputed by the reader each time — a stale, blocked, or unreadable receipt puts the asset back in the queue — and a skipped asset is reported as vouched, never as verified by this run.
+            - paragraph [ref=f2e172]: "A second agent, sidq repair, decides what to do about each finding — and reports what it cannot fix. Proposals come from catalog evidence only, and nothing is offered for writing until the deterministic engine has re-run against the catalog that repair would create: it must resolve the finding, introduce no new one, and the surviving set must still hold when applied together. In the committed regression that gate refuses the obvious PII fix — and the refusal line is worth reading closely: the one-hop repair does resolve the finding it was proposed for, and is rejected for what it creates, because the newly tagged column feeds a consumer that then becomes an untagged PII consumer itself. The proposal the engine accepts instead covers the field-lineage closure — every column the marker reaches downstream that does not already declare it — in one MCP call, and that one it proves. Four of the six checks produce no proposal at all, each with its reason recorded, because an agent with an answer for all six would be inventing four."
+            - paragraph [ref=f2e173]: Sidq also writes a receipt back to DataHub through the official MCP mutation tools. The receipt has queryable sidq.* properties, a visible sidq:verified or sidq:blocked tag, and a human-readable evidence document. A separate reader can check the receipt. The status becomes stale when the asset changes, the receipt ages past the configured window, or the policy hash changes.
+            - paragraph [ref=f2e174]: "Finally, we audited DataHub’s shipped showcase-ecommerce sample using read-only catalog metadata. The audit examined all 67 datasets and found 285 internal field-lineage contradictions concentrated in 5 assets. This is a narrower claim than saying the source systems are broken: the contradictory claims are visible inside the catalog itself."
+            - paragraph [ref=f2e175]: How it was built
+            - paragraph [ref=f2e176]: The engine is deterministic Python. Gates collect structured evidence. The policy engine alone decides. The same input, graph snapshot, and policy file produce a byte-identical verdict identified by policy_hash and commit_sha.
+            - paragraph [ref=f2e177]: "Sidq has three surfaces:"
+            - paragraph [ref=f2e178]: "A CLI: .venv/bin/sidq check --file ... --json or .venv/bin/sidq check --diff ... --json. A GitHub PR bot that renders the decision, provenance, evidence, impact paths, and reproduction command. A stdio MCP server, sidq-mcp, with verify_context, check_change, and search_verified."
+            - paragraph [ref=f2e179]: The shipped judge path contains no LLM calls. Sidq does not replace an agent. It gives an agent a refusal and verification path before it acts, and leaves evidence for the next agent.
+            - paragraph [ref=f2e180]: Technologies
+            - paragraph [ref=f2e181]: Python 3.12 (the version CI exercises; the package pins >=3.12,<3.13). DataHub and the official mcp-server-datahub MCP server. MCP over stdio for the Sidq server and receipt path. sqlglot for deterministic SQL parsing and field extraction. PyYAML for the restricted policy and asset-map formats. PostgreSQL for the controlled live-source drift demo. Docker Compose for the local demo environment. GitHub Actions and the GitHub PR API for the PR bot.
+            - paragraph [ref=f2e182]: The repository is licensed Apache-2.0. The project code was written during the submission period.
+            - paragraph [ref=f2e183]: Data used
+            - paragraph [ref=f2e184]: "The main audit uses DataHub’s officially shipped showcase-ecommerce sample. The local recon records 67 datasets, 835 stored fine-grained lineage records, and 844 upstream field references. The truth report’s 285 contradictions are catalog-only comparisons: a stored lineage target names a field absent from its stored target schema."
+            - paragraph [ref=f2e185]: The PII and Looker demonstration uses the same showcase graph. Its published evidence links customers.cust_email to Looker dashboard b2fd91.dashboards.53 and records the urn:li:tag:b2fd91.PII_Data tag.
+            - paragraph [ref=f2e186]: The STALE_CONTEXT demonstration uses the controlled PostgreSQL database in demo/. Its seed contains 36 customers, 72 orders, 144 order items, and the analytics.customer_revenue view. make demo-break renames the live column; the catalog remains unchanged until re-ingestion.
+            - paragraph [ref=f2e187]: The receipt demonstration uses the disposable asset urn:li:dataset:(urn:li:dataPlatform:postgres,sidq.receipt.consumed,DEV) and the published examples/02-receipt-consumed/ scripts. It does not claim that this disposable asset is part of the showcase sample.
+            - paragraph [ref=f2e188]: Challenges we ran into
+            - paragraph [ref=f2e189]: "The repair that moved the leak. Our repair agent's first PII fix was obvious: tag the one column the finding named. The engine's re-verification refused it — the fix resolved that finding and created a new untagged consumer downstream. The leak had not been closed; it had moved. That failure forced the rule the agent now lives by: nothing is proposed unless the engine has re-run against the catalog the repair would create."
+            - paragraph [ref=f2e190]: "Our own feature falsified our own demo. The live-loop demo froze one asset as \"the audit never reaches this\" to prove honest coverage. Then we taught the audit to resume through receipts — and it reached the frozen asset and receipted it, failing our demo on its own stale assumption. The fix was philosophically satisfying: the demo now discovers an unreceipted asset at run time, and when none remains, it declares convergence instead of failing."
+            - paragraph [ref=f2e191]: "The classifier that was secretly a rule. We trained an ML ladder to pre-screen changes. Held-out accuracy: 100%. Suspicion: also 100%. Diagnosis showed the models had learned a three-line deterministic rule — so we shipped the rule and published the negative result (docs/PREFLIGHT-RESULTS.md) instead of shipping a model wearing a classifier's clothes."
+            - paragraph [ref=f2e192]: "MCP economics. Column lineage over MCP costs one call per named column. A naive audit either lies by omission or never finishes. The answer became a design principle: explicit budgets, worst-consequence-first ordering, and NOT VERIFIED as a first-class answer — never silence."
+            - paragraph [ref=f2e193]: What we learned
+            - paragraph [ref=f2e194]: Unverifiable ≠ clean. The most dangerous words in a catalog are the ones nobody checked. Separating "we checked and it passed" from "we could not check" shaped every surface we built. State can live in the artifact itself. Receipts written into the catalog became the agents' shared memory — audits resume, coverage converges, and any instance continues where any other stopped, with no coordination infrastructure at all. Determinism is a feature you can hold. Byte-identical verdicts under a policy_hash turned "trust our tool" into "check our hash" — and that one property is what makes receipts, replays, and refusals mean anything.
+            - paragraph [ref=f2e195]: The questions a platform team will ask
+            - paragraph [ref=f2e196]: Data privacy. Sidq reads metadata only — schemas, lineage, tags, owners — never row data. Audits are read-only by default; the only writes are the receipts you explicitly opt into, and they land in your catalog. Self-hosted, Apache-2.0, and because the judged path contains no LLM, nothing about your catalog ever leaves your infrastructure.
+            - paragraph [ref=f2e197]: "Reliability of results. Every verdict is deterministic: same input, same policy, byte-identical output, identified by policy_hash + commit_sha. 1,123 tests guard the engine, and CI-enforced guards pin every number the repository claims. You do not trust the tool; you re-derive its answer (make gate-demo) and compare hashes."
+            - paragraph [ref=f2e198]: "Model drift. There is no model in the judged path, so there is nothing to drift — by construction. We tried a classifier, it tied a three-line rule on held-out data, and we shipped the rule and published the negative result (docs/PREFLIGHT-RESULTS.md). Policy drift is handled explicitly: changing the policy changes policy_hash, which invalidates every receipt written under the old one."
+            - paragraph [ref=f2e199]: "Monitoring. The receipts are the monitoring surface: sidq.* properties are queryable through DataHub search, so \"how many assets are verified / stale / blocked / never examined\" is one query, and the converging audit's vouched / NOT examined counts give you coverage per run. sidq verify is a health check any pipeline can call."
+            - paragraph [ref=f2e200]: "Cost. Apache-2.0, self-hosted, zero API fees — no LLM in the loop means no per-token bill. The measurable cost is MCP call time (column lineage ≈ 0.116s per column, budgeted explicitly), and the resumable audit amortizes it: work done once is never re-paid while its receipt holds."
+            - paragraph [ref=f2e201]: Limitations
+            - paragraph [ref=f2e202]: lineage_rot is not adjudicable on the shipped showcase sample because the datapack does not include the original model SQL. Sidq reports all 32 attempts as unverifiable; it does not label them clean or rotten.
+            - paragraph [ref=f2e203]: The assertion-dependency gate has no MCP path in the open-source DataHub server; the server reports data-quality tools as disabled. It is not presented as an MCP capability.
+            - paragraph [ref=f2e204]: Sidq does not provide a global trust score, continuous background drift monitor, blanket write quarantine, or model-assisted blocking. Those boundaries keep the decision explicit and reproducible.
+            - paragraph [ref=f2e205]: Required disclosures
+            - paragraph [ref=f2e206]: The project was created during the submission period. Every line of Sidq's own source, tests, and documentation was written inside the window; no pre-existing project code was carried in. AI coding assistants were used during development. Third-party material is included, and it is data rather than code. The claim-extraction corpus under data/claims/ is mined from permissively licensed public sources — dbt repositories (MIT, Apache-2.0, BSD, Unlicense, CC0-1.0), SchemaStore (Apache-2.0), FHIR R5 core (CC0-1.0), and application-code and error-message corpora (MIT, Apache-2.0, BSD-3-Clause). Every released row retains its source path, commit or version, and licence. The graph fixtures under tests/fixtures/graph/ are recordings of DataHub's own shipped showcase-ecommerce sample. Full provenance is in data/claims/ATTRIBUTION.md, data/claims/NOTICE, and data/claims/DATASHEET.md in the repository. Google Discovery JSON was deliberately excluded because its redistribution licence could not be confirmed. The repository is Apache-2.0 licensed. The video uses no music at all — narration over silence.
+            - paragraph [ref=f2e207]: Try it
+            - paragraph [ref=f2e208]:
+              - text: "Project link:"
+              - link "https://sidq.mlki.app" [ref=f2e209] [cursor=pointer]:
+                - /url: https://sidq.mlki.app
+              - text: — the page is executable, not a screenshot. Its Run it here buttons run the offline verdict reproduction and the live MCP catalog audit on the host and print the real output. The runnable set is a closed table of fixed argument lists with no request input, and it contains no command that can write to a catalog.
+            - paragraph [ref=f2e210]:
+              - text: "Live DataHub:"
+              - link "https://datahub.mlki.app" [ref=f2e211] [cursor=pointer]:
+                - /url: https://datahub.mlki.app
+            - paragraph [ref=f2e212]:
+              - text: "Judge login for the live DataHub: username"
+              - link "sidq-judge@local.invalid" [ref=f2e213] [cursor=pointer]:
+                - /url: mailto:sidq-judge@local.invalid
+              - text: ", password sidq-judge-2026. This account holds DataHub's Reader role and nothing else: it can read every asset, lineage graph and Sidq receipt, and every write is refused with HTTP 403. This hackathon's submission form has no private field, so any credential a judge needs is public by necessity — which is exactly why the published one is read-only."
+            - paragraph [ref=f2e214]: "Local reproduction: make demo-up && make demo-ingest && make demo-break && .venv/bin/sidq check --file demo/dbt/models/customer_revenue.sql --json"
+            - paragraph [ref=f2e215]: The repository also includes the worked verdicts, receipt proof, and catalog truth report under examples/.
+          - generic [ref=f2e216]:
+            - heading "Built With" [level=2] [ref=f2e217]
+            - list [ref=f2e218]:
+              - listitem [ref=f2e219]:
+                - generic [ref=f2e220]: datahub
+              - listitem [ref=f2e221]:
+                - generic [ref=f2e222]: dbt
+              - listitem [ref=f2e223]:
+                - link "docker" [ref=f2e225] [cursor=pointer]:
+                  - /url: https://devpost.com/software/built-with/docker
+              - listitem [ref=f2e226]:
+                - generic [ref=f2e227]: docker-compose
+              - listitem [ref=f2e228]:
+                - generic [ref=f2e229]: github-actions
+              - listitem [ref=f2e230]:
+                - generic [ref=f2e231]: looker
+              - listitem [ref=f2e232]:
+                - link "makefile" [ref=f2e234] [cursor=pointer]:
+                  - /url: https://devpost.com/software/built-with/makefile
+              - listitem [ref=f2e235]:
+                - generic [ref=f2e236]: mcp
+              - listitem [ref=f2e237]:
+                - generic [ref=f2e238]: model-context-protocol
+              - listitem [ref=f2e239]:
+                - link "postgresql" [ref=f2e241] [cursor=pointer]:
+                  - /url: https://devpost.com/software/built-with/postgresql
+              - listitem [ref=f2e242]:
+                - link "python" [ref=f2e244] [cursor=pointer]:
+                  - /url: https://devpost.com/software/built-with/python
+              - listitem [ref=f2e245]:
+                - generic [ref=f2e246]: pyyaml
+              - listitem [ref=f2e247]:
+                - generic [ref=f2e248]: rest-api
+              - listitem [ref=f2e249]:
+                - generic [ref=f2e250]: snowflake
+              - listitem [ref=f2e251]:
+                - generic [ref=f2e252]: sqlglot
+          - navigation [ref=f2e253]:
+            - heading "Try it out" [level=2] [ref=f2e254]
+            - list [ref=f2e255]:
+              - listitem [ref=f2e256]:
+                - link "🔗 sidq.mlki.app" [ref=f2e257] [cursor=pointer]:
+                  - /url: https://sidq.mlki.app
+                  - generic [ref=f2e258]: 🔗
+                  - text: sidq.mlki.app
+              - listitem [ref=f2e259]:
+                - link " GitHub Repo" [ref=f2e260] [cursor=pointer]:
+                  - /url: https://github.com/NexuChat/sidq
+                  - generic [ref=f2e261]: 
+                  - text: GitHub Repo
+              - listitem [ref=f2e262]:
+                - link "🔗 datahub.mlki.app" [ref=f2e263] [cursor=pointer]:
+                  - /url: https://datahub.mlki.app
+                  - generic [ref=f2e264]: 🔗
+                  - text: datahub.mlki.app
+        - complementary [ref=f2e265]:
+          - generic [ref=f2e266]:
+            - heading "Submitted to" [level=4] [ref=f2e267]
+            - list [ref=f2e268]:
+              - listitem [ref=f2e269]:
+                - figure [ref=f2e270]:
+                  - link [ref=f2e271] [cursor=pointer]:
+                    - /url: https://datahub.devpost.com/
+                    - img "image" [ref=f2e272]
+                - paragraph [ref=f2e274]:
+                  - 'link "Build with DataHub: The Agent Hackathon" [ref=f2e275] [cursor=pointer]':
+                    - /url: https://datahub.devpost.com/
+          - generic [ref=f2e276]:
+            - heading "Created by" [level=4] [ref=f2e277]
+            - list [ref=f2e278]:
+              - listitem [ref=f2e279]:
+                - generic [ref=f2e280]:
+                  - figure [ref=f2e282]:
+                    - generic "This user is in private mode" [ref=f2e283]:
+                      - img "Private user" [ref=f2e284]
+                  - generic [ref=f2e285]:
+                    - text: Private user
+                    - button "+" [ref=f2e289] [cursor=pointer]
+    - generic [ref=f2e297]:
+      - link "♥ Like" [ref=f2e299] [cursor=pointer]:
+        - /url: https://secure.devpost.com/users/register?flow%5Bdata%5D%5Bsoftware_id%5D=1367475&flow%5Bname%5D=like_software&return_to=https%3A%2F%2Fdevpost.com%2Fsoftware%2Fsidq-is-the-graph-lying
+        - generic [ref=f2e300]: ♥
+        - text: Like
+      - list
+    - article [ref=f2e301]:
+      - generic [ref=f2e303]:
+        - heading "Updates" [level=2] [ref=f2e304]
+        - article [ref=f2e305]:
+          - generic [ref=f2e308]:
+            - generic "This user is in private mode" [ref=f2e310]:
+              - img "Private user" [ref=f2e311]
+            - generic [ref=f2e312]:
+              - paragraph [ref=f2e313]:
+                - text: Private user started this project
+                - generic [ref=f2e314]:
+                  - text: —
+                  - link [ref=f2e315] [cursor=pointer]:
+                    - /url: /software/sidq-is-the-graph-lying/updates/808802
+                    - time [ref=f2e316]: 8 days ago
+              - paragraph [ref=f2e317]: Leave feedback in the comments!
+              - generic [ref=f2e318]:
+                - generic:
+                  - list
+                - paragraph [ref=f2e319]:
+                  - strong [ref=f2e320]:
+                    - link "Log in" [ref=f2e321] [cursor=pointer]:
+                      - /url: https://secure.devpost.com/users/login
+                  - text: or
+                  - strong [ref=f2e322]:
+                    - link "sign up for Devpost" [ref=f2e323] [cursor=pointer]:
+                      - /url: https://secure.devpost.com/users/register?flow%5Bdata%5D%5Bcommentable_id%5D=808802&flow%5Bname%5D=comment_on_software_update&return_to=https%3A%2F%2Fdevpost.com%2Fsoftware%2Fsidq-is-the-graph-lying
+                  - text: to join the conversation.
+  - contentinfo [ref=f2e324]:
+    - generic [ref=f2e325]:
+      - navigation [ref=f2e327]:
+        - heading "Devpost" [level=4] [ref=f2e328]
+        - list [ref=f2e329]:
+          - listitem [ref=f2e330]:
+            - link "About" [ref=f2e331] [cursor=pointer]:
+              - /url: https://info.devpost.com/about
+          - listitem [ref=f2e332]:
+            - link "Careers" [ref=f2e333] [cursor=pointer]:
+              - /url: https://info.devpost.com/careers
+          - listitem [ref=f2e334]:
+            - link "Contact" [ref=f2e335] [cursor=pointer]:
+              - /url: https://info.devpost.com/contact
+          - listitem [ref=f2e336]:
+            - link "Help" [ref=f2e337] [cursor=pointer]:
+              - /url: https://help.devpost.com/
+      - navigation [ref=f2e339]:
+        - heading "Hackathons" [level=4] [ref=f2e340]
+        - list [ref=f2e341]:
+          - listitem [ref=f2e342]:
+            - link "Browse hackathons" [ref=f2e343] [cursor=pointer]:
+              - /url: https://devpost.com/hackathons
+          - listitem [ref=f2e344]:
+            - link "Explore projects" [ref=f2e345] [cursor=pointer]:
+              - /url: https://devpost.com/software
+          - listitem [ref=f2e346]:
+            - link "Host a hackathon" [ref=f2e347] [cursor=pointer]:
+              - /url: https://info.devpost.com
+          - listitem [ref=f2e348]:
+            - link "Hackathon guides" [ref=f2e349] [cursor=pointer]:
+              - /url: https://info.devpost.com/guides
+      - navigation [ref=f2e351]:
+        - heading "Portfolio" [level=4] [ref=f2e352]
+        - list [ref=f2e353]:
+          - listitem [ref=f2e354]:
+            - link "Your projects" [ref=f2e355] [cursor=pointer]:
+              - /url: https://devpost.com/portfolio/redirect?page=projects
+          - listitem [ref=f2e356]:
+            - link "Your hackathons" [ref=f2e357] [cursor=pointer]:
+              - /url: https://devpost.com/portfolio/redirect?page=hackathons
+          - listitem [ref=f2e358]:
+            - link "Settings" [ref=f2e359] [cursor=pointer]:
+              - /url: https://devpost.com/settings
+      - navigation [ref=f2e361]:
+        - heading "Connect" [level=4] [ref=f2e362]
+        - list [ref=f2e363]:
+          - listitem [ref=f2e364]:
+            - link [ref=f2e365] [cursor=pointer]:
+              - /url: https://twitter.com/devpost
+              - generic [ref=f2e366]: 
+              - text: Twitter
+          - listitem [ref=f2e368]:
+            - link [ref=f2e369] [cursor=pointer]:
+              - /url: https://discord.com/invite/HP4BhW3hnp
+              - generic [ref=f2e370]: 
+              - text: Discord
+          - listitem [ref=f2e372]:
+            - link [ref=f2e373] [cursor=pointer]:
+              - /url: https://www.facebook.com/devposthacks
+              - generic [ref=f2e374]: 
+              - text: Facebook
+          - listitem [ref=f2e376]:
+            - link [ref=f2e377] [cursor=pointer]:
+              - /url: https://www.linkedin.com/company/devpost/
+              - generic [ref=f2e378]: 
+              - text: LinkedIn
+    - navigation [ref=f2e381]:
+      - generic [ref=f2e383]:
+        - generic [ref=f2e384]: © 2026 Devpost, Inc. All rights reserved.
+        - list [ref=f2e385]:
+          - listitem [ref=f2e386]:
+            - link "Community guidelines" [ref=f2e387] [cursor=pointer]:
+              - /url: https://info.devpost.com/legal/community-guidelines
+          - listitem [ref=f2e388]:
+            - link "Security" [ref=f2e389] [cursor=pointer]:
+              - /url: https://info.devpost.com/legal/security
+          - listitem [ref=f2e390]:
+            - link "CA notice" [ref=f2e391] [cursor=pointer]:
+              - /url: https://info.devpost.com/legal/california-consumer-privacy-act
+          - listitem [ref=f2e392]:
+            - link "Privacy policy" [ref=f2e393] [cursor=pointer]:
+              - /url: https://info.devpost.com/legal/privacy-policy
+          - listitem [ref=f2e394]:
+            - link "Terms of service" [ref=f2e395] [cursor=pointer]:
+              - /url: https://info.devpost.com/legal/terms-of-service
+  - region "This site uses cookies to store information on your computer.":
+    - alert [ref=f2e396]: This site uses cookies to store information. Press accesskey C to learn more about your options.
+    - button "Cookie Control" [ref=f2e398] [cursor=pointer]:
+      - img "Cookie Control Icon" [ref=f2e399]
+    - region [ref=f2e404]:
+      - generic [ref=f2e405]:
+        - heading "Your choice regarding cookies on this site" [level=3] [ref=f2e406]
+        - paragraph [ref=f2e407]: We use cookies to optimise site functionality and give you the best possible experience.
+      - generic [ref=f2e408]:
+        - button "Accept" [ref=f2e409] [cursor=pointer]
+        - button "Settings" [ref=f2e410] [cursor=pointer]
+        - button "Close" [ref=f2e411] [cursor=pointer]:
+          - img "Cookie Control Close Icon" [ref=f2e412]

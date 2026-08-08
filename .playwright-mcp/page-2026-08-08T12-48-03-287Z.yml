@@ -1,0 +1,218 @@
+- generic [ref=f1e1]:
+  - generic [ref=f1e54]:
+    - generic [ref=f1e57]:
+      - generic [ref=f1e58]:
+        - generic [ref=f1e59]:
+          - link "logo":
+            - /url: /
+            - img "logo" [ref=f1e61] [cursor=pointer]
+        - menu [ref=f1e63]:
+          - menuitem "Home" [ref=f1e64] [cursor=pointer]
+      - menu [ref=f1e71]:
+        - listitem [ref=f1e72]:
+          - list [ref=f1e73]:
+            - menuitem "Documents" [ref=f1e74] [cursor=pointer]
+        - listitem [ref=f1e80]:
+          - list [ref=f1e81]:
+            - menuitem "Glossary" [ref=f1e82] [cursor=pointer]
+            - menuitem "Domains" [ref=f1e87] [cursor=pointer]
+            - menuitem "Structured Properties" [ref=f1e92] [cursor=pointer]
+        - listitem [ref=f1e97]:
+          - list [ref=f1e98]:
+            - menuitem "Analytics" [ref=f1e99] [cursor=pointer]
+      - menu [ref=f1e105]:
+        - menuitem "Profile" [ref=f1e106] [cursor=pointer]
+        - menuitem "Settings" [ref=f1e111] [cursor=pointer]
+        - menuitem "Help" [ref=f1e116] [cursor=pointer]
+        - link [ref=f1e121] [cursor=pointer]:
+          - /url: /logOut
+          - menuitem "Sign out" [ref=f1e122]
+    - generic [ref=f1e129]:
+      - generic [ref=f1e131]:
+        - generic [ref=f1e132]: Good afternoon, Sidq Judge Reader!
+        - generic [ref=f1e137]:
+          - generic [ref=f1e144] [cursor=pointer]:
+            - textbox "Find tables, dashboards, people, and more" [ref=f1e149]
+            - generic [ref=f1e151]:
+              - generic [ref=f1e152]:
+                - generic [ref=f1e153]: ⌘
+                - generic [ref=f1e154]: K
+              - button [ref=f1e157]
+          - button [ref=f1e162] [cursor=pointer]
+      - generic [ref=f1e169]:
+        - generic [ref=f1e172]:
+          - generic [ref=f1e173]: Your Assets
+          - generic [ref=f1e178]:
+            - paragraph [ref=f1e183]: No Owned Assets
+            - paragraph [ref=f1e184]: Select an asset and add yourself as an owner to see the assets in this list
+            - button [ref=f1e185] [cursor=pointer]
+          - button "View all" [ref=f1e189] [cursor=pointer]
+        - generic [ref=f1e191]:
+          - generic [ref=f1e193]:
+            - generic [ref=f1e194]: Domains
+            - generic [ref=f1e198]:
+              - link "D Data Platform Team Acme Corporation Engineering Division 23 assets , 1 data product" [ref=f1e199] [cursor=pointer]:
+                - /url: /domain/urn:li:domain:b2fd91.1caf2b7c-ca73-4708-bdec-6687d78cab0e
+                - generic [ref=f1e200]:
+                  - generic:
+                    - generic [ref=f1e201]: D
+                    - generic:
+                      - generic:
+                        - link "Data Platform Team":
+                          - /url: /domain/urn:li:domain:b2fd91.1caf2b7c-ca73-4708-bdec-6687d78cab0e
+                      - generic:
+                        - generic:
+                          - link "Acme Corporation" [ref=f1e206]:
+                            - /url: /domain/urn:li:domain:b2fd91.7d749c3f-cad4-4e7f-b30c-17f9639b652b
+                          - link "Engineering Division" [ref=f1e215]:
+                            - /url: /domain/urn:li:domain:b2fd91.ce125416-344c-4db4-9f07-f7086a851606
+                  - generic [ref=f1e220]:
+                    - paragraph [ref=f1e221]: 23 assets
+                    - paragraph [ref=f1e222]: ", 1 data product"
+              - link "E Ecommerce Operations Acme Corporation 6 assets , 4 data products" [ref=f1e223] [cursor=pointer]:
+                - /url: /domain/urn:li:domain:b2fd91.91994180-93ee-43f7-9c97-5e74a4a43fbd
+                - generic [ref=f1e224]:
+                  - generic:
+                    - generic [ref=f1e225]: E
+                    - generic:
+                      - generic:
+                        - link "Ecommerce Operations":
+                          - /url: /domain/urn:li:domain:b2fd91.91994180-93ee-43f7-9c97-5e74a4a43fbd
+                      - link "Acme Corporation" [ref=f1e230]:
+                        - /url: /domain/urn:li:domain:b2fd91.7d749c3f-cad4-4e7f-b30c-17f9639b652b
+                  - generic [ref=f1e235]:
+                    - paragraph [ref=f1e236]: 6 assets
+                    - paragraph [ref=f1e237]: ", 4 data products"
+              - link "M Marketing 1 asset" [ref=f1e238] [cursor=pointer]:
+                - /url: /domain/urn:li:domain:b2fd91.e0f246dc-e7a5-40ed-9441-1e397ed6e2ad
+                - generic [ref=f1e239]:
+                  - generic [ref=f1e240]:
+                    - generic [ref=f1e241]: M
+                    - link "Marketing" [ref=f1e247]:
+                      - /url: /domain/urn:li:domain:b2fd91.e0f246dc-e7a5-40ed-9441-1e397ed6e2ad
+                  - paragraph [ref=f1e250]: 1 asset
+              - link "E E-Commerce 1 asset" [ref=f1e251] [cursor=pointer]:
+                - /url: /domain/urn:li:domain:b2fd91.d4f24004-fb54-4e3c-8dea-2b7e209230b0
+                - generic [ref=f1e252]:
+                  - generic [ref=f1e253]:
+                    - generic [ref=f1e254]: E
+                    - link "E-Commerce" [ref=f1e260]:
+                      - /url: /domain/urn:li:domain:b2fd91.d4f24004-fb54-4e3c-8dea-2b7e209230b0
+                  - paragraph [ref=f1e263]: 1 asset
+            - button "View all" [ref=f1e264] [cursor=pointer]
+          - generic [ref=f1e266]:
+            - generic [ref=f1e267]: Platforms
+            - generic [ref=f1e271]:
+              - button [ref=f1e272]:
+                - generic [ref=f1e273]:
+                  - generic [ref=f1e274]:
+                    - img "Spark" [ref=f1e279]
+                    - button "Spark" [ref=f1e282]
+                  - paragraph [ref=f1e285]: "46"
+              - button [ref=f1e286]:
+                - generic [ref=f1e287]:
+                  - generic [ref=f1e288]:
+                    - img "PostgreSQL" [ref=f1e293]
+                    - button "PostgreSQL" [ref=f1e296]
+                  - paragraph [ref=f1e299]: "32"
+              - button [ref=f1e300]:
+                - generic [ref=f1e301]:
+                  - generic [ref=f1e302]:
+                    - img "Snowflake" [ref=f1e307]
+                    - button "Snowflake" [ref=f1e310]
+                  - paragraph [ref=f1e313]: "17"
+              - button [ref=f1e314]:
+                - generic [ref=f1e315]:
+                  - generic [ref=f1e316]:
+                    - img "Tableau" [ref=f1e321]
+                    - button "Tableau" [ref=f1e324]
+                  - paragraph [ref=f1e327]: "15"
+              - button [ref=f1e328]:
+                - generic [ref=f1e329]:
+                  - generic [ref=f1e330]:
+                    - img "Looker" [ref=f1e335]
+                    - button "Looker" [ref=f1e338]
+                  - paragraph [ref=f1e341]: "14"
+              - button [ref=f1e342]:
+                - generic [ref=f1e343]:
+                  - generic [ref=f1e344]:
+                    - img "AWS S3" [ref=f1e349]
+                    - button "AWS S3" [ref=f1e352]
+                  - paragraph [ref=f1e355]: "14"
+              - button [ref=f1e356]:
+                - generic [ref=f1e357]:
+                  - generic [ref=f1e358]:
+                    - img "dbt" [ref=f1e363]
+                    - button "dbt" [ref=f1e366]
+                  - paragraph [ref=f1e369]: "13"
+              - button [ref=f1e370]:
+                - generic [ref=f1e371]:
+                  - generic [ref=f1e372]:
+                    - img "Power BI" [ref=f1e377]
+                    - button "Power BI" [ref=f1e380]
+                  - paragraph [ref=f1e383]: "12"
+              - button [ref=f1e384]:
+                - generic [ref=f1e385]:
+                  - generic [ref=f1e386]:
+                    - img "Hive" [ref=f1e391]
+                    - button "Hive" [ref=f1e394]
+                  - paragraph [ref=f1e397]: "6"
+              - button [ref=f1e398]:
+                - generic [ref=f1e399]:
+                  - generic [ref=f1e400]:
+                    - img "Feast" [ref=f1e405]
+                    - button "Feast" [ref=f1e408]
+                  - paragraph [ref=f1e411]: "5"
+              - button [ref=f1e412]:
+                - generic [ref=f1e413]:
+                  - generic [ref=f1e414]:
+                    - img "Airflow" [ref=f1e419]
+                    - button "Airflow" [ref=f1e422]
+                  - paragraph [ref=f1e425]: "3"
+              - button [ref=f1e426]:
+                - generic [ref=f1e427]:
+                  - generic [ref=f1e428]:
+                    - img "Kafka" [ref=f1e433]
+                    - button "Kafka" [ref=f1e436]
+                  - paragraph [ref=f1e439]: "1"
+              - button [ref=f1e440]:
+                - generic [ref=f1e441]:
+                  - generic [ref=f1e442]:
+                    - img "HDFS" [ref=f1e447]
+                    - button "HDFS" [ref=f1e450]
+                  - paragraph [ref=f1e453]: "1"
+        - status [ref=f1e455]
+  - generic [ref=f1e457]:
+    - dialog "Welcome to DataHub":
+      - generic [ref=f1e458]:
+        - button "Close" [ref=f1e459] [cursor=pointer]
+        - heading "Welcome to DataHub" [level=1] [ref=f1e468]
+        - generic [ref=f1e472]:
+          - generic [ref=f1e474]:
+            - generic [ref=f1e477]:
+              - heading "Find Any Asset, Anywhere" [level=2] [ref=f1e478]
+              - heading "Search datasets, models, dashboards, and more across your entire stack" [level=3] [ref=f1e479]
+            - generic:
+              - generic:
+                - generic:
+                  - heading [level=2]: Understand Your Data's Origin
+                  - heading [level=3]: See the full story of how your data was created and transformed
+            - generic:
+              - generic:
+                - generic:
+                  - heading [level=2]: Manage Breaking Changes Confidently
+                  - heading [level=3]: Preview the full impact of schema and column changes
+            - generic:
+              - generic:
+                - generic:
+                  - heading [level=2]: Ready to Get Started?
+                  - heading [level=3]: Explore our comprehensive documentation or jump right in and start discovering your data
+          - list:
+            - listitem [ref=f1e482]:
+              - button "1" [ref=f1e483] [cursor=pointer]
+            - listitem [ref=f1e484]:
+              - button "2" [ref=f1e485] [cursor=pointer]
+            - listitem [ref=f1e486]:
+              - button "3" [ref=f1e487] [cursor=pointer]
+            - listitem [ref=f1e488]:
+              - button "4" [ref=f1e489] [cursor=pointer]
