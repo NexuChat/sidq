@@ -13,7 +13,7 @@ RECEIPT_URN ?= urn:li:dataset:(urn:li:dataPlatform:snowflake,b2fd91.order_entry_
 
 REPAIR_BUDGET ?= 15
 
-.PHONY: help install mcp-install check lock regen regen-check decision-cost claims-demo gate-demo live-loop converge-demo swarm-demo repair-demo repair-reset demo-prereqs demo-stack mcp-smoke doctor demo-up demo-ingest demo-break demo-restore demo-down
+.PHONY: help install mcp-install check lock regen regen-check decision-cost claims-demo gate-demo live-loop converge-demo swarm-demo repair-demo repair-reset demo-prereqs demo-stack mcp-smoke sdk-contract doctor demo-up demo-ingest demo-break demo-restore demo-down
 
 # The runbook's first row promises a clone and `make` are enough, and until
 # 2026-07-31 that promise was false: a fresh clone had no virtualenv and the
@@ -46,6 +46,7 @@ help:
 	  'make mcp-install   Install the official DataHub MCP server as an isolated uv tool' \
 	  'make demo-stack    Start Sidq PostgreSQL and ingest it into an already-running DataHub' \
 	  'make mcp-smoke     Initialize Sidq MCP, then exercise the official DataHub MCP server' \
+	  'make sdk-contract  Check the DataHub aspect contract against the real SDK, in a container' \
 	  'make doctor        Diagnose every read-only connected-mode prerequisite'
 
 # Local Sidq installation is fully offline from DataHub. The two CLI paths are
@@ -271,6 +272,18 @@ demo-prereqs:
 demo-stack: demo-prereqs
 	$(MAKE) demo-up
 	$(MAKE) demo-ingest
+
+# The aspect-contract check `make check` cannot run. `acryl-datahub` resolves
+# pydantic below what Sidq's mcp>=2 declares, so the project venv excludes it and
+# the test that re-derives tests/fixtures/datahub_assertion_contract.json from
+# the real SDK skips there with a reason. This target builds the one environment
+# where it does not skip: a throwaway container holding both packages, which is
+# where a knowingly resolver-inconsistent install belongs. Nothing it builds is
+# shipped, installed, or reachable from any other target.
+sdk-contract:
+	@command -v docker >/dev/null 2>&1 || { echo "ERROR: docker is required for the SDK contract check." >&2; exit 1; }
+	docker build -f docker/sdk-contract.Dockerfile -t sidq-sdk-contract .
+	docker run --rm sidq-sdk-contract
 
 # Initialize Sidq's three-tool MCP server, then exercise the read-only official
 # DataHub MCP server. The latter remains an external executable from the

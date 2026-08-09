@@ -117,11 +117,21 @@ So the stand-in is not permissive. `tests/fixtures/datahub_assertion_contract.js
 holds the constructor fields and enum members of the ten aspect classes this module
 touches, extracted from `acryl-datahub` 1.6.0.16, and the fake refuses any field
 outside it — naming the class, the offending field, and the SDK version. A second test
-re-derives that fixture from the installed SDK and fails on any difference; it skips
-with a reason where no SDK is present, so the project venv reports it rather than
-passing quietly, and an SDK-carrying environment turns it into a real check against
-upstream renames. Both directions were verified on 2026-08-09 by injecting a wrong
-field name and by simulating a rename.
+re-derives that fixture from the installed SDK and fails on any difference.
+
+That second test does not have to depend on someone remembering to run it somewhere
+special. `make sdk-contract` builds a throwaway container holding both packages and
+runs it there — `docker/sdk-contract.Dockerfile`, wired as its own CI job so it can
+never change the result of `make check`. The knowingly resolver-inconsistent install
+is confined to an image that ships nothing, which is where it belongs, instead of
+being offered as an extra that would put a contradictory environment in an operator's
+path. Measured 2026-08-09: 172 pass in that container, the contract test among them,
+and the one skip is the inverse test that pins the message seen when no SDK is
+installed. Each environment runs the check the other cannot.
+
+All three directions were verified the same day: a wrong field name fails the host
+suite, a simulated upstream rename fails the container, and the container is green
+against the real `acryl-datahub` 1.6.0.16.
 
 ### What this surface still does not do
 
