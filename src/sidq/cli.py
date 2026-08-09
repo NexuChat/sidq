@@ -809,6 +809,7 @@ def _audit(arguments: Any) -> int:
                 "existing": len(assertion_result["existing"]),
                 "runs": len(assertion_result["runs"]),
                 "retired": len(assertion_result["retired"]),
+                "skipped": len(assertion_result["skipped"]),
             }
             lines.append(
                 f"  assertion runs    {assertion_summary['runs']} "
@@ -817,7 +818,8 @@ def _audit(arguments: Any) -> int:
             lines.append(
                 f"  assertions        {assertion_summary['created']} new, "
                 f"{assertion_summary['existing']} updated, "
-                f"{assertion_summary['retired']} retired"
+                f"{assertion_summary['retired']} retired, "
+                f"{assertion_summary['skipped']} left deleted"
             )
 
     if arguments.as_json:

@@ -11,10 +11,14 @@ event reports one rule by that rule's own severity: ``warn`` and ``block`` did
 not pass and take ``FAILURE``, and the native results carry both the rule's
 severity and the receipt-wide verdict so a reader can tell which is which.
 
-A rule that stops firing is retired rather than left claiming a failure: the
-next run emits one closing run event for it, so the catalog stops stating
-something Sidq no longer holds.  Assertions Sidq did not write, and ones an
-operator soft-deleted, are left alone.
+A rule that stops firing is retired rather than left claiming a failure: one
+closing run event, and the definition rewritten so the row stops displaying the
+last firing's reasoning.  Retiring happens once, not every run afterwards.
+
+An assertion Sidq did not write is left alone, and so is one an operator
+soft-deleted -- on both paths.  Re-creating a deleted row because its rule fired
+again would overrule a decision with a metadata write nobody asked for, so the
+run reports the skip instead.
 
 One limit is not solved and is documented in ``docs/RECEIPT-SPEC.md`` rather
 than hidden: a ``WARN`` is counted with the failures in DataHub's aggregate
@@ -38,7 +42,14 @@ _FALLBACK_RULE_ID = "sidq.verdict"
 # used by both directions, is what keeps that round trip honest.
 _NAME_PREFIX = "Sidq policy rule "
 _CUSTOM_TYPE = "sidq.policy_rule"
+# Every URN Sidq mints starts here, so a foreign assertion is rejected without
+# spending a single aspect read on it.
+_URN_PREFIX = "urn:li:assertion:sidq-"
 _RETIRED_SUMMARY = "This rule did not fire in the latest Sidq evaluation."
+# DataHub's quality chip counts passing against failing with no third state, so
+# a WARN lands among the failures whatever Sidq does. What Sidq can still do is
+# stop a warning from reading as a block in the row a human actually looks at.
+_WARNING_SUFFIX = " (warning)"
 
 # Measured on 2026-08-09: acryl-datahub 1.6.0.16 resolves pydantic to 2.11.10,
 # contradicting the pydantic>=2.12 that mcp 2.0.0 declares, and pip reports the
@@ -102,7 +113,7 @@ def assertion_urn(dataset_urn: str, rule_id: str) -> str:
     """Return the stable native assertion URN for one Sidq rule evaluation."""
 
     digest = hashlib.sha256(f"{dataset_urn}\0{rule_id}".encode()).hexdigest()
-    return f"urn:li:assertion:sidq-{digest}"
+    return f"{_URN_PREFIX}{digest}"
 
 
 def assertion_result_type(verdict: str) -> str:
@@ -151,7 +162,13 @@ def emit_assertions(
         # Every receipt write can be rejected, and then there is nothing to
         # mirror. Opening a GMS client anyway would turn a reported writeback
         # failure into a second, unrelated connection error.
-        return {"created": (), "existing": (), "runs": (), "retired": ()}
+        return {
+            "created": (),
+            "existing": (),
+            "runs": (),
+            "retired": (),
+            "skipped": (),
+        }
 
     # One import site, so the missing-SDK boundary is stated once and cannot
     # be reported differently depending on how far the run got.
@@ -200,9 +217,28 @@ def emit_assertions(
     existing: list[str] = []
     runs: list[str] = []
     retired: list[str] = []
+    skipped: list[str] = []
+
+    def _definition(dataset_urn: str, name: str, logic: str) -> Any:
+        return AssertionInfoClass(
+            type=AssertionTypeClass.CUSTOM,
+            customAssertion=CustomAssertionInfoClass(
+                type=_CUSTOM_TYPE, entity=dataset_urn, logic=logic
+            ),
+            source=AssertionSourceClass(type=AssertionSourceTypeClass.EXTERNAL),
+            # DataHub lists this as the assertion's name, so it is the short
+            # rule identity; the URN and the reasoning live in the entity and
+            # logic fields.
+            description=name,
+        )
 
     def _run_event(
-        urn: str, receipt: Receipt, results: dict[str, str], result_type: str
+        urn: str,
+        receipt: Receipt,
+        results: dict[str, str],
+        result_type: str,
+        *,
+        evidence_url: str = "",
     ) -> str:
         run_id = _run_id(urn, results)
         graph.emit_mcp(
@@ -218,7 +254,7 @@ def emit_assertions(
                     result=AssertionResultClass(
                         type=getattr(AssertionResultTypeClass, result_type),
                         nativeResults=results,
-                        externalUrl=receipt.evidence_url or None,
+                        externalUrl=evidence_url or None,
                     ),
                 ),
             )
@@ -226,35 +262,34 @@ def emit_assertions(
         return run_id
 
     try:
+        # Accumulated across the whole call, not per receipt: two receipts for
+        # one dataset would otherwise each retire the other's rules.
+        emitted: dict[str, set[str]] = {}
+        last: dict[str, Receipt] = {}
         for receipt in receipts:
-            emitted: set[str] = set()
+            seen = emitted.setdefault(receipt.urn, set())
+            last[receipt.urn] = receipt
             for rule_id, severity, summary, logic in _rule_reports(receipt):
                 urn = assertion_urn(receipt.urn, rule_id)
+                current = graph.get_aspect(urn, AssertionInfoClass)
+                if _is_removed(graph, urn, StatusClass):
+                    # The operator deleted this row. Writing it again would
+                    # overrule that with a metadata write they never asked for,
+                    # so the run reports the skip instead of quietly reversing
+                    # the decision.
+                    skipped.append(urn)
+                    seen.add(urn)
+                    continue
                 # Emitted every run, not only the first. The logic string
                 # carries this run's evidence summary, so skipping the write
                 # when the assertion already exists would leave the catalog
                 # displaying the first run's reasoning forever while the run
-                # events beneath it said something else. `created` and
-                # `existing` still distinguish a new assertion from an updated
-                # one; both are written.
-                current = graph.get_aspect(urn, AssertionInfoClass)
+                # events beneath it said something else.
                 graph.emit_mcp(
                     MetadataChangeProposalWrapper(
                         entityUrn=urn,
-                        aspect=AssertionInfoClass(
-                            type=AssertionTypeClass.CUSTOM,
-                            customAssertion=CustomAssertionInfoClass(
-                                type=_CUSTOM_TYPE,
-                                entity=receipt.urn,
-                                logic=logic,
-                            ),
-                            source=AssertionSourceClass(
-                                type=AssertionSourceTypeClass.EXTERNAL
-                            ),
-                            # DataHub lists this as the assertion's name, so it
-                            # is the short rule identity; the URN and the
-                            # reasoning live in the entity and logic fields.
-                            description=f"{_NAME_PREFIX}{rule_id}",
+                        aspect=_definition(
+                            receipt.urn, _assertion_name(rule_id, severity), logic
                         ),
                     )
                 )
@@ -268,19 +303,35 @@ def emit_assertions(
                         assertion_result_type(receipt.verdict)
                         if not severity
                         else assertion_result_for_severity(severity),
+                        evidence_url=receipt.evidence_url,
                     )
                 )
-                emitted.add(urn)
+                seen.add(urn)
 
-            # A rule Sidq no longer reports must stop claiming a failure. The
-            # catalog keeps every assertion ever written, so without this a
-            # fixed problem stays red beside the run that fixed it, and the
-            # surface this feature exists to serve states something Sidq no
-            # longer holds. Retiring means one more honest run event, not a
-            # deletion: the history stays readable.
+        # A rule Sidq no longer reports must stop claiming a failure. The
+        # catalog keeps every assertion ever written, so without this a fixed
+        # problem stays red beside the run that fixed it, and the surface this
+        # feature exists to serve states something Sidq no longer holds.
+        # Retiring means one more honest run event, not a deletion.
+        for dataset_urn, seen in emitted.items():
+            receipt = last[dataset_urn]
             for stale, stale_rule in _ours_not_emitted(
-                graph, receipt.urn, emitted, AssertionInfoClass, StatusClass
+                graph, dataset_urn, seen, AssertionInfoClass, StatusClass
             ):
+                # The definition is rewritten too, so the row stops displaying
+                # the last firing's reasoning and any "(warning)" in its name,
+                # and so the next run can see it is already retired instead of
+                # closing it again every run for the life of the dataset.
+                graph.emit_mcp(
+                    MetadataChangeProposalWrapper(
+                        entityUrn=stale,
+                        aspect=_definition(
+                            dataset_urn,
+                            f"{_NAME_PREFIX}{stale_rule}",
+                            _RETIRED_SUMMARY,
+                        ),
+                    )
+                )
                 runs.append(
                     _run_event(
                         stale,
@@ -302,7 +353,12 @@ def emit_assertions(
         "existing": tuple(existing),
         "runs": tuple(runs),
         "retired": tuple(retired),
+        "skipped": tuple(skipped),
     }
+
+
+def _is_removed(graph: Any, urn: str, status_class: Any) -> bool:
+    return bool(getattr(graph.get_aspect(urn, status_class), "removed", False))
 
 
 def _ours_not_emitted(
@@ -314,14 +370,18 @@ def _ours_not_emitted(
 ) -> Iterable[tuple[str, str]]:
     """Yield ``(assertion_urn, rule_id)`` for Sidq rules absent from this run.
 
-    Only assertions Sidq itself wrote are considered: a dbt or Snowflake check
-    on the same dataset is somebody else's statement, and retiring it would be
-    Sidq overwriting a claim it never made.
+    Four things are filtered out, cheapest test first because a dbt-managed
+    dataset can carry hundreds of assertions and each aspect read is a round
+    trip.
 
-    Soft-deleted ones are skipped too. DataHub keeps the Asserts relationship
-    after a soft delete, so retiring one would emit a fresh run event and pull
-    an assertion the operator removed back into their Quality tab. Measured on
-    2026-08-09: without this filter that is exactly what happened.
+    A URN Sidq did not mint cannot be one of ours, and that is free to check.
+    A dbt or Snowflake check that survives the prefix test is still somebody
+    else's statement, which the custom type settles. A soft-deleted assertion
+    stays deleted: DataHub keeps the Asserts relationship after a soft delete,
+    so retiring one would pull a row the operator removed back into their
+    Quality tab — measured on 2026-08-09, without this filter that is exactly
+    what happened. And one already retired is left alone, or a rule that
+    stopped firing would collect a closing event every run forever.
     """
 
     related = graph.get_related_entities(
@@ -329,19 +389,54 @@ def _ours_not_emitted(
     )
     for entity in related:
         urn = entity.urn
-        if urn in emitted:
+        if urn in emitted or not urn.startswith(_URN_PREFIX):
             continue
-        status = graph.get_aspect(urn, status_class)
-        if getattr(status, "removed", False):
+        if _is_removed(graph, urn, status_class):
             continue
         info = graph.get_aspect(urn, info_class)
         custom = getattr(info, "customAssertion", None)
         if getattr(custom, "type", None) != _CUSTOM_TYPE:
             continue
+        if getattr(custom, "logic", None) == _RETIRED_SUMMARY:
+            continue
         description = getattr(info, "description", "") or ""
         if not description.startswith(_NAME_PREFIX):
             continue
-        yield urn, description[len(_NAME_PREFIX) :]
+        rule_id = _rule_id_from_name(dataset_urn, urn, description)
+        # The whole-verdict row is not a rule that can stop firing; a dataset
+        # alternating between clean and dirty runs would otherwise retire and
+        # recreate it forever.
+        if rule_id == _FALLBACK_RULE_ID:
+            continue
+        yield urn, rule_id
+
+
+def _assertion_name(rule_id: str, severity: str) -> str:
+    """Name the assertion so a warning does not read as a block.
+
+    The aggregate chip cannot be fixed from here. The row can: a ``warn`` rule
+    says so in the one place the Assertions list actually renders.
+    """
+
+    if severity.lower() == "warn":
+        return f"{_NAME_PREFIX}{rule_id}{_WARNING_SUFFIX}"
+    return f"{_NAME_PREFIX}{rule_id}"
+
+
+def _rule_id_from_name(dataset_urn: str, urn: str, description: str) -> str:
+    """Recover the rule id a name was built from, checked against the URN.
+
+    Stripping the warning suffix by text alone would mangle a rule genuinely
+    named ``x (warning)``. The URN is a hash of the dataset and the rule id, so
+    it settles which reading is right rather than leaving it to a guess.
+    """
+
+    named = description[len(_NAME_PREFIX) :]
+    if named.endswith(_WARNING_SUFFIX):
+        stripped = named[: -len(_WARNING_SUFFIX)]
+        if assertion_urn(dataset_urn, stripped) == urn:
+            return stripped
+    return named
 
 
 def _rule_reports(receipt: Receipt) -> Iterable[tuple[str, str, str, str]]:

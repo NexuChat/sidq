@@ -1916,6 +1916,54 @@ def test_a_missing_datahub_sdk_names_the_boundary_it_hit() -> None:
         emit_assertions([receipt])
 
 
+def test_a_warning_says_so_in_the_one_place_the_tab_renders(monkeypatch) -> None:
+    """DataHub's chip counts a WARN with the failures and cannot be told not to.
+
+    The row can still say what it is, and retirement must still recover the
+    rule id from that decorated name.
+    """
+    graph = _AssertionGraph()
+    _install_fake_datahub_sdk(monkeypatch, graph)  # type: ignore[arg-type]
+    warned = Finding("wide_blast_radius", "warn", "Sixteen consumers.", ())
+    stamp = datetime(2026, 8, 2, tzinfo=UTC)
+    emit_assertions(
+        [
+            build_receipt(
+                URN,
+                Verdict("WARN", None, (warned,), (), "a" * 40, "sha256:policy"),
+                checked_at=stamp,
+            )
+        ],
+        graph,
+    )
+
+    urn = assertion_urn(URN, "wide_blast_radius")
+    assert (
+        graph.infos[urn].description == "Sidq policy rule wide_blast_radius (warning)"
+    )
+    # It still reports FAILURE, because the condition did not pass.
+    assert graph.run_events[next(iter(graph.run_events))].result.type == "FAILURE"
+
+    # And the decorated name must not break the retirement round trip.
+    result = emit_assertions(
+        [
+            build_receipt(
+                URN,
+                Verdict("PASS", None, (), (), "a" * 40, "sha256:policy"),
+                checked_at=stamp,
+            )
+        ],
+        graph,
+    )
+    assert result["retired"] == (urn,)
+    closing = [
+        event
+        for event in graph.run_events.values()
+        if event.assertionUrn == urn and event.result.type == "SUCCESS"
+    ]
+    assert closing[0].result.nativeResults["sidq.rule_id"] == "wide_blast_radius"
+
+
 def test_a_rule_that_stops_firing_is_retired_not_left_claiming_failure(
     monkeypatch,
 ) -> None:
@@ -1962,6 +2010,121 @@ def test_a_rule_that_stops_firing_is_retired_not_left_claiming_failure(
     assert len(closing) == 1
     assert closing[0].result.nativeResults["sidq.rule_id"] == "critical_downstream"
     assert closing[0].result.nativeResults["sidq.severity"] == "retired"
+
+
+def test_a_firing_rule_does_not_resurrect_an_assertion_an_operator_removed(
+    monkeypatch,
+) -> None:
+    """Deletion is a decision, and a later run must not silently reverse it.
+
+    Retirement already respected soft deletes; the emit path did not, so any
+    rule that fired a second time wrote its row straight back into the tab.
+    """
+    graph = _AssertionGraph()
+    _install_fake_datahub_sdk(monkeypatch, graph)  # type: ignore[arg-type]
+    stamp = datetime(2026, 8, 2, tzinfo=UTC)
+    fired = Finding("critical_downstream", "block", "Nine owners depend.", ())
+    verdict = Verdict("BLOCK", None, (fired,), (), "a" * 40, "sha256:policy")
+    emit_assertions([build_receipt(URN, verdict, checked_at=stamp)], graph)
+    urn = assertion_urn(URN, "critical_downstream")
+    graph.soft_deleted.add(urn)
+    before = len(graph.run_events)
+
+    result = emit_assertions([build_receipt(URN, verdict, checked_at=stamp)], graph)
+
+    assert result["skipped"] == (urn,)
+    assert result["created"] == () and result["existing"] == ()
+    assert len(graph.run_events) == before
+
+
+def test_a_retired_rule_is_not_retired_again_on_every_later_run(monkeypatch) -> None:
+    """Closing it once is the point; closing it daily forever is noise."""
+
+    graph = _AssertionGraph()
+    _install_fake_datahub_sdk(monkeypatch, graph)  # type: ignore[arg-type]
+    stamp = datetime(2026, 8, 2, tzinfo=UTC)
+    fired = Finding("critical_downstream", "block", "Nine owners depend.", ())
+    clean = Verdict("PASS", None, (), (), "a" * 40, "sha256:policy")
+    emit_assertions(
+        [
+            build_receipt(
+                URN,
+                Verdict("BLOCK", None, (fired,), (), "a" * 40, "sha256:policy"),
+                checked_at=stamp,
+            )
+        ],
+        graph,
+    )
+
+    first = emit_assertions([build_receipt(URN, clean, checked_at=stamp)], graph)
+    second = emit_assertions([build_receipt(URN, clean, checked_at=stamp)], graph)
+
+    assert first["retired"] == (assertion_urn(URN, "critical_downstream"),)
+    assert second["retired"] == ()
+
+
+def test_the_whole_verdict_row_is_never_retired(monkeypatch) -> None:
+    """The verdict always exists; it is not a rule that can stop firing.
+
+    Retiring it would make a dataset that alternates clean and dirty thrash the
+    same assertion between retired and recreated forever.
+    """
+    graph = _AssertionGraph()
+    _install_fake_datahub_sdk(monkeypatch, graph)  # type: ignore[arg-type]
+    stamp = datetime(2026, 8, 2, tzinfo=UTC)
+    emit_assertions(
+        [
+            build_receipt(
+                URN,
+                Verdict("PASS", None, (), (), "a" * 40, "sha256:policy"),
+                checked_at=stamp,
+            )
+        ],
+        graph,
+    )
+    fired = Finding("critical_downstream", "block", "Nine owners depend.", ())
+
+    result = emit_assertions(
+        [
+            build_receipt(
+                URN,
+                Verdict("BLOCK", None, (fired,), (), "a" * 40, "sha256:policy"),
+                checked_at=stamp,
+            )
+        ],
+        graph,
+    )
+
+    assert result["retired"] == ()
+
+
+def test_two_receipts_for_one_dataset_do_not_retire_each_other(monkeypatch) -> None:
+    """`emit_assertions` is a public API; nothing stops a caller doing this."""
+
+    graph = _AssertionGraph()
+    _install_fake_datahub_sdk(monkeypatch, graph)  # type: ignore[arg-type]
+    stamp = datetime(2026, 8, 2, tzinfo=UTC)
+    one = Finding("critical_downstream", "block", "Nine owners depend.", ())
+    two = Finding("wide_blast_radius", "warn", "Sixteen consumers.", ())
+
+    result = emit_assertions(
+        [
+            build_receipt(
+                URN,
+                Verdict("BLOCK", None, (one,), (), "a" * 40, "sha256:policy"),
+                checked_at=stamp,
+            ),
+            build_receipt(
+                URN,
+                Verdict("WARN", None, (two,), (), "a" * 40, "sha256:policy"),
+                checked_at=stamp,
+            ),
+        ],
+        graph,
+    )
+
+    assert result["retired"] == ()
+    assert len(result["created"]) == 2
 
 
 def test_retirement_does_not_resurrect_an_assertion_an_operator_removed(
@@ -2036,6 +2199,7 @@ def test_nothing_to_mirror_never_opens_a_catalog_connection(monkeypatch) -> None
         "existing": (),
         "runs": (),
         "retired": (),
+        "skipped": (),
     }
     assert configs == []
 
