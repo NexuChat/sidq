@@ -79,12 +79,12 @@ re-measured and the 2026-08-02 session remains its record.
 
 ## Automated gates
 
-- Host run of 2026-08-09: 1147 collected, 1146 passed, and 1 optional
+- Host run of 2026-08-09: 1157 collected, 1156 passed, and 1 optional
   integration test skipped because the Ollama model `ibm/granite4:1b-q4_1` is
   not installed. The assertion mirror's earlier DataHub-SDK skips are gone
   with the SDK itself: the mirror now speaks DataHub's documented GraphQL API
   and its tests run everywhere ([`RECEIPT-SPEC.md`](RECEIPT-SPEC.md)).
-- Host branch coverage on that run: 84.03%, above the enforced 80.0% threshold.
+- Host branch coverage on that run: 84.04%, above the enforced 80.0% threshold.
   The browser, accessibility, and performance measurements below are from the
   2026-08-02 session in this document's title and were not re-run.
 - Ruff lint, Ruff format, and mypy: pass.

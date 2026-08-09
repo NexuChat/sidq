@@ -2,8 +2,10 @@
 
 [![CI](https://github.com/NexuChat/sidq/actions/workflows/ci.yml/badge.svg)](https://github.com/NexuChat/sidq/actions/workflows/ci.yml)
 
-> Agents read metadata graphs before they act. Sidq asks whether that context is
-> supported by evidence, and can stop an agent before it builds on a contradiction.
+> **A team of agents that refuse, repair, and remember — on your catalog.**
+> Sidq blocks a change the evidence cannot support, proposes only the fix its own
+> engine re-proves, and writes what it learned back into DataHub so the next agent
+> inherits it. Four of them can work one catalog at once with no coordinator.
 
 **Submission film:** real footage in five of six chapters — the live catalog
 audit, the committed `BLOCK` replay ending on the public sealed PR thread, the
@@ -19,7 +21,21 @@ Contributions are welcome under [`CONTRIBUTING.md`](CONTRIBUTING.md) and the
 
 ![How Sidq decides: a change or agent question passes five evidence gates, one policy engine emits PASS, WARN or BLOCK, and optional writeback records current receipt values in DataHub as shared current state.](docs/architecture.svg)
 
-Sidq is a DataHub-native verification layer for agents and data-code changes. It checks whether catalog context is truthful before an agent relies on it, then applies an explicit policy and leaves evidence that the next agent can read.
+Sidq is a DataHub-native verification layer for agents and data-code changes. It checks whether catalog context is truthful before an agent relies on it — against the catalog's own claims *and* against the live source — then applies an explicit policy and leaves evidence in DataHub that the next agent inherits.
+
+## Proof, one row per judging criterion
+
+Every row is one command or one committed artifact. Nothing here is a screenshot of itself.
+
+| Criterion | The claim | Check it |
+|---|---|---|
+| **Use of DataHub** | Read → decide → write a receipt through the **official MCP server**, then a *separate process* reads it back and recomputes its own verdict. Verdicts also land in DataHub's own **Quality tab** as native assertions (platform `sidq`). | `make live-loop` · [`examples/06-native-assertion/`](examples/06-native-assertion/) |
+| **Agents as a team** | **Four workers, no coordinator, no IPC** — they divide one catalog purely through the receipts they write, survive a peer killed mid-run, and a fifth process that audited nothing reads the ledger back out of the catalog. | `make swarm-demo` · [`src/sidq/agent/swarm.py`](src/sidq/agent/swarm.py) |
+| **Technical execution** | 1,157 tests, lint, format and types in one gate; the flagship `BLOCK` re-derives **byte-identical** from committed evidence. Published numbers are guarded — a stale one fails the build. | `make check` · `make gate-demo` |
+| **Originality** | The question is not "what is in the catalog" but "is the catalog telling the truth" — proved on DataHub's **own shipped sample**: examining all **67 datasets** found 285 internal contradictions, concentrated in **5 assets**. And against reality: the live source renames a column, the catalog does not, Sidq blocks the context. | [`docs/TRUTH-REPORT.md`](docs/TRUTH-REPORT.md) · `make demo-break` |
+| **Real-world usefulness** | A PII removal is blocked with its lineage path to a Looker dashboard. The repair agent **refuses its own obvious fix** because the engine re-proved it moves the leak instead of closing it. | [`examples/01-blocked-pii-dashboard/`](examples/01-blocked-pii-dashboard/) · `make repair-demo` |
+| **Submission quality** | A 2:56 film with real footage, a live console whose buttons run the real commands, and a read-only judge account on a live DataHub. | [the film](https://www.youtube.com/watch?v=R4GdN36Lsno) · [sidq.mlki.app](https://sidq.mlki.app) · [`docs/QA-RESULTS.md`](docs/QA-RESULTS.md) |
+| **Bonus: OSS contribution** | A packaging fix to DataHub core and a proposed `datahub-verify` skill — both open, neither merged, described as contributions in review rather than endorsements. | [datahub#19017](https://github.com/datahub-project/datahub/pull/19017) · [datahub-skills#81](https://github.com/datahub-project/datahub-skills/pull/81) |
 
 ## Why the name
 
@@ -97,16 +113,17 @@ DataHub in a separate process.
 
 ## Judge runbook
 
-Four commands, in order of how much runtime infrastructure they need. Rows 1 and
+Five commands, in order of how much runtime infrastructure they need. Rows 1 and
 2 bootstrap a Python 3.12 environment from the committed hash-locked dependency
 file on first use, so that first run needs package-index access.
 
 | # | Command | Needs | What it proves | Takes |
 |---|---|---|---|---|
 | 1 | `make gate-demo` | Python 3.12; package downloads on first use; no DataHub or credentials | The published `BLOCK` verdict is re-derived from the committed graph recording, byte-identical, with the same `policy_hash`. Hand-editing an artifact fails this. | ~2s after bootstrap |
-| 2 | `make check` | Python 3.12; package downloads on first use | 1147 tests, lint, format, types — 1146 passed, 1 optional integration skipped, with 84.03% branch coverage; the same gates CI runs. | ~60s after bootstrap |
+| 2 | `make check` | Python 3.12; package downloads on first use | 1157 tests, lint, format, types — 1156 passed, 1 optional integration skipped, with 84.04% branch coverage; the same gates CI runs. Runs across all cores. | ~45s after bootstrap |
 | 3 | `make live-loop` | a running DataHub ([`docs/SETUP.md`](docs/SETUP.md)) | The whole agent loop over the **official MCP server only**: read → decide → write a receipt → a *separate process* reads it back → an asset carrying no receipt returns `NOT VERIFIED`. | ~60s |
 | 4 | `make repair-demo` | the same DataHub | The repair agent proposes a fix from catalog evidence, re-runs the deterministic engine against the catalog that fix *would* create, and shows what it proved and what it refused. | ~40s |
+| 5 | `make swarm-demo` | the same DataHub | **Four agents on one catalog with no coordinator and no IPC.** They divide the work purely through the receipts they write, one is killed mid-run and its unfinished assets are never lost, and a fifth process that audited nothing reads the ledger back out of DataHub. | ~90s |
 
 Nothing above is pre-rendered output. If you have no DataHub, run 1 and 2: after
 the locked bootstrap they replay committed evidence locally without connecting
