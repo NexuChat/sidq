@@ -43,7 +43,11 @@ from sidq.graph.client import (
 from sidq.graph.live_source import LiveSourceClient
 from sidq.models import Evidence, Verdict
 from sidq.policy.engine import PolicyEngine, load_policy
-from sidq.receipt.assertion import emit_assertions
+from sidq.receipt.assertion import (
+    DataHubSDKUnavailable,
+    emit_assertions,
+    require_sdk,
+)
 from sidq.receipt.read import (
     get_verification_status,
     get_verification_statuses,
@@ -711,9 +715,20 @@ def _audit(arguments: Any) -> int:
     could not be read at all. An audit reports; it does not refuse a change, so
     reusing `check`'s BLOCK code for a finding would misrepresent what was run.
     """
-    if getattr(arguments, "write_assertions", False) and not arguments.write_receipts:
-        print("sidq: --write-assertions requires --write-receipts", file=sys.stderr)
-        return 2
+    if getattr(arguments, "write_assertions", False):
+        if not arguments.write_receipts:
+            print("sidq: --write-assertions requires --write-receipts", file=sys.stderr)
+            return 2
+        # Before the catalog is read, not after receipts are already written.
+        # The mirror needs a DataHub SDK the project environment deliberately
+        # lacks, and that is knowable up front; discovering it at emission time
+        # would spend the whole budget to arrive at a refusal it could have
+        # opened with.
+        try:
+            require_sdk()
+        except DataHubSDKUnavailable as error:
+            print(f"sidq: {error}", file=sys.stderr)
+            return 2
 
     snapshot = _read_snapshot(arguments)
     if snapshot is None:

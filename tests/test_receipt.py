@@ -26,6 +26,7 @@ from sidq.receipt.assertion import (
     assertion_result_type,
     assertion_urn,
     emit_assertions,
+    require_sdk,
 )
 from sidq.receipt.bootstrap import (
     PROPERTY_DEFINITIONS,
@@ -1821,6 +1822,10 @@ def test_a_missing_datahub_sdk_names_the_boundary_it_hit() -> None:
     receipt = build_receipt(
         URN, _verdict(), checked_at=datetime(2026, 8, 2, tzinfo=UTC)
     )
+    # Both entry points must say the same thing: the precondition a caller
+    # checks first, and the emission itself if a caller skipped it.
+    with pytest.raises(DataHubSDKUnavailable, match="pydantic"):
+        require_sdk()
     with pytest.raises(DataHubSDKUnavailable, match="pydantic"):
         emit_assertions([receipt])
 

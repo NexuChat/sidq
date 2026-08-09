@@ -45,6 +45,23 @@ class DataHubSDKUnavailable(RuntimeError):
     """Raised when the assertion mirror runs without the DataHub SDK present."""
 
 
+def require_sdk() -> None:
+    """Refuse early when the SDK the mirror needs is not installed.
+
+    Callers use this as a precondition, before spending an audit budget or
+    writing anything. Discovering the absence at emission time would leave the
+    operator with receipts written, assertions missing, and a failure they
+    could have been told about before the first catalog read. The import inside
+    ``emit_assertions`` still guards the operation itself; this only moves the
+    same refusal earlier.
+    """
+
+    import importlib.util
+
+    if importlib.util.find_spec("datahub") is None:
+        raise DataHubSDKUnavailable(_SDK_REQUIRED)
+
+
 def assertion_urn(dataset_urn: str, rule_id: str) -> str:
     """Return the stable native assertion URN for one Sidq rule evaluation."""
 
