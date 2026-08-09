@@ -4,7 +4,7 @@
 nothing but a DataHub catalog and no lock service, converge on full coverage
 instead of either colliding pointlessly or leaving gaps a solo run would have
 caught. Every test here is a way that claim could quietly be false: a
-rotation that secretly drops or duplicates a target, a skip that cannot say
+worker-specific order that drops or duplicates a target, a skip that cannot say
 whose receipt it is trusting, a stale or refused receipt read as a pass, a
 transport error read as a clean bill, a write failure that takes the whole
 worker down with it, or an observer that credits a receipt to the wrong run.
@@ -15,6 +15,7 @@ decides.
 
 from __future__ import annotations
 
+from collections import Counter
 from datetime import UTC, datetime, timedelta
 from threading import Barrier, Event, Lock, Thread, current_thread
 
@@ -23,8 +24,8 @@ from sidq.agent.swarm import (
     SwarmWorker,
     WorkerRun,
     observe,
+    order_for_worker,
     render_worker,
-    rotate_for,
 )
 from sidq.gates.self_contradiction import CatalogEntity, CatalogField, CatalogSnapshot
 from sidq.models import Verdict
@@ -145,53 +146,81 @@ def _seed_receipt(
     write_receipt(receipt, hub)
 
 
-def _is_rotation(candidate: list[Target], original: list[Target]) -> bool:
-    """Is `candidate` the same cyclic sequence as `original`, just entered
-    somewhere else?"""
-    if len(candidate) != len(original):
-        return False
-    doubled = list(original) * 2
-    width = len(original)
-    return any(
-        doubled[start : start + width] == list(candidate)
-        for start in range(len(original))
-    )
-
-
 # ---------------------------------------------------------------------------
-# rotate_for: an entry point into the plan, never a partition of it.
+# order_for_worker: different paths through every consequence band, never a
+# partition of the plan.
 
 
-def test_rotate_for_returns_the_same_order_for_the_same_worker_id() -> None:
+def test_order_for_worker_is_deterministic() -> None:
     """A worker that restarts, or a transcript replayed for review, must
-    retrace the exact same entry point — a fresh random start each call would
+    retrace the exact same plan — a fresh random order each call would
     make a swarm run irreproducible."""
     plan = [Target(f"urn:m{index}", index, ()) for index in range(6)]
 
-    assert rotate_for("worker-a", plan) == rotate_for("worker-a", plan)
+    assert order_for_worker("worker-a", plan) == order_for_worker("worker-a", plan)
 
 
-def test_rotate_for_shifts_the_starting_point_but_never_drops_a_target() -> None:
-    """rotate_for only enters the plan somewhere else; if it silently dropped
-    or duplicated a target, a worker with budget to spare could finish a
-    shift without ever having looked at some asset."""
-    plan = [Target(f"urn:m{index}", index, ()) for index in range(6)]
+def test_order_for_worker_preserves_consequence_bands() -> None:
+    """Worker diversity must never spend a small budget below a more
+    consequential asset; only ties are available for reordering."""
+    plan = [
+        Target("urn:low-a", 1, ()),
+        Target("urn:high-b", 9, ()),
+        Target("urn:middle", 4, ()),
+        Target("urn:high-a", 9, ()),
+        Target("urn:low-b", 1, ()),
+    ]
+
+    ordered = order_for_worker("alpha", plan)
+
+    assert [target.consequence for target in ordered] == [9, 9, 4, 1, 1]
+
+
+def test_order_for_worker_is_a_permutation_not_a_partition() -> None:
+    """Every worker retains the whole plan, including its multiplicity, so a
+    dead worker owns nothing that the survivors cannot still examine."""
+    repeated = Target("urn:repeated", 5, ())
+    plan = [
+        repeated,
+        Target("urn:highest", 8, ()),
+        repeated,
+        Target("urn:lowest", 1, ()),
+    ]
 
     for worker_id in ("worker-a", "worker-b", "worker-c", "worker-d"):
-        rotated = rotate_for(worker_id, plan)
-        assert set(rotated) == set(plan)
-        assert _is_rotation(rotated, plan)
+        assert Counter(order_for_worker(worker_id, plan)) == Counter(plan)
 
 
-def test_different_worker_ids_start_at_different_offsets() -> None:
-    """If every worker id rotated to the same offset, several workers would
-    just be several copies racing down the identical order — the exact
-    duplication a swarm exists to avoid."""
-    plan = [Target(f"urn:m{index}", index, ()) for index in range(6)]
+def test_demo_workers_diverge_for_small_and_large_plans() -> None:
+    """This replaces the old rotation contract because a shared offset made
+    colliding workers traverse the entire plan in lockstep. Four distinct
+    starts require at least four targets in the leading consequence band; once
+    that band exists, the real demo ids take four different first targets.
+    Smaller bands still produce every distinct full ordering they can support.
+    """
+    workers = ("alpha", "beta", "gamma", "delta")
+    leading_band = ("urn:a", "urn:h", "urn:j", "urn:c")
 
-    starts = {rotate_for(f"worker-{index}", plan)[0] for index in range(8)}
+    for size in range(2, 41):
+        plan = [Target(urn, 2, ()) for urn in leading_band[:size]] + [
+            Target(f"urn:lower:{index}", 1, ()) for index in range(4, size)
+        ]
+        orders = [order_for_worker(worker, plan) for worker in workers]
+        distinct_orders = {tuple(order) for order in orders}
 
-    assert len(starts) > 1
+        if size == 2:
+            assert len(distinct_orders) == 2
+        else:
+            assert len(distinct_orders) == 4
+        if size >= 4:
+            assert len({order[0] for order in orders}) == 4
+
+
+def test_order_for_worker_handles_empty_and_single_target_plans() -> None:
+    only = Target("urn:only", 7, ())
+
+    assert order_for_worker("alpha", []) == []
+    assert order_for_worker("alpha", [only]) == [only]
 
 
 # ---------------------------------------------------------------------------

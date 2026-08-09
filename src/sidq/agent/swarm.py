@@ -17,16 +17,21 @@ The window in which two workers can collide shrinks from a whole run to the
 duration of one examination.
 
 **What is promised, precisely.** At-least-once, never exactly-once. MCP offers
-no claim or compare-and-set primitive, so two workers that reach the same
-unreceipted asset within the same instant will both examine it. That is safe —
-the engine is deterministic, so both write the same verdict. DataHub exposes
-the latest receipt, not an append-only examination history, so the observer
-does not claim it can count collisions after the fact.
+no claim or compare-and-set primitive. Per-target digest ordering removes the
+modulus collision that made two rotations share one cyclic path, but it cannot
+exclude collisions. Two orders can share a next target, a prefix, or — by full-
+permutation coincidence — an entire consequence band. Workers that reach the
+same unreceipted asset before either receipt becomes visible will both examine
+it. That is safe — the engine is deterministic, so both write the same verdict.
+DataHub exposes the latest receipt, not an append-only examination history, so
+the observer does not claim it can count collisions after the fact.
 
-**Why the work splits at all.** Each worker sorts the consequence-ranked plan
-with a worker-seeded rotation, so four workers enter the same ordering at four
-different offsets. No negotiation: they simply do not start in the same place,
-and the receipts each writes steer the others away as they go.
+**Why the work splits at all.** Each worker independently orders targets within
+each equal-consequence band by a digest of its worker id and the target URN.
+Every worker exhausts higher-consequence bands first and still walks the whole
+plan. A shared first target no longer forces a shared successor because every
+in-band position comes from per-target keys. No negotiation: the receipts each
+writes steer the others away as they go.
 
 **And if a worker dies mid-run**, its unfinished assets are left unreceipted —
 so the survivors, re-reading before every target, pick them up as ordinary
@@ -83,20 +88,28 @@ class WorkerRun:
         }
 
 
-def rotate_for(worker_id: str, plan: Sequence[Target]) -> list[Target]:
-    """Enter the consequence-ordered plan at a worker-specific offset.
+def order_for_worker(worker_id: str, plan: Sequence[Target]) -> list[Target]:
+    """Order each consequence band by a worker-seeded digest of the target.
 
-    Not a partition: every worker will still walk the whole plan if it has the
-    budget, so no asset belongs to anyone and a dead worker strands nothing.
-    The offset only stops four processes from starting on the same asset. It is
-    derived from the worker id by hash, so the same id always rotates the same
-    way and a swarm transcript stays reproducible.
+    Consequence remains the primary order, so a worker exhausts a higher band
+    before entering a lower one. Within a band, hashing the worker id with each
+    URN derives a separate, deterministic key for every target instead of an
+    offset into one cyclic path. Equal digests are resolved by URN.
+
+    This is not a partition: every worker still receives the whole plan, so no
+    asset belongs to one worker and a dead worker strands nothing. It is also
+    not a claim: different workers can still share a first target, a prefix, or
+    — by full-permutation coincidence — the same in-band order.
     """
-    if not plan:
-        return []
-    digest = hashlib.sha256(worker_id.encode()).digest()
-    offset = int.from_bytes(digest[:4], "big") % len(plan)
-    return list(plan[offset:]) + list(plan[:offset])
+    seed = worker_id.encode() + b"\0"
+    return sorted(
+        plan,
+        key=lambda target: (
+            -target.consequence,
+            hashlib.sha256(seed + target.urn.encode()).digest(),
+            target.urn,
+        ),
+    )
 
 
 class SwarmWorker:
@@ -105,7 +118,8 @@ class SwarmWorker:
     The differences from `CatalogAuditor.run` are three, and each exists because
     peers are working the same catalog at the same time: the receipt is read per
     target instead of once per run, the receipt is written per verdict instead
-    of once per run, and the plan is entered at a worker-specific offset.
+    of once per run, and equal-consequence targets receive a worker-specific
+    order.
     """
 
     def __init__(
@@ -137,7 +151,7 @@ class SwarmWorker:
         result = WorkerRun(worker_id=self._worker_id, swarm_run=self._swarm_run)
         policy_hash = self._engine.decide((), commit_sha="").policy_hash
 
-        for target in rotate_for(self._worker_id, self._auditor.plan()):
+        for target in order_for_worker(self._worker_id, self._auditor.plan()):
             if len(result.examined) >= self._budget:
                 break
 
