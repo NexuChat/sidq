@@ -326,6 +326,7 @@ h1 {
   font: 500 13px/1.5 var(--mono);
 }
 
+#recorded-output,
 #run-output {
   margin: 14px 0 0;
   padding: 14px 16px;
@@ -339,6 +340,10 @@ h1 {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+#recorded-proof .fine { margin-top: 0; }
+
+#recorded-proof .fine strong { color: var(--text); }
 
 .more-live, .mcp-tools { margin-top: 14px; border-top: 1px solid var(--line); }
 

@@ -54,6 +54,7 @@ const runProgress = document.querySelector("#run-progress");
 const runStatus = document.querySelector("#run-status");
 const runButtons = document.querySelectorAll("[data-run]");
 const runRegion = document.querySelector(".handoff-run");
+const recordedProof = document.querySelector("#recorded-proof");
 
 async function readJsonResponse(response) {
   const contentType = response.headers.get("content-type") || "";
@@ -113,6 +114,7 @@ for (const button of runButtons) {
       runProgress.textContent = `${elapsed}s elapsed · expected about ${expected}s`;
     };
     for (const other of runButtons) other.disabled = true;
+    if (recordedProof) recordedProof.hidden = true;
     runRegion.setAttribute("aria-busy", "true");
     button.textContent = "Running…";
     runStatus.textContent = "Running on the host now. This is not a recording.";

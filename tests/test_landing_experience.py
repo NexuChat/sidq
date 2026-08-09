@@ -13,7 +13,9 @@ dispatches on, and the region the script writes output into.
 
 from __future__ import annotations
 
+import http.client
 import re
+import threading
 from html.parser import HTMLParser
 from pathlib import Path
 
@@ -54,14 +56,35 @@ def _landing() -> str:
     return HTML.read_text(encoding="utf-8")
 
 
-def test_the_live_proof_is_reachable_before_any_of_the_argument() -> None:
-    """A judge who cannot try the thing early never reaches the late screens.
+def _served_landing() -> str:
+    from web import server
+
+    with server.Server(("127.0.0.1", 0), server.Handler) as service:
+        thread = threading.Thread(target=service.serve_forever, daemon=True)
+        thread.start()
+        connection = http.client.HTTPConnection(*service.server_address, timeout=2)
+        try:
+            connection.request("GET", "/")
+            response = connection.getresponse()
+            payload = response.read()
+        finally:
+            connection.close()
+            service.shutdown()
+            thread.join(timeout=2)
+
+    assert response.status == 200
+    return payload.decode("utf-8")
+
+
+def test_recorded_and_live_proofs_precede_the_argument() -> None:
+    """A judge sees recorded proof and can try the live thing before the argument.
 
     The run button spent most of this project's life on the sixth screen, after
     the entire case had been made. Whatever the page looks like, the action and
     the region its output lands in come before the argument.
     """
-    html = _landing()
+    html = _served_landing()
+    script = SCRIPT.read_text(encoding="utf-8")
 
     assert 'data-run="handoff"' in html
     for element in ('id="run-status"', 'id="run-progress"', 'id="run-output"'):
@@ -70,6 +93,16 @@ def test_the_live_proof_is_reachable_before_any_of_the_argument() -> None:
     first_argument = html.index('id="exhibit-a-heading"')
     assert html.index('data-run="handoff"') < first_argument
     assert html.index('id="run-output"') < first_argument
+
+    start = html.index('<section id="recorded-proof"')
+    recorded = html[start : html.index("</section>", start)]
+
+    assert "hidden" not in recorded.split(">", 1)[0]
+    assert "Recorded proof — not live." in recorded
+    assert "<code>make gate-demo</code>" in recorded
+    assert re.search(r"captured at git revision <code>[0-9a-f]{7,40}</code>", recorded)
+    assert 'id="recorded-output"' in recorded
+    assert "recordedProof.hidden = true" in script
 
 
 def test_the_page_shows_a_contradiction_before_it_argues_about_one() -> None:
