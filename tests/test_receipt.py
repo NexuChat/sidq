@@ -10,7 +10,7 @@ from collections.abc import Callable, Mapping
 from concurrent.futures import Future
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from types import ModuleType
+from types import ModuleType, SimpleNamespace
 from typing import Any, Self
 
 import anyio
@@ -1661,6 +1661,7 @@ def _install_fake_datahub_sdk(monkeypatch, graph: _BootstrapGraph) -> list[objec
     schema.AssertionRunStatusClass = _AssertionRunStatus
     schema.AssertionResultClass = _BootstrapValue
     schema.AssertionResultTypeClass = _AssertionResultType
+    schema.StatusClass = _StatusAspect
     modules["datahub.metadata.urns"].Urn = _Urn
     modules["datahub.ingestion.graph.config"].DatahubClientConfig = _BootstrapValue
 
@@ -1715,19 +1716,43 @@ def test_bootstrap_uses_the_environment_and_rejects_foreign_properties(
     assert tuple(definitions()) == PROPERTY_DEFINITIONS
 
 
+class _StatusAspect:
+    """Distinct from the catch-all fake value, so get_aspect can tell them apart."""
+
+    def __init__(self, **values: object) -> None:
+        self.__dict__.update(values)
+
+
 class _AssertionGraph:
+    class RelationshipDirection:
+        INCOMING = "INCOMING"
+
     def __init__(self) -> None:
         self.infos: dict[str, object] = {}
         self.run_events: dict[tuple[str, str], object] = {}
+        self.asserts: dict[str, list[str]] = {}
+        self.soft_deleted: set[str] = set()
         self.closed = False
 
     def get_aspect(self, urn: str, aspect_type: object) -> object | None:
-        return self.infos.get(urn)
+        if urn in self.soft_deleted:
+            return (
+                SimpleNamespace(removed=True) if aspect_type is _StatusAspect else None
+            )
+        return None if aspect_type is _StatusAspect else self.infos.get(urn)
+
+    def get_related_entities(
+        self, urn: str, relationships: list[str], direction: str
+    ) -> list[SimpleNamespace]:
+        return [SimpleNamespace(urn=item) for item in sorted(self.asserts.get(urn, []))]
 
     def emit_mcp(self, mcp: object) -> None:
         aspect = mcp.aspect
         if hasattr(aspect, "customAssertion"):
             self.infos[mcp.entityUrn] = aspect
+            self.asserts.setdefault(aspect.customAssertion.entity, [])
+            if mcp.entityUrn not in self.asserts[aspect.customAssertion.entity]:
+                self.asserts[aspect.customAssertion.entity].append(mcp.entityUrn)
         else:
             self.run_events[(mcp.entityUrn, aspect.messageId)] = aspect
 
@@ -1891,12 +1916,127 @@ def test_a_missing_datahub_sdk_names_the_boundary_it_hit() -> None:
         emit_assertions([receipt])
 
 
+def test_a_rule_that_stops_firing_is_retired_not_left_claiming_failure(
+    monkeypatch,
+) -> None:
+    """A fixed problem must stop showing red beside the run that fixed it.
+
+    The catalog keeps every assertion ever written, so a rule Sidq no longer
+    reports would otherwise state a failure Sidq no longer holds.
+    """
+    graph = _AssertionGraph()
+    _install_fake_datahub_sdk(monkeypatch, graph)  # type: ignore[arg-type]
+    stamp = datetime(2026, 8, 2, tzinfo=UTC)
+    fired = Finding("critical_downstream", "block", "Nine owners depend.", ())
+    emit_assertions(
+        [
+            build_receipt(
+                URN,
+                Verdict("BLOCK", None, (fired,), (), "a" * 40, "sha256:policy"),
+                checked_at=stamp,
+            )
+        ],
+        graph,
+    )
+    stale = assertion_urn(URN, "critical_downstream")
+    assert graph.run_events[next(iter(graph.run_events))].result.type == "FAILURE"
+
+    # The next run is clean: the rule is simply absent from the evidence.
+    result = emit_assertions(
+        [
+            build_receipt(
+                URN,
+                Verdict("PASS", None, (), (), "a" * 40, "sha256:policy"),
+                checked_at=stamp,
+            )
+        ],
+        graph,
+    )
+
+    assert result["retired"] == (stale,)
+    closing = [
+        event
+        for event in graph.run_events.values()
+        if event.assertionUrn == stale and event.result.type == "SUCCESS"
+    ]
+    assert len(closing) == 1
+    assert closing[0].result.nativeResults["sidq.rule_id"] == "critical_downstream"
+    assert closing[0].result.nativeResults["sidq.severity"] == "retired"
+
+
+def test_retirement_does_not_resurrect_an_assertion_an_operator_removed(
+    monkeypatch,
+) -> None:
+    """DataHub keeps the Asserts relationship after a soft delete.
+
+    Measured on 2026-08-09: without this filter, retiring emitted a fresh run
+    event against a soft-deleted assertion and pulled it back into the Quality
+    tab the operator had just cleared.
+    """
+    graph = _AssertionGraph()
+    _install_fake_datahub_sdk(monkeypatch, graph)  # type: ignore[arg-type]
+    stamp = datetime(2026, 8, 2, tzinfo=UTC)
+    fired = Finding("critical_downstream", "block", "Nine owners depend.", ())
+    emit_assertions(
+        [
+            build_receipt(
+                URN,
+                Verdict("BLOCK", None, (fired,), (), "a" * 40, "sha256:policy"),
+                checked_at=stamp,
+            )
+        ],
+        graph,
+    )
+    graph.soft_deleted.add(assertion_urn(URN, "critical_downstream"))
+
+    result = emit_assertions(
+        [
+            build_receipt(
+                URN,
+                Verdict("PASS", None, (), (), "a" * 40, "sha256:policy"),
+                checked_at=stamp,
+            )
+        ],
+        graph,
+    )
+
+    assert result["retired"] == ()
+
+
+def test_retirement_leaves_assertions_sidq_did_not_write_alone(monkeypatch) -> None:
+    """A dbt or Snowflake check on the same dataset is somebody else's claim."""
+
+    graph = _AssertionGraph()
+    _install_fake_datahub_sdk(monkeypatch, graph)  # type: ignore[arg-type]
+    foreign = "urn:li:assertion:dbt-not-null-order-id"
+    graph.asserts[URN] = [foreign]
+    graph.infos[foreign] = SimpleNamespace(
+        description="dbt not_null order_id",
+        customAssertion=SimpleNamespace(type="dbt.test", entity=URN),
+    )
+
+    result = emit_assertions(
+        [build_receipt(URN, _verdict(), checked_at=datetime(2026, 8, 2, tzinfo=UTC))],
+        graph,
+    )
+
+    assert result["retired"] == ()
+    assert not [
+        event for event in graph.run_events.values() if event.assertionUrn == foreign
+    ]
+
+
 def test_nothing_to_mirror_never_opens_a_catalog_connection(monkeypatch) -> None:
     """When every receipt write was rejected there is no verdict to report."""
 
     configs = _install_fake_datahub_sdk(monkeypatch, _AssertionGraph())  # type: ignore[arg-type]
 
-    assert emit_assertions([]) == {"created": (), "existing": (), "runs": ()}
+    assert emit_assertions([]) == {
+        "created": (),
+        "existing": (),
+        "runs": (),
+        "retired": (),
+    }
     assert configs == []
 
 

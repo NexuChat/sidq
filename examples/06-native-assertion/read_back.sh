@@ -7,7 +7,7 @@ set -eu
 : "${DATAHUB_GMS_TOKEN:?Set DATAHUB_GMS_TOKEN}"
 
 # Same dataset the emission targeted; override both together.
-URN="${SIDQ_EXAMPLE_URN:-urn:li:dataset:(urn:li:dataPlatform:dbt,b2fd91.order_entry_db.order_entry.orders,PROD)}"
+URN="${SIDQ_EXAMPLE_URN:-urn:li:dataset:(urn:li:dataPlatform:dbt,b2fd91.order_entry_db.order_entry.addresses,PROD)}"
 
 curl --fail-with-body --silent --show-error \
   --header "Authorization: Bearer ${DATAHUB_GMS_TOKEN}" \

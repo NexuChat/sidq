@@ -27,7 +27,7 @@ from sidq.receipt.build import Receipt
 DATASET_URN = os.environ.get(
     "SIDQ_EXAMPLE_URN",
     "urn:li:dataset:(urn:li:dataPlatform:dbt,"
-    "b2fd91.order_entry_db.order_entry.orders,PROD)",
+    "b2fd91.order_entry_db.order_entry.addresses,PROD)",
 )
 
 
@@ -43,7 +43,7 @@ def captured_receipt() -> Receipt:
         policy_hash="baa612f729a56ff7497718cc3cf77cd9142967cb4ec0e075c2b3495eeb2f2927",
         rules_fired=(),
         verifier="sidq@0.1.0",
-        evidence_url="urn:li:document:shared-8cc25871-2ffc-4b48-9053-a60b4a05b8dc",
+        evidence_url="urn:li:document:shared-4eb640b1-6aa5-4cd2-a184-dcca36d606de",
         # Empty evidence is intentional: emit_assertions then reports the
         # whole recorded verdict under sidq.verdict instead of inventing a rule.
         evidence=(),

@@ -11,10 +11,14 @@ event reports one rule by that rule's own severity: ``warn`` and ``block`` did
 not pass and take ``FAILURE``, and the native results carry both the rule's
 severity and the receipt-wide verdict so a reader can tell which is which.
 
-Two limits are not solved here and are documented in ``docs/RECEIPT-SPEC.md``
-rather than hidden.  A rule that stops firing keeps its last assertion, because
-nothing retires one; and a ``WARN`` shows in DataHub's aggregate quality chip
-as failing, since that surface has no third state to render.
+A rule that stops firing is retired rather than left claiming a failure: the
+next run emits one closing run event for it, so the catalog stops stating
+something Sidq no longer holds.  Assertions Sidq did not write, and ones an
+operator soft-deleted, are left alone.
+
+One limit is not solved and is documented in ``docs/RECEIPT-SPEC.md`` rather
+than hidden: a ``WARN`` is counted with the failures in DataHub's aggregate
+quality chip, because that surface has no third state to render.
 """
 
 from __future__ import annotations
@@ -29,6 +33,12 @@ from typing import Any
 from .build import Receipt
 
 _FALLBACK_RULE_ID = "sidq.verdict"
+# Written as the assertion's name and read back to recover the rule it reports,
+# so retirement can name a rule it did not evaluate this run. One constant,
+# used by both directions, is what keeps that round trip honest.
+_NAME_PREFIX = "Sidq policy rule "
+_CUSTOM_TYPE = "sidq.policy_rule"
+_RETIRED_SUMMARY = "This rule did not fire in the latest Sidq evaluation."
 
 # Measured on 2026-08-09: acryl-datahub 1.6.0.16 resolves pydantic to 2.11.10,
 # contradicting the pydantic>=2.12 that mcp 2.0.0 declares, and pip reports the
@@ -82,6 +92,7 @@ def require_sdk() -> None:
             AssertionSourceTypeClass,
             AssertionTypeClass,
             CustomAssertionInfoClass,
+            StatusClass,
         )
     except ImportError as error:
         raise DataHubSDKUnavailable(_SDK_REQUIRED) from error
@@ -140,7 +151,7 @@ def emit_assertions(
         # Every receipt write can be rejected, and then there is nothing to
         # mirror. Opening a GMS client anyway would turn a reported writeback
         # failure into a second, unrelated connection error.
-        return {"created": (), "existing": (), "runs": ()}
+        return {"created": (), "existing": (), "runs": (), "retired": ()}
 
     # One import site, so the missing-SDK boundary is stated once and cannot
     # be reported differently depending on how far the run got.
@@ -158,6 +169,7 @@ def emit_assertions(
             AssertionSourceTypeClass,
             AssertionTypeClass,
             CustomAssertionInfoClass,
+            StatusClass,
         )
     except ImportError as error:
         raise DataHubSDKUnavailable(_SDK_REQUIRED) from error
@@ -187,8 +199,35 @@ def emit_assertions(
     created: list[str] = []
     existing: list[str] = []
     runs: list[str] = []
+    retired: list[str] = []
+
+    def _run_event(
+        urn: str, receipt: Receipt, results: dict[str, str], result_type: str
+    ) -> str:
+        run_id = _run_id(urn, results)
+        graph.emit_mcp(
+            MetadataChangeProposalWrapper(
+                entityUrn=urn,
+                aspect=AssertionRunEventClass(
+                    timestampMillis=_checked_at_millis(receipt.checked_at),
+                    runId=run_id,
+                    asserteeUrn=receipt.urn,
+                    status=AssertionRunStatusClass.COMPLETE,
+                    assertionUrn=urn,
+                    messageId=run_id,
+                    result=AssertionResultClass(
+                        type=getattr(AssertionResultTypeClass, result_type),
+                        nativeResults=results,
+                        externalUrl=receipt.evidence_url or None,
+                    ),
+                ),
+            )
+        )
+        return run_id
+
     try:
         for receipt in receipts:
+            emitted: set[str] = set()
             for rule_id, severity, summary, logic in _rule_reports(receipt):
                 urn = assertion_urn(receipt.urn, rule_id)
                 # Emitted every run, not only the first. The logic string
@@ -205,7 +244,7 @@ def emit_assertions(
                         aspect=AssertionInfoClass(
                             type=AssertionTypeClass.CUSTOM,
                             customAssertion=CustomAssertionInfoClass(
-                                type="sidq.policy_rule",
+                                type=_CUSTOM_TYPE,
                                 entity=receipt.urn,
                                 logic=logic,
                             ),
@@ -215,38 +254,44 @@ def emit_assertions(
                             # DataHub lists this as the assertion's name, so it
                             # is the short rule identity; the URN and the
                             # reasoning live in the entity and logic fields.
-                            description=f"Sidq policy rule {rule_id}",
+                            description=f"{_NAME_PREFIX}{rule_id}",
                         ),
                     )
                 )
                 (existing if current is not None else created).append(urn)
 
-                native_results = _native_results(receipt, rule_id, severity, summary)
-                run_id = _run_id(urn, native_results)
-                graph.emit_mcp(
-                    MetadataChangeProposalWrapper(
-                        entityUrn=urn,
-                        aspect=AssertionRunEventClass(
-                            timestampMillis=_checked_at_millis(receipt.checked_at),
-                            runId=run_id,
-                            asserteeUrn=receipt.urn,
-                            status=AssertionRunStatusClass.COMPLETE,
-                            assertionUrn=urn,
-                            messageId=run_id,
-                            result=AssertionResultClass(
-                                type=getattr(
-                                    AssertionResultTypeClass,
-                                    assertion_result_type(receipt.verdict)
-                                    if not severity
-                                    else assertion_result_for_severity(severity),
-                                ),
-                                nativeResults=native_results,
-                                externalUrl=receipt.evidence_url or None,
-                            ),
-                        ),
+                runs.append(
+                    _run_event(
+                        urn,
+                        receipt,
+                        _native_results(receipt, rule_id, severity, summary),
+                        assertion_result_type(receipt.verdict)
+                        if not severity
+                        else assertion_result_for_severity(severity),
                     )
                 )
-                runs.append(run_id)
+                emitted.add(urn)
+
+            # A rule Sidq no longer reports must stop claiming a failure. The
+            # catalog keeps every assertion ever written, so without this a
+            # fixed problem stays red beside the run that fixed it, and the
+            # surface this feature exists to serve states something Sidq no
+            # longer holds. Retiring means one more honest run event, not a
+            # deletion: the history stays readable.
+            for stale, stale_rule in _ours_not_emitted(
+                graph, receipt.urn, emitted, AssertionInfoClass, StatusClass
+            ):
+                runs.append(
+                    _run_event(
+                        stale,
+                        receipt,
+                        _native_results(
+                            receipt, stale_rule, "retired", _RETIRED_SUMMARY
+                        ),
+                        "SUCCESS",
+                    )
+                )
+                retired.append(stale)
     finally:
         if owns_graph:
             close = getattr(graph, "close", None)
@@ -256,7 +301,47 @@ def emit_assertions(
         "created": tuple(created),
         "existing": tuple(existing),
         "runs": tuple(runs),
+        "retired": tuple(retired),
     }
+
+
+def _ours_not_emitted(
+    graph: Any,
+    dataset_urn: str,
+    emitted: set[str],
+    info_class: Any,
+    status_class: Any,
+) -> Iterable[tuple[str, str]]:
+    """Yield ``(assertion_urn, rule_id)`` for Sidq rules absent from this run.
+
+    Only assertions Sidq itself wrote are considered: a dbt or Snowflake check
+    on the same dataset is somebody else's statement, and retiring it would be
+    Sidq overwriting a claim it never made.
+
+    Soft-deleted ones are skipped too. DataHub keeps the Asserts relationship
+    after a soft delete, so retiring one would emit a fresh run event and pull
+    an assertion the operator removed back into their Quality tab. Measured on
+    2026-08-09: without this filter that is exactly what happened.
+    """
+
+    related = graph.get_related_entities(
+        dataset_urn, ["Asserts"], graph.RelationshipDirection.INCOMING
+    )
+    for entity in related:
+        urn = entity.urn
+        if urn in emitted:
+            continue
+        status = graph.get_aspect(urn, status_class)
+        if getattr(status, "removed", False):
+            continue
+        info = graph.get_aspect(urn, info_class)
+        custom = getattr(info, "customAssertion", None)
+        if getattr(custom, "type", None) != _CUSTOM_TYPE:
+            continue
+        description = getattr(info, "description", "") or ""
+        if not description.startswith(_NAME_PREFIX):
+            continue
+        yield urn, description[len(_NAME_PREFIX) :]
 
 
 def _rule_reports(receipt: Receipt) -> Iterable[tuple[str, str, str, str]]:

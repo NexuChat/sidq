@@ -17,13 +17,13 @@ where the verdict reaches the Validation/Quality tab.
 > that interpreter's path with `PYTHONPATH`.
 
 The target dataset was
-`urn:li:dataset:(urn:li:dataPlatform:dbt,b2fd91.order_entry_db.order_entry.orders,PROD)`.
+`urn:li:dataset:(urn:li:dataPlatform:dbt,b2fd91.order_entry_db.order_entry.addresses,PROD)`.
 It already carried a live Sidq receipt with verdict `PASS`, commit
 `faab25e9f5ef77f3df36c833b9f6048f21f3e933`, checked time
 `2026-07-30T22:22:58Z`, policy hash
 `baa612f729a56ff7497718cc3cf77cd9142967cb4ec0e075c2b3495eeb2f2927`, and
 evidence document
-`urn:li:document:shared-8cc25871-2ffc-4b48-9053-a60b4a05b8dc`.
+`urn:li:document:shared-4eb640b1-6aa5-4cd2-a184-dcca36d606de`.
 
 That receipt recorded no per-rule evidence, so there was no rule-level result
 to report. Rather than invent one, the mirror reported the whole verdict once
@@ -34,7 +34,7 @@ carry evidence produces one assertion per rule instead, each reported by that
 rule's own severity.
 
 The emitted assertion was
-`urn:li:assertion:sidq-b8db8f15af1738e3f35490ef1788ffece6b83a3e69be85065988f3a4d234838c`.
+`urn:li:assertion:sidq-f9c5f432c341141f98a15a550413abda5b2e98158a37aee9b040587d48180ddf`.
 The first emission reported `created=1`, `existing=0`, `runs=1`. Re-running the
 same emission reported `created=0`, `existing=1`, `runs=1`: the same assertion
 is rewritten, never duplicated. The definition is re-sent every run on purpose,
@@ -72,7 +72,7 @@ The real response read from DataHub after emission, preserved verbatim:
                 "total": 1,
                 "assertions": [
                     {
-                        "urn": "urn:li:assertion:sidq-b8db8f15af1738e3f35490ef1788ffece6b83a3e69be85065988f3a4d234838c",
+                        "urn": "urn:li:assertion:sidq-f9c5f432c341141f98a15a550413abda5b2e98158a37aee9b040587d48180ddf",
                         "info": {
                             "type": "CUSTOM",
                             "description": "Sidq policy rule sidq.verdict",
@@ -140,12 +140,12 @@ The real response read from DataHub after emission, preserved verbatim:
 ## The rendered tab
 
 DataHub's own Quality tab for the same dataset, captured in a logged-in browser
-session at 1600x900 on 2026-08-09. The filter row reads `Passing (1)`,
+session at 1500x820 on 2026-08-09. The filter row reads `Passing (1)`,
 `SIDQ.POLICY_RULE (1)`, `External (1)`, and the single row is the Sidq rule
 sitting beside the dataset's real owners, tags and glossary terms rather than
 in a surface of Sidq's own.
 
-![DataHub's Quality tab for the orders dataset, showing one passing assertion named "Sidq policy rule sidq.verdict" in category SIDQ.POLICY_RULE from an External source.](datahub-validation-tab.png)
+![DataHub's Quality tab for the addresses dataset, showing one passing assertion named "Sidq policy rule sidq.verdict" in category SIDQ.POLICY_RULE from an External source.](datahub-validation-tab.png)
 
 ## What this does not prove, and what it costs
 
@@ -158,8 +158,16 @@ Nothing here exercised the `sidq audit --via-mcp --write-receipts
 --write-assertions` CLI end to end against a live catalog. What is proven is
 the emission path, called directly with a receipt DataHub had already accepted.
 
-**A CUSTOM assertion cannot be deleted through DataHub's own API.** Measured
-here: `deleteAssertion` refuses with `Unsupported Assertion Type CUSTOM
-provided`. So the mirror writes something into a catalog that the operator
-cannot remove by the usual route, which is a real reason to keep the flag
-opt-in and to try it somewhere disposable first.
+**Removing one takes the soft-delete path, not `deleteAssertion`.** Measured
+here: `deleteAssertion` refuses a CUSTOM assertion with `Unsupported Assertion
+Type CUSTOM provided`, while `batchUpdateSoftDeleted` accepts it and the
+assertion leaves the tab. So removal is available, just not by the obvious
+call:
+
+```graphql
+mutation { batchUpdateSoftDeleted(input: {urns: ["urn:li:assertion:sidq-..."], deleted: true}) }
+```
+
+A soft-deleted assertion stays out. Sidq's retirement pass skips it rather than
+emitting a fresh run event that would pull it back, which is a mistake this
+example caught before it shipped.

@@ -69,19 +69,40 @@ a receipt carries no per-rule evidence at all is the whole verdict reported once
 `INIT` and `ERROR`, but those describe a run that started or could not finish; every
 verdict Sidq publishes is a completed evaluation.
 
-### What this surface does not do
+### Retiring a rule that stopped firing
 
-Two limits are real, unsolved, and stated here rather than discovered later.
+DataHub keeps every assertion ever written, so a rule that fires once and is then
+fixed would go on stating a failure Sidq no longer holds. Each run therefore closes
+what it no longer reports: after emitting the current rules for a dataset, Sidq lists
+the assertions asserting on it, keeps the ones it wrote itself, and emits one closing
+`SUCCESS` run event — `sidq.severity=retired`, summary "This rule did not fire in the
+latest Sidq evaluation." — for any that this run did not evaluate. Nothing is deleted;
+the history stays readable and the latest event tells the truth.
 
-**A rule that stops firing keeps its last assertion.** Nothing retires one. If
-`critical_downstream` fires, is fixed, and the next run no longer reports it, the
-failing assertion stays in the Quality tab beside the newer passing ones. Read the run
-event timestamps, not the assertion list, to know what Sidq currently holds.
+Two things are deliberately left alone. An assertion Sidq did not write (a dbt or
+Snowflake check on the same dataset) is somebody else's claim. And a soft-deleted
+assertion stays deleted: DataHub keeps the `Asserts` relationship after a soft delete,
+so retiring one would emit a fresh run event and pull an assertion the operator removed
+back into their Quality tab. Measured 2026-08-09, before the filter existed, that is
+exactly what happened.
+
+### Removing an assertion Sidq wrote
+
+`deleteAssertion` refuses a `CUSTOM` assertion — measured 2026-08-09,
+`Unsupported Assertion Type CUSTOM provided`. The soft-delete path accepts it and the
+assertion leaves the tab:
+
+```graphql
+mutation { batchUpdateSoftDeleted(input: {urns: ["urn:li:assertion:sidq-..."], deleted: true}) }
+```
+
+### What this surface still does not do
 
 **A WARN reads as failing in DataHub's aggregate.** The run event carries
 `sidq.verdict=WARN` and `sidq.severity`, but the tab's summary chip counts passing
 against failing with no third state, so a warning is counted with the failures. The
-distinction survives in the run event; it does not survive in the chip.
+distinction survives in the run event; it does not survive in the chip. Sidq cannot fix
+this from its side without reporting a warning as a pass, which would be the worse lie.
 
 This is the one explicit SDK exception to the receipt writeback route. The official
 `mcp-server-datahub` mutation tools include no assertion tool, so definition and run

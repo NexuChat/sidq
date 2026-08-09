@@ -682,7 +682,7 @@ def test_native_assertions_mirror_only_the_receipts_the_catalog_accepted(
 
     def emit(receipts):
         calls.append(list(receipts))
-        return {"created": ("a",), "existing": (), "runs": ("r1", "r2")}
+        return {"created": ("a",), "existing": (), "runs": ("r1", "r2"), "retired": ()}
 
     monkeypatch.setattr(cli, "_read_snapshot", lambda arguments: object())
     monkeypatch.setattr(cli, "CatalogAuditor", _Auditor)
@@ -718,6 +718,7 @@ def test_native_assertions_mirror_only_the_receipts_the_catalog_accepted(
         "created": 1,
         "existing": 0,
         "runs": 2,
+        "retired": 0,
         "failed": False,
     }
 
