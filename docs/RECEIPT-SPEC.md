@@ -59,10 +59,29 @@ check time, and evidence summary. This makes the result visible in DataHub's own
 Validation/Quality surface without changing the receipt's `sidq.*` contract.
 
 The option is off by default and requires `--write-receipts`; an assertion reports an
-already-determined verdict and is never input to Sidq's deterministic judgment. PASS
-maps to DataHub `SUCCESS`; BLOCK maps to `FAILURE`; WARN also maps to `FAILURE` because
-DataHub's result type is binary and the policy condition did not pass. The native
-properties retain `sidq.verdict=WARN`, so this does not represent a warning as a block.
+already-determined verdict and is never input to Sidq's deterministic judgment.
+
+Each run event reports **one rule by that rule's own severity**, not by the receipt's
+verdict: `warn` and `block` did not pass and take `FAILURE`, everything else takes
+`SUCCESS`. A BLOCK receipt therefore does not paint its `info` findings red. Only when
+a receipt carries no per-rule evidence at all is the whole verdict reported once, under
+`sidq.verdict`, and then the receipt verdict decides. `AssertionResultType` also has
+`INIT` and `ERROR`, but those describe a run that started or could not finish; every
+verdict Sidq publishes is a completed evaluation.
+
+### What this surface does not do
+
+Two limits are real, unsolved, and stated here rather than discovered later.
+
+**A rule that stops firing keeps its last assertion.** Nothing retires one. If
+`critical_downstream` fires, is fixed, and the next run no longer reports it, the
+failing assertion stays in the Quality tab beside the newer passing ones. Read the run
+event timestamps, not the assertion list, to know what Sidq currently holds.
+
+**A WARN reads as failing in DataHub's aggregate.** The run event carries
+`sidq.verdict=WARN` and `sidq.severity`, but the tab's summary chip counts passing
+against failing with no third state, so a warning is counted with the failures. The
+distinction survives in the run event; it does not survive in the chip.
 
 This is the one explicit SDK exception to the receipt writeback route. The official
 `mcp-server-datahub` mutation tools include no assertion tool, so definition and run
@@ -78,10 +97,10 @@ is not a Sidq dependency and is not offered as an extra: measured with pip on
 
 The distinction matters, so it is drawn precisely. In a throwaway environment
 holding both, Sidq's own MCP suites — 64 tests across `test_mcp_snapshot.py`
-and `test_mcp_server.py` — passed under `pydantic` 2.11.10, and a single
-interpreter ran the full `--via-mcp … --write-assertions` flow. So this is an
-install whose *declared* constraints are unsatisfied, not one observed to
-break. Sidq still declines to ship it as an extra, because an environment that
+and `test_mcp_server.py` — passed under `pydantic` 2.11.10. So this is an install whose *declared*
+constraints are unsatisfied, not one observed to break. The full `--via-mcp …
+--write-assertions` CLI invocation has not been run end to end against a live
+catalog; what is proven is the emission path, called directly. Sidq still declines to ship it as an extra, because an environment that
 happens to work while contradicting its own metadata is not something to put
 in a judge's or an operator's install path; the next patch release owes it
 nothing.
@@ -96,8 +115,8 @@ SDK at all.
 
 `examples/06-native-assertion/` holds the live run: the emitted assertion, the
 verbatim GraphQL response from the same query DataHub's UI issues, and a second
-emission returning `created=0, existing=1` to show the definition is updated
-rather than duplicated.
+emission returning `created=0, existing=1` to show the same assertion is
+rewritten rather than duplicated.
 
 ## 3. Consumption — `sidq verify <urn>`
 

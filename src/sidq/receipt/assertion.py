@@ -5,12 +5,16 @@ this boundary uses the supported DataHub SDK for the capability MCP cannot
 express; receipt values themselves remain the responsibility of the official
 MCP tools.
 
-Each assertion URN is a hash of a dataset URN and Sidq rule id, so the same
-rule on the same dataset is updated rather than duplicated.  ``WARN`` maps to
-``FAILURE``: DataHub assertion results distinguish only success and failure,
-and a warning is an honestly failed policy condition even though Sidq does not
-treat it as a blocking condition.  The native results retain Sidq's ``WARN``
-verdict and evidence so the UI does not imply a block.
+Each assertion URN is a hash of a dataset URN and Sidq rule id, so re-running
+updates the same rule on the same dataset rather than duplicating it.  Each run
+event reports one rule by that rule's own severity: ``warn`` and ``block`` did
+not pass and take ``FAILURE``, and the native results carry both the rule's
+severity and the receipt-wide verdict so a reader can tell which is which.
+
+Two limits are not solved here and are documented in ``docs/RECEIPT-SPEC.md``
+rather than hidden.  A rule that stops firing keeps its last assertion, because
+nothing retires one; and a ``WARN`` shows in DataHub's aggregate quality chip
+as failing, since that surface has no third state to render.
 """
 
 from __future__ import annotations
@@ -60,10 +64,27 @@ def require_sdk() -> None:
     same refusal earlier.
     """
 
-    import importlib.util
-
-    if importlib.util.find_spec("datahub") is None:
-        raise DataHubSDKUnavailable(_SDK_REQUIRED)
+    # The real imports, not `find_spec("datahub")`. A present but wrong SDK
+    # version satisfies a spec lookup and then fails on a renamed aspect class
+    # at emission — after the budget is spent and the receipts are written,
+    # which is the exact sequence this precondition exists to prevent.
+    try:
+        import datahub.emitter.mcp
+        import datahub.ingestion.graph.client
+        import datahub.ingestion.graph.config  # noqa: F401
+        from datahub.metadata.schema_classes import (  # noqa: F401
+            AssertionInfoClass,
+            AssertionResultClass,
+            AssertionResultTypeClass,
+            AssertionRunEventClass,
+            AssertionRunStatusClass,
+            AssertionSourceClass,
+            AssertionSourceTypeClass,
+            AssertionTypeClass,
+            CustomAssertionInfoClass,
+        )
+    except ImportError as error:
+        raise DataHubSDKUnavailable(_SDK_REQUIRED) from error
 
 
 def assertion_urn(dataset_urn: str, rule_id: str) -> str:
@@ -74,13 +95,32 @@ def assertion_urn(dataset_urn: str, rule_id: str) -> str:
 
 
 def assertion_result_type(verdict: str) -> str:
-    """Map Sidq's three verdicts onto DataHub's binary result vocabulary."""
+    """Map a Sidq verdict onto the DataHub result type that reports it.
+
+    ``AssertionResultType`` also carries ``INIT`` and ``ERROR``, but those
+    describe a run that started or could not complete. Every verdict Sidq
+    publishes is a completed evaluation, so only the two outcome values apply,
+    and ``WARN`` takes ``FAILURE`` because the policy condition did not pass.
+    """
 
     if verdict == "PASS":
         return "SUCCESS"
     if verdict in {"WARN", "BLOCK"}:
         return "FAILURE"
     raise ValueError(f"unsupported Sidq verdict: {verdict}")
+
+
+def assertion_result_for_severity(severity: str) -> str:
+    """Report one rule by ITS OWN severity, not by the receipt's verdict.
+
+    A BLOCK receipt can carry findings that did not block: ``info`` evidence is
+    context Sidq recorded, not a condition that failed. Publishing the
+    receipt-level verdict against every rule would paint each of them red in
+    the catalog's quality surface and state, of a rule that passed, that it
+    failed.
+    """
+
+    return "FAILURE" if severity.lower() in {"warn", "block"} else "SUCCESS"
 
 
 def emit_assertions(
@@ -124,10 +164,22 @@ def emit_assertions(
 
     owns_graph = graph is None
     if graph is None:
+        # DATAHUB_GMS_URL and nothing else, because that is the variable the
+        # MCP server process reads to reach the catalog the receipts were just
+        # written to. Defaulting to localhost here once meant a run against a
+        # remote catalog could write its receipts there and its assertions into
+        # whatever happened to be listening locally — two catalogs, one report
+        # of success. An unset variable is refused rather than guessed.
+        target = gms_url or os.environ.get("DATAHUB_GMS_URL", "")
+        if not target:
+            raise DataHubSDKUnavailable(
+                "cannot mirror assertions without DATAHUB_GMS_URL: it names the "
+                "catalog the receipts were written to, and guessing a default "
+                "risks writing them into a different one"
+            )
         graph = DataHubGraph(
             DatahubClientConfig(
-                server=gms_url
-                or os.environ.get("DATAHUB_GMS_URL", "http://localhost:8080"),
+                server=target,
                 token=os.environ.get("DATAHUB_GMS_TOKEN"),
             )
         )
@@ -137,35 +189,39 @@ def emit_assertions(
     runs: list[str] = []
     try:
         for receipt in receipts:
-            for rule_id, summary, logic in _rule_reports(receipt):
+            for rule_id, severity, summary, logic in _rule_reports(receipt):
                 urn = assertion_urn(receipt.urn, rule_id)
+                # Emitted every run, not only the first. The logic string
+                # carries this run's evidence summary, so skipping the write
+                # when the assertion already exists would leave the catalog
+                # displaying the first run's reasoning forever while the run
+                # events beneath it said something else. `created` and
+                # `existing` still distinguish a new assertion from an updated
+                # one; both are written.
                 current = graph.get_aspect(urn, AssertionInfoClass)
-                if current is None:
-                    graph.emit_mcp(
-                        MetadataChangeProposalWrapper(
-                            entityUrn=urn,
-                            aspect=AssertionInfoClass(
-                                type=AssertionTypeClass.CUSTOM,
-                                customAssertion=CustomAssertionInfoClass(
-                                    type="sidq.policy_rule",
-                                    entity=receipt.urn,
-                                    logic=logic,
-                                ),
-                                source=AssertionSourceClass(
-                                    type=AssertionSourceTypeClass.EXTERNAL
-                                ),
-                                description=(
-                                    f"Sidq rule {rule_id} evaluates catalog evidence "
-                                    f"for {receipt.urn}."
-                                ),
+                graph.emit_mcp(
+                    MetadataChangeProposalWrapper(
+                        entityUrn=urn,
+                        aspect=AssertionInfoClass(
+                            type=AssertionTypeClass.CUSTOM,
+                            customAssertion=CustomAssertionInfoClass(
+                                type="sidq.policy_rule",
+                                entity=receipt.urn,
+                                logic=logic,
                             ),
-                        )
+                            source=AssertionSourceClass(
+                                type=AssertionSourceTypeClass.EXTERNAL
+                            ),
+                            # DataHub lists this as the assertion's name, so it
+                            # is the short rule identity; the URN and the
+                            # reasoning live in the entity and logic fields.
+                            description=f"Sidq policy rule {rule_id}",
+                        ),
                     )
-                    created.append(urn)
-                else:
-                    existing.append(urn)
+                )
+                (existing if current is not None else created).append(urn)
 
-                native_results = _native_results(receipt, rule_id, summary)
+                native_results = _native_results(receipt, rule_id, severity, summary)
                 run_id = _run_id(urn, native_results)
                 graph.emit_mcp(
                     MetadataChangeProposalWrapper(
@@ -180,7 +236,9 @@ def emit_assertions(
                             result=AssertionResultClass(
                                 type=getattr(
                                     AssertionResultTypeClass,
-                                    assertion_result_type(receipt.verdict),
+                                    assertion_result_type(receipt.verdict)
+                                    if not severity
+                                    else assertion_result_for_severity(severity),
                                 ),
                                 nativeResults=native_results,
                                 externalUrl=receipt.evidence_url or None,
@@ -201,18 +259,38 @@ def emit_assertions(
     }
 
 
-def _rule_reports(receipt: Receipt) -> Iterable[tuple[str, str, str]]:
+def _rule_reports(receipt: Receipt) -> Iterable[tuple[str, str, str, str]]:
+    """Yield ``(rule_id, severity, summary, logic)`` per rule in the receipt.
+
+    Messages keep the order the engine recorded them, because that order is
+    part of the finding and reordering it would publish a sentence Sidq never
+    wrote. A rule's severity is the strongest one its findings carry, so a rule
+    that blocked once is not softened by also having recorded context.
+    """
+
     grouped: dict[str, list[str]] = {}
+    severities: dict[str, str] = {}
+    rank = {"info": 0, "warn": 1, "block": 2}
     for item in receipt.evidence:
         rule_id = item.get("rule_id")
         message = item.get("message")
-        if isinstance(rule_id, str) and rule_id:
-            grouped.setdefault(rule_id, []).append(
-                message if isinstance(message, str) and message else rule_id
-            )
+        severity = item.get("severity")
+        if not isinstance(rule_id, str) or not rule_id:
+            continue
+        grouped.setdefault(rule_id, []).append(
+            message if isinstance(message, str) and message else rule_id
+        )
+        severity = severity.lower() if isinstance(severity, str) else ""
+        held = severities.get(rule_id, "")
+        if rank.get(severity, -1) > rank.get(held, -1):
+            severities[rule_id] = severity
     if not grouped:
+        # No per-rule evidence to report, so the whole verdict is reported
+        # once. Its severity is empty; the caller falls back to the receipt
+        # verdict, which is the only statement available.
         yield (
             _FALLBACK_RULE_ID,
+            "",
             "No individual rule evidence was recorded.",
             (
                 "Sidq compared the dataset's collected catalog evidence with its "
@@ -221,14 +299,25 @@ def _rule_reports(receipt: Receipt) -> Iterable[tuple[str, str, str]]:
         )
         return
     for rule_id in sorted(grouped):
-        summary = " ".join(sorted(set(grouped[rule_id])))
-        yield rule_id, summary, f"Sidq rule {rule_id}: {summary}"
+        seen: dict[str, None] = dict.fromkeys(grouped[rule_id])
+        summary = " ".join(seen)
+        yield (
+            rule_id,
+            severities.get(rule_id, ""),
+            summary,
+            (f"Sidq rule {rule_id}: {summary}"),
+        )
 
 
-def _native_results(receipt: Receipt, rule_id: str, summary: str) -> dict[str, str]:
+def _native_results(
+    receipt: Receipt, rule_id: str, severity: str, summary: str
+) -> dict[str, str]:
     return {
         "sidq.verdict": receipt.verdict,
         "sidq.rule_id": rule_id,
+        # The rule's own severity, next to the receipt-wide verdict, so a
+        # reader can see which of the two this row is reporting.
+        "sidq.severity": severity or "verdict",
         "sidq.policy_hash": receipt.policy_hash,
         "sidq.commit_sha": receipt.commit_sha,
         "sidq.checked_at": receipt.checked_at,

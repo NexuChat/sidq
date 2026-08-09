@@ -104,7 +104,7 @@ file on first use, so that first run needs package-index access.
 | # | Command | Needs | What it proves | Takes |
 |---|---|---|---|---|
 | 1 | `make gate-demo` | Python 3.12; package downloads on first use; no DataHub or credentials | The published `BLOCK` verdict is re-derived from the committed graph recording, byte-identical, with the same `policy_hash`. Hand-editing an artifact fails this. | ~2s after bootstrap |
-| 2 | `make check` | Python 3.12; package downloads on first use | 1132 tests, lint, format, types — 1131 passed, 1 optional integration skipped, with 84.56% branch coverage; the same gates CI runs. | ~60s after bootstrap |
+| 2 | `make check` | Python 3.12; package downloads on first use | 1134 tests, lint, format, types — 1133 passed, 1 optional integration skipped, with 84.52% branch coverage; the same gates CI runs. | ~60s after bootstrap |
 | 3 | `make live-loop` | a running DataHub ([`docs/SETUP.md`](docs/SETUP.md)) | The whole agent loop over the **official MCP server only**: read → decide → write a receipt → a *separate process* reads it back → an asset carrying no receipt returns `NOT VERIFIED`. | ~60s |
 | 4 | `make repair-demo` | the same DataHub | The repair agent proposes a fix from catalog evidence, re-runs the deterministic engine against the catalog that fix *would* create, and shows what it proved and what it refused. | ~40s |
 
@@ -326,13 +326,13 @@ official MCP server has no assertion tool and this one path therefore needs the
 DataHub SDK. `acryl-datahub` resolves `pydantic` below the 2.12 that Sidq's
 `mcp>=2` declares, and pip reports that conflict, so the SDK is not offered as
 an extra. Measured on 2026-08-09, Sidq's own MCP suites do pass in a combined
-environment anyway, and one interpreter can run the whole flow — so what is
-being refused is shipping an install whose declared constraints are unsatisfied,
-not a capability observed to break. Run it from an interpreter that already
+environment anyway — so what is being refused is shipping an install whose
+declared constraints are unsatisfied, not a capability observed to break. Run it from an interpreter that already
 carries the SDK; anywhere else it refuses with that explanation instead of an
 import traceback. The live proof — emitted, re-read through the same GraphQL
-query DataHub's own UI issues, and re-run to show it updates rather than
-duplicates — is committed in
+query DataHub's own UI issues, re-run to show it updates rather than
+duplicates, and photographed rendering in DataHub's Quality tab beside the
+dataset's real owners and tags — is committed in
 [`examples/06-native-assertion/`](examples/06-native-assertion/).
 
 ### Run against catalogs it was never built for

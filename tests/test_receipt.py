@@ -1777,17 +1777,78 @@ def test_native_assertion_emission_is_idempotent_and_carries_evidence(
     event = next(iter(graph.run_events.values()))
     assert info.type == "CUSTOM"
     assert info.source.type == "EXTERNAL"
+    # DataHub lists the description as the assertion's name, so it stays short
+    # and the reasoning lives in the logic field beside it.
+    assert info.description == "Sidq policy rule schema.required"
     assert info.customAssertion.logic.startswith("Sidq rule schema.required:")
     assert event.status == "COMPLETE"
     assert event.result.type == "FAILURE"
     assert event.result.nativeResults == {
         "sidq.verdict": "WARN",
         "sidq.rule_id": "schema.required",
+        "sidq.severity": "block",
         "sidq.policy_hash": "sha256:policy",
         "sidq.commit_sha": "a" * 40,
         "sidq.checked_at": "2026-08-02T11:04:00Z",
         "sidq.evidence_summary": "A required field is missing.",
     }
+
+
+def test_a_rule_is_reported_by_its_own_severity_not_the_receipt_verdict(
+    monkeypatch,
+) -> None:
+    """A BLOCK receipt can carry a rule that did not block.
+
+    Publishing the receipt-wide verdict against every rule would paint an
+    `info` finding red in the catalog's quality surface and state, of a rule
+    that passed, that it failed.
+    """
+    graph = _AssertionGraph()
+    _install_fake_datahub_sdk(monkeypatch, graph)  # type: ignore[arg-type]
+    blocking = Finding("critical_downstream", "block", "Nine owners depend.", ())
+    context = Finding("pii_marker", "info", "The field is marked PII.", ())
+    verdict = Verdict(
+        "BLOCK", "MISSING_FIELD", (blocking, context), (), "a" * 40, "sha256:policy"
+    )
+    receipt = build_receipt(URN, verdict, checked_at=datetime(2026, 8, 2, tzinfo=UTC))
+
+    emit_assertions([receipt], graph)
+
+    results = {
+        event.result.nativeResults["sidq.rule_id"]: event.result.type
+        for event in graph.run_events.values()
+    }
+    assert results == {"critical_downstream": "FAILURE", "pii_marker": "SUCCESS"}
+
+
+def test_re_emission_updates_the_definition_rather_than_leaving_it_stale(
+    monkeypatch,
+) -> None:
+    """The definition carries this run's reasoning, so it is rewritten each run.
+
+    Writing it only on first sight would leave the catalog showing the first
+    run's evidence forever while the run events beneath it said otherwise.
+    """
+    graph = _AssertionGraph()
+    _install_fake_datahub_sdk(monkeypatch, graph)  # type: ignore[arg-type]
+    first = Finding("schema.required", "block", "One field is missing.", ())
+    later = Finding("schema.required", "block", "Three fields are missing.", ())
+    stamp = datetime(2026, 8, 2, tzinfo=UTC)
+
+    for finding in (first, later):
+        emit_assertions(
+            [
+                build_receipt(
+                    URN,
+                    Verdict("BLOCK", None, (finding,), (), "a" * 40, "sha256:policy"),
+                    checked_at=stamp,
+                )
+            ],
+            graph,
+        )
+
+    logic = graph.infos[assertion_urn(URN, "schema.required")].customAssertion.logic
+    assert logic == "Sidq rule schema.required: Three fields are missing."
 
 
 def test_native_assertion_uses_configured_gms_url_and_token(monkeypatch) -> None:

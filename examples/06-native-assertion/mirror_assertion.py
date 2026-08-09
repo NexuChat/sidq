@@ -2,9 +2,13 @@
 """Mirror the captured receipt using an interpreter with ``acryl-datahub``.
 
 The Sidq project venv deliberately does not include the DataHub SDK because of
-its measured pydantic conflict with Sidq's MCP dependency. Run this with the
-separate Python interpreter that already has ``acryl-datahub``, not
-``.venv/bin/sidq``.
+its measured pydantic conflict with Sidq's MCP dependency, so run this with the
+separate interpreter that already has ``acryl-datahub`` -- not
+``.venv/bin/sidq``. That interpreter will not have ``sidq`` importable either,
+so put the source tree on its path explicitly::
+
+    PYTHONPATH=/path/to/sidq/src \\
+      /path/to/sdk-interpreter examples/06-native-assertion/mirror_assertion.py
 """
 
 from __future__ import annotations
@@ -17,9 +21,13 @@ from datahub.ingestion.graph.config import DatahubClientConfig
 from sidq.receipt.assertion import emit_assertions
 from sidq.receipt.build import Receipt
 
-DATASET_URN = (
-    "urn:li:dataset:(urn:li:dataPlatform:snowflake,"
-    "b2fd91.order_entry_db.order_entry.customers,PROD)"
+# The dataset this example was run against. It carries a quickstart-specific
+# instance id, so it will not exist in another catalog: override
+# SIDQ_EXAMPLE_URN with any dataset of your own that already holds a receipt.
+DATASET_URN = os.environ.get(
+    "SIDQ_EXAMPLE_URN",
+    "urn:li:dataset:(urn:li:dataPlatform:dbt,"
+    "b2fd91.order_entry_db.order_entry.orders,PROD)",
 )
 
 
@@ -30,12 +38,12 @@ def captured_receipt() -> Receipt:
         urn=DATASET_URN,
         verdict="PASS",
         reason_code=None,
-        commit_sha="4a07305275945639f6538f85b7fc4450e99cd7ee",
-        checked_at="2026-08-01T00:49:35Z",
+        commit_sha="faab25e9f5ef77f3df36c833b9f6048f21f3e933",
+        checked_at="2026-07-30T22:22:58Z",
         policy_hash="baa612f729a56ff7497718cc3cf77cd9142967cb4ec0e075c2b3495eeb2f2927",
         rules_fired=(),
         verifier="sidq@0.1.0",
-        evidence_url="urn:li:document:shared-9dbb86d7-617f-4f0c-97a7-4d16f3ccfa5f",
+        evidence_url="urn:li:document:shared-8cc25871-2ffc-4b48-9053-a60b4a05b8dc",
         # Empty evidence is intentional: emit_assertions then reports the
         # whole recorded verdict under sidq.verdict instead of inventing a rule.
         evidence=(),

@@ -786,9 +786,12 @@ def _audit(arguments: Any) -> int:
             if outcome.written
         ]
         try:
-            assertion_result = emit_assertions(
-                successful_receipts, gms_url=arguments.server
-            )
+            # No gms_url from --server. Under --via-mcp that flag is a display
+            # label, not a connection target: reads and receipt writes go
+            # through the MCP process, which resolves DATAHUB_GMS_URL itself.
+            # Passing --server here would let assertions land in a different
+            # catalog than the receipts they mirror.
+            assertion_result = emit_assertions(successful_receipts)
         except Exception as error:  # noqa: BLE001 - SDK transports raise several types
             # No counts here on purpose. Emission raises on the first failing
             # proposal, so an earlier assertion in the same run may already be
@@ -798,14 +801,21 @@ def _audit(arguments: Any) -> int:
             lines.append("  assertions        write failed, counts unknown")
         else:
             assertion_summary = {
+                # `eligible` first, because zero runs from zero eligible
+                # receipts is a catalog that rejected every write, not a clean
+                # mirror, and the counts alone cannot tell those apart.
+                "eligible": len(successful_receipts),
                 "created": len(assertion_result["created"]),
                 "existing": len(assertion_result["existing"]),
                 "runs": len(assertion_result["runs"]),
             }
-            lines.append(f"  assertion runs    {assertion_summary['runs']}")
+            lines.append(
+                f"  assertion runs    {assertion_summary['runs']} "
+                f"from {assertion_summary['eligible']} written receipts"
+            )
             lines.append(
                 f"  assertions        {assertion_summary['created']} new, "
-                f"{assertion_summary['existing']} existing"
+                f"{assertion_summary['existing']} updated"
             )
 
     if arguments.as_json:

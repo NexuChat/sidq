@@ -680,8 +680,8 @@ def test_native_assertions_mirror_only_the_receipts_the_catalog_accepted(
         def run(self):
             return result
 
-    def emit(receipts, *, gms_url):
-        calls.append((list(receipts), gms_url))
+    def emit(receipts):
+        calls.append(list(receipts))
         return {"created": ("a",), "existing": (), "runs": ("r1", "r2")}
 
     monkeypatch.setattr(cli, "_read_snapshot", lambda arguments: object())
@@ -708,8 +708,13 @@ def test_native_assertions_mirror_only_the_receipts_the_catalog_accepted(
         cli._audit(_arguments(write_receipts=True, write_assertions=True, as_json=True))
         == 1
     )
-    assert calls == [(["kept"], "http://datahub")]
+    # No GMS url from --server: under --via-mcp that flag is a display label,
+    # and passing it could target a different catalog than the receipts.
+    assert calls == [["kept"]]
     assert json.loads(capsysbinary.readouterr().out)["assertions"] == {
+        # `eligible` separates "nothing to mirror" from "mirrored nothing
+        # because the catalog rejected every receipt".
+        "eligible": 1,
         "created": 1,
         "existing": 0,
         "runs": 2,
@@ -735,7 +740,7 @@ def test_a_failed_assertion_write_is_reported_without_counts_and_does_not_pass(
         def run(self):
             return result
 
-    def emit(receipts, *, gms_url):
+    def emit(receipts):
         raise ConnectionError("gms refused the proposal")
 
     monkeypatch.setattr(cli, "_read_snapshot", lambda arguments: object())
