@@ -129,9 +129,21 @@ path. Measured 2026-08-09: 172 pass in that container, the contract test among t
 and the one skip is the inverse test that pins the message seen when no SDK is
 installed. Each environment runs the check the other cannot.
 
-All three directions were verified the same day: a wrong field name fails the host
-suite, a simulated upstream rename fails the container, and the container is green
-against the real `acryl-datahub` 1.6.0.16.
+A committed contract catches a wrong field *name*. It cannot catch a wrong *value*,
+because the stand-in stores whatever it is handed. `tests/test_assertion_real_sdk.py`
+closes that: it lets `emit_assertions` build the real aspect classes and serialises
+them through the SDK's own `to_obj()`, so what is asserted is the payload that would
+reach a catalog. Only the graph is a stub — no network, no credentials. It skips
+per-test on the host and runs in the container.
+
+The difference is measurable. Passing `timestampMillis` as a string instead of an
+integer leaves the host suite entirely green at 108 passed, and fails in the container
+with `AvroTypeException` from DataHub's own schema.
+
+Four directions were verified on 2026-08-09: a wrong field name fails the host suite,
+a simulated upstream rename fails the container, a wrong value type passes the host
+and fails the container, and the container is green against the real
+`acryl-datahub` 1.6.0.16 at 176 passed.
 
 ### What this surface still does not do
 

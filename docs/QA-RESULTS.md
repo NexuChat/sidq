@@ -79,11 +79,12 @@ re-measured and the 2026-08-02 session remains its record.
 
 ## Automated gates
 
-- Host run of 2026-08-09: 1144 collected, 1142 passed, and 2 optional
+- Host run of 2026-08-09: 1148 collected, 1142 passed, and 6 optional
   integration tests skipped: the Ollama model `ibm/granite4:1b-q4_1` is not
-  installed, and the DataHub SDK contract check has no `acryl-datahub` to
-  re-derive from in this environment, by the design recorded in
-  [`RECEIPT-SPEC.md`](RECEIPT-SPEC.md).
+  installed, and five DataHub-SDK checks have no `acryl-datahub` to run
+  against in this environment, by the design recorded in
+  [`RECEIPT-SPEC.md`](RECEIPT-SPEC.md). `make sdk-contract` runs those five in
+  a container: 176 passed there on the same day.
 - Host branch coverage on that run: 84.61%, above the enforced 80.0% threshold.
   The browser, accessibility, and performance measurements below are from the
   2026-08-02 session in this document's title and were not re-run.

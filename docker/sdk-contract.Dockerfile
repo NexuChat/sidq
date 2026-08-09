@@ -32,4 +32,5 @@ COPY README.md ARCHITECTURE.md ./
 # a mounted tree. `--no-cov` because coverage is the host suite's gate, not
 # this one's: what this image asserts is that the contract still matches.
 ENTRYPOINT ["python", "-m", "pytest", "-q", "-rs", "--no-cov", "-p", "no:cacheprovider"]
-CMD ["tests/test_receipt.py", "tests/test_mcp_snapshot.py", "tests/test_mcp_server.py"]
+CMD ["tests/test_assertion_real_sdk.py", "tests/test_receipt.py", \
+     "tests/test_mcp_snapshot.py", "tests/test_mcp_server.py"]
