@@ -70,6 +70,21 @@ event emission use `DataHubGraph`, `DatahubClientConfig`, and
 `MetadataChangeProposalWrapper`, following the receipt bootstrap boundary. Receipt
 values themselves continue through official MCP tools.
 
+That exception has a cost, and it is stated rather than hidden. `acryl-datahub`
+is not a Sidq dependency and cannot become a supported extra: measured with pip
+on 2026-08-09, `acryl-datahub==1.6.0.16` resolves `pydantic` to 2.11.10, while
+`mcp 2.0.0` — the client every other Sidq command reads through — requires
+`pydantic>=2.12.0`. So `--write-assertions` runs only from an interpreter that
+already carries the SDK. Everywhere else it raises `DataHubSDKUnavailable`
+naming that conflict, because an operator who reaches this path needs the reason,
+not a `ModuleNotFoundError`. Nothing else in Sidq is affected: receipts,
+verification, and every read path need no SDK at all.
+
+`examples/06-native-assertion/` holds the live run: the emitted assertion, the
+verbatim GraphQL response from the same query DataHub's UI issues, and a second
+emission returning `created=0, existing=1` to show the definition is updated
+rather than duplicated.
+
 ## 3. Consumption — `sidq verify <urn>`
 
 Receipt consumption is a CLI operation, not a fourth Sidq MCP tool. Run it from

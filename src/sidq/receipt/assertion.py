@@ -26,6 +26,24 @@ from .build import Receipt
 
 _FALLBACK_RULE_ID = "sidq.verdict"
 
+# Measured with pip on 2026-08-09: acryl-datahub 1.6.0.16 pins pydantic to
+# 2.11.10, while the mcp>=2 client every other Sidq command depends on requires
+# pydantic>=2.12. So the SDK cannot be a supported extra without knowingly
+# producing an inconsistent environment, and the mirror states that boundary
+# instead of failing with a bare ModuleNotFoundError the operator must decode.
+_SDK_REQUIRED = (
+    "the native assertion mirror needs the DataHub Python SDK, which Sidq "
+    "deliberately does not install: acryl-datahub pins pydantic below 2.12 "
+    "while Sidq's mcp>=2 client requires 2.12 or newer, so installing it into "
+    "the project environment breaks every other command. Run "
+    "--write-assertions from an interpreter that already has acryl-datahub; "
+    "see docs/RECEIPT-SPEC.md. Receipts themselves need no SDK."
+)
+
+
+class DataHubSDKUnavailable(RuntimeError):
+    """Raised when the assertion mirror runs without the DataHub SDK present."""
+
 
 def assertion_urn(dataset_urn: str, rule_id: str) -> str:
     """Return the stable native assertion URN for one Sidq rule evaluation."""
@@ -63,11 +81,28 @@ def emit_assertions(
         # failure into a second, unrelated connection error.
         return {"created": (), "existing": (), "runs": ()}
 
-    owns_graph = graph is None
-    if graph is None:
+    # One import site, so the missing-SDK boundary is stated once and cannot
+    # be reported differently depending on how far the run got.
+    try:
+        from datahub.emitter.mcp import MetadataChangeProposalWrapper
         from datahub.ingestion.graph.client import DataHubGraph
         from datahub.ingestion.graph.config import DatahubClientConfig
+        from datahub.metadata.schema_classes import (
+            AssertionInfoClass,
+            AssertionResultClass,
+            AssertionResultTypeClass,
+            AssertionRunEventClass,
+            AssertionRunStatusClass,
+            AssertionSourceClass,
+            AssertionSourceTypeClass,
+            AssertionTypeClass,
+            CustomAssertionInfoClass,
+        )
+    except ImportError as error:
+        raise DataHubSDKUnavailable(_SDK_REQUIRED) from error
 
+    owns_graph = graph is None
+    if graph is None:
         graph = DataHubGraph(
             DatahubClientConfig(
                 server=gms_url
@@ -80,19 +115,6 @@ def emit_assertions(
     existing: list[str] = []
     runs: list[str] = []
     try:
-        from datahub.emitter.mcp import MetadataChangeProposalWrapper
-        from datahub.metadata.schema_classes import (
-            AssertionInfoClass,
-            AssertionResultClass,
-            AssertionResultTypeClass,
-            AssertionRunEventClass,
-            AssertionRunStatusClass,
-            AssertionSourceClass,
-            AssertionSourceTypeClass,
-            AssertionTypeClass,
-            CustomAssertionInfoClass,
-        )
-
         for receipt in receipts:
             for rule_id, summary, logic in _rule_reports(receipt):
                 urn = assertion_urn(receipt.urn, rule_id)

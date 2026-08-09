@@ -104,7 +104,7 @@ file on first use, so that first run needs package-index access.
 | # | Command | Needs | What it proves | Takes |
 |---|---|---|---|---|
 | 1 | `make gate-demo` | Python 3.12; package downloads on first use; no DataHub or credentials | The published `BLOCK` verdict is re-derived from the committed graph recording, byte-identical, with the same `policy_hash`. Hand-editing an artifact fails this. | ~2s after bootstrap |
-| 2 | `make check` | Python 3.12; package downloads on first use | 1127 tests, lint, format, types — 1126 passed, 1 optional integration skipped, with 84.54% branch coverage; the same gates CI runs. | ~60s after bootstrap |
+| 2 | `make check` | Python 3.12; package downloads on first use | 1131 tests, lint, format, types — 1130 passed, 1 optional integration skipped, with 84.55% branch coverage; the same gates CI runs. | ~60s after bootstrap |
 | 3 | `make live-loop` | a running DataHub ([`docs/SETUP.md`](docs/SETUP.md)) | The whole agent loop over the **official MCP server only**: read → decide → write a receipt → a *separate process* reads it back → an asset carrying no receipt returns `NOT VERIFIED`. | ~60s |
 | 4 | `make repair-demo` | the same DataHub | The repair agent proposes a fix from catalog evidence, re-runs the deterministic engine against the catalog that fix *would* create, and shows what it proved and what it refused. | ~40s |
 
@@ -319,8 +319,18 @@ Adding `--write-assertions` mirrors each accepted receipt into DataHub's own
 Validation surface as a native assertion, so the verdict is visible where a data
 team already looks. It requires `--write-receipts`, it reports a verdict Sidq
 already decided rather than producing one, and a receipt whose write failed is
-never mirrored. [`docs/RECEIPT-SPEC.md`](docs/RECEIPT-SPEC.md) records why this
-one path uses the DataHub SDK: the official MCP server has no assertion tool.
+never mirrored.
+
+**It does not run from the environment the runbook installs, and that is a
+measured constraint rather than an oversight.** The official MCP server has no
+assertion tool, so this one path needs the DataHub SDK — and `acryl-datahub`
+pins `pydantic` below 2.12 while Sidq's `mcp>=2` client requires 2.12 or newer,
+so installing it into the project venv would break every other command. Run it
+from an interpreter that already carries the SDK; anywhere else it refuses with
+that explanation instead of an import traceback. The live proof — emitted,
+re-read through the same GraphQL query DataHub's own UI issues, and re-run to
+show it updates rather than duplicates — is committed in
+[`examples/06-native-assertion/`](examples/06-native-assertion/).
 
 ### Run against catalogs it was never built for
 

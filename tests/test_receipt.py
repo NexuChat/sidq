@@ -22,6 +22,7 @@ from sidq.agent.writeback import render_writeback, write_receipts
 from sidq.models import Evidence, Finding, Verdict
 from sidq.policy.engine import PolicyEngine
 from sidq.receipt.assertion import (
+    DataHubSDKUnavailable,
     assertion_result_type,
     assertion_urn,
     emit_assertions,
@@ -1801,6 +1802,27 @@ def test_native_assertion_uses_configured_gms_url_and_token(monkeypatch) -> None
     assert configs[0].server == "https://catalog.env.test"
     assert configs[0].token == "writer-token"
     assert graph.closed
+
+
+def test_a_missing_datahub_sdk_names_the_boundary_it_hit() -> None:
+    """The project venv has no DataHub SDK, and that is a documented choice.
+
+    acryl-datahub pins pydantic below 2.12 while Sidq's mcp>=2 client needs
+    2.12 or newer, so the SDK cannot become an extra without breaking every
+    other command. An operator who reaches this path must be told that, not
+    handed a bare ModuleNotFoundError to decode. No mock here on purpose: the
+    condition under test is this environment.
+    """
+    import importlib.util
+
+    if importlib.util.find_spec("datahub") is not None:
+        pytest.skip("this pins the message seen when the SDK is absent")
+
+    receipt = build_receipt(
+        URN, _verdict(), checked_at=datetime(2026, 8, 2, tzinfo=UTC)
+    )
+    with pytest.raises(DataHubSDKUnavailable, match="pydantic"):
+        emit_assertions([receipt])
 
 
 def test_nothing_to_mirror_never_opens_a_catalog_connection(monkeypatch) -> None:
