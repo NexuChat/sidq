@@ -154,9 +154,14 @@ DataHub Cloud or other releases, and the screenshot is a picture of that
 session rather than something a reader re-derives; the GraphQL response is the
 reproducible part.
 
-Nothing here exercised the `sidq audit --via-mcp --write-receipts
---write-assertions` CLI end to end against a live catalog. What is proven is
-the emission path, called directly with a receipt DataHub had already accepted.
+The files here call the emission path directly, with a receipt DataHub had
+already accepted, because that is what a reader can re-run against one dataset.
+The whole CLI was separately run end to end from an SDK-carrying environment on
+the same catalog and reported `receipts written 2 of 2` and `assertion runs 4
+from 2 written receipts`; those four assertions were per-rule, took their own
+findings' `info` severity rather than the receipt verdict, and were removed
+afterwards so this example's readback stays a single assertion. That run left
+no committed artifact of its own.
 
 **Removing one takes the soft-delete path, not `deleteAssertion`.** Measured
 here: `deleteAssertion` refuses a CUSTOM assertion with `Unsupported Assertion

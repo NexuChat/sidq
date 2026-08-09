@@ -325,9 +325,10 @@ never mirrored.
 official MCP server has no assertion tool and this one path therefore needs the
 DataHub SDK. `acryl-datahub` resolves `pydantic` below the 2.12 that Sidq's
 `mcp>=2` declares, and pip reports that conflict, so the SDK is not offered as
-an extra. Measured on 2026-08-09, Sidq's own MCP suites do pass in a combined
-environment anyway — so what is being refused is shipping an install whose
-declared constraints are unsatisfied, not a capability observed to break. Run it from an interpreter that already
+an extra. Measured on 2026-08-09, Sidq's own MCP suites pass in a combined environment
+anyway, and the whole command ran there end to end against a live catalog — so
+what is being refused is shipping an install whose declared constraints are
+unsatisfied, not a capability observed to break. Run it from an interpreter that already
 carries the SDK; anywhere else it refuses with that explanation instead of an
 import traceback. The live proof — emitted, re-read through the same GraphQL
 query DataHub's own UI issues, re-run to show it updates rather than

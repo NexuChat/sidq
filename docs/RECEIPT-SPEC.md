@@ -118,13 +118,21 @@ is not a Sidq dependency and is not offered as an extra: measured with pip on
 
 The distinction matters, so it is drawn precisely. In a throwaway environment
 holding both, Sidq's own MCP suites — 64 tests across `test_mcp_snapshot.py`
-and `test_mcp_server.py` — passed under `pydantic` 2.11.10. So this is an install whose *declared*
-constraints are unsatisfied, not one observed to break. The full `--via-mcp …
---write-assertions` CLI invocation has not been run end to end against a live
-catalog; what is proven is the emission path, called directly. Sidq still declines to ship it as an extra, because an environment that
-happens to work while contradicting its own metadata is not something to put
-in a judge's or an operator's install path; the next patch release owes it
-nothing.
+and `test_mcp_server.py` — passed under `pydantic` 2.11.10, and the full
+command ran there end to end against the live quickstart on 2026-08-09:
+
+```text
+  receipts written  2 of 2
+  assertion runs    4 from 2 written receipts
+  assertions        4 new, 0 updated, 0 retired
+```
+
+Two receipts through the official MCP tools and four per-rule assertions
+through the SDK, in one process. So this is an install whose *declared*
+constraints are unsatisfied, not one observed to break. Sidq still declines to
+ship it as an extra: an environment that happens to work while contradicting
+its own metadata does not belong in a judge's or an operator's install path,
+and the next patch release owes it nothing.
 
 `--write-assertions` therefore runs only from an interpreter that already
 carries the SDK. Everywhere else it raises `DataHubSDKUnavailable` naming that
