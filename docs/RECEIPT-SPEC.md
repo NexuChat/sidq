@@ -106,101 +106,55 @@ assertion leaves the tab:
 mutation { batchUpdateSoftDeleted(input: {urns: ["urn:li:assertion:sidq-..."], deleted: true}) }
 ```
 
-### How the aspect contract is tested without the SDK
+### How the mirror is tested
 
-The assertion tests cannot import `acryl-datahub`, for the dependency reason below,
-so they run against a stand-in. A stand-in that accepts any keyword tests nothing: a
-misspelled or invented aspect field would pass every test and fail only on a live
-catalog write, which is exactly what happened once here before it was caught by hand.
+The behavioral tests run against a fake transport with the module's exact
+two-method seam — a GraphQL call and a Rest.li aspect read — so severity mapping,
+warning naming, retire-once, soft-delete respect on both paths, the propagation
+retry, and the whole-verdict fallback are all pinned without a catalog. What the
+fake cannot vouch for, the live run does: the emission, the idempotent re-run, the
+readback through the UI's own query, and the full CLI from the runbook venv were
+all executed against the live quickstart on 2026-08-09 and are committed in
+[`examples/06-native-assertion/`](../examples/06-native-assertion/).
 
-So the stand-in is not permissive. `tests/fixtures/datahub_assertion_contract.json`
-holds the constructor fields and enum members of the ten aspect classes this module
-touches, extracted from `acryl-datahub` 1.6.0.16, and the fake refuses any field
-outside it — naming the class, the offending field, and the SDK version. A second test
-re-derives that fixture from the installed SDK and fails on any difference.
+### The transport, measured
 
-That second test does not have to depend on someone remembering to run it somewhere
-special. `make sdk-contract` builds a throwaway container holding both packages and
-runs it there — `docker/sdk-contract.Dockerfile`, wired as its own CI job so it can
-never change the result of `make check`. The knowingly resolver-inconsistent install
-is confined to an image that ships nothing, which is where it belongs, instead of
-being offered as an extra that would put a contradictory environment in an operator's
-path. Measured 2026-08-09: 172 pass in that container, the contract test among them,
-and the one skip is the inverse test that pins the message seen when no SDK is
-installed. Each environment runs the check the other cannot.
+The official `mcp-server-datahub` (0.6.0, 21 registered tools) exposes no assertion
+write tool — its only assertion tool, `get_dataset_assertions`, is read-only and gated
+behind `DATA_QUALITY_TOOLS_ENABLED`. So this one writeback surface uses DataHub's
+documented, authorization-checked GraphQL custom-assertion API instead of MCP:
+`upsertCustomAssertion` for the definition and `reportAssertionResult` for each run,
+over plain HTTP with the Python standard library. Receipt values themselves continue
+through official MCP tools. Both mutations are in DataHub OSS —
+`datahub-graphql-core`'s `assertions.graphql` and its public resolvers — and the
+tutorial for exactly this capability is
+<https://docs.datahub.com/docs/api/tutorials/custom-assertions>.
 
-A committed contract catches a wrong field *name*. It cannot catch a wrong *value*,
-because the stand-in stores whatever it is handed. `tests/test_assertion_real_sdk.py`
-closes that: it lets `emit_assertions` build the real aspect classes and serialises
-them through the SDK's own `to_obj()`, so what is asserted is the payload that would
-reach a catalog. Only the graph is a stub — no network, no credentials. It skips
-per-test on the host and runs in the container.
+Four properties were measured on 2026-08-09 against GMS v1.5.0.6 and are relied on:
 
-The difference is measurable. Passing `timestampMillis` as a string instead of an
-integer leaves the host suite entirely green at 108 passed, and fails in the container
-with `AvroTypeException` from DataHub's own schema.
+- `upsertCustomAssertion` accepts Sidq's deterministic assertion URN through its
+  optional `urn` argument and stores it verbatim, so the same rule on the same
+  dataset updates in place.
+- DataHub derives the run id from the caller's `timestampMillis`, and two reports at
+  the same timestamp produce one event. Retrying a receipt is therefore idempotent:
+  same `checked_at`, same event, replaced not duplicated.
+- The report resolver can lag a just-created definition (HTTP 500 "does not exist or
+  is not associated"); the mirror retries that one measured failure with a bounded
+  wait, only for definitions it created in the same call, and raises anything else
+  unchanged.
+- The Rest.li aspect read (`/aspects/<urn>?aspect=...`) is SQL-backed and immediate;
+  it decides created-versus-existing and answers the soft-delete check, wrapped as
+  `{"aspect":{"com.linkedin.common.Status":{"removed":true}}}` — reading `removed`
+  off the top level silently disables soft-delete respect, which is exactly the bug
+  the unwrap comment in the module records.
 
-Four directions were verified on 2026-08-09: a wrong field name fails the host suite,
-a simulated upstream rename fails the container, a wrong value type passes the host
-and fails the container, and the container is green against the real
-`acryl-datahub` 1.6.0.16 at 176 passed.
-
-### What this surface still does not do
-
-**A WARN is counted with the failures in DataHub's aggregate.** The chip on the Quality
-tab tallies passing against failing and has no third state, so a warning lands among the
-failures whatever Sidq emits. Reporting it as a pass to win a green count would be the
-worse lie, so Sidq does not.
-
-What Sidq does instead is refuse to let a warning *read* as a block in the name the row
-carries: a `warn` rule is written as `Sidq policy rule <id> (warning)`, and the run
-event carries `sidq.severity=warn` beside `sidq.verdict`. Measured 2026-08-09 by
-emitting one and reading the aspect back; the rendered list has only ever been
-photographed for a passing row, so how the suffix looks in the tab is not claimed here.
-The chip stays wrong by one; the name and the evidence do not.
-
-This is the one explicit SDK exception to the receipt writeback route. The official
-`mcp-server-datahub` mutation tools include no assertion tool, so definition and run
-event emission use `DataHubGraph`, `DatahubClientConfig`, and
-`MetadataChangeProposalWrapper`, following the receipt bootstrap boundary. Receipt
-values themselves continue through official MCP tools.
-
-That exception has a cost, and it is stated rather than hidden. `acryl-datahub`
-is not a Sidq dependency and is not offered as an extra: measured with pip on
-2026-08-09, `acryl-datahub==1.6.0.16` resolves `pydantic` to 2.11.10, while
-`mcp 2.0.0` — the client every other Sidq command reads through — declares
-`pydantic>=2.12.0`, and pip reports the conflict.
-
-The distinction matters, so it is drawn precisely. In a throwaway environment
-holding both, Sidq's own MCP suites — 64 tests across `test_mcp_snapshot.py`
-and `test_mcp_server.py` — passed under `pydantic` 2.11.10, and the full
-command ran there end to end against the live quickstart on 2026-08-09:
-
-```text
-  receipts written  2 of 2
-  assertion runs    4 from 2 written receipts
-  assertions        4 new, 0 updated, 0 retired
-```
-
-Two receipts through the official MCP tools and four per-rule assertions
-through the SDK, in one process. So this is an install whose *declared*
-constraints are unsatisfied, not one observed to break. Sidq still declines to
-ship it as an extra: an environment that happens to work while contradicting
-its own metadata does not belong in a judge's or an operator's install path,
-and the next patch release owes it nothing.
-
-`--write-assertions` therefore runs only from an interpreter that already
-carries the SDK. Everywhere else it raises `DataHubSDKUnavailable` naming that
-conflict, and it raises it as a precondition — before the catalog is read and
-before any receipt is written — because an operator who reaches this path needs
-the reason up front, not a `ModuleNotFoundError` after a spent budget. Nothing
-else in Sidq is affected: receipts, verification, and every read path need no
-SDK at all.
-
-`examples/06-native-assertion/` holds the live run: the emitted assertion, the
-verbatim GraphQL response from the same query DataHub's UI issues, and a second
-emission returning `created=0, existing=1` to show the same assertion is
-rewritten rather than duplicated.
+An earlier revision wrote raw `assertionInfo` / `assertionRunEvent` aspects through
+the `acryl-datahub` SDK, which cannot live in the project environment: it resolves
+`pydantic` below the 2.12 that Sidq's `mcp>=2` declares. That boundary — a container
+to test against the real SDK, a committed field contract, a flag that refused to run
+from the runbook venv — fell with the SDK itself. The receipt-property *bootstrap*
+(`scripts/bootstrap_sidq_properties.py`) still uses the SDK lazily; it is a one-time
+setup step documented in SETUP.md, not part of the audit or mirror path.
 
 ## 3. Consumption — `sidq verify <urn>`
 

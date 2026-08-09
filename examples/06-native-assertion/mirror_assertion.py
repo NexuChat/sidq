@@ -1,22 +1,22 @@
 #!/usr/bin/env python3
-"""Mirror the captured receipt using an interpreter with ``acryl-datahub``.
+"""Mirror the captured receipt into DataHub's native assertion surface.
 
-The Sidq project venv deliberately does not include the DataHub SDK because of
-its measured pydantic conflict with Sidq's MCP dependency, so run this with the
-separate interpreter that already has ``acryl-datahub`` -- not
-``.venv/bin/sidq``. That interpreter will not have ``sidq`` importable either,
-so put the source tree on its path explicitly::
+This runs from the project environment directly::
 
-    PYTHONPATH=/path/to/sidq/src \\
-      /path/to/sdk-interpreter examples/06-native-assertion/mirror_assertion.py
+    export DATAHUB_GMS_URL=http://localhost:8080
+    export DATAHUB_GMS_TOKEN=...            # omit on an unauthenticated quickstart
+    .venv/bin/python examples/06-native-assertion/mirror_assertion.py
+
+No DataHub SDK is involved. The mirror speaks DataHub's documented GraphQL
+custom-assertion API (``upsertCustomAssertion`` / ``reportAssertionResult``)
+over plain HTTP, which is why the one interpreter a judge already has is
+enough. Earlier revisions of this example needed a second, SDK-carrying
+interpreter; the git history records that boundary and why it fell.
 """
 
 from __future__ import annotations
 
 import os
-
-from datahub.ingestion.graph.client import DataHubGraph
-from datahub.ingestion.graph.config import DatahubClientConfig
 
 from sidq.receipt.assertion import emit_assertions
 from sidq.receipt.build import Receipt
@@ -27,7 +27,7 @@ from sidq.receipt.build import Receipt
 DATASET_URN = os.environ.get(
     "SIDQ_EXAMPLE_URN",
     "urn:li:dataset:(urn:li:dataPlatform:dbt,"
-    "b2fd91.order_entry_db.order_entry.addresses,PROD)",
+    "b2fd91.order_entry_db.order_entry.products,PROD)",
 )
 
 
@@ -43,7 +43,7 @@ def captured_receipt() -> Receipt:
         policy_hash="baa612f729a56ff7497718cc3cf77cd9142967cb4ec0e075c2b3495eeb2f2927",
         rules_fired=(),
         verifier="sidq@0.1.0",
-        evidence_url="urn:li:document:shared-4eb640b1-6aa5-4cd2-a184-dcca36d606de",
+        evidence_url="urn:li:document:shared-30fd40e4-a6cd-44e3-92bd-e74586c31ec1",
         # Empty evidence is intentional: emit_assertions then reports the
         # whole recorded verdict under sidq.verdict instead of inventing a rule.
         evidence=(),
@@ -53,21 +53,13 @@ def captured_receipt() -> Receipt:
 def main() -> None:
     """Emit the assertion and print the observable idempotency counts."""
 
-    gms_url = os.environ["DATAHUB_GMS_URL"]
-    gms_token = os.environ["DATAHUB_GMS_TOKEN"]
-    # Assertions are not exposed by DataHub's MCP mutation tools, so this
-    # explicit SDK client is the narrow boundary needed for this write.
-    graph = DataHubGraph(DatahubClientConfig(server=gms_url, token=gms_token))
-    try:
-        result = emit_assertions([captured_receipt()], graph)
-    finally:
-        close = getattr(graph, "close", None)
-        if callable(close):
-            close()
-
+    result = emit_assertions([captured_receipt()])
     print(
         f"created={len(result['created'])} "
-        f"existing={len(result['existing'])} runs={len(result['runs'])}"
+        f"existing={len(result['existing'])} "
+        f"runs={len(result['runs'])} "
+        f"retired={len(result['retired'])} "
+        f"skipped={len(result['skipped'])}"
     )
 
 

@@ -1,28 +1,16 @@
 """Publish opt-in Sidq verdict reports as native DataHub assertions.
 
-The DataHub MCP mutation surface has no assertion tool.  Like receipt bootstrap,
-this boundary uses the supported DataHub SDK for the capability MCP cannot
-express; receipt values themselves remain the responsibility of the official
-MCP tools.
+This boundary uses DataHub's documented, authorization-checked GraphQL
+custom-assertion API. It has zero extra dependencies and therefore runs from
+Sidq's project environment rather than requiring the acryl-datahub SDK. The
+MCP server (0.6.0, 21 tools) has no assertion write tool, which is why this
+one writeback surface uses GraphQL rather than MCP.
 
-Each assertion URN is a hash of a dataset URN and Sidq rule id, so re-running
-updates the same rule on the same dataset rather than duplicating it.  Each run
-event reports one rule by that rule's own severity: ``warn`` and ``block`` did
-not pass and take ``FAILURE``, and the native results carry both the rule's
-severity and the receipt-wide verdict so a reader can tell which is which.
-
-A rule that stops firing is retired rather than left claiming a failure: one
-closing run event, and the definition rewritten so the row stops displaying the
-last firing's reasoning.  Retiring happens once, not every run afterwards.
-
-An assertion Sidq did not write is left alone, and so is one an operator
-soft-deleted -- on both paths.  Re-creating a deleted row because its rule fired
-again would overrule a decision with a metadata write nobody asked for, so the
-run reports the skip instead.
-
-One limit is not solved and is documented in ``docs/RECEIPT-SPEC.md`` rather
-than hidden: a ``WARN`` is counted with the failures in DataHub's aggregate
-quality chip, because that surface has no third state to render.
+Measured DataHub behavior derives a run id from ``timestampMillis`` and
+deduplicates reports at the same timestamp, so retrying one receipt updates
+its event rather than duplicating it. Operator soft-deletes are respected on
+both emission and retirement, and a no-longer-firing rule is retired once
+rather than on every later run.
 """
 
 from __future__ import annotations
@@ -30,6 +18,10 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
 from collections.abc import Iterable, Sequence
 from datetime import UTC, datetime
 from typing import Any
@@ -51,62 +43,109 @@ _RETIRED_SUMMARY = "This rule did not fire in the latest Sidq evaluation."
 # stop a warning from reading as a block in the row a human actually looks at.
 _WARNING_SUFFIX = " (warning)"
 
-# Measured on 2026-08-09: acryl-datahub 1.6.0.16 resolves pydantic to 2.11.10,
-# contradicting the pydantic>=2.12 that mcp 2.0.0 declares, and pip reports the
-# conflict. Sidq's own MCP suites nevertheless passed in that combined
-# environment, so this is an install whose declared constraints are unsatisfied
-# rather than one observed to fail — which is still not something to ship as a
-# supported extra, because passing today is not promised by any declared
-# version. The message says that much and no more, instead of leaving a bare
-# ModuleNotFoundError for the operator to decode.
-_SDK_REQUIRED = (
-    "the native assertion mirror needs the DataHub Python SDK, which Sidq "
-    "does not install and does not offer as an extra: acryl-datahub resolves "
-    "pydantic below the 2.12 that Sidq's mcp>=2 declares, so that install is "
-    "resolver-inconsistent even though Sidq's MCP tests passed under it when "
-    "measured. Run --write-assertions from an interpreter that already "
-    "carries acryl-datahub; see docs/RECEIPT-SPEC.md. Receipts themselves "
-    "need no SDK."
+_MIRROR_CONFIG_REQUIRED = (
+    "cannot mirror assertions without DATAHUB_GMS_URL: it names the catalog "
+    "the receipts were written to, and guessing a default risks writing "
+    "assertions into a different catalog"
 )
 
+_UPSERT_CUSTOM_ASSERTION = """
+mutation($u:String,$i:UpsertCustomAssertionInput!){
+  upsertCustomAssertion(urn:$u, input:$i){ urn }
+}
+"""
+_REPORT_ASSERTION_RESULT = """
+mutation($u:String!,$r:AssertionResultInput!){
+  reportAssertionResult(urn:$u, result:$r)
+}
+"""
+_DATASET_ASSERTIONS = """
+query($u:String!,$start:Int!,$count:Int!){
+  dataset(urn:$u){
+    assertions(start:$start,count:$count){
+      total
+      assertions { urn info { description customAssertion { type logic } } }
+    }
+  }
+}
+"""
+_ASSERTIONS_PAGE = 500
 
-class DataHubSDKUnavailable(RuntimeError):
-    """Raised when the assertion mirror runs without the DataHub SDK present."""
+
+class AssertionMirrorUnavailable(RuntimeError):
+    """Raised when assertion mirroring lacks its required catalog configuration."""
 
 
-def require_sdk() -> None:
-    """Refuse early when the SDK the mirror needs is not installed.
+def require_mirror_config() -> None:
+    """Refuse early when the target catalog cannot be identified safely.
 
-    Callers use this as a precondition, before spending an audit budget or
-    writing anything. Discovering the absence at emission time would leave the
-    operator with receipts written, assertions missing, and a failure they
-    could have been told about before the first catalog read. The import inside
-    ``emit_assertions`` still guards the operation itself; this only moves the
-    same refusal earlier.
+    Callers use this before spending an audit budget or writing receipts. The
+    URL is the catalog identity shared by the MCP receipt process and this
+    GraphQL writeback boundary; guessing it would make one run write its two
+    kinds of output to different catalogs.
     """
 
-    # The real imports, not `find_spec("datahub")`. A present but wrong SDK
-    # version satisfies a spec lookup and then fails on a renamed aspect class
-    # at emission — after the budget is spent and the receipts are written,
-    # which is the exact sequence this precondition exists to prevent.
-    try:
-        import datahub.emitter.mcp
-        import datahub.ingestion.graph.client
-        import datahub.ingestion.graph.config  # noqa: F401
-        from datahub.metadata.schema_classes import (  # noqa: F401
-            AssertionInfoClass,
-            AssertionResultClass,
-            AssertionResultTypeClass,
-            AssertionRunEventClass,
-            AssertionRunStatusClass,
-            AssertionSourceClass,
-            AssertionSourceTypeClass,
-            AssertionTypeClass,
-            CustomAssertionInfoClass,
-            StatusClass,
+    if not os.environ.get("DATAHUB_GMS_URL"):
+        raise AssertionMirrorUnavailable(_MIRROR_CONFIG_REQUIRED)
+
+
+class _GmsTransport:
+    """Small stdlib transport for the two DataHub endpoints this mirror needs."""
+
+    def __init__(self, gms_url: str, token: str | None) -> None:
+        self._gms_url = gms_url.rstrip("/")
+        self._token = token
+
+    def graphql(self, query: str, variables: dict[str, Any]) -> dict[str, Any]:
+        headers = {"Content-Type": "application/json"}
+        if self._token:
+            headers["Authorization"] = f"Bearer {self._token}"
+        request = urllib.request.Request(
+            f"{self._gms_url}/api/graphql",
+            data=json.dumps({"query": query, "variables": variables}).encode(),
+            headers=headers,
+            method="POST",
         )
-    except ImportError as error:
-        raise DataHubSDKUnavailable(_SDK_REQUIRED) from error
+        try:
+            with urllib.request.urlopen(request, timeout=15) as response:
+                payload = json.load(response)
+        except urllib.error.HTTPError as error:
+            # This GMS was measured returning GraphQL errors as HTTP 200 with
+            # an `errors` array, but a proxy or another release may use the
+            # status line instead. Re-raise with the BODY, not only the code:
+            # the body carries both the propagation marker the retry matches
+            # on and the reason the CLI's honest report needs to print.
+            body = error.read().decode("utf-8", "replace")[:1000]
+            raise RuntimeError(f"HTTP {error.code} from GraphQL: {body}") from error
+        if not isinstance(payload, dict):
+            raise TypeError("DataHub GraphQL response was not an object")
+        errors = payload.get("errors")
+        if errors:
+            raise RuntimeError(errors)
+        data = payload.get("data")
+        if not isinstance(data, dict):
+            raise TypeError("DataHub GraphQL response had no data object")
+        return data
+
+    def get_aspect_json(self, urn: str, aspect: str) -> dict[str, Any] | None:
+        headers = {"X-RestLi-Protocol-Version": "2.0.0"}
+        if self._token:
+            headers["Authorization"] = f"Bearer {self._token}"
+        encoded_urn = urllib.parse.quote(urn, safe="")
+        query = urllib.parse.urlencode({"aspect": aspect, "version": 0})
+        request = urllib.request.Request(
+            f"{self._gms_url}/aspects/{encoded_urn}?{query}", headers=headers
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=15) as response:
+                payload = json.load(response)
+        except urllib.error.HTTPError as error:
+            if error.code == 404:
+                return None
+            raise
+        if not isinstance(payload, dict):
+            raise TypeError("DataHub aspect response was not an object")
+        return payload
 
 
 def assertion_urn(dataset_urn: str, rule_id: str) -> str:
@@ -147,20 +186,20 @@ def assertion_result_for_severity(severity: str) -> str:
 
 def emit_assertions(
     receipts: Sequence[Receipt],
-    graph: Any | None = None,
+    transport: Any | None = None,
     *,
     gms_url: str | None = None,
 ) -> dict[str, tuple[str, ...]]:
     """Emit native assertion definitions and one run event per receipt rule.
 
     This is intentionally separate from receipt MCP writeback and callers must
-    opt in.  Definitions and run events require the DataHub SDK because the
-    official MCP server registers no assertion mutation tool.
+    opt in. Definitions and events use the documented GraphQL surface because
+    the official MCP server does not expose an assertion mutation tool.
     """
 
     if not receipts:
         # Every receipt write can be rejected, and then there is nothing to
-        # mirror. Opening a GMS client anyway would turn a reported writeback
+        # mirror. Opening a transport anyway would turn a reported writeback
         # failure into a second, unrelated connection error.
         return {
             "created": (),
@@ -170,29 +209,7 @@ def emit_assertions(
             "skipped": (),
         }
 
-    # One import site, so the missing-SDK boundary is stated once and cannot
-    # be reported differently depending on how far the run got.
-    try:
-        from datahub.emitter.mcp import MetadataChangeProposalWrapper
-        from datahub.ingestion.graph.client import DataHubGraph
-        from datahub.ingestion.graph.config import DatahubClientConfig
-        from datahub.metadata.schema_classes import (
-            AssertionInfoClass,
-            AssertionResultClass,
-            AssertionResultTypeClass,
-            AssertionRunEventClass,
-            AssertionRunStatusClass,
-            AssertionSourceClass,
-            AssertionSourceTypeClass,
-            AssertionTypeClass,
-            CustomAssertionInfoClass,
-            StatusClass,
-        )
-    except ImportError as error:
-        raise DataHubSDKUnavailable(_SDK_REQUIRED) from error
-
-    owns_graph = graph is None
-    if graph is None:
+    if transport is None:
         # DATAHUB_GMS_URL and nothing else, because that is the variable the
         # MCP server process reads to reach the catalog the receipts were just
         # written to. Defaulting to localhost here once meant a run against a
@@ -201,17 +218,8 @@ def emit_assertions(
         # of success. An unset variable is refused rather than guessed.
         target = gms_url or os.environ.get("DATAHUB_GMS_URL", "")
         if not target:
-            raise DataHubSDKUnavailable(
-                "cannot mirror assertions without DATAHUB_GMS_URL: it names the "
-                "catalog the receipts were written to, and guessing a default "
-                "risks writing them into a different one"
-            )
-        graph = DataHubGraph(
-            DatahubClientConfig(
-                server=target,
-                token=os.environ.get("DATAHUB_GMS_TOKEN"),
-            )
-        )
+            raise AssertionMirrorUnavailable(_MIRROR_CONFIG_REQUIRED)
+        transport = _GmsTransport(target, os.environ.get("DATAHUB_GMS_TOKEN"))
 
     created: list[str] = []
     existing: list[str] = []
@@ -219,135 +227,84 @@ def emit_assertions(
     retired: list[str] = []
     skipped: list[str] = []
 
-    def _definition(dataset_urn: str, name: str, logic: str) -> Any:
-        return AssertionInfoClass(
-            type=AssertionTypeClass.CUSTOM,
-            customAssertion=CustomAssertionInfoClass(
-                type=_CUSTOM_TYPE, entity=dataset_urn, logic=logic
-            ),
-            source=AssertionSourceClass(type=AssertionSourceTypeClass.EXTERNAL),
-            # DataHub lists this as the assertion's name, so it is the short
-            # rule identity; the URN and the reasoning live in the entity and
-            # logic fields.
-            description=name,
-        )
-
-    def _run_event(
-        urn: str,
-        receipt: Receipt,
-        results: dict[str, str],
-        result_type: str,
-        *,
-        evidence_url: str = "",
-    ) -> str:
-        run_id = _run_id(urn, results)
-        graph.emit_mcp(
-            MetadataChangeProposalWrapper(
-                entityUrn=urn,
-                aspect=AssertionRunEventClass(
-                    timestampMillis=_checked_at_millis(receipt.checked_at),
-                    runId=run_id,
-                    asserteeUrn=receipt.urn,
-                    status=AssertionRunStatusClass.COMPLETE,
-                    assertionUrn=urn,
-                    messageId=run_id,
-                    result=AssertionResultClass(
-                        type=getattr(AssertionResultTypeClass, result_type),
-                        nativeResults=results,
-                        externalUrl=evidence_url or None,
-                    ),
-                ),
-            )
-        )
-        return run_id
-
-    try:
-        # Accumulated across the whole call, not per receipt: two receipts for
-        # one dataset would otherwise each retire the other's rules.
-        emitted: dict[str, set[str]] = {}
-        last: dict[str, Receipt] = {}
-        for receipt in receipts:
-            seen = emitted.setdefault(receipt.urn, set())
-            last[receipt.urn] = receipt
-            for rule_id, severity, summary, logic in _rule_reports(receipt):
-                urn = assertion_urn(receipt.urn, rule_id)
-                current = graph.get_aspect(urn, AssertionInfoClass)
-                if _is_removed(graph, urn, StatusClass):
-                    # The operator deleted this row. Writing it again would
-                    # overrule that with a metadata write they never asked for,
-                    # so the run reports the skip instead of quietly reversing
-                    # the decision.
-                    skipped.append(urn)
-                    seen.add(urn)
-                    continue
-                # Emitted every run, not only the first. The logic string
-                # carries this run's evidence summary, so skipping the write
-                # when the assertion already exists would leave the catalog
-                # displaying the first run's reasoning forever while the run
-                # events beneath it said something else.
-                graph.emit_mcp(
-                    MetadataChangeProposalWrapper(
-                        entityUrn=urn,
-                        aspect=_definition(
-                            receipt.urn, _assertion_name(rule_id, severity), logic
-                        ),
-                    )
-                )
-                (existing if current is not None else created).append(urn)
-
-                runs.append(
-                    _run_event(
-                        urn,
-                        receipt,
-                        _native_results(receipt, rule_id, severity, summary),
-                        assertion_result_type(receipt.verdict)
-                        if not severity
-                        else assertion_result_for_severity(severity),
-                        evidence_url=receipt.evidence_url,
-                    )
-                )
+    # Accumulated across the whole call, not per receipt: two receipts for one
+    # dataset would otherwise each retire the other's rules.
+    emitted: dict[str, set[str]] = {}
+    last: dict[str, Receipt] = {}
+    for receipt in receipts:
+        seen = emitted.setdefault(receipt.urn, set())
+        last[receipt.urn] = receipt
+        for rule_id, severity, summary, logic in _rule_reports(receipt):
+            urn = assertion_urn(receipt.urn, rule_id)
+            current = transport.get_aspect_json(urn, "assertionInfo")
+            if _is_removed(transport, urn):
+                # The operator deleted this row. Writing it again would
+                # overrule that with a metadata write they never asked for, so
+                # the run reports the skip instead of quietly reversing the
+                # decision.
+                skipped.append(urn)
                 seen.add(urn)
+                continue
 
-        # A rule Sidq no longer reports must stop claiming a failure. The
-        # catalog keeps every assertion ever written, so without this a fixed
-        # problem stays red beside the run that fixed it, and the surface this
-        # feature exists to serve states something Sidq no longer holds.
-        # Retiring means one more honest run event, not a deletion.
-        for dataset_urn, seen in emitted.items():
-            receipt = last[dataset_urn]
-            for stale, stale_rule in _ours_not_emitted(
-                graph, dataset_urn, seen, AssertionInfoClass, StatusClass
-            ):
-                # The definition is rewritten too, so the row stops displaying
-                # the last firing's reasoning and any "(warning)" in its name,
-                # and so the next run can see it is already retired instead of
-                # closing it again every run for the life of the dataset.
-                graph.emit_mcp(
-                    MetadataChangeProposalWrapper(
-                        entityUrn=stale,
-                        aspect=_definition(
-                            dataset_urn,
-                            f"{_NAME_PREFIX}{stale_rule}",
-                            _RETIRED_SUMMARY,
-                        ),
-                    )
+            # Emitted every run, not only the first. The logic string carries
+            # this run's evidence summary, so skipping the write when the
+            # assertion already exists would leave the catalog displaying the
+            # first run's reasoning forever while the run events beneath it
+            # said something else.
+            _upsert_definition(
+                transport,
+                urn,
+                receipt.urn,
+                _assertion_name(rule_id, severity),
+                logic,
+            )
+            (existing if current is not None else created).append(urn)
+
+            runs.append(
+                _report_run(
+                    transport,
+                    urn,
+                    receipt,
+                    _native_results(receipt, rule_id, severity, summary),
+                    assertion_result_type(receipt.verdict)
+                    if not severity
+                    else assertion_result_for_severity(severity),
+                    evidence_url=receipt.evidence_url,
+                    freshly_created=current is None,
                 )
-                runs.append(
-                    _run_event(
-                        stale,
-                        receipt,
-                        _native_results(
-                            receipt, stale_rule, "retired", _RETIRED_SUMMARY
-                        ),
-                        "SUCCESS",
-                    )
+            )
+            seen.add(urn)
+
+    # A rule Sidq no longer reports must stop claiming a failure. The catalog
+    # keeps every assertion ever written, so without this a fixed problem stays
+    # red beside the run that fixed it, and the surface this feature exists to
+    # serve states something Sidq no longer holds. Retiring means one more
+    # honest run event, not a deletion.
+    for dataset_urn, seen in emitted.items():
+        receipt = last[dataset_urn]
+        for stale, stale_rule in _ours_not_emitted(transport, dataset_urn, seen):
+            # The definition is rewritten too, so the row stops displaying the
+            # last firing's reasoning and any "(warning)" in its name, and so
+            # the next run can see it is already retired instead of closing it
+            # again every run for the life of the dataset.
+            _upsert_definition(
+                transport,
+                stale,
+                dataset_urn,
+                f"{_NAME_PREFIX}{stale_rule}",
+                _RETIRED_SUMMARY,
+            )
+            runs.append(
+                _report_run(
+                    transport,
+                    stale,
+                    receipt,
+                    _native_results(receipt, stale_rule, "retired", _RETIRED_SUMMARY),
+                    "SUCCESS",
                 )
-                retired.append(stale)
-    finally:
-        if owns_graph:
-            close = getattr(graph, "close", None)
-            if callable(close):
-                close()
+            )
+            retired.append(stale)
+
     return {
         "created": tuple(created),
         "existing": tuple(existing),
@@ -357,50 +314,160 @@ def emit_assertions(
     }
 
 
-def _is_removed(graph: Any, urn: str, status_class: Any) -> bool:
-    return bool(getattr(graph.get_aspect(urn, status_class), "removed", False))
+def _upsert_definition(
+    transport: Any, urn: str, dataset_urn: str, name: str, logic: str
+) -> None:
+    data = transport.graphql(
+        _UPSERT_CUSTOM_ASSERTION,
+        {
+            "u": urn,
+            "i": {
+                "entityUrn": dataset_urn,
+                "type": _CUSTOM_TYPE,
+                # DataHub renders description as the assertion name in its
+                # list, so this is the short rule identity a person sees.
+                "description": name,
+                "platform": {"name": "sidq"},
+                "logic": logic,
+            },
+        },
+    )
+    stored = (data.get("upsertCustomAssertion") or {}).get("urn")
+    if stored and stored != urn:
+        # A server-minted urn would silently desync every subsequent report
+        # and retirement lookup, so a mismatch is an error, not a curiosity.
+        raise RuntimeError(f"catalog stored assertion urn {stored}, expected {urn}")
+
+
+# The report resolver resolves the assertion's entity association through a
+# path that lags a just-written definition: measured live, a report issued
+# immediately after a successful upsert returns HTTP 500 "does not exist or is
+# not associated with any entity", and the same report succeeds seconds later.
+# The SQL-backed aspect read is already visible at that point, so polling it
+# proves nothing; the only honest readiness signal is the resolver itself.
+_PROPAGATION_MARKER = "does not exist or is not associated"
+# 10 attempts with 2s between them: at most ~20s of waiting per freshly
+# created assertion, on top of the HTTP calls themselves. The bound is stated
+# in RECEIPT-SPEC; a permanent mis-association carrying the same message burns
+# this budget once and then surfaces unchanged.
+_PROPAGATION_ATTEMPTS = 10
+_PROPAGATION_WAIT_SECONDS = 2.0
+
+
+def _report_run(
+    transport: Any,
+    urn: str,
+    receipt: Receipt,
+    results: dict[str, str],
+    result_type: str,
+    *,
+    evidence_url: str = "",
+    freshly_created: bool = False,
+) -> str:
+    timestamp = _checked_at_millis(receipt.checked_at)
+    result: dict[str, Any] = {
+        "type": result_type,
+        "timestampMillis": timestamp,
+        "properties": [{"key": key, "value": value} for key, value in results.items()],
+    }
+    if evidence_url:
+        result["externalUrl"] = evidence_url
+    attempts = _PROPAGATION_ATTEMPTS if freshly_created else 1
+    for attempt in range(attempts):
+        try:
+            transport.graphql(_REPORT_ASSERTION_RESULT, {"u": urn, "r": result})
+            break
+        except RuntimeError as error:
+            # Retry ONLY the measured propagation failure, and only for a
+            # definition this very call created — anything else is a real
+            # error and is raised on the spot, unchanged.
+            if _PROPAGATION_MARKER not in str(error) or attempt == attempts - 1:
+                raise
+            time.sleep(_PROPAGATION_WAIT_SECONDS)
+    # DataHub derives runId from timestampMillis. Reports retried with the
+    # same receipt timestamp replace that event, providing idempotency without
+    # the SDK's old content-hash messageId.
+    return f"{urn}@{timestamp}"
+
+
+def _is_removed(transport: Any, urn: str) -> bool:
+    # The Rest.li read wraps the aspect: {"version":0,"aspect":
+    # {"com.linkedin.common.Status":{"removed":true}}}. Reading `removed` off
+    # the top level returns None for every assertion, which would silently turn
+    # soft-delete respect off — measured against the live catalog before this
+    # unwrap was written.
+    payload = transport.get_aspect_json(urn, "status")
+    if not payload:
+        return False
+    aspect = payload.get("aspect")
+    if not isinstance(aspect, dict):
+        return False
+    status = aspect.get("com.linkedin.common.Status")
+    return bool(isinstance(status, dict) and status.get("removed"))
 
 
 def _ours_not_emitted(
-    graph: Any,
-    dataset_urn: str,
-    emitted: set[str],
-    info_class: Any,
-    status_class: Any,
+    transport: Any, dataset_urn: str, emitted: set[str]
 ) -> Iterable[tuple[str, str]]:
     """Yield ``(assertion_urn, rule_id)`` for Sidq rules absent from this run.
 
-    Four things are filtered out, cheapest test first because a dbt-managed
-    dataset can carry hundreds of assertions and each aspect read is a round
-    trip.
+    The index-backed GraphQL query brings every candidate's description,
+    custom type, and logic in one call; the SDK path needed two aspect reads
+    per assertion. It can lag, as the old relationship query could, which is
+    acceptable for retirement rather than a new run's critical write path.
 
-    A URN Sidq did not mint cannot be one of ours, and that is free to check.
-    A dbt or Snowflake check that survives the prefix test is still somebody
-    else's statement, which the custom type settles. A soft-deleted assertion
-    stays deleted: DataHub keeps the Asserts relationship after a soft delete,
-    so retiring one would pull a row the operator removed back into their
-    Quality tab — measured on 2026-08-09, without this filter that is exactly
-    what happened. And one already retired is left alone, or a rule that
-    stopped firing would collect a closing event every run forever.
+    A URN Sidq did not mint cannot be one of ours. A custom assertion with a
+    different type is someone else's statement. A soft-deleted assertion stays
+    deleted, and an already-retired assertion gets no further closing events.
     """
 
-    related = graph.get_related_entities(
-        dataset_urn, ["Asserts"], graph.RelationshipDirection.INCOMING
-    )
-    for entity in related:
-        urn = entity.urn
-        if urn in emitted or not urn.startswith(_URN_PREFIX):
+    # Paged to exhaustion rather than capped: the SDK path's relationship
+    # reader paginated, and a silent cap would read as "nothing left to
+    # retire" on a dataset carrying more assertions than one page.
+    assertions: list[Any] = []
+    start = 0
+    while True:
+        data = transport.graphql(
+            _DATASET_ASSERTIONS,
+            {"u": dataset_urn, "start": start, "count": _ASSERTIONS_PAGE},
+        )
+        dataset = data.get("dataset")
+        if not isinstance(dataset, dict):
+            return
+        assertion_page = dataset.get("assertions")
+        if not isinstance(assertion_page, dict):
+            return
+        page = assertion_page.get("assertions")
+        if not isinstance(page, list):
+            return
+        assertions.extend(page)
+        total = assertion_page.get("total")
+        start += len(page)
+        if not page or not isinstance(total, int) or start >= total:
+            break
+
+    for item in assertions:
+        if not isinstance(item, dict):
             continue
-        if _is_removed(graph, urn, status_class):
+        urn = item.get("urn")
+        if (
+            not isinstance(urn, str)
+            or urn in emitted
+            or not urn.startswith(_URN_PREFIX)
+        ):
             continue
-        info = graph.get_aspect(urn, info_class)
-        custom = getattr(info, "customAssertion", None)
-        if getattr(custom, "type", None) != _CUSTOM_TYPE:
+        info = item.get("info")
+        if not isinstance(info, dict):
             continue
-        if getattr(custom, "logic", None) == _RETIRED_SUMMARY:
+        custom = info.get("customAssertion")
+        if not isinstance(custom, dict) or custom.get("type") != _CUSTOM_TYPE:
             continue
-        description = getattr(info, "description", "") or ""
-        if not description.startswith(_NAME_PREFIX):
+        if custom.get("logic") == _RETIRED_SUMMARY:
+            continue
+        description = info.get("description")
+        if not isinstance(description, str) or not description.startswith(_NAME_PREFIX):
+            continue
+        if _is_removed(transport, urn):
             continue
         rule_id = _rule_id_from_name(dataset_urn, urn, description)
         # The whole-verdict row is not a rule that can stop firing; a dataset
@@ -503,15 +570,6 @@ def _native_results(
         "sidq.checked_at": receipt.checked_at,
         "sidq.evidence_summary": summary,
     }
-
-
-def _run_id(assertion: str, native_results: dict[str, str]) -> str:
-    encoded = json.dumps(
-        {"assertion": assertion, "native_results": native_results},
-        sort_keys=True,
-        separators=(",", ":"),
-    )
-    return f"sidq-{hashlib.sha256(encoded.encode()).hexdigest()}"
 
 
 def _checked_at_millis(checked_at: str) -> int:

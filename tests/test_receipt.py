@@ -10,7 +10,7 @@ from collections.abc import Callable, Mapping
 from concurrent.futures import Future
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from types import ModuleType, SimpleNamespace
+from types import ModuleType
 from typing import Any, Self
 
 import anyio
@@ -22,11 +22,12 @@ from sidq.agent.writeback import render_writeback, write_receipts
 from sidq.models import Evidence, Finding, Verdict
 from sidq.policy.engine import PolicyEngine
 from sidq.receipt.assertion import (
-    DataHubSDKUnavailable,
+    AssertionMirrorUnavailable,
+    _checked_at_millis,
     assertion_result_type,
     assertion_urn,
     emit_assertions,
-    require_sdk,
+    require_mirror_config,
 )
 from sidq.receipt.bootstrap import (
     PROPERTY_DEFINITIONS,
@@ -1578,43 +1579,9 @@ def test_write_requires_explicit_false_lineage_continuation_metadata(
         write_receipt(build_receipt(URN, _verdict()), incomplete)
 
 
-_SDK_CONTRACT = json.loads(
-    (Path(__file__).parent / "fixtures/datahub_assertion_contract.json").read_text(
-        encoding="utf-8"
-    )
-)
-
-
 class _BootstrapValue:
     def __init__(self, **values: object) -> None:
         self.__dict__.update(values)
-
-
-def _contract_checked(class_name: str) -> type:
-    """Build a fake aspect class that refuses a field the real SDK lacks.
-
-    The previous stand-in accepted any keyword, so a misspelled or invented
-    aspect field passed every test and failed only on a live catalog write.
-    The allowed names come from `tests/fixtures/datahub_assertion_contract.json`,
-    extracted from the real `acryl-datahub`; a test re-derives that file from
-    the installed SDK wherever one is present.
-    """
-
-    allowed = frozenset(_SDK_CONTRACT["classes"][class_name].get("fields", ()))
-
-    class _Checked(_BootstrapValue):
-        sdk_class_name = class_name
-
-        def __init__(self, **values: object) -> None:
-            unknown = sorted(set(values) - allowed)
-            if unknown:
-                raise TypeError(
-                    f"{class_name} has no field(s) {unknown} in acryl-datahub "
-                    f"{_SDK_CONTRACT['acryl_datahub']}; allowed: {sorted(allowed)}"
-                )
-            super().__init__(**values)
-
-    return _Checked
 
 
 class _BootstrapGraph:
@@ -1644,19 +1611,6 @@ def _install_fake_datahub_sdk(monkeypatch, graph: _BootstrapGraph) -> list[objec
         make_data_type_urn = staticmethod(lambda name: f"type:{name}")
         make_entity_type_urn = staticmethod(lambda name: f"entity:{name}")
 
-    class _AssertionType:
-        CUSTOM = "CUSTOM"
-
-    class _AssertionSourceType:
-        EXTERNAL = "EXTERNAL"
-
-    class _AssertionRunStatus:
-        COMPLETE = "COMPLETE"
-
-    class _AssertionResultType:
-        SUCCESS = "SUCCESS"
-        FAILURE = "FAILURE"
-
     modules = {
         "datahub": ModuleType("datahub"),
         "datahub.emitter": ModuleType("datahub.emitter"),
@@ -1680,24 +1634,12 @@ def _install_fake_datahub_sdk(monkeypatch, graph: _BootstrapGraph) -> list[objec
     ):
         modules[package].__path__ = []  # type: ignore[attr-defined]
 
-    modules["datahub.emitter.mcp"].MetadataChangeProposalWrapper = _contract_checked(
-        "MetadataChangeProposalWrapper"
-    )
+    modules["datahub.emitter.mcp"].MetadataChangeProposalWrapper = _BootstrapValue
     schema = modules["datahub.metadata.schema_classes"]
     schema.PropertyCardinalityClass = _Cardinality
     schema.PropertyValueClass = _BootstrapValue
     schema.StructuredPropertyDefinitionClass = _BootstrapValue
     schema.TagPropertiesClass = _BootstrapValue
-    schema.AssertionInfoClass = _contract_checked("AssertionInfoClass")
-    schema.CustomAssertionInfoClass = _contract_checked("CustomAssertionInfoClass")
-    schema.AssertionSourceClass = _contract_checked("AssertionSourceClass")
-    schema.AssertionSourceTypeClass = _AssertionSourceType
-    schema.AssertionTypeClass = _AssertionType
-    schema.AssertionRunEventClass = _contract_checked("AssertionRunEventClass")
-    schema.AssertionRunStatusClass = _AssertionRunStatus
-    schema.AssertionResultClass = _contract_checked("AssertionResultClass")
-    schema.AssertionResultTypeClass = _AssertionResultType
-    schema.StatusClass = _StatusAspect
     modules["datahub.metadata.urns"].Urn = _Urn
     modules["datahub.ingestion.graph.config"].DatahubClientConfig = _BootstrapValue
 
@@ -1752,48 +1694,108 @@ def test_bootstrap_uses_the_environment_and_rejects_foreign_properties(
     assert tuple(definitions()) == PROPERTY_DEFINITIONS
 
 
-class _StatusAspect:
-    """Distinct from the catch-all fake value, so get_aspect can tell them apart."""
+class _FakeCatalog:
+    """GraphQL-only fake for assertion mirror tests."""
 
-    def __init__(self, **values: object) -> None:
-        self.__dict__.update(values)
-
-
-class _AssertionGraph:
-    class RelationshipDirection:
-        INCOMING = "INCOMING"
-
-    def __init__(self) -> None:
-        self.infos: dict[str, object] = {}
-        self.run_events: dict[tuple[str, str], object] = {}
-        self.asserts: dict[str, list[str]] = {}
+    def __init__(self, *, fail_reports_with: str | None = None) -> None:
+        self.definitions: dict[str, dict[str, Any]] = {}
+        self.reported: list[tuple[str, dict[str, Any]]] = []
         self.soft_deleted: set[str] = set()
+        self._fail_reports_with = fail_reports_with
+        self._remaining_report_failures = 0
         self.closed = False
 
-    def get_aspect(self, urn: str, aspect_type: object) -> object | None:
-        if urn in self.soft_deleted:
-            return (
-                SimpleNamespace(removed=True) if aspect_type is _StatusAspect else None
-            )
-        return None if aspect_type is _StatusAspect else self.infos.get(urn)
+    def with_failures(self, message: str, *, count: int) -> None:
+        self._fail_reports_with = message
+        self._remaining_report_failures = count
 
-    def get_related_entities(
-        self, urn: str, relationships: list[str], direction: str
-    ) -> list[SimpleNamespace]:
-        return [SimpleNamespace(urn=item) for item in sorted(self.asserts.get(urn, []))]
+    def _assertion_record(self, urn: str) -> dict[str, Any] | None:
+        definition = self.definitions.get(urn)
+        if definition is None:
+            return None
+        return {
+            "entityUrn": definition["entityUrn"],
+            "description": definition["description"],
+            "customAssertion": definition["customAssertion"],
+        }
 
-    def emit_mcp(self, mcp: object) -> None:
-        aspect = mcp.aspect
-        if hasattr(aspect, "customAssertion"):
-            self.infos[mcp.entityUrn] = aspect
-            self.asserts.setdefault(aspect.customAssertion.entity, [])
-            if mcp.entityUrn not in self.asserts[aspect.customAssertion.entity]:
-                self.asserts[aspect.customAssertion.entity].append(mcp.entityUrn)
-        else:
-            self.run_events[(mcp.entityUrn, aspect.messageId)] = aspect
+    def get_aspect_json(self, urn: str, aspect: str) -> dict[str, Any] | None:
+        if aspect == "assertionInfo":
+            payload = self._assertion_record(urn)
+            if payload is None:
+                return None
+            return {
+                "aspect": {
+                    "com.linkedin.assertion.AssertionInfo": payload,
+                },
+            }
+        if aspect == "status" and urn in self.soft_deleted:
+            return {
+                "version": 0,
+                "aspect": {
+                    "com.linkedin.common.Status": {"removed": True},
+                },
+            }
+        return None
+
+    def graphql(self, query: str, variables: dict[str, Any]) -> dict[str, Any]:
+        if "upsertCustomAssertion" in query:
+            urn = variables["u"]
+            payload = variables["i"]
+            self.definitions[urn] = {
+                "entityUrn": payload["entityUrn"],
+                "description": payload["description"],
+                "customAssertion": {
+                    "type": payload["type"],
+                    "logic": payload["logic"],
+                },
+            }
+            return {"upsertCustomAssertion": {"urn": urn}}
+
+        if "reportAssertionResult" in query:
+            if (
+                self._fail_reports_with is not None
+                and self._remaining_report_failures > 0
+            ):
+                self._remaining_report_failures -= 1
+                raise RuntimeError(self._fail_reports_with)
+            self.reported.append((variables["u"], dict(variables["r"])))
+            return {"reportAssertionResult": True}
+
+        if "dataset" in query and "assertions" in query and "u" in variables:
+            dataset_urn = variables["u"]
+            assertions = []
+            for urn, definition in sorted(self.definitions.items()):
+                if definition["entityUrn"] != dataset_urn:
+                    continue
+                assertions.append(
+                    {
+                        "urn": urn,
+                        "info": {
+                            "description": definition["description"],
+                            "customAssertion": {
+                                "type": definition["customAssertion"]["type"],
+                                "logic": definition["customAssertion"]["logic"],
+                            },
+                        },
+                    }
+                )
+            return {
+                "dataset": {
+                    "assertions": {
+                        "assertions": assertions,
+                    }
+                }
+            }
+
+        raise AssertionError(f"unexpected assertion query: {query!r}")
 
     def close(self) -> None:
         self.closed = True
+
+
+def _event_properties(event: dict[str, Any]) -> dict[str, str]:
+    return {item["key"]: item["value"] for item in event["properties"]}
 
 
 def test_native_assertion_urn_is_stable_for_one_dataset_rule() -> None:
@@ -1816,13 +1818,13 @@ def test_native_assertion_result_maps_sidq_verdicts(
     assert assertion_result_type(verdict) == expected
 
 
-def test_native_assertion_emission_is_idempotent_and_carries_evidence(
-    monkeypatch,
-) -> None:
-    graph = _AssertionGraph()
-    _install_fake_datahub_sdk(monkeypatch, graph)  # type: ignore[arg-type]
+def test_native_assertion_emission_is_idempotent_and_carries_evidence() -> None:
+    graph = _FakeCatalog()
     receipt = build_receipt(
-        URN, _verdict("WARN"), checked_at=datetime(2026, 8, 2, 11, 4, tzinfo=UTC)
+        URN,
+        _verdict("WARN"),
+        checked_at=datetime(2026, 8, 2, 11, 4, tzinfo=UTC),
+        evidence_url="urn:li:document:sidq-evidence",
     )
 
     first = emit_assertions([receipt], graph)
@@ -1831,20 +1833,17 @@ def test_native_assertion_emission_is_idempotent_and_carries_evidence(
     urn = assertion_urn(URN, "schema.required")
     assert first["created"] == (urn,)
     assert second["existing"] == (urn,)
-    assert len(graph.infos) == 1
-    # A stable message id lets DataHub update the same time-series event on retry.
-    assert len(graph.run_events) == 1
-    info = graph.infos[urn]
-    event = next(iter(graph.run_events.values()))
-    assert info.type == "CUSTOM"
-    assert info.source.type == "EXTERNAL"
-    # DataHub lists the description as the assertion's name, so it stays short
-    # and the reasoning lives in the logic field beside it.
-    assert info.description == "Sidq policy rule schema.required"
-    assert info.customAssertion.logic.startswith("Sidq rule schema.required:")
-    assert event.status == "COMPLETE"
-    assert event.result.type == "FAILURE"
-    assert event.result.nativeResults == {
+    definition = graph.definitions[urn]
+    assert definition["description"] == "Sidq policy rule schema.required"
+    assert definition["customAssertion"]["type"] == "sidq.policy_rule"
+    assert definition["customAssertion"]["logic"].startswith(
+        "Sidq rule schema.required:"
+    )
+
+    event = graph.reported[0][1]
+    assert event["type"] == "FAILURE"
+    assert event["externalUrl"] == "urn:li:document:sidq-evidence"
+    assert _event_properties(event) == {
         "sidq.verdict": "WARN",
         "sidq.rule_id": "schema.required",
         "sidq.severity": "block",
@@ -1853,19 +1852,12 @@ def test_native_assertion_emission_is_idempotent_and_carries_evidence(
         "sidq.checked_at": "2026-08-02T11:04:00Z",
         "sidq.evidence_summary": "A required field is missing.",
     }
+    assert first["runs"] == (f"{urn}@{_checked_at_millis(receipt.checked_at)}",)
+    assert second["runs"] == (f"{urn}@{_checked_at_millis(receipt.checked_at)}",)
 
 
-def test_a_rule_is_reported_by_its_own_severity_not_the_receipt_verdict(
-    monkeypatch,
-) -> None:
-    """A BLOCK receipt can carry a rule that did not block.
-
-    Publishing the receipt-wide verdict against every rule would paint an
-    `info` finding red in the catalog's quality surface and state, of a rule
-    that passed, that it failed.
-    """
-    graph = _AssertionGraph()
-    _install_fake_datahub_sdk(monkeypatch, graph)  # type: ignore[arg-type]
+def test_a_rule_is_reported_by_its_own_severity_not_the_receipt_verdict() -> None:
+    graph = _FakeCatalog()
     blocking = Finding("critical_downstream", "block", "Nine owners depend.", ())
     context = Finding("pii_marker", "info", "The field is marked PII.", ())
     verdict = Verdict(
@@ -1876,22 +1868,14 @@ def test_a_rule_is_reported_by_its_own_severity_not_the_receipt_verdict(
     emit_assertions([receipt], graph)
 
     results = {
-        event.result.nativeResults["sidq.rule_id"]: event.result.type
-        for event in graph.run_events.values()
+        _event_properties(event)["sidq.rule_id"]: event["type"]
+        for _, event in graph.reported
     }
     assert results == {"critical_downstream": "FAILURE", "pii_marker": "SUCCESS"}
 
 
-def test_re_emission_updates_the_definition_rather_than_leaving_it_stale(
-    monkeypatch,
-) -> None:
-    """The definition carries this run's reasoning, so it is rewritten each run.
-
-    Writing it only on first sight would leave the catalog showing the first
-    run's evidence forever while the run events beneath it said otherwise.
-    """
-    graph = _AssertionGraph()
-    _install_fake_datahub_sdk(monkeypatch, graph)  # type: ignore[arg-type]
+def test_re_emission_updates_the_definition_rather_than_leaving_it_stale() -> None:
+    graph = _FakeCatalog()
     first = Finding("schema.required", "block", "One field is missing.", ())
     later = Finding("schema.required", "block", "Three fields are missing.", ())
     stamp = datetime(2026, 8, 2, tzinfo=UTC)
@@ -1908,107 +1892,30 @@ def test_re_emission_updates_the_definition_rather_than_leaving_it_stale(
             graph,
         )
 
-    logic = graph.infos[assertion_urn(URN, "schema.required")].customAssertion.logic
-    assert logic == "Sidq rule schema.required: Three fields are missing."
-
-
-def test_native_assertion_uses_configured_gms_url_and_token(monkeypatch) -> None:
-    graph = _AssertionGraph()
-    configs = _install_fake_datahub_sdk(monkeypatch, graph)  # type: ignore[arg-type]
-    monkeypatch.setenv("DATAHUB_GMS_URL", "https://catalog.env.test")
-    monkeypatch.setenv("DATAHUB_GMS_TOKEN", "writer-token")
-
-    emit_assertions(
-        [build_receipt(URN, _verdict(), checked_at=datetime(2026, 8, 2, tzinfo=UTC))]
+    assert (
+        graph.definitions[assertion_urn(URN, "schema.required")]["customAssertion"][
+            "logic"
+        ]
+        == "Sidq rule schema.required: Three fields are missing."
     )
 
-    assert configs[0].server == "https://catalog.env.test"
-    assert configs[0].token == "writer-token"
-    assert graph.closed
+
+def test_require_mirror_config_is_required(monkeypatch) -> None:
+    monkeypatch.setenv("DATAHUB_GMS_URL", "https://catalog.example.test")
+    assert require_mirror_config() is None
 
 
-def test_the_committed_sdk_contract_still_matches_the_installed_sdk() -> None:
-    """The fake is only as honest as the contract it enforces.
-
-    Every assertion test runs against a stand-in, so the field names it accepts
-    have to come from somewhere real. They come from the committed fixture,
-    which this re-derives from `acryl-datahub` wherever one is installed. In
-    the project venv there is none by design, so this skips and says so; in an
-    SDK-carrying environment it is what catches an upstream rename before a
-    live catalog write does.
-    """
-    import importlib.util
-
-    if importlib.util.find_spec("datahub") is None:
-        pytest.skip("acryl-datahub is not installed here; see docs/RECEIPT-SPEC.md")
-
-    import inspect
-
-    import datahub
-    from datahub.emitter.mcp import MetadataChangeProposalWrapper
-    from datahub.metadata import schema_classes
-
-    assert datahub.__version__ == _SDK_CONTRACT["acryl_datahub"], (
-        "the contract was extracted from a different acryl-datahub; "
-        "regenerate tests/fixtures/datahub_assertion_contract.json"
-    )
-    for name, expected in _SDK_CONTRACT["classes"].items():
-        cls = (
-            MetadataChangeProposalWrapper
-            if name == "MetadataChangeProposalWrapper"
-            else getattr(schema_classes, name)
-        )
-        if "fields" in expected:
-            actual = sorted(
-                parameter
-                for parameter in inspect.signature(cls.__init__).parameters
-                if parameter != "self"
-            )
-            assert actual == expected["fields"], f"{name} fields drifted"
-        if "members" in expected:
-            actual = sorted(
-                member
-                for member in dir(cls)
-                if member.isupper() and not member.startswith("_")
-            )
-            assert actual == expected["members"], f"{name} members drifted"
+def test_require_mirror_config_demands_catalog_url(monkeypatch) -> None:
+    monkeypatch.delenv("DATAHUB_GMS_URL", raising=False)
+    with pytest.raises(AssertionMirrorUnavailable, match="DATAHUB_GMS_URL"):
+        require_mirror_config()
 
 
-def test_a_missing_datahub_sdk_names_the_boundary_it_hit() -> None:
-    """The project venv has no DataHub SDK, and that is a documented choice.
-
-    acryl-datahub pins pydantic below 2.12 while Sidq's mcp>=2 client needs
-    2.12 or newer, so the SDK cannot become an extra without breaking every
-    other command. An operator who reaches this path must be told that, not
-    handed a bare ModuleNotFoundError to decode. No mock here on purpose: the
-    condition under test is this environment.
-    """
-    import importlib.util
-
-    if importlib.util.find_spec("datahub") is not None:
-        pytest.skip("this pins the message seen when the SDK is absent")
-
-    receipt = build_receipt(
-        URN, _verdict(), checked_at=datetime(2026, 8, 2, tzinfo=UTC)
-    )
-    # Both entry points must say the same thing: the precondition a caller
-    # checks first, and the emission itself if a caller skipped it.
-    with pytest.raises(DataHubSDKUnavailable, match="pydantic"):
-        require_sdk()
-    with pytest.raises(DataHubSDKUnavailable, match="pydantic"):
-        emit_assertions([receipt])
-
-
-def test_a_warning_says_so_in_the_one_place_the_tab_renders(monkeypatch) -> None:
-    """DataHub's chip counts a WARN with the failures and cannot be told not to.
-
-    The row can still say what it is, and retirement must still recover the
-    rule id from that decorated name.
-    """
-    graph = _AssertionGraph()
-    _install_fake_datahub_sdk(monkeypatch, graph)  # type: ignore[arg-type]
+def test_a_warning_says_so_in_the_one_place_the_tab_renders() -> None:
+    graph = _FakeCatalog()
     warned = Finding("wide_blast_radius", "warn", "Sixteen consumers.", ())
     stamp = datetime(2026, 8, 2, tzinfo=UTC)
+
     emit_assertions(
         [
             build_receipt(
@@ -2022,12 +1929,11 @@ def test_a_warning_says_so_in_the_one_place_the_tab_renders(monkeypatch) -> None
 
     urn = assertion_urn(URN, "wide_blast_radius")
     assert (
-        graph.infos[urn].description == "Sidq policy rule wide_blast_radius (warning)"
+        graph.definitions[urn]["description"]
+        == "Sidq policy rule wide_blast_radius (warning)"
     )
-    # It still reports FAILURE, because the condition did not pass.
-    assert graph.run_events[next(iter(graph.run_events))].result.type == "FAILURE"
+    assert graph.reported[0][1]["type"] == "FAILURE"
 
-    # And the decorated name must not break the retirement round trip.
     result = emit_assertions(
         [
             build_receipt(
@@ -2041,22 +1947,22 @@ def test_a_warning_says_so_in_the_one_place_the_tab_renders(monkeypatch) -> None
     assert result["retired"] == (urn,)
     closing = [
         event
-        for event in graph.run_events.values()
-        if event.assertionUrn == urn and event.result.type == "SUCCESS"
+        for emitted_urn, event in graph.reported
+        if emitted_urn == urn and event["type"] == "SUCCESS"
     ]
-    assert closing[0].result.nativeResults["sidq.rule_id"] == "wide_blast_radius"
+    assert _event_properties(closing[0])["sidq.rule_id"] == "wide_blast_radius"
+    assert _event_properties(closing[0])["sidq.evidence_summary"] == (
+        "This rule did not fire in the latest Sidq evaluation."
+    )
+    assert graph.definitions[urn]["description"] == "Sidq policy rule wide_blast_radius"
+    assert graph.definitions[urn]["customAssertion"]["logic"] == (
+        "This rule did not fire in the latest Sidq evaluation."
+    )
+    assert "externalUrl" not in closing[0]
 
 
-def test_a_rule_that_stops_firing_is_retired_not_left_claiming_failure(
-    monkeypatch,
-) -> None:
-    """A fixed problem must stop showing red beside the run that fixed it.
-
-    The catalog keeps every assertion ever written, so a rule Sidq no longer
-    reports would otherwise state a failure Sidq no longer holds.
-    """
-    graph = _AssertionGraph()
-    _install_fake_datahub_sdk(monkeypatch, graph)  # type: ignore[arg-type]
+def test_a_rule_that_stops_firing_is_retired_not_left_claiming_failure() -> None:
+    graph = _FakeCatalog()
     stamp = datetime(2026, 8, 2, tzinfo=UTC)
     fired = Finding("critical_downstream", "block", "Nine owners depend.", ())
     emit_assertions(
@@ -2070,9 +1976,8 @@ def test_a_rule_that_stops_firing_is_retired_not_left_claiming_failure(
         graph,
     )
     stale = assertion_urn(URN, "critical_downstream")
-    assert graph.run_events[next(iter(graph.run_events))].result.type == "FAILURE"
+    assert graph.reported[0][1]["type"] == "FAILURE"
 
-    # The next run is clean: the rule is simply absent from the evidence.
     result = emit_assertions(
         [
             build_receipt(
@@ -2087,47 +1992,48 @@ def test_a_rule_that_stops_firing_is_retired_not_left_claiming_failure(
     assert result["retired"] == (stale,)
     closing = [
         event
-        for event in graph.run_events.values()
-        if event.assertionUrn == stale and event.result.type == "SUCCESS"
+        for emitted_urn, event in graph.reported
+        if emitted_urn == stale and event["type"] == "SUCCESS"
     ]
     assert len(closing) == 1
-    assert closing[0].result.nativeResults["sidq.rule_id"] == "critical_downstream"
-    assert closing[0].result.nativeResults["sidq.severity"] == "retired"
+    assert _event_properties(closing[0])["sidq.rule_id"] == "critical_downstream"
+    assert _event_properties(closing[0])["sidq.severity"] == "retired"
+    assert _event_properties(closing[0])["sidq.evidence_summary"] == (
+        "This rule did not fire in the latest Sidq evaluation."
+    )
+    assert (
+        graph.definitions[stale]["description"]
+        == "Sidq policy rule critical_downstream"
+    )
+    assert graph.definitions[stale]["customAssertion"]["logic"] == (
+        "This rule did not fire in the latest Sidq evaluation."
+    )
+    assert "externalUrl" not in closing[0]
 
 
-def test_a_firing_rule_does_not_resurrect_an_assertion_an_operator_removed(
-    monkeypatch,
-) -> None:
-    """Deletion is a decision, and a later run must not silently reverse it.
-
-    Retirement already respected soft deletes; the emit path did not, so any
-    rule that fired a second time wrote its row straight back into the tab.
-    """
-    graph = _AssertionGraph()
-    _install_fake_datahub_sdk(monkeypatch, graph)  # type: ignore[arg-type]
+def test_a_firing_rule_does_not_resurrect_an_assertion_an_operator_removed() -> None:
+    graph = _FakeCatalog()
     stamp = datetime(2026, 8, 2, tzinfo=UTC)
     fired = Finding("critical_downstream", "block", "Nine owners depend.", ())
     verdict = Verdict("BLOCK", None, (fired,), (), "a" * 40, "sha256:policy")
     emit_assertions([build_receipt(URN, verdict, checked_at=stamp)], graph)
     urn = assertion_urn(URN, "critical_downstream")
     graph.soft_deleted.add(urn)
-    before = len(graph.run_events)
+    before = len(graph.reported)
 
     result = emit_assertions([build_receipt(URN, verdict, checked_at=stamp)], graph)
 
     assert result["skipped"] == (urn,)
     assert result["created"] == () and result["existing"] == ()
-    assert len(graph.run_events) == before
+    assert len(graph.reported) == before
 
 
-def test_a_retired_rule_is_not_retired_again_on_every_later_run(monkeypatch) -> None:
-    """Closing it once is the point; closing it daily forever is noise."""
-
-    graph = _AssertionGraph()
-    _install_fake_datahub_sdk(monkeypatch, graph)  # type: ignore[arg-type]
+def test_a_retired_rule_is_not_retired_again_on_every_later_run() -> None:
+    graph = _FakeCatalog()
     stamp = datetime(2026, 8, 2, tzinfo=UTC)
     fired = Finding("critical_downstream", "block", "Nine owners depend.", ())
     clean = Verdict("PASS", None, (), (), "a" * 40, "sha256:policy")
+
     emit_assertions(
         [
             build_receipt(
@@ -2146,14 +2052,8 @@ def test_a_retired_rule_is_not_retired_again_on_every_later_run(monkeypatch) -> 
     assert second["retired"] == ()
 
 
-def test_the_whole_verdict_row_is_never_retired(monkeypatch) -> None:
-    """The verdict always exists; it is not a rule that can stop firing.
-
-    Retiring it would make a dataset that alternates clean and dirty thrash the
-    same assertion between retired and recreated forever.
-    """
-    graph = _AssertionGraph()
-    _install_fake_datahub_sdk(monkeypatch, graph)  # type: ignore[arg-type]
+def test_the_whole_verdict_row_is_never_retired() -> None:
+    graph = _FakeCatalog()
     stamp = datetime(2026, 8, 2, tzinfo=UTC)
     emit_assertions(
         [
@@ -2181,11 +2081,8 @@ def test_the_whole_verdict_row_is_never_retired(monkeypatch) -> None:
     assert result["retired"] == ()
 
 
-def test_two_receipts_for_one_dataset_do_not_retire_each_other(monkeypatch) -> None:
-    """`emit_assertions` is a public API; nothing stops a caller doing this."""
-
-    graph = _AssertionGraph()
-    _install_fake_datahub_sdk(monkeypatch, graph)  # type: ignore[arg-type]
+def test_two_receipts_for_one_dataset_do_not_retire_each_other() -> None:
+    graph = _FakeCatalog()
     stamp = datetime(2026, 8, 2, tzinfo=UTC)
     one = Finding("critical_downstream", "block", "Nine owners depend.", ())
     two = Finding("wide_blast_radius", "warn", "Sixteen consumers.", ())
@@ -2210,17 +2107,8 @@ def test_two_receipts_for_one_dataset_do_not_retire_each_other(monkeypatch) -> N
     assert len(result["created"]) == 2
 
 
-def test_retirement_does_not_resurrect_an_assertion_an_operator_removed(
-    monkeypatch,
-) -> None:
-    """DataHub keeps the Asserts relationship after a soft delete.
-
-    Measured on 2026-08-09: without this filter, retiring emitted a fresh run
-    event against a soft-deleted assertion and pulled it back into the Quality
-    tab the operator had just cleared.
-    """
-    graph = _AssertionGraph()
-    _install_fake_datahub_sdk(monkeypatch, graph)  # type: ignore[arg-type]
+def test_retirement_does_not_resurrect_a_soft_deleted_assertion() -> None:
+    graph = _FakeCatalog()
     stamp = datetime(2026, 8, 2, tzinfo=UTC)
     fired = Finding("critical_downstream", "block", "Nine owners depend.", ())
     emit_assertions(
@@ -2249,17 +2137,14 @@ def test_retirement_does_not_resurrect_an_assertion_an_operator_removed(
     assert result["retired"] == ()
 
 
-def test_retirement_leaves_assertions_sidq_did_not_write_alone(monkeypatch) -> None:
-    """A dbt or Snowflake check on the same dataset is somebody else's claim."""
-
-    graph = _AssertionGraph()
-    _install_fake_datahub_sdk(monkeypatch, graph)  # type: ignore[arg-type]
+def test_retirement_leaves_assertions_sidq_did_not_write_alone() -> None:
+    graph = _FakeCatalog()
     foreign = "urn:li:assertion:dbt-not-null-order-id"
-    graph.asserts[URN] = [foreign]
-    graph.infos[foreign] = SimpleNamespace(
-        description="dbt not_null order_id",
-        customAssertion=SimpleNamespace(type="dbt.test", entity=URN),
-    )
+    graph.definitions[foreign] = {
+        "entityUrn": URN,
+        "description": "dbt not_null order_id",
+        "customAssertion": {"type": "dbt.test", "logic": "not_sidq_logic"},
+    }
 
     result = emit_assertions(
         [build_receipt(URN, _verdict(), checked_at=datetime(2026, 8, 2, tzinfo=UTC))],
@@ -2267,15 +2152,15 @@ def test_retirement_leaves_assertions_sidq_did_not_write_alone(monkeypatch) -> N
     )
 
     assert result["retired"] == ()
-    assert not [
-        event for event in graph.run_events.values() if event.assertionUrn == foreign
-    ]
+    assert not [event for urn, event in graph.reported if urn == foreign]
 
 
 def test_nothing_to_mirror_never_opens_a_catalog_connection(monkeypatch) -> None:
-    """When every receipt write was rejected there is no verdict to report."""
-
-    configs = _install_fake_datahub_sdk(monkeypatch, _AssertionGraph())  # type: ignore[arg-type]
+    monkeypatch.delenv("DATAHUB_GMS_URL", raising=False)
+    monkeypatch.setattr(
+        "sidq.receipt.assertion._GmsTransport",
+        lambda *args, **kwargs: pytest.fail("catalog transport created"),
+    )
 
     assert emit_assertions([]) == {
         "created": (),
@@ -2284,25 +2169,15 @@ def test_nothing_to_mirror_never_opens_a_catalog_connection(monkeypatch) -> None
         "retired": (),
         "skipped": (),
     }
-    assert configs == []
 
 
 def test_a_verdict_datahub_cannot_represent_is_refused_not_guessed() -> None:
-    """A fourth verdict must stop the mirror, not silently become a pass."""
-
     with pytest.raises(ValueError, match="unsupported Sidq verdict: SKIPPED"):
         assertion_result_type("SKIPPED")
 
 
-def test_a_clean_receipt_still_reports_one_honest_assertion(monkeypatch) -> None:
-    """A PASS with no fired rule has no per-rule evidence to group.
-
-    Emitting nothing would leave the Validation surface silent about an asset
-    Sidq did examine, so the run is reported under one whole-verdict assertion
-    that says plainly that no individual rule evidence was recorded.
-    """
-    graph = _AssertionGraph()
-    _install_fake_datahub_sdk(monkeypatch, graph)  # type: ignore[arg-type]
+def test_a_clean_receipt_still_reports_one_honest_assertion() -> None:
+    graph = _FakeCatalog()
     clean = Verdict("PASS", None, (), (), "a" * 40, "sha256:policy")
     receipt = build_receipt(
         URN, clean, checked_at=datetime(2026, 8, 2, 11, 4, tzinfo=UTC)
@@ -2312,13 +2187,73 @@ def test_a_clean_receipt_still_reports_one_honest_assertion(monkeypatch) -> None
 
     urn = assertion_urn(URN, "sidq.verdict")
     assert result["created"] == (urn,)
-    event = graph.run_events[next(iter(graph.run_events))]
-    assert event.result.type == "SUCCESS"
-    assert event.result.nativeResults["sidq.rule_id"] == "sidq.verdict"
+    event = graph.reported[0][1]
+    assert event["type"] == "SUCCESS"
+    properties = _event_properties(event)
+    assert properties["sidq.rule_id"] == "sidq.verdict"
+    assert properties["sidq.severity"] == "verdict"
     assert (
-        event.result.nativeResults["sidq.evidence_summary"]
+        properties["sidq.evidence_summary"]
         == "No individual rule evidence was recorded."
     )
+
+
+def test_fresh_assertion_retries_matching_propagation_errors(monkeypatch) -> None:
+    graph = _FakeCatalog()
+    graph.with_failures("does not exist or is not associated with any entity", count=2)
+    receipt = build_receipt(
+        URN, _verdict("BLOCK"), checked_at=datetime(2026, 8, 2, 11, 4, tzinfo=UTC)
+    )
+
+    monkeypatch.setattr("sidq.receipt.assertion.time.sleep", lambda _seconds: None)
+    result = emit_assertions([receipt], graph)
+
+    urn = assertion_urn(URN, "schema.required")
+    assert result["runs"] == (f"{urn}@{_checked_at_millis(receipt.checked_at)}",)
+
+
+def test_fresh_assertion_does_not_retry_non_matching_errors() -> None:
+    graph = _FakeCatalog()
+    graph.with_failures("does not exist", count=1)
+    receipt = build_receipt(
+        URN, _verdict("BLOCK"), checked_at=datetime(2026, 8, 2, 11, 4, tzinfo=UTC)
+    )
+
+    with pytest.raises(RuntimeError, match="does not exist"):
+        emit_assertions([receipt], graph)
+
+
+def test_existing_assertion_does_not_retry_matching_errors() -> None:
+    graph = _FakeCatalog()
+    urn = assertion_urn(URN, "schema.required")
+    graph.definitions[urn] = {
+        "entityUrn": URN,
+        "description": "Sidq policy rule schema.required",
+        "customAssertion": {
+            "type": "sidq.policy_rule",
+            "logic": "Sidq rule schema.required: stale",
+        },
+    }
+    graph.with_failures(
+        "does not exist or is not associated with any entity",
+        count=2,
+    )
+    receipt = build_receipt(
+        URN, _verdict("BLOCK"), checked_at=datetime(2026, 8, 2, 11, 4, tzinfo=UTC)
+    )
+
+    with pytest.raises(RuntimeError, match="does not exist or is not associated"):
+        emit_assertions([receipt], graph)
+
+
+def test_runs_entry_uses_the_module_timestamp_format() -> None:
+    graph = _FakeCatalog()
+    checked_at = datetime(2026, 8, 2, 11, 4, tzinfo=UTC)
+    receipt = build_receipt(URN, _verdict(), checked_at=checked_at)
+    urn = assertion_urn(URN, "schema.required")
+
+    result = emit_assertions([receipt], graph)
+    assert result["runs"] == (f"{urn}@{_checked_at_millis(receipt.checked_at)}",)
 
 
 def test_write_receipt_propagates_write_rejection_without_claiming_success() -> None:

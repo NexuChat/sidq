@@ -643,12 +643,15 @@ def test_a_missing_sdk_refuses_before_the_audit_spends_anything(
     written, for a refusal that could have opened the run. Nothing is read and
     nothing is written here.
     """
-    from sidq.receipt.assertion import DataHubSDKUnavailable
+    from sidq.receipt.assertion import AssertionMirrorUnavailable
 
     def unavailable() -> None:
-        raise DataHubSDKUnavailable("acryl-datahub pins pydantic below 2.12")
+        raise AssertionMirrorUnavailable(
+            "cannot mirror assertions without DATAHUB_GMS_URL: it names the catalog"
+            " the receipts were written to"
+        )
 
-    monkeypatch.setattr(cli, "require_sdk", unavailable)
+    monkeypatch.setattr(cli, "require_mirror_config", unavailable)
     monkeypatch.setattr(
         cli, "_read_snapshot", lambda arguments: pytest.fail("catalog was read")
     )
@@ -659,7 +662,7 @@ def test_a_missing_sdk_refuses_before_the_audit_spends_anything(
     code = cli._audit(_arguments(write_receipts=True, write_assertions=True))
 
     assert code == 2
-    assert "pydantic" in capsys.readouterr().err
+    assert "DATAHUB_GMS_URL" in capsys.readouterr().err
 
 
 def test_native_assertions_mirror_only_the_receipts_the_catalog_accepted(
@@ -707,7 +710,7 @@ def test_native_assertions_mirror_only_the_receipts_the_catalog_accepted(
     monkeypatch.setattr(cli, "emit_assertions", emit)
     # This exercises emission, not the environment; the SDK precondition
     # has its own test.
-    monkeypatch.setattr(cli, "require_sdk", lambda: None)
+    monkeypatch.setattr(cli, "require_mirror_config", lambda: None)
 
     # 1, because a receipt the catalog rejected still fails the run.
     assert (
@@ -764,7 +767,7 @@ def test_a_failed_assertion_write_is_reported_without_counts_and_does_not_pass(
     monkeypatch.setattr(cli, "emit_assertions", emit)
     # This exercises emission, not the environment; the SDK precondition
     # has its own test.
-    monkeypatch.setattr(cli, "require_sdk", lambda: None)
+    monkeypatch.setattr(cli, "require_mirror_config", lambda: None)
 
     assert (
         cli._audit(_arguments(write_receipts=True, write_assertions=True, as_json=True))

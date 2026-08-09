@@ -44,9 +44,9 @@ from sidq.graph.live_source import LiveSourceClient
 from sidq.models import Evidence, Verdict
 from sidq.policy.engine import PolicyEngine, load_policy
 from sidq.receipt.assertion import (
-    DataHubSDKUnavailable,
+    AssertionMirrorUnavailable,
     emit_assertions,
-    require_sdk,
+    require_mirror_config,
 )
 from sidq.receipt.read import (
     get_verification_status,
@@ -720,13 +720,13 @@ def _audit(arguments: Any) -> int:
             print("sidq: --write-assertions requires --write-receipts", file=sys.stderr)
             return 2
         # Before the catalog is read, not after receipts are already written.
-        # The mirror needs a DataHub SDK the project environment deliberately
-        # lacks, and that is knowable up front; discovering it at emission time
-        # would spend the whole budget to arrive at a refusal it could have
-        # opened with.
+        # The mirror needs its target catalog configured, and that is knowable
+        # up front; it now runs from this project environment without an SDK.
+        # Discovering a missing target at emission time would spend the whole
+        # budget to arrive at a refusal it could have opened with.
         try:
-            require_sdk()
-        except DataHubSDKUnavailable as error:
+            require_mirror_config()
+        except AssertionMirrorUnavailable as error:
             print(f"sidq: {error}", file=sys.stderr)
             return 2
 
@@ -792,7 +792,7 @@ def _audit(arguments: Any) -> int:
             # Passing --server here would let assertions land in a different
             # catalog than the receipts they mirror.
             assertion_result = emit_assertions(successful_receipts)
-        except Exception as error:  # noqa: BLE001 - SDK transports raise several types
+        except Exception as error:  # noqa: BLE001 - DataHub transports raise several types
             # No counts here on purpose. Emission raises on the first failing
             # proposal, so an earlier assertion in the same run may already be
             # in the catalog; reporting zero would claim more than is known.

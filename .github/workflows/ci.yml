@@ -49,21 +49,3 @@ jobs:
           token: ${{ github.token }}
           mode: fixture
           publish-results: false
-
-  # The aspect-contract check the job above cannot run. `acryl-datahub` resolves
-  # pydantic below what Sidq's mcp>=2 declares, so the project environment
-  # excludes it and the test that re-derives the committed contract from the real
-  # SDK skips there with a reason. This job is the environment where it does not
-  # skip, kept in a throwaway container because a knowingly resolver-inconsistent
-  # install must not sit in anyone's path. Separate on purpose: it must never be
-  # able to change the result of `check`.
-  sdk-contract:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-        with:
-          persist-credentials: false
-
-      - name: Verify the DataHub aspect contract against the real SDK
-        run: make sdk-contract
