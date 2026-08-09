@@ -71,14 +71,28 @@ event emission use `DataHubGraph`, `DatahubClientConfig`, and
 values themselves continue through official MCP tools.
 
 That exception has a cost, and it is stated rather than hidden. `acryl-datahub`
-is not a Sidq dependency and cannot become a supported extra: measured with pip
-on 2026-08-09, `acryl-datahub==1.6.0.16` resolves `pydantic` to 2.11.10, while
-`mcp 2.0.0` — the client every other Sidq command reads through — requires
-`pydantic>=2.12.0`. So `--write-assertions` runs only from an interpreter that
-already carries the SDK. Everywhere else it raises `DataHubSDKUnavailable`
-naming that conflict, because an operator who reaches this path needs the reason,
-not a `ModuleNotFoundError`. Nothing else in Sidq is affected: receipts,
-verification, and every read path need no SDK at all.
+is not a Sidq dependency and is not offered as an extra: measured with pip on
+2026-08-09, `acryl-datahub==1.6.0.16` resolves `pydantic` to 2.11.10, while
+`mcp 2.0.0` — the client every other Sidq command reads through — declares
+`pydantic>=2.12.0`, and pip reports the conflict.
+
+The distinction matters, so it is drawn precisely. In a throwaway environment
+holding both, Sidq's own MCP suites — 64 tests across `test_mcp_snapshot.py`
+and `test_mcp_server.py` — passed under `pydantic` 2.11.10, and a single
+interpreter ran the full `--via-mcp … --write-assertions` flow. So this is an
+install whose *declared* constraints are unsatisfied, not one observed to
+break. Sidq still declines to ship it as an extra, because an environment that
+happens to work while contradicting its own metadata is not something to put
+in a judge's or an operator's install path; the next patch release owes it
+nothing.
+
+`--write-assertions` therefore runs only from an interpreter that already
+carries the SDK. Everywhere else it raises `DataHubSDKUnavailable` naming that
+conflict, and it raises it as a precondition — before the catalog is read and
+before any receipt is written — because an operator who reaches this path needs
+the reason up front, not a `ModuleNotFoundError` after a spent budget. Nothing
+else in Sidq is affected: receipts, verification, and every read path need no
+SDK at all.
 
 `examples/06-native-assertion/` holds the live run: the emitted assertion, the
 verbatim GraphQL response from the same query DataHub's UI issues, and a second

@@ -6,11 +6,15 @@ can mirror an already-written receipt into DataHub's native Assertion surface,
 where the verdict is available to the Validation/Quality tab.
 
 > **Environment boundary:** `acryl-datahub` is deliberately **not** a
-> dependency of the Sidq project venv. Installing it there pins `pydantic` to
-> 2.11.10, while `mcp` 2.0.0, a Sidq runtime dependency, requires
-> `pydantic>=2.12.0`. This was measured with `pip` on 2026-08-09. The live
-> emission therefore used a Python interpreter that already has the DataHub
-> SDK, **not** `.venv/bin/sidq`.
+> dependency of the Sidq project venv. Installing it there resolves `pydantic`
+> to 2.11.10, while `mcp` 2.0.0, a Sidq runtime dependency, declares
+> `pydantic>=2.12.0`, and pip reports the conflict. Measured on 2026-08-09.
+> The conflict is in declared metadata: in a throwaway environment holding
+> both, Sidq's own 64 MCP tests passed and one interpreter ran the full flow.
+> Sidq still does not ship the combination, because an install that
+> contradicts its own metadata is not a supported one. The live emission below
+> therefore used a Python interpreter that already has the DataHub SDK,
+> **not** `.venv/bin/sidq`.
 
 The target dataset was
 `urn:li:dataset:(urn:li:dataPlatform:snowflake,b2fd91.order_entry_db.order_entry.customers,PROD)`.

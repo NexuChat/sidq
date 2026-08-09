@@ -321,15 +321,18 @@ team already looks. It requires `--write-receipts`, it reports a verdict Sidq
 already decided rather than producing one, and a receipt whose write failed is
 never mirrored.
 
-**It does not run from the environment the runbook installs, and that is a
-measured constraint rather than an oversight.** The official MCP server has no
-assertion tool, so this one path needs the DataHub SDK — and `acryl-datahub`
-pins `pydantic` below 2.12 while Sidq's `mcp>=2` client requires 2.12 or newer,
-so installing it into the project venv would break every other command. Run it
-from an interpreter that already carries the SDK; anywhere else it refuses with
-that explanation instead of an import traceback. The live proof — emitted,
-re-read through the same GraphQL query DataHub's own UI issues, and re-run to
-show it updates rather than duplicates — is committed in
+**It does not run from the environment the runbook installs**, because the
+official MCP server has no assertion tool and this one path therefore needs the
+DataHub SDK. `acryl-datahub` resolves `pydantic` below the 2.12 that Sidq's
+`mcp>=2` declares, and pip reports that conflict, so the SDK is not offered as
+an extra. Measured on 2026-08-09, Sidq's own MCP suites do pass in a combined
+environment anyway, and one interpreter can run the whole flow — so what is
+being refused is shipping an install whose declared constraints are unsatisfied,
+not a capability observed to break. Run it from an interpreter that already
+carries the SDK; anywhere else it refuses with that explanation instead of an
+import traceback. The live proof — emitted, re-read through the same GraphQL
+query DataHub's own UI issues, and re-run to show it updates rather than
+duplicates — is committed in
 [`examples/06-native-assertion/`](examples/06-native-assertion/).
 
 ### Run against catalogs it was never built for

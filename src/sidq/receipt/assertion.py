@@ -26,18 +26,22 @@ from .build import Receipt
 
 _FALLBACK_RULE_ID = "sidq.verdict"
 
-# Measured with pip on 2026-08-09: acryl-datahub 1.6.0.16 pins pydantic to
-# 2.11.10, while the mcp>=2 client every other Sidq command depends on requires
-# pydantic>=2.12. So the SDK cannot be a supported extra without knowingly
-# producing an inconsistent environment, and the mirror states that boundary
-# instead of failing with a bare ModuleNotFoundError the operator must decode.
+# Measured on 2026-08-09: acryl-datahub 1.6.0.16 resolves pydantic to 2.11.10,
+# contradicting the pydantic>=2.12 that mcp 2.0.0 declares, and pip reports the
+# conflict. Sidq's own MCP suites nevertheless passed in that combined
+# environment, so this is an install whose declared constraints are unsatisfied
+# rather than one observed to fail — which is still not something to ship as a
+# supported extra, because passing today is not promised by any declared
+# version. The message says that much and no more, instead of leaving a bare
+# ModuleNotFoundError for the operator to decode.
 _SDK_REQUIRED = (
     "the native assertion mirror needs the DataHub Python SDK, which Sidq "
-    "deliberately does not install: acryl-datahub pins pydantic below 2.12 "
-    "while Sidq's mcp>=2 client requires 2.12 or newer, so installing it into "
-    "the project environment breaks every other command. Run "
-    "--write-assertions from an interpreter that already has acryl-datahub; "
-    "see docs/RECEIPT-SPEC.md. Receipts themselves need no SDK."
+    "does not install and does not offer as an extra: acryl-datahub resolves "
+    "pydantic below the 2.12 that Sidq's mcp>=2 declares, so that install is "
+    "resolver-inconsistent even though Sidq's MCP tests passed under it when "
+    "measured. Run --write-assertions from an interpreter that already "
+    "carries acryl-datahub; see docs/RECEIPT-SPEC.md. Receipts themselves "
+    "need no SDK."
 )
 
 
