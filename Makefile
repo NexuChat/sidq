@@ -72,7 +72,7 @@ check: | $(VENV)/.sidq-dev-lock
 	$(VENV)/bin/ruff check .
 	$(VENV)/bin/ruff format --check .
 	$(VENV)/bin/mypy src/
-	$(VENV)/bin/pytest -q --cov=sidq --cov-report=term-missing:skip-covered
+	$(VENV)/bin/pytest -q -n auto --cov=sidq --cov-report=term-missing:skip-covered
 
 # Resolve from pyproject metadata, never from an ambient environment. Install uv,
 # run this target, and commit uv.lock plus all five exported hash-locked inputs.
@@ -193,9 +193,11 @@ swarm-demo: | $(VENV)/.sidq-dev-lock
 	echo "== four workers start together — no coordinator, no IPC, run $$run =="; \
 	pids=""; \
 	for w in alpha beta gamma delta; do \
+	  rm -f /tmp/sidq-swarm-$$w.json; \
 	  DATAHUB_GMS_URL=$(DATAHUB_GMS_URL) DATAHUB_TELEMETRY_ENABLED=false \
 	    $(VENV)/bin/sidq swarm --via-mcp --worker-id $$w --swarm-run $$run \
-	    --budget $(SWARM_BUDGET) --lineage-budget 40 >/tmp/sidq-swarm-$$w.log 2>&1 & \
+	    --budget $(SWARM_BUDGET) --lineage-budget 40 \
+	    --report /tmp/sidq-swarm-$$w.json >/tmp/sidq-swarm-$$w.log 2>&1 & \
 	  pids="$$pids $$!"; \
 	  echo "  started $$w"; \
 	done; \
@@ -208,6 +210,12 @@ swarm-demo: | $(VENV)/.sidq-dev-lock
 	  grep -vE "^INFO|Starting MCP|ExperimentalWarning|from datahub|^\\s*$$" /tmp/sidq-swarm-$$w.log | tail -7; \
 	  echo; \
 	done; \
+	echo "== overlap, from the surviving workers' own reports =="; \
+	$(VENV)/bin/sidq swarm-overlap \
+	  /tmp/sidq-swarm-alpha.json /tmp/sidq-swarm-beta.json \
+	  /tmp/sidq-swarm-gamma.json /tmp/sidq-swarm-delta.json; \
+	status=$$?; [ $$status -eq 0 ] || exit $$status; \
+	echo; \
 	echo "== the ledger, read from DataHub by a process that audited nothing =="; \
 	DATAHUB_GMS_URL=$(DATAHUB_GMS_URL) DATAHUB_TELEMETRY_ENABLED=false \
 	  $(VENV)/bin/sidq swarm-ledger --via-mcp --swarm-run $$run --budget 60 2>/dev/null

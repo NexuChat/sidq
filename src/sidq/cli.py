@@ -25,6 +25,13 @@ from sidq.agent import (
 )
 from sidq.agent.auditor import DEFAULT_BUDGET
 from sidq.agent.swarm import SwarmWorker, observe, render_worker
+from sidq.agent.swarm_overlap import (
+    SwarmReportError,
+    discover_report_paths,
+    load_reports,
+    measure_overlap,
+    write_worker_report,
+)
 from sidq.gates.base import Gate
 from sidq.gates.blast import BlastRadiusGate
 from sidq.gates.doc_rot import DocRotGate
@@ -258,25 +265,28 @@ def commit_sha_for_ref(ref: str, *, repo_root: str | Path = ".") -> str:
     candidates = [target]
     if not target.startswith("refs/"):
         candidates.extend((f"refs/heads/{target}", f"refs/remotes/{target}"))
-    for candidate in candidates:
+    for reference_dir in _git_reference_dirs(git_dir):
+        for candidate in candidates:
+            try:
+                sha = (reference_dir / candidate).read_text(encoding="utf-8").strip()
+            except OSError:
+                continue
+            if re.fullmatch(r"[0-9a-fA-F]{40,64}", sha):
+                return sha.lower()
         try:
-            sha = (git_dir / candidate).read_text(encoding="utf-8").strip()
+            packed_refs = (
+                (reference_dir / "packed-refs").read_text(encoding="utf-8").splitlines()
+            )
         except OSError:
             continue
-        if re.fullmatch(r"[0-9a-fA-F]{40,64}", sha):
-            return sha.lower()
-    try:
-        packed_refs = (git_dir / "packed-refs").read_text(encoding="utf-8").splitlines()
-    except OSError:
-        return ""
-    for line in packed_refs:
-        parts = line.split()
-        if (
-            len(parts) == 2
-            and parts[1] in candidates
-            and re.fullmatch(r"[0-9a-fA-F]{40,64}", parts[0])
-        ):
-            return parts[0].lower()
+        for line in packed_refs:
+            parts = line.split()
+            if (
+                len(parts) == 2
+                and parts[1] in candidates
+                and re.fullmatch(r"[0-9a-fA-F]{40,64}", parts[0])
+            ):
+                return parts[0].lower()
     return ""
 
 
@@ -294,6 +304,18 @@ def _git_dir(root: Path) -> Path | None:
         return None
     location = Path(pointer.removeprefix("gitdir: ").strip())
     return location if location.is_absolute() else (root / location).resolve()
+
+
+def _git_reference_dirs(git_dir: Path) -> list[Path]:
+    """Return the local and shared ref stores for a normal repo or worktree."""
+    directories = [git_dir]
+    try:
+        pointer = (git_dir / "commondir").read_text(encoding="utf-8").strip()
+    except OSError:
+        return directories
+    common = Path(pointer)
+    directories.append(common if common.is_absolute() else (git_dir / common).resolve())
+    return directories
 
 
 def _human(verdict: Verdict) -> str:
@@ -473,7 +495,23 @@ def _parser() -> argparse.ArgumentParser:
         default=15.0,
         help="seconds to wait on the catalog before reporting it unreachable",
     )
+    swarm_parser.add_argument(
+        "--report",
+        type=Path,
+        help="atomically write this worker's own JSON account after it finishes",
+    )
     swarm_parser.add_argument("--json", action="store_true", dest="as_json")
+
+    overlap_parser = commands.add_parser(
+        "swarm-overlap",
+        help="measure duplicated examinations from surviving workers' own reports",
+    )
+    overlap_parser.add_argument(
+        "report",
+        nargs="+",
+        type=Path,
+        help="expected worker report paths, or a directory of JSON reports",
+    )
 
     ledger_parser = commands.add_parser(
         "swarm-ledger",
@@ -1084,11 +1122,32 @@ def _swarm(arguments: Any) -> int:
         if callable(close):
             close()
 
+    report_path = getattr(arguments, "report", None)
+    if report_path is not None:
+        try:
+            write_worker_report(result, report_path)
+        except OSError as error:
+            print(f"sidq: could not write swarm report: {error}", file=sys.stderr)
+            return 2
+
     if arguments.as_json:
         sys.stdout.buffer.write(canonical_json(result.summary()) + b"\n")
     else:
         print("\n".join(render_worker(result)))
     return 1 if result.findings or result.write_failures else 0
+
+
+def _swarm_overlap(arguments: Any) -> int:
+    """Measure overlap from worker accounts, never from DataHub receipts."""
+    try:
+        paths, expected_reports = discover_report_paths(arguments.report)
+        reports = load_reports(paths)
+        overlap = measure_overlap(reports, expected_reports=expected_reports)
+    except (OSError, SwarmReportError) as error:
+        print(f"sidq: could not measure swarm overlap: {error}", file=sys.stderr)
+        return 2
+    print("\n".join(overlap.render()))
+    return 0
 
 
 def _swarm_ledger(arguments: Any) -> int:
@@ -1183,6 +1242,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _repair(arguments)
     if arguments.command == "swarm":
         return _swarm(arguments)
+    if arguments.command == "swarm-overlap":
+        return _swarm_overlap(arguments)
     if arguments.command == "swarm-ledger":
         return _swarm_ledger(arguments)
     if arguments.command == "explain":
