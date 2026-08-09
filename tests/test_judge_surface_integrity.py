@@ -48,8 +48,12 @@ NOT_OURS_TO_SHIP = frozenset(
         "policy.yaml",  # the operator's own policy, when overriding the shipped one
         "good_change.sql",  # illustrative filenames in a worked walk-through
         "bad_change.sql",
-        # DataHub's own repository, cited when explaining their agent context.
+        # DataHub's own repository, cited when explaining their agent context
+        # and, in the upstream-contribution note, the two resource files their
+        # wheel omits. Ours to report, not ours to ship.
         "datahub/cli/datapack/resources/DATAPACK_AGENT_CONTEXT.md",
+        "datahub/cli/datapack/resources/registry.json",
+        "datahub/cli/datapack/registry.py",
         # The film is produced in a separate repository; VIDEO.md is the
         # production contract for it, and says so.
         "public/v4/audio/narration.provenance.json",

@@ -242,6 +242,19 @@ attach MCP. It is also under public upstream review at
 [datahub-project/datahub-skills#81](https://github.com/datahub-project/datahub-skills/pull/81).
 That link is a contribution in review, not a claim of merge or endorsement.
 
+Building the connected path also surfaced a packaging bug in DataHub itself, and
+that fix is proposed upstream as
+[datahub-project/datahub#19017](https://github.com/datahub-project/datahub/pull/19017).
+`datahub.cli.datapack.resources` is missing from `package_data`, so neither
+`datahub/cli/datapack/resources/DATAPACK_AGENT_CONTEXT.md` nor `datahub/cli/datapack/resources/registry.json` ships in the wheel. Two things
+follow: `datahub datapack --help` raises `FileNotFoundError` whenever stdout is
+not a TTY — it works in a terminal and fails in CI, in a pipe, and in an agent
+harness, which is the context the missing file exists to serve — and the bundled
+registry fallback `datahub/cli/datapack/registry.py` documents can never fire, so every invocation
+depends on reaching raw.githubusercontent.com. The sibling
+`datahub.cli.resources` entry ships its four `*_AGENT_CONTEXT.md` files
+correctly, which is why only `datapack` is affected. Also open, also unmerged.
+
 The blocking path contains no model calls. The optional documentation reader may
 extend `WARN` coverage after deterministic rules abstain, but it can never grant
 permission or produce `BLOCK`; its exact model revision, head fingerprint and

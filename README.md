@@ -582,6 +582,15 @@ The same skill is proposed to DataHub's official skills repository in
 The pull request is public review evidence, not a claim that DataHub has merged or
 endorsed it.
 
+Setting up the connected path also turned up a packaging bug in DataHub itself,
+proposed upstream as
+[datahub-project/datahub#19017](https://github.com/datahub-project/datahub/pull/19017):
+`datahub.cli.datapack.resources` is missing from `package_data`, so
+`datahub/cli/datapack/resources/DATAPACK_AGENT_CONTEXT.md` and `datahub/cli/datapack/resources/registry.json` never reach the built wheel.
+`datahub datapack --help` therefore raises `FileNotFoundError` whenever stdout is
+not a TTY, and the bundled registry fallback cannot fire. That one is also open
+and also unmerged; `docs/SETUP.md` still documents the workaround.
+
 ### 3. CLI
 
 The CLI is the canonical engine surface. It accepts a diff or SQL file and emits human-readable or canonical JSON output:
