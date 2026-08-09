@@ -43,6 +43,7 @@ from sidq.graph.client import (
 from sidq.graph.live_source import LiveSourceClient
 from sidq.models import Evidence, Verdict
 from sidq.policy.engine import PolicyEngine, load_policy
+from sidq.receipt.assertion import emit_assertions
 from sidq.receipt.read import (
     get_verification_status,
     get_verification_statuses,
@@ -349,6 +350,14 @@ def _parser() -> argparse.ArgumentParser:
         "--write-receipts",
         action="store_true",
         help="write a receipt back for every asset examined (off by default)",
+    )
+    audit_parser.add_argument(
+        "--write-assertions",
+        action="store_true",
+        help=(
+            "also report receipt verdicts through DataHub native assertions "
+            "(requires --write-receipts; off by default)"
+        ),
     )
     audit_parser.add_argument(
         "--resume",
@@ -702,6 +711,10 @@ def _audit(arguments: Any) -> int:
     could not be read at all. An audit reports; it does not refuse a change, so
     reusing `check`'s BLOCK code for a finding would misrepresent what was run.
     """
+    if getattr(arguments, "write_assertions", False) and not arguments.write_receipts:
+        print("sidq: --write-assertions requires --write-receipts", file=sys.stderr)
+        return 2
+
     snapshot = _read_snapshot(arguments)
     if snapshot is None:
         return 2
@@ -733,6 +746,9 @@ def _audit(arguments: Any) -> int:
     result = CatalogAuditor(snapshot, budget=arguments.budget, prior=prior).run()
     lines = list(render(result, catalog=arguments.server))
     outcomes: list[Any] = []
+    receipts: list[Any] = []
+    assertion_failed = False
+    assertion_summary: dict[str, int] | None = None
 
     if arguments.write_receipts:
         # Opt-in, because this mutates a catalog the operator may not own. The
@@ -740,14 +756,42 @@ def _audit(arguments: Any) -> int:
         # for assets the agent actually examined.
         caller = StdioMCPReceiptToolCaller(RECEIPT_TOOLS)
         try:
-            outcomes = write_receipts(
-                receipts_for(result, commit_sha=commit_sha_for_ref("HEAD")), caller
-            )
+            receipts = receipts_for(result, commit_sha=commit_sha_for_ref("HEAD"))
+            outcomes = write_receipts(receipts, caller)
         finally:
             close = getattr(caller, "close", None)
             if callable(close):
                 close()
         lines.extend(("", *render_writeback(outcomes)))
+
+    if getattr(arguments, "write_assertions", False):
+        successful_receipts = [
+            receipt
+            for receipt, outcome in zip(receipts, outcomes, strict=True)
+            if outcome.written
+        ]
+        try:
+            assertion_result = emit_assertions(
+                successful_receipts, gms_url=arguments.server
+            )
+        except Exception as error:  # noqa: BLE001 - SDK transports raise several types
+            # No counts here on purpose. Emission raises on the first failing
+            # proposal, so an earlier assertion in the same run may already be
+            # in the catalog; reporting zero would claim more than is known.
+            assertion_failed = True
+            print(f"sidq: could not write native assertions: {error}", file=sys.stderr)
+            lines.append("  assertions        write failed, counts unknown")
+        else:
+            assertion_summary = {
+                "created": len(assertion_result["created"]),
+                "existing": len(assertion_result["existing"]),
+                "runs": len(assertion_result["runs"]),
+            }
+            lines.append(f"  assertion runs    {assertion_summary['runs']}")
+            lines.append(
+                f"  assertions        {assertion_summary['created']} new, "
+                f"{assertion_summary['existing']} existing"
+            )
 
     if arguments.as_json:
         output = result.summary()
@@ -772,11 +816,21 @@ def _audit(arguments: Any) -> int:
                     ],
                 },
             }
+        if getattr(arguments, "write_assertions", False):
+            # Only under the opt-in flag, so no-write JSON stays byte-identical.
+            output = {
+                **output,
+                "assertions": (
+                    {"failed": True}
+                    if assertion_summary is None
+                    else {**assertion_summary, "failed": False}
+                ),
+            }
         sys.stdout.buffer.write(canonical_json(output) + b"\n")
     else:
         print("\n".join(lines))
     write_failed = any(not item.written for item in outcomes)
-    return 1 if result.findings or write_failed else 0
+    return 1 if result.findings or write_failed or assertion_failed else 0
 
 
 def _repair(arguments: Any) -> int:

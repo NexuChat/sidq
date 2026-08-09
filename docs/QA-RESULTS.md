@@ -79,10 +79,10 @@ re-measured and the 2026-08-02 session remains its record.
 
 ## Automated gates
 
-- Host run of 2026-08-09: 1116 collected, 1115 passed, and 1 optional
+- Host run of 2026-08-09: 1127 collected, 1126 passed, and 1 optional
   integration test skipped because the Ollama model `ibm/granite4:1b-q4_1` was
   not installed.
-- Host branch coverage on that run: 84.33%, above the enforced 80.0% threshold.
+- Host branch coverage on that run: 84.54%, above the enforced 80.0% threshold.
   The browser, accessibility, and performance measurements below are from the
   2026-08-02 session in this document's title and were not re-run.
 - Ruff lint, Ruff format, and mypy: pass.

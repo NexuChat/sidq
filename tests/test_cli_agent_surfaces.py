@@ -319,6 +319,7 @@ def _arguments(**overrides: Any) -> SimpleNamespace:
         "via_mcp": True,
         "resume": False,
         "write_receipts": False,
+        "write_assertions": False,
         "as_json": False,
         "apply": False,
         "policy": None,
@@ -592,8 +593,15 @@ def test_audit_json_reports_success_and_zero_eligible_writes(
     monkeypatch.setattr(cli, "write_receipts", write)
     monkeypatch.setattr(cli, "render_writeback", lambda supplied: ["unused"])
     monkeypatch.setattr(cli, "commit_sha_for_ref", lambda ref: "b" * 40)
+    assertion_calls: list[object] = []
+    monkeypatch.setattr(
+        cli,
+        "emit_assertions",
+        lambda *args, **kwargs: assertion_calls.append((args, kwargs)),
+    )
 
     assert cli._audit(_arguments(write_receipts=True, as_json=True)) == 0
+    assert not assertion_calls
     assert json.loads(capsysbinary.readouterr().out) == {
         "examined": 1,
         "findings": 0,
@@ -605,6 +613,119 @@ def test_audit_json_reports_success_and_zero_eligible_writes(
         },
     }
     assert transport.closed
+
+
+def test_native_assertions_are_refused_without_receipt_writeback(
+    monkeypatch, capsys
+) -> None:
+    """An assertion mirrors a written receipt, so alone it would mirror nothing.
+
+    Refused before the catalog is read, so an operator who forgot the second
+    flag spends no budget and gets no half-run.
+    """
+    monkeypatch.setattr(
+        cli, "_read_snapshot", lambda arguments: pytest.fail("catalog was read")
+    )
+    monkeypatch.setattr(
+        cli, "emit_assertions", lambda *args, **kwargs: pytest.fail("assertions ran")
+    )
+
+    assert cli._audit(_arguments(write_assertions=True)) == 2
+    assert "--write-assertions requires --write-receipts" in capsys.readouterr().err
+
+
+def test_native_assertions_mirror_only_the_receipts_the_catalog_accepted(
+    monkeypatch, capsysbinary
+) -> None:
+    """A rejected receipt is not evidence, so it must not become an assertion."""
+    result = SimpleNamespace(findings=(), summary=lambda: {"examined": 2})
+    written = SimpleNamespace(urn=URN, verdict="PASS", written=True, detail="")
+    rejected = SimpleNamespace(
+        urn=URN + ".other", verdict="PASS", written=False, detail="Timeout"
+    )
+    calls: list[tuple[Any, Any]] = []
+
+    class _Auditor:
+        def __init__(self, snapshot, *, budget, prior) -> None:
+            pass
+
+        def run(self):
+            return result
+
+    def emit(receipts, *, gms_url):
+        calls.append((list(receipts), gms_url))
+        return {"created": ("a",), "existing": (), "runs": ("r1", "r2")}
+
+    monkeypatch.setattr(cli, "_read_snapshot", lambda arguments: object())
+    monkeypatch.setattr(cli, "CatalogAuditor", _Auditor)
+    monkeypatch.setattr(cli, "render", lambda run, *, catalog: ["unused"])
+    monkeypatch.setattr(
+        cli, "StdioMCPReceiptToolCaller", lambda allowed_tools: _Closable()
+    )
+    monkeypatch.setattr(
+        cli, "receipts_for", lambda run, *, commit_sha: ["kept", "dropped"]
+    )
+    monkeypatch.setattr(
+        cli, "write_receipts", lambda supplied, caller: [written, rejected]
+    )
+    monkeypatch.setattr(cli, "render_writeback", lambda supplied: ["unused"])
+    monkeypatch.setattr(cli, "commit_sha_for_ref", lambda ref: "b" * 40)
+    monkeypatch.setattr(cli, "emit_assertions", emit)
+
+    # 1, because a receipt the catalog rejected still fails the run.
+    assert (
+        cli._audit(_arguments(write_receipts=True, write_assertions=True, as_json=True))
+        == 1
+    )
+    assert calls == [(["kept"], "http://datahub")]
+    assert json.loads(capsysbinary.readouterr().out)["assertions"] == {
+        "created": 1,
+        "existing": 0,
+        "runs": 2,
+        "failed": False,
+    }
+
+
+def test_a_failed_assertion_write_is_reported_without_counts_and_does_not_pass(
+    monkeypatch, capsysbinary
+) -> None:
+    """Emission raises on the first bad proposal, so earlier ones may have landed.
+
+    Reporting zero created would claim the catalog is untouched when it may not
+    be, so the failure carries no counts at all.
+    """
+    result = SimpleNamespace(findings=(), summary=lambda: {"examined": 1})
+    outcome = SimpleNamespace(urn=URN, verdict="PASS", written=True, detail="")
+
+    class _Auditor:
+        def __init__(self, snapshot, *, budget, prior) -> None:
+            pass
+
+        def run(self):
+            return result
+
+    def emit(receipts, *, gms_url):
+        raise ConnectionError("gms refused the proposal")
+
+    monkeypatch.setattr(cli, "_read_snapshot", lambda arguments: object())
+    monkeypatch.setattr(cli, "CatalogAuditor", _Auditor)
+    monkeypatch.setattr(cli, "render", lambda run, *, catalog: ["unused"])
+    monkeypatch.setattr(
+        cli, "StdioMCPReceiptToolCaller", lambda allowed_tools: _Closable()
+    )
+    monkeypatch.setattr(cli, "receipts_for", lambda run, *, commit_sha: ["kept"])
+    monkeypatch.setattr(cli, "write_receipts", lambda supplied, caller: [outcome])
+    monkeypatch.setattr(cli, "render_writeback", lambda supplied: ["unused"])
+    monkeypatch.setattr(cli, "commit_sha_for_ref", lambda ref: "b" * 40)
+    monkeypatch.setattr(cli, "emit_assertions", emit)
+
+    assert (
+        cli._audit(_arguments(write_receipts=True, write_assertions=True, as_json=True))
+        == 1
+    )
+    captured = capsysbinary.readouterr()
+    assert json.loads(captured.out)["assertions"] == {"failed": True}
+    assert "could not write native assertions" in captured.err.decode()
 
 
 def test_repair_names_what_remains_and_applies_only_the_proven_plan(

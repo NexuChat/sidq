@@ -21,6 +21,11 @@ import pytest
 from sidq.agent.writeback import render_writeback, write_receipts
 from sidq.models import Evidence, Finding, Verdict
 from sidq.policy.engine import PolicyEngine
+from sidq.receipt.assertion import (
+    assertion_result_type,
+    assertion_urn,
+    emit_assertions,
+)
 from sidq.receipt.bootstrap import (
     PROPERTY_DEFINITIONS,
     definitions,
@@ -1603,6 +1608,19 @@ def _install_fake_datahub_sdk(monkeypatch, graph: _BootstrapGraph) -> list[objec
         make_data_type_urn = staticmethod(lambda name: f"type:{name}")
         make_entity_type_urn = staticmethod(lambda name: f"entity:{name}")
 
+    class _AssertionType:
+        CUSTOM = "CUSTOM"
+
+    class _AssertionSourceType:
+        EXTERNAL = "EXTERNAL"
+
+    class _AssertionRunStatus:
+        COMPLETE = "COMPLETE"
+
+    class _AssertionResultType:
+        SUCCESS = "SUCCESS"
+        FAILURE = "FAILURE"
+
     modules = {
         "datahub": ModuleType("datahub"),
         "datahub.emitter": ModuleType("datahub.emitter"),
@@ -1632,6 +1650,15 @@ def _install_fake_datahub_sdk(monkeypatch, graph: _BootstrapGraph) -> list[objec
     schema.PropertyValueClass = _BootstrapValue
     schema.StructuredPropertyDefinitionClass = _BootstrapValue
     schema.TagPropertiesClass = _BootstrapValue
+    schema.AssertionInfoClass = _BootstrapValue
+    schema.CustomAssertionInfoClass = _BootstrapValue
+    schema.AssertionSourceClass = _BootstrapValue
+    schema.AssertionSourceTypeClass = _AssertionSourceType
+    schema.AssertionTypeClass = _AssertionType
+    schema.AssertionRunEventClass = _BootstrapValue
+    schema.AssertionRunStatusClass = _AssertionRunStatus
+    schema.AssertionResultClass = _BootstrapValue
+    schema.AssertionResultTypeClass = _AssertionResultType
     modules["datahub.metadata.urns"].Urn = _Urn
     modules["datahub.ingestion.graph.config"].DatahubClientConfig = _BootstrapValue
 
@@ -1684,6 +1711,139 @@ def test_bootstrap_uses_the_environment_and_rejects_foreign_properties(
     with pytest.raises(ValueError, match="unknown Sidq structured property"):
         property_urn("foreign")
     assert tuple(definitions()) == PROPERTY_DEFINITIONS
+
+
+class _AssertionGraph:
+    def __init__(self) -> None:
+        self.infos: dict[str, object] = {}
+        self.run_events: dict[tuple[str, str], object] = {}
+        self.closed = False
+
+    def get_aspect(self, urn: str, aspect_type: object) -> object | None:
+        return self.infos.get(urn)
+
+    def emit_mcp(self, mcp: object) -> None:
+        aspect = mcp.aspect
+        if hasattr(aspect, "customAssertion"):
+            self.infos[mcp.entityUrn] = aspect
+        else:
+            self.run_events[(mcp.entityUrn, aspect.messageId)] = aspect
+
+    def close(self) -> None:
+        self.closed = True
+
+
+def test_native_assertion_urn_is_stable_for_one_dataset_rule() -> None:
+    assert assertion_urn(URN, "schema.required") == assertion_urn(
+        URN, "schema.required"
+    )
+    assert assertion_urn(URN, "schema.required") != assertion_urn(URN, "pii.leak")
+    assert assertion_urn(URN, "schema.required") != assertion_urn(
+        URN + ".other", "schema.required"
+    )
+
+
+@pytest.mark.parametrize(
+    ("verdict", "expected"),
+    (("PASS", "SUCCESS"), ("BLOCK", "FAILURE")),
+)
+def test_native_assertion_result_maps_sidq_verdicts(
+    verdict: str, expected: str
+) -> None:
+    assert assertion_result_type(verdict) == expected
+
+
+def test_native_assertion_emission_is_idempotent_and_carries_evidence(
+    monkeypatch,
+) -> None:
+    graph = _AssertionGraph()
+    _install_fake_datahub_sdk(monkeypatch, graph)  # type: ignore[arg-type]
+    receipt = build_receipt(
+        URN, _verdict("WARN"), checked_at=datetime(2026, 8, 2, 11, 4, tzinfo=UTC)
+    )
+
+    first = emit_assertions([receipt], graph)
+    second = emit_assertions([receipt], graph)
+
+    urn = assertion_urn(URN, "schema.required")
+    assert first["created"] == (urn,)
+    assert second["existing"] == (urn,)
+    assert len(graph.infos) == 1
+    # A stable message id lets DataHub update the same time-series event on retry.
+    assert len(graph.run_events) == 1
+    info = graph.infos[urn]
+    event = next(iter(graph.run_events.values()))
+    assert info.type == "CUSTOM"
+    assert info.source.type == "EXTERNAL"
+    assert info.customAssertion.logic.startswith("Sidq rule schema.required:")
+    assert event.status == "COMPLETE"
+    assert event.result.type == "FAILURE"
+    assert event.result.nativeResults == {
+        "sidq.verdict": "WARN",
+        "sidq.rule_id": "schema.required",
+        "sidq.policy_hash": "sha256:policy",
+        "sidq.commit_sha": "a" * 40,
+        "sidq.checked_at": "2026-08-02T11:04:00Z",
+        "sidq.evidence_summary": "A required field is missing.",
+    }
+
+
+def test_native_assertion_uses_configured_gms_url_and_token(monkeypatch) -> None:
+    graph = _AssertionGraph()
+    configs = _install_fake_datahub_sdk(monkeypatch, graph)  # type: ignore[arg-type]
+    monkeypatch.setenv("DATAHUB_GMS_URL", "https://catalog.env.test")
+    monkeypatch.setenv("DATAHUB_GMS_TOKEN", "writer-token")
+
+    emit_assertions(
+        [build_receipt(URN, _verdict(), checked_at=datetime(2026, 8, 2, tzinfo=UTC))]
+    )
+
+    assert configs[0].server == "https://catalog.env.test"
+    assert configs[0].token == "writer-token"
+    assert graph.closed
+
+
+def test_nothing_to_mirror_never_opens_a_catalog_connection(monkeypatch) -> None:
+    """When every receipt write was rejected there is no verdict to report."""
+
+    configs = _install_fake_datahub_sdk(monkeypatch, _AssertionGraph())  # type: ignore[arg-type]
+
+    assert emit_assertions([]) == {"created": (), "existing": (), "runs": ()}
+    assert configs == []
+
+
+def test_a_verdict_datahub_cannot_represent_is_refused_not_guessed() -> None:
+    """A fourth verdict must stop the mirror, not silently become a pass."""
+
+    with pytest.raises(ValueError, match="unsupported Sidq verdict: SKIPPED"):
+        assertion_result_type("SKIPPED")
+
+
+def test_a_clean_receipt_still_reports_one_honest_assertion(monkeypatch) -> None:
+    """A PASS with no fired rule has no per-rule evidence to group.
+
+    Emitting nothing would leave the Validation surface silent about an asset
+    Sidq did examine, so the run is reported under one whole-verdict assertion
+    that says plainly that no individual rule evidence was recorded.
+    """
+    graph = _AssertionGraph()
+    _install_fake_datahub_sdk(monkeypatch, graph)  # type: ignore[arg-type]
+    clean = Verdict("PASS", None, (), (), "a" * 40, "sha256:policy")
+    receipt = build_receipt(
+        URN, clean, checked_at=datetime(2026, 8, 2, 11, 4, tzinfo=UTC)
+    )
+
+    result = emit_assertions([receipt], graph)
+
+    urn = assertion_urn(URN, "sidq.verdict")
+    assert result["created"] == (urn,)
+    event = graph.run_events[next(iter(graph.run_events))]
+    assert event.result.type == "SUCCESS"
+    assert event.result.nativeResults["sidq.rule_id"] == "sidq.verdict"
+    assert (
+        event.result.nativeResults["sidq.evidence_summary"]
+        == "No individual rule evidence was recorded."
+    )
 
 
 def test_write_receipt_propagates_write_rejection_without_claiming_success() -> None:

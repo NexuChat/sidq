@@ -49,6 +49,27 @@ They do not sign the Receipt, make it tamper-proof, or prove that the catalog ha
 not changed. The independently recomputed `context_hash`, policy comparison, and
 age check determine whether the latest Receipt still applies.
 
+### Native assertion mirror (explicit opt-in)
+
+`sidq audit --via-mcp --write-receipts --write-assertions` additionally reports each
+evidence-backed Sidq rule evaluation as a native DataHub Assertion. Its stable assertion
+URN is derived from the dataset URN and rule id; `assertionInfo` records the rule and
+external Sidq source, and `assertionRunEvent` records the verdict, policy hash, commit,
+check time, and evidence summary. This makes the result visible in DataHub's own
+Validation/Quality surface without changing the receipt's `sidq.*` contract.
+
+The option is off by default and requires `--write-receipts`; an assertion reports an
+already-determined verdict and is never input to Sidq's deterministic judgment. PASS
+maps to DataHub `SUCCESS`; BLOCK maps to `FAILURE`; WARN also maps to `FAILURE` because
+DataHub's result type is binary and the policy condition did not pass. The native
+properties retain `sidq.verdict=WARN`, so this does not represent a warning as a block.
+
+This is the one explicit SDK exception to the receipt writeback route. The official
+`mcp-server-datahub` mutation tools include no assertion tool, so definition and run
+event emission use `DataHubGraph`, `DatahubClientConfig`, and
+`MetadataChangeProposalWrapper`, following the receipt bootstrap boundary. Receipt
+values themselves continue through official MCP tools.
+
 ## 3. Consumption — `sidq verify <urn>`
 
 Receipt consumption is a CLI operation, not a fourth Sidq MCP tool. Run it from

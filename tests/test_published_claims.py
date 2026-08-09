@@ -401,11 +401,13 @@ def test_the_landing_page_can_only_run_read_only_commands() -> None:
 
     for name, (_, argv) in RUNNABLE.items():
         joined = " ".join(argv)
-        # The only two flags that make a sidq command mutate a catalog. A bare
-        # `repair` is a dry run by construction — the CLI writes only under
-        # --apply, and tests/test_repair_agent.py pins that a dry run performs
-        # zero tool calls — so the guard names the write paths, not the word.
-        assert "--apply" not in argv and "--write-receipts" not in argv, (
+        # The flags that make a sidq command mutate a catalog. A bare `repair`
+        # is a dry run by construction — the CLI writes only under --apply, and
+        # tests/test_repair_agent.py pins that a dry run performs zero tool
+        # calls — so the guard names the write paths, not the word.
+        # --write-assertions is refused without --write-receipts, so it is
+        # named here too rather than left to that dependency.
+        assert not {"--apply", "--write-receipts", "--write-assertions"} & set(argv), (
             f"{name} would write to the catalog: {joined}"
         )
         # Scripts that rewrite artifacts or reset the demo state.

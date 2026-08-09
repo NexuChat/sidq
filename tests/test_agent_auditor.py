@@ -388,16 +388,20 @@ def test_audit_is_an_invocable_subcommand_with_writing_off_by_default() -> None:
 
     assert parsed.command == "audit"
     assert parsed.write_receipts is False
+    assert parsed.write_assertions is False
     assert parsed.budget > 0
 
 
 def test_audit_accepts_a_budget_and_an_explicit_write_opt_in() -> None:
     from sidq.cli import _parser
 
-    parsed = _parser().parse_args(["audit", "--budget", "7", "--write-receipts"])
+    parsed = _parser().parse_args(
+        ["audit", "--budget", "7", "--write-receipts", "--write-assertions"]
+    )
 
     assert parsed.budget == 7
     assert parsed.write_receipts is True
+    assert parsed.write_assertions is True
 
 
 def test_audit_is_declared_once() -> None:
