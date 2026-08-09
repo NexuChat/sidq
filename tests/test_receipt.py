@@ -1578,9 +1578,43 @@ def test_write_requires_explicit_false_lineage_continuation_metadata(
         write_receipt(build_receipt(URN, _verdict()), incomplete)
 
 
+_SDK_CONTRACT = json.loads(
+    (Path(__file__).parent / "fixtures/datahub_assertion_contract.json").read_text(
+        encoding="utf-8"
+    )
+)
+
+
 class _BootstrapValue:
     def __init__(self, **values: object) -> None:
         self.__dict__.update(values)
+
+
+def _contract_checked(class_name: str) -> type:
+    """Build a fake aspect class that refuses a field the real SDK lacks.
+
+    The previous stand-in accepted any keyword, so a misspelled or invented
+    aspect field passed every test and failed only on a live catalog write.
+    The allowed names come from `tests/fixtures/datahub_assertion_contract.json`,
+    extracted from the real `acryl-datahub`; a test re-derives that file from
+    the installed SDK wherever one is present.
+    """
+
+    allowed = frozenset(_SDK_CONTRACT["classes"][class_name].get("fields", ()))
+
+    class _Checked(_BootstrapValue):
+        sdk_class_name = class_name
+
+        def __init__(self, **values: object) -> None:
+            unknown = sorted(set(values) - allowed)
+            if unknown:
+                raise TypeError(
+                    f"{class_name} has no field(s) {unknown} in acryl-datahub "
+                    f"{_SDK_CONTRACT['acryl_datahub']}; allowed: {sorted(allowed)}"
+                )
+            super().__init__(**values)
+
+    return _Checked
 
 
 class _BootstrapGraph:
@@ -1646,20 +1680,22 @@ def _install_fake_datahub_sdk(monkeypatch, graph: _BootstrapGraph) -> list[objec
     ):
         modules[package].__path__ = []  # type: ignore[attr-defined]
 
-    modules["datahub.emitter.mcp"].MetadataChangeProposalWrapper = _BootstrapValue
+    modules["datahub.emitter.mcp"].MetadataChangeProposalWrapper = _contract_checked(
+        "MetadataChangeProposalWrapper"
+    )
     schema = modules["datahub.metadata.schema_classes"]
     schema.PropertyCardinalityClass = _Cardinality
     schema.PropertyValueClass = _BootstrapValue
     schema.StructuredPropertyDefinitionClass = _BootstrapValue
     schema.TagPropertiesClass = _BootstrapValue
-    schema.AssertionInfoClass = _BootstrapValue
-    schema.CustomAssertionInfoClass = _BootstrapValue
-    schema.AssertionSourceClass = _BootstrapValue
+    schema.AssertionInfoClass = _contract_checked("AssertionInfoClass")
+    schema.CustomAssertionInfoClass = _contract_checked("CustomAssertionInfoClass")
+    schema.AssertionSourceClass = _contract_checked("AssertionSourceClass")
     schema.AssertionSourceTypeClass = _AssertionSourceType
     schema.AssertionTypeClass = _AssertionType
-    schema.AssertionRunEventClass = _BootstrapValue
+    schema.AssertionRunEventClass = _contract_checked("AssertionRunEventClass")
     schema.AssertionRunStatusClass = _AssertionRunStatus
-    schema.AssertionResultClass = _BootstrapValue
+    schema.AssertionResultClass = _contract_checked("AssertionResultClass")
     schema.AssertionResultTypeClass = _AssertionResultType
     schema.StatusClass = _StatusAspect
     modules["datahub.metadata.urns"].Urn = _Urn
@@ -1889,6 +1925,53 @@ def test_native_assertion_uses_configured_gms_url_and_token(monkeypatch) -> None
     assert configs[0].server == "https://catalog.env.test"
     assert configs[0].token == "writer-token"
     assert graph.closed
+
+
+def test_the_committed_sdk_contract_still_matches_the_installed_sdk() -> None:
+    """The fake is only as honest as the contract it enforces.
+
+    Every assertion test runs against a stand-in, so the field names it accepts
+    have to come from somewhere real. They come from the committed fixture,
+    which this re-derives from `acryl-datahub` wherever one is installed. In
+    the project venv there is none by design, so this skips and says so; in an
+    SDK-carrying environment it is what catches an upstream rename before a
+    live catalog write does.
+    """
+    import importlib.util
+
+    if importlib.util.find_spec("datahub") is None:
+        pytest.skip("acryl-datahub is not installed here; see docs/RECEIPT-SPEC.md")
+
+    import inspect
+
+    import datahub
+    from datahub.emitter.mcp import MetadataChangeProposalWrapper
+    from datahub.metadata import schema_classes
+
+    assert datahub.__version__ == _SDK_CONTRACT["acryl_datahub"], (
+        "the contract was extracted from a different acryl-datahub; "
+        "regenerate tests/fixtures/datahub_assertion_contract.json"
+    )
+    for name, expected in _SDK_CONTRACT["classes"].items():
+        cls = (
+            MetadataChangeProposalWrapper
+            if name == "MetadataChangeProposalWrapper"
+            else getattr(schema_classes, name)
+        )
+        if "fields" in expected:
+            actual = sorted(
+                parameter
+                for parameter in inspect.signature(cls.__init__).parameters
+                if parameter != "self"
+            )
+            assert actual == expected["fields"], f"{name} fields drifted"
+        if "members" in expected:
+            actual = sorted(
+                member
+                for member in dir(cls)
+                if member.isupper() and not member.startswith("_")
+            )
+            assert actual == expected["members"], f"{name} members drifted"
 
 
 def test_a_missing_datahub_sdk_names_the_boundary_it_hit() -> None:

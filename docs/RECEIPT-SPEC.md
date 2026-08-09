@@ -106,6 +106,23 @@ assertion leaves the tab:
 mutation { batchUpdateSoftDeleted(input: {urns: ["urn:li:assertion:sidq-..."], deleted: true}) }
 ```
 
+### How the aspect contract is tested without the SDK
+
+The assertion tests cannot import `acryl-datahub`, for the dependency reason below,
+so they run against a stand-in. A stand-in that accepts any keyword tests nothing: a
+misspelled or invented aspect field would pass every test and fail only on a live
+catalog write, which is exactly what happened once here before it was caught by hand.
+
+So the stand-in is not permissive. `tests/fixtures/datahub_assertion_contract.json`
+holds the constructor fields and enum members of the ten aspect classes this module
+touches, extracted from `acryl-datahub` 1.6.0.16, and the fake refuses any field
+outside it — naming the class, the offending field, and the SDK version. A second test
+re-derives that fixture from the installed SDK and fails on any difference; it skips
+with a reason where no SDK is present, so the project venv reports it rather than
+passing quietly, and an SDK-carrying environment turns it into a real check against
+upstream renames. Both directions were verified on 2026-08-09 by injecting a wrong
+field name and by simulating a rename.
+
 ### What this surface still does not do
 
 **A WARN is counted with the failures in DataHub's aggregate.** The chip on the Quality

@@ -1,0 +1,159 @@
+{
+  "acryl_datahub": "1.6.0.16",
+  "classes": {
+    "AssertionInfoClass": {
+      "fields": [
+        "customAssertion",
+        "customProperties",
+        "datasetAssertion",
+        "description",
+        "externalUrl",
+        "fieldAssertion",
+        "freshnessAssertion",
+        "lastUpdated",
+        "note",
+        "schemaAssertion",
+        "source",
+        "sqlAssertion",
+        "type",
+        "volumeAssertion"
+      ],
+      "members": [
+        "ASPECT_INFO",
+        "ASPECT_NAME",
+        "ASPECT_TYPE",
+        "RECORD_SCHEMA"
+      ]
+    },
+    "AssertionResultClass": {
+      "fields": [
+        "actualAggValue",
+        "error",
+        "externalUrl",
+        "missingCount",
+        "nativeResults",
+        "rowCount",
+        "severity",
+        "type",
+        "unexpectedCount"
+      ],
+      "members": [
+        "RECORD_SCHEMA"
+      ]
+    },
+    "AssertionResultTypeClass": {
+      "fields": [
+        "args",
+        "kwargs"
+      ],
+      "members": [
+        "ERROR",
+        "FAILURE",
+        "INIT",
+        "SUCCESS"
+      ]
+    },
+    "AssertionRunEventClass": {
+      "fields": [
+        "asserteeUrn",
+        "assertionUrn",
+        "batchSpec",
+        "eventGranularity",
+        "messageId",
+        "partitionSpec",
+        "result",
+        "runId",
+        "runtimeContext",
+        "status",
+        "timestampMillis"
+      ],
+      "members": [
+        "ASPECT_INFO",
+        "ASPECT_NAME",
+        "ASPECT_TYPE",
+        "RECORD_SCHEMA"
+      ]
+    },
+    "AssertionRunStatusClass": {
+      "fields": [
+        "args",
+        "kwargs"
+      ],
+      "members": [
+        "COMPLETE"
+      ]
+    },
+    "AssertionSourceClass": {
+      "fields": [
+        "created",
+        "type"
+      ],
+      "members": [
+        "RECORD_SCHEMA"
+      ]
+    },
+    "AssertionSourceTypeClass": {
+      "fields": [
+        "args",
+        "kwargs"
+      ],
+      "members": [
+        "EXTERNAL",
+        "INFERRED",
+        "NATIVE"
+      ]
+    },
+    "AssertionTypeClass": {
+      "fields": [
+        "args",
+        "kwargs"
+      ],
+      "members": [
+        "CUSTOM",
+        "DATASET",
+        "DATA_SCHEMA",
+        "FIELD",
+        "FRESHNESS",
+        "SQL",
+        "VOLUME"
+      ]
+    },
+    "CustomAssertionInfoClass": {
+      "fields": [
+        "entity",
+        "field",
+        "logic",
+        "type"
+      ],
+      "members": [
+        "RECORD_SCHEMA"
+      ]
+    },
+    "MetadataChangeProposalWrapper": {
+      "fields": [
+        "aspect",
+        "aspectName",
+        "auditHeader",
+        "changeType",
+        "entityKeyAspect",
+        "entityType",
+        "entityUrn",
+        "headers",
+        "systemMetadata"
+      ]
+    },
+    "StatusClass": {
+      "fields": [
+        "lifecycleLastUpdated",
+        "lifecycleStage",
+        "removed"
+      ],
+      "members": [
+        "ASPECT_INFO",
+        "ASPECT_NAME",
+        "ASPECT_TYPE",
+        "RECORD_SCHEMA"
+      ]
+    }
+  }
+}
