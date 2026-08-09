@@ -104,7 +104,7 @@ file on first use, so that first run needs package-index access.
 | # | Command | Needs | What it proves | Takes |
 |---|---|---|---|---|
 | 1 | `make gate-demo` | Python 3.12; package downloads on first use; no DataHub or credentials | The published `BLOCK` verdict is re-derived from the committed graph recording, byte-identical, with the same `policy_hash`. Hand-editing an artifact fails this. | ~2s after bootstrap |
-| 2 | `make check` | Python 3.12; package downloads on first use | 1143 tests, lint, format, types — 1141 passed, 2 optional integrations skipped, with 84.61% branch coverage; the same gates CI runs. | ~60s after bootstrap |
+| 2 | `make check` | Python 3.12; package downloads on first use | 1144 tests, lint, format, types — 1142 passed, 2 optional integrations skipped, with 84.61% branch coverage; the same gates CI runs. | ~60s after bootstrap |
 | 3 | `make live-loop` | a running DataHub ([`docs/SETUP.md`](docs/SETUP.md)) | The whole agent loop over the **official MCP server only**: read → decide → write a receipt → a *separate process* reads it back → an asset carrying no receipt returns `NOT VERIFIED`. | ~60s |
 | 4 | `make repair-demo` | the same DataHub | The repair agent proposes a fix from catalog evidence, re-runs the deterministic engine against the catalog that fix *would* create, and shows what it proved and what it refused. | ~40s |
 
@@ -234,6 +234,13 @@ installs `sentence-transformers`); with it, the trained reader proposes that fou
 claim. The three rule-derived claims still find one violation: `status` is documented
 as "One of: pending, paid, fulfilled" while 12 rows are `refunded`; the verdict is
 `WARN`. Details are in [`docs/CLAIM-READER.md`](docs/CLAIM-READER.md).
+
+Neither reader is required and neither is on by default. `--reader` is the trained head
+above. `--model` is a separate, third path: a local Ollama runtime, `ibm/granite4:1b-q4_1`
+by default, consulted only on sentences the deterministic reader declined. Sidq trained
+no part of that one and does not ship it. With Ollama absent, or the `reader` extra
+uninstalled, `sidq claims` reports what the rules found and says which reader it could
+not use — it does not quietly return a thinner answer as if it were the whole one.
 
 **Ownership is read as recorded.** `unowned_consumed` counts assets with no
 direct ownership record; inherited ownership is a governance convention Sidq

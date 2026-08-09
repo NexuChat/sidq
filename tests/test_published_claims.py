@@ -322,6 +322,43 @@ def test_the_prior_work_disclosure_matches_what_is_shipped() -> None:
     assert "ATTRIBUTION.md" in text
 
 
+def test_the_published_reader_scores_are_the_ones_the_artifact_records() -> None:
+    """The one measured ML claim in the project must come from its own evidence.
+
+    95.8% precision was quoted in three judge-facing documents and tied to
+    nothing: retraining the head would have changed `report.json` and left the
+    prose stating an old number, which is the drift every other published
+    figure here is guarded against.
+    """
+    report = json.loads(
+        (ROOT / "data/claims/reader/report.json").read_text(encoding="utf-8")
+    )
+    operating = report["operating_point"]
+    quoted = {
+        "precision": f"{operating['precision'] * 100:.1f}%",
+        "recall": f"{operating['recall'] * 100:.1f}%",
+        "baseline": f"{report['rule_baseline']['precision'] * 100:.1f}%",
+        "proposals": str(int(operating["proposals"])),
+    }
+
+    for name in ("README.md", "docs/CLAIM-READER.md", "docs/CLAIMS-MATRIX.md"):
+        text = " ".join((ROOT / name).read_text(encoding="utf-8").split())
+        for label in ("precision", "recall"):
+            assert quoted[label] in text, (
+                f"{name} does not state the recorded {label} "
+                f"{quoted[label]} from data/claims/reader/report.json"
+            )
+
+    readme = " ".join((ROOT / "README.md").read_text(encoding="utf-8").split())
+    assert f"{quoted['proposals']} proposals" in readme
+    # The baseline is what makes the headline number mean anything; a document
+    # that drops it is quoting a score with nothing to compare it against.
+    matrix = " ".join(
+        (ROOT / "docs/CLAIMS-MATRIX.md").read_text(encoding="utf-8").split()
+    )
+    assert quoted["baseline"] in matrix
+
+
 def test_the_test_count_in_the_judge_runbook_is_the_real_one() -> None:
     """The runbook tells a judge how many tests `make check` runs; it must be true.
 
