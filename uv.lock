@@ -1568,10 +1568,6 @@ action = [
     { name = "setuptools" },
     { name = "wheel" },
 ]
-advisory = [
-    { name = "torch" },
-    { name = "transformers" },
-]
 bench = [
     { name = "scikit-learn" },
 ]
@@ -1628,16 +1624,14 @@ requires-dist = [
     { name = "setuptools", marker = "extra == 'action'", specifier = ">=83" },
     { name = "setuptools", marker = "extra == 'dev'", specifier = ">=83" },
     { name = "sqlglot" },
-    { name = "torch", marker = "extra == 'advisory'", specifier = ">=2.5" },
     { name = "torch", marker = "extra == 'train'", specifier = ">=2.5" },
-    { name = "transformers", marker = "extra == 'advisory'", specifier = ">=5.0" },
     { name = "transformers", marker = "extra == 'reader'", specifier = ">=4.50" },
     { name = "transformers", marker = "extra == 'train'", specifier = ">=5.0" },
     { name = "trl", marker = "extra == 'train'", specifier = ">=0.20" },
     { name = "types-pyyaml", marker = "extra == 'dev'" },
     { name = "wheel", marker = "extra == 'action'" },
 ]
-provides-extras = ["dev", "action", "bench", "live", "reader", "advisory", "train"]
+provides-extras = ["dev", "action", "bench", "live", "reader", "train"]
 
 [[package]]
 name = "six"

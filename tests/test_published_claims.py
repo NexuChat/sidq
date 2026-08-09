@@ -351,7 +351,7 @@ def test_the_test_count_in_the_judge_runbook_is_the_real_one() -> None:
     )
 
     outcome = re.search(
-        r"(\d[\d,]*) passed, (\d[\d,]*) optional integrations skipped, "
+        r"(\d[\d,]*) passed, (\d[\d,]*) optional integrations? skipped, "
         r"with ([\d.]+)% branch coverage",
         text,
     )
@@ -368,9 +368,11 @@ def test_the_test_count_in_the_judge_runbook_is_the_real_one() -> None:
     normalized_claims = " ".join(claims.split())
     normalized_audit = " ".join(audit.split())
     assert f"{passed} passed" in normalized_qa
-    assert f"{skipped} optional integration tests skipped" in normalized_qa
+    # One skip reads "1 optional integration test skipped"; two read "…tests…".
+    # The count is the claim; the grammar around it must be allowed to agree.
+    assert re.search(rf"{skipped} optional integration tests? skipped", normalized_qa)
     assert f"{passed} pass" in normalized_claims
-    assert f"{skipped} optional integrations skip" in normalized_claims
+    assert re.search(rf"{skipped} optional integrations? skips?", normalized_claims)
     assert f"{passed} passed, {skipped} skipped" in normalized_audit
     for evidence in (qa, claims, audit):
         assert f"{coverage}%" in evidence

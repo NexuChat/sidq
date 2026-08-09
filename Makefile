@@ -231,7 +231,7 @@ CLAIMS_URNS ?= \
 claims-demo: export CLAIMS_SOURCE := $(CLAIMS_SOURCE)
 claims-demo: | $(VENV)/.sidq-dev-lock
 	@DATAHUB_GMS_URL=$(DATAHUB_GMS_URL) DATAHUB_TELEMETRY_ENABLED=false \
-	  $(VENV)/bin/sidq claims $(CLAIMS_URNS) --reader 2>/dev/null; \
+	  $(VENV)/bin/sidq claims $(CLAIMS_URNS) --reader; \
 	  status=$$?; [ $$status -le 1 ] || { echo "claims could not read the catalog or the source"; exit 1; }
 
 # The repair agent, on live DataHub. It proposes only from catalog evidence, then

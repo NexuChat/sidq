@@ -104,7 +104,7 @@ file on first use, so that first run needs package-index access.
 | # | Command | Needs | What it proves | Takes |
 |---|---|---|---|---|
 | 1 | `make gate-demo` | Python 3.12; package downloads on first use; no DataHub or credentials | The published `BLOCK` verdict is re-derived from the committed graph recording, byte-identical, with the same `policy_hash`. Hand-editing an artifact fails this. | ~2s after bootstrap |
-| 2 | `make check` | Python 3.12; package downloads on first use | 1123 tests, lint, format, types — 1121 passed, 2 optional integrations skipped, with 83.85% branch coverage; the same gates CI runs. | ~60s after bootstrap |
+| 2 | `make check` | Python 3.12; package downloads on first use | 1116 tests, lint, format, types — 1115 passed, 1 optional integration skipped, with 84.33% branch coverage; the same gates CI runs. | ~60s after bootstrap |
 | 3 | `make live-loop` | a running DataHub ([`docs/SETUP.md`](docs/SETUP.md)) | The whole agent loop over the **official MCP server only**: read → decide → write a receipt → a *separate process* reads it back → an asset carrying no receipt returns `NOT VERIFIED`. | ~60s |
 | 4 | `make repair-demo` | the same DataHub | The repair agent proposes a fix from catalog evidence, re-runs the deterministic engine against the catalog that fix *would* create, and shows what it proved and what it refused. | ~40s |
 
@@ -227,10 +227,13 @@ held-out 528, it reaches 95.8% precision and 58.0% recall at its operating point
 on 72 proposals. It proposes only `unique` and `not_null`, the two claim types
 that need no arguments. A gradient-boosted head had the same precision within
 noise and 16 points worse recall, while adding a training stack to inference.
-In the live demo, 6 documented fields produce 4 claims — 3 by rules and 1 by the
-trained reader — while 2 sentences are declined by both. One violation is found:
-`status` is documented as "One of: pending, paid, fulfilled" while 12 rows are
-`refunded`; the verdict is `WARN`. Details are in [`docs/CLAIM-READER.md`](docs/CLAIM-READER.md).
+On the documented `make claims-demo` path, 6 documented fields produce 3
+rule-derived claims; we do not call a reader result that the environment cannot
+produce. The fourth claim requires the optional `reader` extra (`.[reader]`, which
+installs `sentence-transformers`); with it, the trained reader proposes that fourth
+claim. The three rule-derived claims still find one violation: `status` is documented
+as "One of: pending, paid, fulfilled" while 12 rows are `refunded`; the verdict is
+`WARN`. Details are in [`docs/CLAIM-READER.md`](docs/CLAIM-READER.md).
 
 **Ownership is read as recorded.** `unowned_consumed` counts assets with no
 direct ownership record; inherited ownership is a governance convention Sidq
@@ -593,12 +596,16 @@ Exit codes are `0` for `PASS`, `1` for `WARN`, and `2` for `BLOCK`. The JSON ver
 
 ### 4. GitHub PR bot
 
-The bot renders deterministic findings, provenance, graph evidence, impact paths, and the exact reproduction command. This is the real rendered output from [`examples/01-blocked-pii-dashboard/pr-comment.md`](examples/01-blocked-pii-dashboard/pr-comment.md):
+The bot renders deterministic findings, provenance, graph evidence, impact paths,
+and the exact reproduction command. The complete rendered output is
+[`examples/01-blocked-pii-dashboard/pr-comment.md`](examples/01-blocked-pii-dashboard/pr-comment.md);
+the representative rendering below keeps the decision and evidence shape without
+repeating every consumer and owner.
 
 <!-- sidq-pr-bot:sticky -->
 # 🚫 BLOCKED — <code>critical_downstream</code>
 
-> **FIXTURE REPLAY — NOT LIVE DATAHUB.** This verdict used recorded graph responses. See the sealed demo pull requests for live-graph verdicts.
+> **FIXTURE REPLAY — NOT LIVE DATAHUB.** This verdict used recorded graph responses.
 
 ## Deterministic policy decision
 
@@ -608,104 +615,20 @@ Only the deterministic policy findings in this section affect the merge decision
 
 **Why:** This change affects 16 downstream consumers for dbt · order_entry_db.order_entry.customers.
 
-**Evidence:** [<code>dbt · order_entry_db.order_entry.customers</code>](https://datahub.mlki.app/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Adbt%2Cb2fd91.order_entry_db.order_entry.customers%2CPROD%29)
-
-- PII tags: <code>tag · PII_Data</code>
 - Reaches: <code>Looker dashboard · dashboards.53</code>
 - Blast radius: **16 downstream consumers** within 3 hops
 - Column-level impact path:
 
   <code>dbt · order_entry_db.order_entry.customers.cust_email</code> → <code>dbt · ORDER_ENTRY_DB.analytics.order_details.cust_email</code> → <code>Snowflake · order_entry_db.analytics.order_details.cust_email</code> → <code>Looker view · order-entry-looker.view.order_details.cust_email</code> → <code>Looker explore · order-entry.explore.order_details.order_details.cust_email</code> → <code>Looker explore · order-entry.explore.order_details</code> → <code>Looker chart · dashboard_elements.224</code> → <code>Looker dashboard · dashboards.53</code>
 - Path note: Column lineage is proven through the BI field; chart and dashboard hops are entity-level.
-
-<details>
-<summary>Downstream consumers (16)</summary>
-
-- <code>Looker chart · dashboard_elements.221</code>
-- <code>Looker chart · dashboard_elements.222</code>
-- <code>Looker chart · dashboard_elements.223</code>
-- <code>Looker chart · dashboard_elements.224</code>
-- <code>Looker dashboard · dashboards.53</code>
-- <code>Looker explore · order-entry.explore.order_details</code>
-- <code>Looker view · order-entry-looker.view.order_details</code>
-- <code>Power BI · datahub_order_entries.Customer_Analytics_Measures</code>
-- <code>Power BI · datahub_order_entries.Essential_KPI_Measures</code>
-- <code>Power BI · datahub_order_entries.Geographic_Measures</code>
-- <code>Power BI · datahub_order_entries.ORDER_DETAILS</code>
-- <code>Power BI · datahub_order_entries.Product_Perfromance_Measures</code>
-- <code>Power BI · datahub_order_entries.Time_Inteligence_Measures</code>
-- <code>Snowflake · order_entry_db.analytics.order_details</code>
-- <code>Snowflake · order_entry_db.analytics.order_details_replica</code>
-- <code>dbt · ORDER_ENTRY_DB.analytics.order_details</code>
-
-</details>
-
-<details>
-<summary>Cross-team owners (9)</summary>
-
-- <code>group · 1e0398a3-113f-475e-b6fc-32ab72a634d2</code>
-- <code>group · ORG_BACKEND_ENG</code>
-- <code>user · alex@example.com</code>
-- <code>user · brock1@example.com</code>
-- <code>user · bryan@example.com</code>
-- <code>user · jonny2@example.com</code>
-- <code>user · kirk@example.com</code>
-- <code>user · marty@example.com</code>
-- <code>user · sam@example.com</code>
-
-</details>
 
 ### 🚫 <code>critical_downstream</code> — BLOCK
 
-**Why:** This change has critical or cross-team downstream consumers for dbt · order_entry_db.order_entry.customers.
-
-**Evidence:** [<code>dbt · order_entry_db.order_entry.customers</code>](https://datahub.mlki.app/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Adbt%2Cb2fd91.order_entry_db.order_entry.customers%2CPROD%29)
-
-- PII tags: <code>tag · PII_Data</code>
-- Reaches: <code>Looker dashboard · dashboards.53</code>
-- Blast radius: **16 downstream consumers** within 3 hops
-- Column-level impact path:
-
-  <code>dbt · order_entry_db.order_entry.customers.cust_email</code> → <code>dbt · ORDER_ENTRY_DB.analytics.order_details.cust_email</code> → <code>Snowflake · order_entry_db.analytics.order_details.cust_email</code> → <code>Looker view · order-entry-looker.view.order_details.cust_email</code> → <code>Looker explore · order-entry.explore.order_details.order_details.cust_email</code> → <code>Looker explore · order-entry.explore.order_details</code> → <code>Looker chart · dashboard_elements.224</code> → <code>Looker dashboard · dashboards.53</code>
-- Path note: Column lineage is proven through the BI field; chart and dashboard hops are entity-level.
-
-<details>
-<summary>Downstream consumers (16)</summary>
-
-- <code>Looker chart · dashboard_elements.221</code>
-- <code>Looker chart · dashboard_elements.222</code>
-- <code>Looker chart · dashboard_elements.223</code>
-- <code>Looker chart · dashboard_elements.224</code>
-- <code>Looker dashboard · dashboards.53</code>
-- <code>Looker explore · order-entry.explore.order_details</code>
-- <code>Looker view · order-entry-looker.view.order_details</code>
-- <code>Power BI · datahub_order_entries.Customer_Analytics_Measures</code>
-- <code>Power BI · datahub_order_entries.Essential_KPI_Measures</code>
-- <code>Power BI · datahub_order_entries.Geographic_Measures</code>
-- <code>Power BI · datahub_order_entries.ORDER_DETAILS</code>
-- <code>Power BI · datahub_order_entries.Product_Perfromance_Measures</code>
-- <code>Power BI · datahub_order_entries.Time_Inteligence_Measures</code>
-- <code>Snowflake · order_entry_db.analytics.order_details</code>
-- <code>Snowflake · order_entry_db.analytics.order_details_replica</code>
-- <code>dbt · ORDER_ENTRY_DB.analytics.order_details</code>
-
-</details>
-
-<details>
-<summary>Cross-team owners (9)</summary>
-
-- <code>group · 1e0398a3-113f-475e-b6fc-32ab72a634d2</code>
-- <code>group · ORG_BACKEND_ENG</code>
-- <code>user · alex@example.com</code>
-- <code>user · brock1@example.com</code>
-- <code>user · bryan@example.com</code>
-- <code>user · jonny2@example.com</code>
-- <code>user · kirk@example.com</code>
-- <code>user · marty@example.com</code>
-- <code>user · sam@example.com</code>
-
-</details>
+**Why:** Cross-team downstream ownership makes this change blocking.
 
 ---
 
-Fixture replay: run <code>make gate-demo</code>, which uses the committed diff, graph fixture, policy, pinned code revision, and canonical serialization. Provenance: <code>policy_hash=66f48004804c5ce02955699710466b6d58ae7a868f876a4774e548c5c15920b8</code> · <code>commit_sha=5addb753788935d4d1aa6a9483c28c6fc124e5c7</code>
+Fixture replay: run <code>make gate-demo</code>, which uses the committed diff, graph fixture,
+policy, pinned code revision, and canonical serialization. Provenance:
+<code>policy_hash=66f48004804c5ce02955699710466b6d58ae7a868f876a4774e548c5c15920b8</code> ·
+<code>commit_sha=5addb753788935d4d1aa6a9483c28c6fc124e5c7</code>

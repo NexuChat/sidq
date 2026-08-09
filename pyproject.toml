@@ -40,7 +40,6 @@ live = ["psycopg[binary]>=3.1"]
 # The trained documentation reader. The head itself is committed and needs only
 # numpy; this extra is the multilingual embedding model that produces its input.
 reader = ["numpy>=2,<3", "sentence-transformers>=5.0", "transformers>=4.50"]
-advisory = ["transformers>=5.0", "torch>=2.5"]
 # Kept out of the default install: these packages and the model weights are
 # only required for the CPU LoRA experiment in scripts/train_lora.py.
 train = [

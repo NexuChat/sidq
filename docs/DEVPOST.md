@@ -191,11 +191,14 @@ embedding model covering 94+ languages, trained on 2,048 rows and evaluated on a
 held-out 528. At its operating point it reaches 95.8% precision and 58.0% recall
 on 72 proposals, and proposes only the argument-free `unique` and `not_null`
 claim types. A gradient-boosted head had the same precision within noise and 16
-points worse recall, while adding a training stack to inference. In the live
-demo, 6 documented fields produce 4 claims — 3 by rules and 1 by the trained
-reader — while 2 sentences are declined by both; one violation is found because
-`status` is documented as "One of: pending, paid, fulfilled" while 12 rows are
-`refunded`, giving a `WARN` verdict. Details are in
+points worse recall, while adding a training stack to inference. On the documented
+`make claims-demo` path, 6 documented fields produce 3 rule-derived claims; we do
+not call a reader result that the environment cannot produce. The fourth claim
+requires the optional `reader` extra (`.[reader]`, which installs
+`sentence-transformers`); with it, the trained reader proposes that fourth claim.
+The three rule-derived claims still find one violation because `status` is
+documented as "One of: pending, paid, fulfilled" while 12 rows are `refunded`,
+giving a `WARN` verdict. Details are in
 [`docs/CLAIM-READER.md`](CLAIM-READER.md).
 
 
