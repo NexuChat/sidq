@@ -20,18 +20,20 @@ duration of one examination.
 no claim or compare-and-set primitive. Per-target digest ordering removes the
 modulus collision that made two rotations share one cyclic path, but it cannot
 exclude collisions. Two orders can share a next target, a prefix, or — by full-
-permutation coincidence — an entire consequence band. Workers that reach the
+permutation coincidence — an entire consequence tier. Workers that reach the
 same unreceipted asset before either receipt becomes visible will both examine
 it. That is safe — the engine is deterministic, so both write the same verdict.
 DataHub exposes the latest receipt, not an append-only examination history, so
 the observer does not claim it can count collisions after the fact.
 
-**Why the work splits at all.** Each worker independently orders targets within
-each equal-consequence band by a digest of its worker id and the target URN.
-Every worker exhausts higher-consequence bands first and still walks the whole
-plan. A shared first target no longer forces a shared successor because every
-in-band position comes from per-target keys. No negotiation: the receipts each
-writes steer the others away as they go.
+**Why the work splits at all.** The exact consequence ranking is cut into
+bounded tiers, then each worker independently orders a tier by a digest of its
+worker id and the target URN. Real consequence scores are usually distinct; an
+older version shuffled only exact ties and therefore gave every worker the same
+plan. A worker now gives up exact rank only inside a small high-consequence
+neighbourhood, exhausts that neighbourhood before the next, and still walks the
+whole plan. No negotiation: the different early paths do useful work before a
+receipt can possibly arrive, and receipts narrow the remaining overlap later.
 
 **And if a worker dies mid-run**, its unfinished assets are left unreceipted —
 so the survivors, re-reading before every target, pick them up as ordinary
@@ -52,6 +54,8 @@ from sidq.policy.engine import PolicyEngine
 from sidq.receipt.build import build_receipt
 from sidq.receipt.read import ToolCaller, get_verification_status
 from sidq.receipt.state import judge
+
+_CONSEQUENCE_TIER_SIZE = 16
 
 
 @dataclass
@@ -89,27 +93,62 @@ class WorkerRun:
 
 
 def order_for_worker(worker_id: str, plan: Sequence[Target]) -> list[Target]:
-    """Order each consequence band by a worker-seeded digest of the target.
+    """Order bounded consequence tiers by a worker-seeded target digest.
 
-    Consequence remains the primary order, so a worker exhausts a higher band
-    before entering a lower one. Within a band, hashing the worker id with each
-    URN derives a separate, deterministic key for every target instead of an
-    offset into one cyclic path. Equal digests are resolved by URN.
+    The plan is ranked exactly first, then cut into nominal sixteen-target
+    tiers. An exact tie is never split, and zero-consequence work never shares
+    a tier with positive-consequence work. A worker can therefore examine the
+    sixteenth-ranked positive target before the first, but it cannot fall into
+    the next tier while this one remains. That bounded loss of exact rank is the
+    deliberate price of making distinct real-world scores spread before slow
+    receipts exist; shuffling exact ties did nothing when every band was one.
 
-    This is not a partition: every worker still receives the whole plan, so no
-    asset belongs to one worker and a dead worker strands nothing. It is also
-    not a claim: different workers can still share a first target, a prefix, or
-    — by full-permutation coincidence — the same in-band order.
+    Within a tier, hashing the worker id with every URN derives a separate,
+    deterministic key instead of an offset into one cyclic path. This is not a
+    partition: every worker still receives the whole plan, so no asset belongs
+    to one worker and a dead worker strands nothing. It is also not a claim:
+    workers can still share a target or, by permutation coincidence, a prefix.
     """
     seed = worker_id.encode() + b"\0"
-    return sorted(
+    ordered: list[Target] = []
+    for tier in _consequence_tiers(plan):
+        ordered.extend(
+            sorted(
+                tier,
+                key=lambda target: (
+                    hashlib.sha256(seed + target.urn.encode()).digest(),
+                    target.urn,
+                    -target.consequence,
+                    target.reasons,
+                ),
+            )
+        )
+    return ordered
+
+
+def _consequence_tiers(plan: Sequence[Target]) -> list[list[Target]]:
+    """Make bounded rank tiers without mixing notable and trivial exposure."""
+    ranked = sorted(
         plan,
-        key=lambda target: (
-            -target.consequence,
-            hashlib.sha256(seed + target.urn.encode()).digest(),
-            target.urn,
-        ),
+        key=lambda target: (-target.consequence, target.urn, target.reasons),
     )
+    tiers: list[list[Target]] = []
+    tier: list[Target] = []
+    for target in ranked:
+        crosses_zero = bool(tier) and (tier[0].consequence > 0) != (
+            target.consequence > 0
+        )
+        follows_full_tier = (
+            len(tier) >= _CONSEQUENCE_TIER_SIZE
+            and target.consequence != tier[-1].consequence
+        )
+        if crosses_zero or follows_full_tier:
+            tiers.append(tier)
+            tier = []
+        tier.append(target)
+    if tier:
+        tiers.append(tier)
+    return tiers
 
 
 class SwarmWorker:
@@ -118,7 +157,7 @@ class SwarmWorker:
     The differences from `CatalogAuditor.run` are three, and each exists because
     peers are working the same catalog at the same time: the receipt is read per
     target instead of once per run, the receipt is written per verdict instead
-    of once per run, and equal-consequence targets receive a worker-specific
+    of once per run, and bounded consequence tiers receive a worker-specific
     order.
     """
 

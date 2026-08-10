@@ -19,7 +19,7 @@ from collections import Counter
 from datetime import UTC, datetime, timedelta
 from threading import Barrier, Event, Lock, Thread, current_thread
 
-from sidq.agent.auditor import Target
+from sidq.agent.auditor import CatalogAuditor, Target
 from sidq.agent.swarm import (
     SwarmWorker,
     WorkerRun,
@@ -27,7 +27,12 @@ from sidq.agent.swarm import (
     order_for_worker,
     render_worker,
 )
-from sidq.gates.self_contradiction import CatalogEntity, CatalogField, CatalogSnapshot
+from sidq.gates.self_contradiction import (
+    CatalogEntity,
+    CatalogField,
+    CatalogSnapshot,
+    LineageEdge,
+)
 from sidq.models import Verdict
 from sidq.policy.engine import PolicyEngine
 from sidq.receipt.build import build_receipt
@@ -147,7 +152,7 @@ def _seed_receipt(
 
 
 # ---------------------------------------------------------------------------
-# order_for_worker: different paths through every consequence band, never a
+# order_for_worker: different paths through every consequence tier, never a
 # partition of the plan.
 
 
@@ -160,20 +165,94 @@ def test_order_for_worker_is_deterministic() -> None:
     assert order_for_worker("worker-a", plan) == order_for_worker("worker-a", plan)
 
 
-def test_order_for_worker_preserves_consequence_bands() -> None:
-    """Worker diversity must never spend a small budget below a more
-    consequential asset; only ties are available for reordering."""
-    plan = [
-        Target("urn:low-a", 1, ()),
-        Target("urn:high-b", 9, ()),
-        Target("urn:middle", 4, ()),
-        Target("urn:high-a", 9, ()),
-        Target("urn:low-b", 1, ()),
+def test_order_for_worker_keeps_worst_first_between_bounded_tiers() -> None:
+    """Worker diversity may trade exact rank inside the top sixteen, but a
+    small budget cannot fall through that bounded high-consequence tier."""
+    plan = [Target(f"urn:asset:{score}", score, ()) for score in range(1, 21)]
+
+    ordered = order_for_worker("alpha", plan)
+
+    assert {target.consequence for target in ordered[:16]} == set(range(5, 21))
+    assert {target.consequence for target in ordered[16:]} == set(range(1, 5))
+
+
+def test_order_for_worker_never_promotes_zero_consequence_into_a_positive_tier() -> (
+    None
+):
+    """A wide tier exists to spread valuable work, not to let an asset with no
+    notable exposure consume a budget while positive-consequence work waits."""
+    plan = [Target(f"urn:positive:{score}", score, ()) for score in range(1, 9)] + [
+        Target(f"urn:zero:{index}", 0, ()) for index in range(12)
     ]
 
     ordered = order_for_worker("alpha", plan)
 
-    assert [target.consequence for target in ordered] == [9, 9, 4, 1, 1]
+    assert all(target.consequence > 0 for target in ordered[:8])
+    assert all(target.consequence == 0 for target in ordered[8:])
+
+
+def test_realistic_distinct_consequences_split_work_before_receipts_can_help() -> None:
+    """The real scorer adds ten per consumer and fifteen for an unowned asset,
+    producing distinct, spread scores rather than convenient ties. Even if no
+    receipt becomes visible during the first six examinations, the demo workers
+    must select substantially more than the same six assets between them.
+
+    Under the broken exact-score bands every prefix below was the same and 12
+    of 18 examinations were duplicates. This assertion gives the receipt stream
+    no credit: it pins the diversity the order itself supplies before a peer can
+    possibly finish an examination and write.
+    """
+    expected_consequences = (
+        175,
+        160,
+        155,
+        150,
+        135,
+        130,
+        115,
+        110,
+        95,
+        90,
+        75,
+        70,
+        55,
+        50,
+        45,
+        40,
+        35,
+        30,
+        20,
+        15,
+    )
+    entities: list[CatalogEntity] = []
+    edges: list[LineageEdge] = []
+    for score in expected_consequences:
+        unowned = score % 10 == 5
+        downstream = (score - (15 if unowned else 0)) // 10
+        urn = f"urn:asset:{score}"
+        entities.append(
+            CatalogEntity(
+                urn,
+                "dataset",
+                fields=(CatalogField("id"),),
+                owners=() if unowned else ("urn:owner",),
+            )
+        )
+        edges.extend(
+            LineageEdge(urn, None, f"urn:consumer:{score}:{index}", None)
+            for index in range(downstream)
+        )
+    plan = CatalogAuditor(CatalogSnapshot(tuple(entities), tuple(edges))).plan()
+
+    assert tuple(target.consequence for target in plan) == expected_consequences
+
+    prefixes = [
+        order_for_worker(worker, plan)[:6] for worker in ("alpha", "beta", "gamma")
+    ]
+    examinations = [target.urn for prefix in prefixes for target in prefix]
+
+    assert len(examinations) - len(set(examinations)) <= 6
+    assert len({prefix[0] for prefix in prefixes}) == 3
 
 
 def test_order_for_worker_is_a_permutation_not_a_partition() -> None:
@@ -193,10 +272,9 @@ def test_order_for_worker_is_a_permutation_not_a_partition() -> None:
 
 def test_demo_workers_diverge_for_small_and_large_plans() -> None:
     """This replaces the old rotation contract because a shared offset made
-    colliding workers traverse the entire plan in lockstep. Four distinct
-    starts require at least four targets in the leading consequence band; once
-    that band exists, the real demo ids take four different first targets.
-    Smaller bands still produce every distinct full ordering they can support.
+    colliding workers traverse the entire plan in lockstep. Per-target keys
+    produce every distinct full ordering these small plans can support; the
+    realistic-score regression above separately pins useful prefix diversity.
     """
     workers = ("alpha", "beta", "gamma", "delta")
     leading_band = ("urn:a", "urn:h", "urn:j", "urn:c")
@@ -212,8 +290,6 @@ def test_demo_workers_diverge_for_small_and_large_plans() -> None:
             assert len(distinct_orders) == 2
         else:
             assert len(distinct_orders) == 4
-        if size >= 4:
-            assert len({order[0] for order in orders}) == 4
 
 
 def test_order_for_worker_handles_empty_and_single_target_plans() -> None:
