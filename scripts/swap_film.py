@@ -36,6 +36,12 @@ OLD_DURATION = "175.595"
 OLD_FRAMES = "5,266"
 OLD_CUES = "61-cue"
 OLD_CHAPTERS = "five of six chapters"
+# The runtime is published twice in two notations: the exact seconds a reader
+# can re-measure, and the "2:56" a reader can read. Replacing only the first
+# leaves the README and the landing page quoting a length the file no longer
+# has — which is the same two-documents-disagree failure this script exists to
+# prevent, arriving through the one surface it was not looking at.
+OLD_HUMAN_DURATION = "2:56"
 
 
 def probe(master: pathlib.Path) -> tuple[str, int, str, int]:
@@ -44,22 +50,38 @@ def probe(master: pathlib.Path) -> tuple[str, int, str, int]:
     size = master.stat().st_size
     duration = subprocess.run(
         [
-            "ffprobe", "-v", "error",
-            "-show_entries", "format=duration",
-            "-of", "default=nw=1:nk=1", str(master),
+            "ffprobe",
+            "-v",
+            "error",
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "default=nw=1:nk=1",
+            str(master),
         ],
-        capture_output=True, text=True, check=True,
+        capture_output=True,
+        text=True,
+        check=True,
     ).stdout.strip()
     # Counted, not derived from duration times frame rate — the published record
     # states an exact authored frame count and a reader can re-count it.
     frames = subprocess.run(
         [
-            "ffprobe", "-v", "error", "-count_frames",
-            "-select_streams", "v:0",
-            "-show_entries", "stream=nb_read_frames",
-            "-of", "default=nw=1:nk=1", str(master),
+            "ffprobe",
+            "-v",
+            "error",
+            "-count_frames",
+            "-select_streams",
+            "v:0",
+            "-show_entries",
+            "stream=nb_read_frames",
+            "-of",
+            "default=nw=1:nk=1",
+            str(master),
         ],
-        capture_output=True, text=True, check=True,
+        capture_output=True,
+        text=True,
+        check=True,
     ).stdout.strip()
     return digest, size, f"{float(duration):.3f}", int(frames)
 
@@ -68,13 +90,19 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--master", required=True, type=pathlib.Path)
     parser.add_argument("--video-id", required=True)
-    parser.add_argument("--srt", type=pathlib.Path, help="the new sidecar SRT, to count its cues")
     parser.add_argument(
-        "--chapters", type=int, required=True,
+        "--srt", type=pathlib.Path, help="the new sidecar SRT, to count its cues"
+    )
+    parser.add_argument(
+        "--chapters",
+        type=int,
+        required=True,
         help="how many chapters the new film has (it cannot be read from the container)",
     )
     parser.add_argument(
-        "--live-chapters", type=int, required=True,
+        "--live-chapters",
+        type=int,
+        required=True,
         help="how many of them carry real footage rather than illustration",
     )
     parser.add_argument("--dry-run", action="store_true")
@@ -92,7 +120,8 @@ def main() -> int:
     cues = None
     if arguments.srt and arguments.srt.is_file():
         cues = sum(
-            1 for line in arguments.srt.read_text(encoding="utf-8").splitlines()
+            1
+            for line in arguments.srt.read_text(encoding="utf-8").splitlines()
             if "-->" in line
         )
     if float(duration) >= 180:
@@ -105,9 +134,11 @@ def main() -> int:
         OLD_SIZE: f"{size:,}",
         OLD_DURATION: duration,
         OLD_FRAMES: f"{frames:,}",
-        OLD_CHAPTERS: (
-            f"{arguments.live_chapters} of {arguments.chapters} chapters"
-        ),
+        OLD_CHAPTERS: (f"{arguments.live_chapters} of {arguments.chapters} chapters"),
+        # Rounded, not truncated: 175.595s was published as "2:56", so rounding
+        # is the reading this project already committed to, and switching to a
+        # floor here would silently restate the current film as a second shorter.
+        OLD_HUMAN_DURATION: f"{round(float(duration)) // 60}:{round(float(duration)) % 60:02d}",
     }
     if cues is not None:
         replacements[OLD_CUES] = f"{cues}-cue"
@@ -133,7 +164,10 @@ def main() -> int:
         planned.append((path, updated, hits))
 
     if not planned:
-        print("STOP: found nothing to replace — is the swap already done?", file=sys.stderr)
+        print(
+            "STOP: found nothing to replace — is the swap already done?",
+            file=sys.stderr,
+        )
         return 1
 
     print(f"  new master   {master}")
@@ -141,7 +175,9 @@ def main() -> int:
     print(f"  size         {size:,} bytes")
     print(f"  duration     {duration}s")
     print(f"  frames       {frames:,}  (counted)")
-    print(f"  chapters     {arguments.chapters}, {arguments.live_chapters} with real footage")
+    print(
+        f"  chapters     {arguments.chapters}, {arguments.live_chapters} with real footage"
+    )
     if cues is not None:
         print(f"  srt cues     {cues}")
     print(f"  video id     {arguments.video_id}")
@@ -156,7 +192,9 @@ def main() -> int:
 
     for path, updated, _ in planned:
         path.write_text(updated, encoding="utf-8")
-    print(f"\n  rewrote {len(planned)} files. Now run `make check`, then redeploy the page.")
+    print(
+        f"\n  rewrote {len(planned)} files. Now run `make check`, then redeploy the page."
+    )
     return 0
 
 
