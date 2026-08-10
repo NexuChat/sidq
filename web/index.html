@@ -93,10 +93,10 @@ byte-identical verdict. Full evidence: examples/01-blocked-pii-dashboard/verdict
               <p id="run-progress" aria-live="polite" hidden></p>
               <pre id="run-output" tabindex="-1" hidden></pre>
               <div class="run-row">
-                <button class="chip" type="button" data-run="claims" aria-controls="run-output">Test the docs against live PostgreSQL · ~5s</button>
+                <button class="chip" type="button" data-run="claims" aria-controls="run-output">Test the docs against live PostgreSQL · ~35s</button>
                 <button class="chip" type="button" data-run="gate-demo" aria-controls="run-output">Offline verdict</button>
                 <button class="chip" type="button" data-run="audit" aria-controls="run-output">Catalog audit</button>
-                <button class="chip" type="button" data-run="repair" aria-controls="run-output">Repair agent · ~55s</button>
+                <button class="chip" type="button" data-run="repair" aria-controls="run-output">Repair agent · ~45s</button>
               </div>
               <p class="fine">Five live proofs, each a fixed read-only command from a closed table. The times beside them are measured on this host, not estimated. The first is the one no catalog can answer on its own: it compiles what DataHub <em>documents</em> about a field into bounded SQL and runs it against the source.</p>
               <details class="mcp-tools">
@@ -220,7 +220,7 @@ Swarm worker gamma
           </dl>
 
           <div class="section-run">
-            <button class="btn-secondary" type="button" data-run="audit" aria-controls="run-output">Hunt contradictions in the live catalog · ~40s</button>
+            <button class="btn-secondary" type="button" data-run="audit" aria-controls="run-output">Hunt contradictions in the live catalog · ~30s</button>
             <span class="fine">Real read-only audit over the official MCP server. Output prints in the console above.</span>
           </div>
         </div>
@@ -322,7 +322,7 @@ make gate-demo</code>
         <span id="release-identity">Release: unavailable</span>
       </div>
       <div class="wrap standing">
-        <p class="fine"><a href="https://www.youtube.com/watch?v=R4GdN36Lsno" rel="noopener">Watch the 2:56 film ↗</a> — real footage in five of six chapters. <strong>1,179 tests</strong> in one gate, and guards that fail the build when any number this project publishes goes stale. Open-source contributions in review: <a href="https://github.com/datahub-project/datahub/pull/19017" rel="noopener">datahub#19017 ↗</a> and <a href="https://github.com/datahub-project/datahub-skills/pull/81" rel="noopener">datahub-skills#81 ↗</a> — both open, neither merged.</p>
+        <p class="fine"><a href="https://www.youtube.com/watch?v=R4GdN36Lsno" rel="noopener">Watch the 2:56 film ↗</a> — real footage in five of six chapters. <strong>1,180 tests</strong> in one gate, and guards that fail the build when any number this project publishes goes stale. Open-source contributions in review: <a href="https://github.com/datahub-project/datahub/pull/19017" rel="noopener">datahub#19017 ↗</a> and <a href="https://github.com/datahub-project/datahub-skills/pull/81" rel="noopener">datahub-skills#81 ↗</a> — both open, neither merged.</p>
       </div>
     </footer>
 
