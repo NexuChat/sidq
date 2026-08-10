@@ -753,7 +753,11 @@ def test_the_video_runbook_fits_the_limit_and_leads_with_the_handoff() -> None:
     normalized_video = " ".join(video.lower().split())
 
     assert "under three minutes" in normalized_video
-    assert "burned english" in normalized_video
+    # Was "burned english": the superseded cut baked the narration into the
+    # frames. It no longer does — a viewer cannot turn baked words off or have
+    # them machine-translated — so the record has to state where the transcript
+    # went instead of asserting a property the film stopped having.
+    assert "sidecar srt" in normalized_video
     assert "ILLUSTRATION" in video
     assert "LIVE CAPTURE" in video
     assert "REPRODUCIBLE OFFLINE REPLAY" in video
@@ -762,7 +766,10 @@ def test_the_video_runbook_fits_the_limit_and_leads_with_the_handoff() -> None:
     for visible_capture_detail in ("address bar", "playback rate"):
         assert visible_capture_detail in normalized_video
     assert "independent receipt read" in normalized_video
-    assert "CURRENT RECEIPT · PASS · CONTINUE" in video
+    # Was the `sidq verify` terminal string. The receipt re-read is now shown
+    # on the deployed page rather than in a terminal take, so the claim the
+    # record must carry is the property, not that one line of output.
+    assert "policy hash" in normalized_video
     assert "DECISION : BLOCK" in video or "`BLOCK`" in video
     # The document always carries the current artifact's exact identity.
     assert re.search(r"\d+\.\d{3} seconds", video)

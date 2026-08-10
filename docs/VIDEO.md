@@ -31,25 +31,52 @@ review: terminal takes at xterm font size 22 in a 104×21 window that fills the
 frame (long lines wrap honestly instead of leaving it), browser takes at
 device scale 1.25–1.3 so the pages fill the frame. A final cursorless retake re-recorded every capture with the pointer excluded from the grab.
 
-| Capture | What it shows | Label |
+None of the capture filenames below are paths in this repository: they live
+in the film source tree, which is not shipped here. What *is* shipped is the
+master's identity above, which is what a reader can actually re-measure.
+
+| Chapter | Runs | Captures, and what each is labelled on screen (these filenames are not shipped here — they live in the film source tree) |
 |---|---|---|
-| `cli-audit.mp4` (46.4 s) | `sidq audit --via-mcp --budget 4` against the live catalog — the sample being examined, ranked worst-consequence first | LIVE CAPTURE |
-| `cli-gate.mp4` (7.7 s) | `make gate-demo` re-deriving the committed `BLOCK`, byte-identical | REPRODUCIBLE OFFLINE REPLAY |
-| `web-pr.mp4` (22.9 s) | A signed-out browser on the public sealed thread `github.com/NexuChat/sidq/pull/2`: the bot verdict, evidence expanded by real clicks, the final hold on the reproducibility block | LIVE CAPTURE |
-| `web-console.mp4` (25.4 s) | One continuous session on `sidq.mlki.app`: the contradiction, the refusal, then one real handoff run to its server output | LIVE CAPTURE |
-| `datahub-receipt-ui.png` | The persisted receipt inside the DataHub UI: structured properties, policy hash, evidence link, verified tag | LIVE CAPTURE |
-| `cli-verify.mp4` (11.9 s) | `sidq verify` reading the persisted receipt: `CURRENT RECEIPT · PASS · CONTINUE` | LIVE CAPTURE |
-| `cli-agent.mp4` (16.3 s) | The same agent twice in one take: blind it writes SQL; with Sidq's three read-only tools it refuses and prints its reasons | LIVE CAPTURE |
+| 1 · Catalog vs reality | 0:00 → 0:22 | `v6/site-tour.mp4` (LIVE CAPTURE) · `v6/terminal-claims.mp4` (LIVE CAPTURE) |
+| 2 · Written back | 0:22 → 0:43 | `v6/datahub-native-assertion.mp4` (LIVE CAPTURE) |
+| 3 · Shared receipts | 0:43 → 1:17 | `v6/terminal-swarm.mp4` (LIVE CAPTURE) |
+| 4 · Catalog vs itself | 1:17 → 1:44 | `v6/site-tour.mp4` (LIVE CAPTURE) · `v6/site-catalog_vs_itself.png` (LIVE CAPTURE) |
+| 5 · Deterministic refusal — the committed `BLOCK`, re-derived | 1:44 → 2:08 | `v6/site-refusal.png` (LIVE CAPTURE) · `v6/terminal-gate.mp4` (REPRODUCIBLE OFFLINE REPLAY) |
+| 6 · Receipt re-read | 2:08 → 2:29 | `v6/site-receipt.png` (LIVE CAPTURE) |
+| 7 · Next step | 2:29 → 2:51 | `v6/site-reproduce.png` (LIVE CAPTURE) · `v6/terminal-gate.mp4` (REPRODUCIBLE OFFLINE REPLAY) · drawn card (ILLUSTRATION) |
 
-The narrative answers why / what / when / how / who: chapter 1 audits the
-shipped sample (why checking is needed), chapter 2 gates the change and ends
-on the public pull-request thread (when Sidq runs and where the verdict
-lands), chapter 3 is the deployed judge console, chapter 4 shows the receipt
-living in the catalog itself and its independent receipt read, chapter 5 is
-the agent that stops, chapter 6 closes with where Sidq runs and the shared-state
-semantics.
+Three honesty properties survive from the earlier cuts because they are
+properties of how the captures are taken, not of which cut they belong to. The
+browser takes keep the address bar in frame, so a viewer can see which host is
+answering. The offline replay is slowed to a declared playback rate of 0.92
+rather than being silently cut. And chapter 6 is an independent receipt read: a
+reader that did not perform the examination re-reads the context, the policy
+hash and the age, and answers whether the receipt still applies at all.
 
-All six chapters are one consistent narration voice
+Every label above is read from that capture's `*.provenance.json` at build time
+into `src/v4/provenance.generated.ts`, not typed into the scene. A badge cannot
+disagree with the footage it sits on, and this table cannot disagree with the
+badge, because both are derived from the same file.
+
+Four of the seven chapters carry moving live footage; all seven carry a live
+capture. "Real footage" is published as the narrower of those two counts.
+
+The film carries no burned-in caption track. The narration transcript ships as
+a 54-cue sidecar SRT uploaded to YouTube as a manual English subtitle, so a
+viewer can turn it off or have it machine-translated — neither of which is
+possible once the words are baked into the frames.
+
+The order answers a judge's questions in the order they arise. Chapter 1 states
+the problem the catalog cannot see by looking at itself — DataHub says the
+column exists, the live source says it does not. Chapter 2 answers "where does
+the verdict go" before the demo asks for trust: into DataHub's own Quality tab
+as a native assertion. Chapter 3 is the team case, four workers sharing nothing
+but receipts. Chapter 4 turns to the catalog contradicting itself and names the
+single ingestion run that wrote both halves. Chapter 5 is the refusal itself,
+re-derived offline. Chapter 6 refuses to let a receipt become authority. Chapter
+7 hands the whole thing to the viewer as one command.
+
+All seven chapters are one consistent narration voice
 (`en-US-AndrewNeural`, chosen by the owner after auditioning five candidates;
 pronunciation map and full pipeline in the film repository's
 `public/v4/audio/narration.provenance.json`). The narration text is pinned to the mastered
