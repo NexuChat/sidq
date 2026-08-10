@@ -79,7 +79,7 @@ re-measured and the 2026-08-02 session remains its record.
 
 ## Automated gates
 
-- Host run of 2026-08-09: 1170 collected, 1169 passed, and 1 optional
+- Host run of 2026-08-09: 1171 collected, 1170 passed, and 1 optional
   integration test skipped because the Ollama model `ibm/granite4:1b-q4_1` is
   not installed. The assertion mirror's earlier DataHub-SDK skips are gone
   with the SDK itself: the mirror now speaks DataHub's documented GraphQL API

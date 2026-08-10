@@ -334,6 +334,47 @@ def _arguments(**overrides: Any) -> SimpleNamespace:
     return SimpleNamespace(**values)
 
 
+def test_every_via_mcp_command_can_reach_the_snapshot_reader(monkeypatch) -> None:
+    """The shared reader must work from real parsed arguments, not just a double.
+
+    `--field-lineage` was added to the audit subparser alone, while
+    `_read_snapshot` is shared by audit, repair, swarm and swarm-ledger. The
+    three that lack the flag reached an `argparse.Namespace` without the
+    attribute; the resulting `AttributeError` was caught by the transport
+    `except` and printed as "could not read the catalog over MCP", so a broken
+    landing-page button and a dead `make swarm-demo` both looked like DataHub
+    being unavailable.
+
+    The fixture-based test above could not see it, because the double was given
+    the attribute the real namespace lacked — the guard was updated into the
+    shape that hid the bug. This one parses the actual command lines.
+    """
+    seen: list[str] = []
+    monkeypatch.setattr(cli, "StdioMCPToolCaller", lambda: object())
+    monkeypatch.setattr(cli, "MCPGraphClient", lambda _: _Closable())
+    monkeypatch.setattr(
+        cli.CatalogSnapshot,
+        "from_mcp",
+        lambda source, *, field_lineage_budget, field_lineage_reader: SimpleNamespace(
+            source=source, budget=field_lineage_budget, reader=field_lineage_reader
+        ),
+    )
+
+    for argv in (
+        ["audit", "--via-mcp", "--budget", "2"],
+        ["repair", "--via-mcp", "--budget", "2"],
+        ["swarm", "--via-mcp", "--worker-id", "alpha", "--swarm-run", "r1"],
+        ["swarm-ledger", "--via-mcp", "--swarm-run", "r1"],
+    ):
+        arguments = cli._parser().parse_args(argv)
+        snapshot = cli._read_snapshot(arguments)
+        assert snapshot is not None, f"{argv[0]} could not reach the snapshot reader"
+        assert snapshot.reader is None, f"{argv[0]} silently changed evidence boundary"
+        seen.append(argv[0])
+
+    assert seen == ["audit", "repair", "swarm", "swarm-ledger"]
+
+
 def test_mcp_snapshot_closes_its_transport_on_success_and_failure(
     monkeypatch, capsys
 ) -> None:

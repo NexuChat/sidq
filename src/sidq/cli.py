@@ -345,6 +345,13 @@ def _nonnegative_int(value: str) -> int:
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="sidq")
+    # `_read_snapshot` is shared by audit, repair, swarm and swarm-ledger, but
+    # only audit exposes --field-lineage. Without a default here the other three
+    # reach an argparse.Namespace that has no such attribute, and the
+    # AttributeError is swallowed by the broad transport `except` and reported
+    # as a failure to read the catalog. Setting it at the top level means every
+    # subcommand carries the default whether or not it offers the flag.
+    parser.set_defaults(field_lineage="mcp")
     commands = parser.add_subparsers(dest="command", required=True)
     check_parser = commands.add_parser("check")
     group = check_parser.add_mutually_exclusive_group(required=True)
