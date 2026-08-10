@@ -1,5 +1,19 @@
 # Devpost submission copy
 
+> **The submitted description is on Devpost, and it is shorter than this file.**
+> This document is the working copy and the operational record — the disclosures
+> the rules require, the submission checklist, and the owner actions that have no
+> home on the submission page. The narrative below predates the rewrite of
+> 2026-08-10: the published description is now 1,218 words against the 3,453
+> here, opens differently, is ordered against the judging criteria, and carries
+> material this copy never had — the measured four-agent run, the native
+> assertion in DataHub's Quality tab, and the ingestion attribution behind the
+> 285 contradictions.
+>
+> Read <https://devpost.com/software/sidq-is-the-graph-lying> for what was
+> actually submitted. Where the two differ, the submission is what a judge sees
+> and this file is not evidence of anything.
+
 ## Submission fields
 
 **Project name:** Sidq
