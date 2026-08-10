@@ -393,9 +393,10 @@ def test_mcp_snapshot_closes_its_transport_on_success_and_failure(
 
     assert snapshot.budget == 7
     # `--field-lineage aspect` reads the stored aspect instead of paying one MCP
-    # call per column. It is faster and it agrees, but it is a different evidence
-    # boundary, so the default must stay on the agent surface: no reader unless
-    # the operator asked for one.
+    # call per column. It is faster, and it sees a different half of the graph:
+    # measured on the quickstart the two return different evidence, 4 findings
+    # against 3 and 5 unverifiable against 9. So the default must stay on the
+    # agent surface — no reader unless the operator asked for one.
     assert snapshot.reader is None
     assert graph.closed
 
