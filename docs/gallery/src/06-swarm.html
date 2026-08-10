@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sidq — four agents, one catalog</title>
+<link rel="stylesheet" href="board.css">
+</head>
+<body>
+  <!--
+    Evidence captured 2026-08-10, run swarm-1786323944.
+
+      export DATAHUB_GMS_TOKEN=...        # the quickstart requires auth
+      make swarm-demo
+
+    Four real processes ran `sidq swarm --via-mcp` against a live DataHub OSS
+    v1.5.0.6 quickstart, each with its own MCP session. Delta was killed 30s in,
+    before it could write its report. The three surviving reports were read by
+    `sidq swarm-overlap`, and the coverage ledger by `sidq swarm-ledger` — a
+    fifth process that examined nothing.
+
+    Everything on this board is from that run: 3/4 reports · 18 total
+    examinations · 14 distinct · 4 duplicated · peers vouched 1/1/4 · ledger
+    9 of 50 current receipts, alpha 4, beta 2, gamma 3.
+
+    The two halves have different evidence boundaries, and the footer says so.
+    Overlap is what each surviving worker reported about ITSELF; DataHub keeps
+    only the latest receipt and cannot count collisions after the fact. The
+    ledger is the independent half, read back out of the catalog.
+
+    An earlier revision of this board carried numbers from an in-memory double
+    because the live run was unreachable from that sandbox. It said so, and it
+    has been replaced rather than corrected in place.
+  -->
+  <div class="bar"></div>
+  <header class="mast">
+    <img src="../../brand/lockup.png" alt="Sidq صدق" style="display:block;height:46px;width:auto">
+    <div class="eyebrow">04 / THE AGENTS — AS A TEAM</div>
+  </header>
+
+  <main style="display:grid;grid-template-columns:.82fr 1.18fr;gap:78px;align-items:start;padding:86px 84px 0">
+    <section>
+      <div style="display:flex;align-items:flex-end;gap:34px;border-top:1px solid var(--rule);padding-top:24px">
+        <div style="font-family:var(--display);font-size:260px;line-height:.72;letter-spacing:-.075em;color:var(--signal)">4</div>
+        <div style="padding-bottom:10px">
+          <div class="eyebrow" style="color:var(--paper)">Auditor processes</div>
+          <div style="margin-top:13px;color:var(--dim);font-size:17px;line-height:1.55">start together<br>against one catalog</div>
+        </div>
+      </div>
+
+      <h2 style="margin-top:54px;font-size:76px;line-height:.92;max-width:680px">One catalog.<br>No boss.</h2>
+
+      <p style="margin-top:32px;color:var(--dim);font-size:19px;line-height:1.55;max-width:640px">
+        No coordinator, message bus, lock service, or shared filesystem for coordination.
+        Every worker keeps the whole plan; <strong style="color:var(--paper)">receipts are the only shared state.</strong>
+      </p>
+
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);margin-top:40px;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)">
+        <div style="padding:18px 0;border-right:1px solid var(--rule)"><span class="eyebrow" style="color:var(--paper)">α</span><strong style="display:block;margin-top:8px;font-size:15px;color:var(--dim)">alpha</strong></div>
+        <div style="padding:18px 0 18px 18px;border-right:1px solid var(--rule)"><span class="eyebrow" style="color:var(--paper)">β</span><strong style="display:block;margin-top:8px;font-size:15px;color:var(--dim)">beta</strong></div>
+        <div style="padding:18px 0 18px 18px;border-right:1px solid var(--rule)"><span class="eyebrow" style="color:var(--paper)">γ</span><strong style="display:block;margin-top:8px;font-size:15px;color:var(--dim)">gamma</strong></div>
+        <div style="padding:18px 0 18px 18px"><span class="eyebrow" style="color:var(--signal)">δ</span><strong style="display:block;margin-top:8px;font-size:15px;color:var(--signal);text-decoration:line-through">delta</strong></div>
+      </div>
+      <p style="margin-top:20px;color:var(--paper);font-family:var(--display);font-size:24px;line-height:1.25">δ was terminated. It owned no assignment to strand.</p>
+    </section>
+
+    <section style="border:1px solid var(--rule);background:var(--ink2)">
+      <div style="display:flex;gap:10px;align-items:center;padding:19px 24px;border-bottom:1px solid var(--rule)">
+        <span style="width:13px;height:13px;border-radius:50%;background:var(--rule)"></span>
+        <span style="width:13px;height:13px;border-radius:50%;background:var(--rule)"></span>
+        <span style="width:13px;height:13px;border-radius:50%;background:var(--signal)"></span>
+        <span style="margin-left:15px;color:var(--dim);font-size:14px;letter-spacing:.11em;text-transform:uppercase">make swarm-demo · live DataHub quickstart</span>
+      </div>
+
+      <div style="padding:30px 34px 32px">
+        <div style="color:var(--dim);font-size:15px;line-height:1.65">
+          <span style="color:var(--signal)">$</span> .venv/bin/sidq swarm-overlap alpha.json beta.json gamma.json delta.json<br>
+          <span style="color:var(--paper)">Swarm overlap — run swarm-1786323944</span>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1.05fr 1fr;gap:30px;align-items:end;margin-top:24px;padding:24px 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)">
+          <div>
+            <div style="font-family:var(--display);font-size:150px;line-height:.72;letter-spacing:-.065em;color:var(--signal)">3/4</div>
+            <div class="eyebrow" style="margin-top:24px;color:var(--paper);line-height:1.4">Worker reports found</div>
+          </div>
+          <div style="padding:0 0 2px 26px;border-left:1px solid var(--rule)">
+            <div class="eyebrow" style="color:var(--signal)">Process event</div>
+            <p style="margin-top:12px;font-family:var(--display);font-size:29px;line-height:1.15">delta terminated before it could publish a report</p>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0;margin-top:26px">
+          <div style="padding-right:20px;border-right:1px solid var(--rule)">
+            <div style="font-family:var(--display);font-size:72px;line-height:.9">18</div>
+            <div style="margin-top:11px;color:var(--dim);font-size:14px;line-height:1.4;text-transform:uppercase;letter-spacing:.08em">total<br>examinations</div>
+          </div>
+          <div style="padding:0 20px;border-right:1px solid var(--rule)">
+            <div style="font-family:var(--display);font-size:72px;line-height:.9">14</div>
+            <div style="margin-top:11px;color:var(--dim);font-size:14px;line-height:1.4;text-transform:uppercase;letter-spacing:.08em">distinct assets<br>examined</div>
+          </div>
+          <div style="padding-left:20px">
+            <div style="font-family:var(--display);font-size:72px;line-height:.9;color:var(--signal)">4</div>
+            <div style="margin-top:11px;color:var(--dim);font-size:14px;line-height:1.4;text-transform:uppercase;letter-spacing:.08em">duplicated<br>examinations</div>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr auto;gap:28px;align-items:center;margin-top:28px;padding-top:22px;border-top:1px solid var(--rule)">
+          <div>
+            <div class="eyebrow">Skipped because a peer's receipt already covered it</div>
+            <strong style="display:block;margin-top:9px;color:var(--paper);font-size:18px">alpha 1 (beta) &nbsp;·&nbsp; beta 1 (alpha) &nbsp;·&nbsp; gamma 4 (alpha, beta)</strong>
+            <span style="display:block;margin-top:7px;color:var(--dim);font-size:15px">the coordination, in the workers' own words</span>
+          </div>
+          <div style="padding:13px 16px;border:1px solid var(--rule);color:var(--dim);font-size:13px;line-height:1.5;letter-spacing:.06em;text-transform:uppercase;text-align:center">Ledger, read from DataHub<br><span style="color:var(--paper)">9 of 50 current</span><br><span style="color:var(--paper)">α 4 · β 2 · γ 3</span></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <span>Overlap = surviving workers' own reports · the ledger beside it was read from DataHub by a process that examined nothing</span>
+    <span>make swarm-demo</span>
+  </footer>
+</body>
+</html>

@@ -1,8 +1,10 @@
 # Devpost gallery boards
 
-Five 1920×1080 boards for the submission gallery, composed in the landing
+Six 1920×1080 boards for the submission gallery, composed in the landing
 page's exact palette and type system. The rendered PNGs sit beside this file;
 the HTML sources live in `src/`.
+
+- `06-swarm.png` — four auditors, one catalog, no coordinator
 
 To regenerate a board after editing its source:
 
