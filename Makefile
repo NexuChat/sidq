@@ -72,7 +72,7 @@ check: | $(VENV)/.sidq-dev-lock
 	$(VENV)/bin/ruff check .
 	$(VENV)/bin/ruff format --check .
 	$(VENV)/bin/mypy src/
-	$(VENV)/bin/pytest -q -n auto --cov=sidq --cov-report=term-missing:skip-covered
+	$(VENV)/bin/pytest -q --cov=sidq --cov-report=term-missing:skip-covered
 
 # Resolve from pyproject metadata, never from an ambient environment. Install uv,
 # run this target, and commit uv.lock plus all five exported hash-locked inputs.

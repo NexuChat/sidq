@@ -1566,7 +1566,7 @@ def test_landing_calls_its_buttons_live_demos_not_all_agents() -> None:
 
     runnable = server[server.index("RUNNABLE:") :]
     runnable = runnable[: runnable.index("\nCLIENT_RUN_LIMIT")]
-    offered = set(re.findall(r'^    "([a-z-]+)":', runnable, re.M))
+    offered = set(re.findall(r'^    "([a-z-]+)":', runnable, re.MULTILINE))
     wired = set(re.findall(r'data-run="([a-z-]+)"', landing))
 
     assert len(offered) == 5, f"the server offers {len(offered)} commands, not five"
