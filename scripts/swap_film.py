@@ -29,19 +29,19 @@ import subprocess
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-OLD_ID = "R4GdN36Lsno"
-OLD_SHA = "86c6faf7de2f149628940026a7c889fe1e20520e53079f087ce22ea811ddd690"
-OLD_SIZE = "41,410,417"
-OLD_DURATION = "175.595"
-OLD_FRAMES = "5,266"
-OLD_CUES = "61-cue"
-OLD_CHAPTERS = "five of six chapters"
+OLD_ID = "W0uHsq2Kb0E"
+OLD_SHA = "b9318837f8a36fad25db310e20cfc5d5e7e71b21b66bbdcaa0c9b84ed12fa592"
+OLD_SIZE = "11,802,599"
+OLD_DURATION = "171.051"
+OLD_FRAMES = "5,130"
+OLD_CUES = "54-cue"
+OLD_CHAPTERS = "4 of 7 chapters"
 # The runtime is published twice in two notations: the exact seconds a reader
 # can re-measure, and the "2:56" a reader can read. Replacing only the first
 # leaves the README and the landing page quoting a length the file no longer
 # has — which is the same two-documents-disagree failure this script exists to
 # prevent, arriving through the one surface it was not looking at.
-OLD_HUMAN_DURATION = "2:56"
+OLD_HUMAN_DURATION = "2:51"
 
 
 def probe(master: pathlib.Path) -> tuple[str, int, str, int]:

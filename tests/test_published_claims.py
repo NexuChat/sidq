@@ -934,7 +934,7 @@ def test_submission_copy_does_not_publish_a_stale_video_or_deny_catalog_io() -> 
 
     assert "The 2:26 film" not in readme
     assert "youtu.be/5izxVeQ11dY" not in readme
-    assert "**Public video:** https://www.youtube.com/watch?v=R4GdN36Lsno" in devpost
+    assert "**Public video:** https://www.youtube.com/watch?v=W0uHsq2Kb0E" in devpost
     assert "<PUBLIC_VIDEO_URL>" not in devpost
     assert "not the input to that loop, nor its output" not in devpost
 
@@ -955,9 +955,9 @@ def test_one_film_identity_across_every_document_that_states_one() -> None:
     to catch.
     """
     final = {
-        "86c6faf7de2f149628940026a7c889fe1e20520e53079f087ce22ea811ddd690",
-        "41,410,417",
-        "175.595",
+        "b9318837f8a36fad25db310e20cfc5d5e7e71b21b66bbdcaa0c9b84ed12fa592",
+        "11,802,599",
+        "171.051",
     }
     superseded = {
         "0811a494c3ee6f78f907c3f2d14908ca18df403d81e38d63093cfa7dab46beef",

@@ -183,7 +183,7 @@ def test_the_published_video_url_is_the_same_one_everywhere() -> None:
     submission copy must land on the same watch page, and no stray YouTube id
     from a draft or a superseded cut may sit beside it.
     """
-    canonical_id = "R4GdN36Lsno"
+    canonical_id = "W0uHsq2Kb0E"
     canonical_url = f"https://www.youtube.com/watch?v={canonical_id}"
 
     # Every judge surface, not the three that happened to carry a link on the

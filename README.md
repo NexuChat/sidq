@@ -8,13 +8,13 @@
 > its own engine re-proves, and can leave a receipt the next agent inherits. Four of them can work one
 > catalog at once with no coordinator.
 
-**Submission film:** real footage in five of six chapters — the live catalog
+**Submission film:** real footage in 4 of 7 chapters — the live catalog
 audit, the committed `BLOCK` replay ending on the public sealed PR thread, the
 deployed console, the receipt inside the DataHub UI with its independent
 `sidq verify` read, and the same agent run blind and guarded;
 production contract and artifact identity in [`docs/VIDEO.md`](docs/VIDEO.md).
 Watch it at
-[youtube.com/watch?v=R4GdN36Lsno](https://www.youtube.com/watch?v=R4GdN36Lsno).
+[youtube.com/watch?v=W0uHsq2Kb0E](https://www.youtube.com/watch?v=W0uHsq2Kb0E).
 Public browser,
 accessibility, interaction, and deployment evidence: [`docs/QA-RESULTS.md`](docs/QA-RESULTS.md).
 Contributions are welcome under [`CONTRIBUTING.md`](CONTRIBUTING.md) and the
@@ -34,7 +34,7 @@ Every row is one command or one committed artifact. No claim here rests on a scr
 | **Technical execution** | 1,180 tests, lint, format and types in one gate; the flagship `BLOCK` re-derives **byte-identical** from committed evidence. Published numbers are guarded — a stale one fails the build. | `make check` · `make gate-demo` |
 | **Originality** | The question is not "what is in the catalog" but "is the catalog telling the truth" — proved on DataHub's **own shipped sample**: examining all **67 datasets** found 285 internal contradictions, concentrated in **5 assets**. And against reality: the live source renames a column, the catalog does not, Sidq blocks the context. | [`docs/TRUTH-REPORT.md`](docs/TRUTH-REPORT.md) · `make demo-break` |
 | **Real-world usefulness** | A PII removal is blocked with its lineage path to a Looker dashboard. The repair agent **refuses its own obvious fix** because the engine re-proved it moves the leak instead of closing it. | [`examples/01-blocked-pii-dashboard/`](examples/01-blocked-pii-dashboard/) · `make repair-demo` |
-| **Submission quality** | A 2:56 film with real footage, a live console whose buttons run the real commands, and a read-only judge account on a live DataHub. | [the film](https://www.youtube.com/watch?v=R4GdN36Lsno) · [sidq.mlki.app](https://sidq.mlki.app) · [`docs/QA-RESULTS.md`](docs/QA-RESULTS.md) |
+| **Submission quality** | A 2:51 film with real footage, a live console whose buttons run the real commands, and a read-only judge account on a live DataHub. | [the film](https://www.youtube.com/watch?v=W0uHsq2Kb0E) · [sidq.mlki.app](https://sidq.mlki.app) · [`docs/QA-RESULTS.md`](docs/QA-RESULTS.md) |
 | **Bonus: OSS contribution** | A packaging fix to DataHub core and a proposed `datahub-verify` skill — both open, neither merged, described as contributions in review rather than endorsements. | [datahub#19017](https://github.com/datahub-project/datahub/pull/19017) · [datahub-skills#81](https://github.com/datahub-project/datahub-skills/pull/81) |
 
 ## Why the name

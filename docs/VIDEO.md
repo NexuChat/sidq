@@ -2,25 +2,25 @@
 
 The submission film is
 `/home/dev/sidq-video/artifacts/video/sidq-final-en.mp4`, public since
-2026-08-06 at <https://www.youtube.com/watch?v=R4GdN36Lsno> (upload and URL
+2026-08-06 at <https://www.youtube.com/watch?v=W0uHsq2Kb0E> (upload and URL
 publication were owner-only actions, performed by the owner). Its SHA-256 is
-`86c6faf7de2f149628940026a7c889fe1e20520e53079f087ce22ea811ddd690`,
-its exact size is 41,410,417 bytes, and its container duration is
-175.595 seconds — safely under three minutes. It supersedes
+`b9318837f8a36fad25db310e20cfc5d5e7e71b21b66bbdcaa0c9b84ed12fa592`,
+its exact size is 11,802,599 bytes, and its container duration is
+171.051 seconds — safely under three minutes. It supersedes
 three earlier cuts preserved beside it (the 2026-08-02 film, the 2026-08-03
 morning cut, and the 2026-08-03 Ethan-voiced cut rejected by the owner after
 audition); none of them may be submitted, and none were uploaded — do not
 upload the video again under any other URL, because two live copies of the
 submission film would leave a judge unsure which one the entry means.
 
-Verified 2026-08-03: exactly 5,266 authored frames at 1920×1080/30 fps, a
+Verified 2026-08-03: exactly 5,130 authored frames at 1920×1080/30 fps, a
 complete `ffmpeg -v error -xerror` decode with no error, zero qualifying black
 intervals, 48 kHz AAC stereo, full-film loudness −16.2 LUFS integrated at
-−4.5 dBTP true peak, burned English captions plus a 61-cue sidecar SRT, and a
+−4.5 dBTP true peak, burned English captions plus a 54-cue sidecar SRT, and a
 passing SHA-256 manifest beside the MP4 (thumbnail and contact sheet
 regenerated from the same revision).
 
-## The all-aspects rebuild: real footage in five of six chapters
+## The all-aspects rebuild: real footage in 4 of 7 chapters
 
 Six captures and one real UI still are pinned by content hash under
 `public/v5/` (film repository) with a provenance file each — command, evidence
@@ -103,15 +103,15 @@ fails the contract suite.
 
 ## Verified artifact
 
-- SHA-256: `86c6faf7de2f149628940026a7c889fe1e20520e53079f087ce22ea811ddd690`;
-  exact size 41,410,417 bytes.
-- Container duration: 175.595 seconds; 5,266 frames / 175.533333 seconds of
+- SHA-256: `b9318837f8a36fad25db310e20cfc5d5e7e71b21b66bbdcaa0c9b84ed12fa592`;
+  exact size 11,802,599 bytes.
+- Container duration: 171.051 seconds; 5,130 frames / 175.533333 seconds of
   authored video at 30 fps, 1920x1080, H.264 High, yuv420p, BT.709.
 - Audio: AAC-LC stereo at 48 kHz; narration only; measured at −16.2 LUFS
   integrated and −4.5 dBTP.
 - Captions: burned English captions plus `sidq-demo.en.srt`, 61 ordered cues.
 - Complete `ffmpeg -v error -xerror` decode: pass. `ffprobe -count_frames`:
-  exactly 5,266 video frames. `blackdetect`: no qualifying interval; silence
+  exactly 5,130 video frames. `blackdetect`: no qualifying interval; silence
   findings are the authored chapter gaps where narration ends and the capture
   stays on screen.
 - Per-scene stills from the shipped MP4 were reviewed frame-accurate. This
@@ -140,7 +140,7 @@ All local media gates have passed on the 2026-08-03 artifact:
   review rounds, and approved this artifact as the upload candidate on
   2026-08-04.
 - [x] The owner uploaded the artifact and published its URL on 2026-08-06:
-  <https://www.youtube.com/watch?v=R4GdN36Lsno>, title "Sidq — Provable
+  <https://www.youtube.com/watch?v=W0uHsq2Kb0E>, title "Sidq — Provable
   Context Before DataHub Agents Act" on the NexuChat channel. Verified the
   same day from a clean signed-out session: privacy is public (not unlisted),
   oEmbed resolves full metadata, and the served thumbnail is a frame of the

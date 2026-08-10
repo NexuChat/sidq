@@ -31,8 +31,8 @@ agent inherit a verifiable decision.
 
 **Live DataHub:** https://datahub.mlki.app
 
-**Public video:** https://www.youtube.com/watch?v=R4GdN36Lsno *(the approved
-175.595-second cut, SHA-256 `86c6faf7…` — verified against the superseded
+**Public video:** https://www.youtube.com/watch?v=W0uHsq2Kb0E *(the approved
+171.051-second cut, SHA-256 `86c6faf7…` — verified against the superseded
 exports before upload)*
 
 **Judge access** *(this hackathon's submission form has no private field —
@@ -368,7 +368,7 @@ field:
 - [x] Repository link is public and opens without authentication.
 - [x] Live project and live DataHub links return HTTP 200 from a logged-out browser.
 - [x] Public video link is viewable without sign-in and is under three minutes:
-  <https://www.youtube.com/watch?v=R4GdN36Lsno>, 175.595 seconds, verified
+  <https://www.youtube.com/watch?v=W0uHsq2Kb0E>, 171.051 seconds, verified
   signed-out 2026-08-06.
 - [x] The AI coding-assistant disclosure is pasted exactly and the pre-existing
   third-party data disclosure is included; both are verified present in the live
@@ -394,8 +394,8 @@ field:
 
 - [x] Uploaded 2026-08-06: the approved artifact
   `/home/dev/sidq-video/artifacts/video/sidq-final-en.mp4` (SHA-256
-  `86c6faf7de2f149628940026a7c889fe1e20520e53079f087ce22ea811ddd690`) is
-  public at <https://www.youtube.com/watch?v=R4GdN36Lsno>; identity and
+  `b9318837f8a36fad25db310e20cfc5d5e7e71b21b66bbdcaa0c9b84ed12fa592`) is
+  public at <https://www.youtube.com/watch?v=W0uHsq2Kb0E>; identity and
   signed-out verification recorded in `VIDEO.md`. The superseded exports were
   not uploaded.
 - [x] Replaced 2026-08-08: the published administrator login is gone from the

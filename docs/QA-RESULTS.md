@@ -100,10 +100,10 @@ re-measured and the 2026-08-02 session remains its record.
 
 - Submitted artifact:
   `/home/dev/sidq-video/artifacts/video/sidq-final-en.mp4`, SHA-256
-  `86c6faf7de2f149628940026a7c889fe1e20520e53079f087ce22ea811ddd690`,
-  41,410,417 bytes. Public since 2026-08-06 at
-  <https://www.youtube.com/watch?v=R4GdN36Lsno>.
-- `ffprobe` reported a 175.595-second container with 5,266 decoded 1920x1080
+  `b9318837f8a36fad25db310e20cfc5d5e7e71b21b66bbdcaa0c9b84ed12fa592`,
+  11,802,599 bytes. Public since 2026-08-06 at
+  <https://www.youtube.com/watch?v=W0uHsq2Kb0E>.
+- `ffprobe` reported a 171.051-second container with 5,130 decoded 1920x1080
   H.264 frames at 30 fps and AAC-LC 48 kHz stereo audio. Full strict decode
   passed; no qualifying black interval was detected.
 - Audio measured -16.2 LUFS integrated and -4.5 dBTP. Silence and freeze reports
@@ -113,7 +113,7 @@ re-measured and the 2026-08-02 session remains its record.
   package text, and high-confidence secret/stale-claim patterns were reviewed.
   An independent final proof review returned no actionable finding.
 - The adjacent SHA-256 manifest `sidq-video-sha256.txt` carries four entries and
-  verifies each: the MP4, the 61-cue sidecar SRT, the 1280x720 project-owned
+  verifies each: the MP4, the 54-cue sidecar SRT, the 1280x720 project-owned
   thumbnail, and the contact sheet.
 - This section described the superseded 2026-08-02 export until 2026-08-06
   (SHA-256 `0811a494…`, 29,636,338 bytes, 169.216 seconds). That file is kept
