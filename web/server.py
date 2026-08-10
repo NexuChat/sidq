@@ -53,6 +53,10 @@ PUBLIC_ASSET_PATHS = frozenset(
         "/app.js",
         "/architecture.svg",
         "/index.html",
+        # DataHub's own Quality tab, so a judge can see the native assertion
+        # without a login. Copied from examples/06-native-assertion/, which
+        # keeps the reproducible GraphQL half beside it.
+        "/quality-tab.png",
         "/scope.html",
         # Referenced by og:image and twitter:image as an ABSOLUTE url, so it does
         # not appear in a relative href/src scan. Omitting it breaks the link

@@ -1237,6 +1237,7 @@ def test_static_serving_is_allowlisted_and_keeps_landing_assets_reachable() -> N
     assert referenced_assets == {
         "/app.js",
         "/architecture.svg",
+        "/quality-tab.png",
         "/social-preview.png",
         "/styles.css",
     }
