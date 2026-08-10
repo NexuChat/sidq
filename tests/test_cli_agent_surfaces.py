@@ -325,6 +325,7 @@ def _arguments(**overrides: Any) -> SimpleNamespace:
         "policy": None,
         "worker_id": "alpha",
         "swarm_run": "run-1",
+        "field_lineage": "mcp",
         "lineage_budget": None,
         "urn": URN,
         "max_age_days": 7,
@@ -342,14 +343,19 @@ def test_mcp_snapshot_closes_its_transport_on_success_and_failure(
     monkeypatch.setattr(
         cli.CatalogSnapshot,
         "from_mcp",
-        lambda source, *, field_lineage_budget: SimpleNamespace(
-            source=source, budget=field_lineage_budget
+        lambda source, *, field_lineage_budget, field_lineage_reader: SimpleNamespace(
+            source=source, budget=field_lineage_budget, reader=field_lineage_reader
         ),
     )
 
     snapshot = cli._read_snapshot(_arguments(budget=7))
 
     assert snapshot.budget == 7
+    # `--field-lineage aspect` reads the stored aspect instead of paying one MCP
+    # call per column. It is faster and it agrees, but it is a different evidence
+    # boundary, so the default must stay on the agent surface: no reader unless
+    # the operator asked for one.
+    assert snapshot.reader is None
     assert graph.closed
 
     failed_graph = _Closable()

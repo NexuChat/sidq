@@ -373,6 +373,17 @@ def _parser() -> argparse.ArgumentParser:
         help="read the catalog through the official DataHub MCP server, not the SDK",
     )
     audit_parser.add_argument(
+        "--field-lineage",
+        choices=("mcp", "aspect"),
+        default="mcp",
+        help=(
+            "how to resolve column lineage: 'mcp' pays one get_lineage call per "
+            "column through the agent surface; 'aspect' reads the stored "
+            "upstreamLineage aspect once per dataset over DataHub's documented "
+            "OpenAPI v3 (a different evidence boundary, see PROVENANCE-MATRIX.md)"
+        ),
+    )
+    audit_parser.add_argument(
         "--write-receipts",
         action="store_true",
         help="write a receipt back for every asset examined (off by default)",
@@ -583,8 +594,19 @@ def _read_snapshot(arguments: Any) -> CatalogSnapshot | None:
             # Column lineage costs one MCP call per column, so it is resolved for
             # exactly the assets the auditor can afford to examine — the same
             # most-consumed-first ordering — and the rest are reported unresolved.
+            # `--field-lineage aspect` opts out of that cost by reading the whole
+            # stored aspect once per dataset instead; it is a different evidence
+            # boundary, not a faster route to the same one, so it is never the
+            # default and the run says which one it used.
+            reader: Any | None = None
+            if arguments.field_lineage == "aspect":
+                from sidq.graph.client import DataHubAspectClient
+
+                reader = DataHubAspectClient(arguments.server)
             snapshot = CatalogSnapshot.from_mcp(
-                graph_client, field_lineage_budget=arguments.budget
+                graph_client,
+                field_lineage_budget=arguments.budget,
+                field_lineage_reader=reader,
             )
         except Exception as error:  # noqa: BLE001 - MCP transports raise several types
             print(

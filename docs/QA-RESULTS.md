@@ -84,7 +84,7 @@ re-measured and the 2026-08-02 session remains its record.
   not installed. The assertion mirror's earlier DataHub-SDK skips are gone
   with the SDK itself: the mirror now speaks DataHub's documented GraphQL API
   and its tests run everywhere ([`RECEIPT-SPEC.md`](RECEIPT-SPEC.md)).
-- Host branch coverage on that run: 84.09%, above the enforced 80.0% threshold.
+- Host branch coverage on that run: 84.07%, above the enforced 80.0% threshold.
   The browser, accessibility, and performance measurements below are from the
   2026-08-02 session in this document's title and were not re-run.
 - Ruff lint, Ruff format, and mypy: pass.
