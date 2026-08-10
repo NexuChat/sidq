@@ -930,3 +930,28 @@ h2 code { font-size: 0.88em; color: var(--red); }
 .drift-val { margin: 0.7rem 0 0.6rem; font-size: 1.15rem; word-break: break-word; }
 .drift-verdict { margin-top: 1.5rem; font-size: 1.1rem; }
 @media (max-width: 640px) { .drift-pair { grid-template-columns: 1fr; } }
+
+/* A judge with four minutes should learn what exists here without scrolling to
+   find out. Plain anchors: no script, nothing to fail, and every section is
+   linkable so one can be sent to a colleague on its own. */
+.evidence-index { margin: 1.75rem 0 0.5rem; }
+.evidence-index ol {
+  margin: 0.7rem 0 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: proof;
+  display: grid;
+  gap: 0.34rem;
+}
+.evidence-index li { counter-increment: proof; font-size: 0.94rem; line-height: 1.5; }
+.evidence-index li::before {
+  content: counter(proof, decimal-leading-zero) " ";
+  margin-right: 0.6rem;
+  color: var(--dim, #a7a39a);
+  font-variant-numeric: tabular-nums;
+}
+.evidence-index a { font-weight: 600; }
+/* Sticky nothing — but never let an anchor jump hide a heading behind the top. */
+html { scroll-padding-top: 1.5rem; }
+.exhibit[id] { scroll-margin-top: 1.5rem; }
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
