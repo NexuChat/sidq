@@ -2522,7 +2522,23 @@ class _MCPResponse:
 def test_receipt_stdio_bounded_request_times_out_without_poisoning_session(
     monkeypatch,
 ) -> None:
+    """The abandoned call must still be running when the next one is made.
+
+    This test used to sleep forever, which was correct and became impossible
+    once the deadline stopped cancelling in-flight work — the thread would
+    never come back. It was then reduced to 0.05s, which made it pass for the
+    wrong reason: the slow call had already finished by the time "second" was
+    issued, so nothing about a poisoned session was being exercised while the
+    name still promised it.
+
+    The sleep is now long enough that "first" is provably still in flight when
+    the caller gives up, and short enough that the suite is not held hostage to
+    it. `entered` proves the handler was reached; `finished` proves it had not
+    returned when the deadline expired.
+    """
     caller = StdioMCPReceiptToolCaller(frozenset({"warmup", "first", "second"}))
+    entered = threading.Event()
+    finished = threading.Event()
 
     class _Session:
         def __init__(self, read: object, write: object) -> None:
@@ -2535,7 +2551,9 @@ def test_receipt_stdio_bounded_request_times_out_without_poisoning_session(
             self, name: str, arguments: dict[str, object]
         ) -> _MCPResponse:
             if name == "first":
-                await anyio.sleep(0.05)
+                entered.set()
+                await anyio.sleep(0.5)
+                finished.set()
             return _MCPResponse(f'{{"name": "{name}"}}')
 
         async def __aenter__(self) -> Self:
@@ -2558,7 +2576,19 @@ def test_receipt_stdio_bounded_request_times_out_without_poisoning_session(
         assert caller("warmup", {}) == {"name": "warmup"}
         with pytest.raises(TimeoutError):
             caller.call_with_timeout("first", {}, timeout=0.01)
+
+        assert entered.wait(timeout=5), "the abandoned handler never ran"
+        assert not finished.is_set(), (
+            "the handler finished before the deadline expired, so this test "
+            "never exercised an in-flight abandonment"
+        )
+
+        # Succeeds, and necessarily waits behind the abandoned call rather than
+        # cancelling it. That queueing is the deliberate cost of not killing the
+        # server, and pinning it here stops a later change from restoring the
+        # cancel to reclaim the wait.
         assert caller("second", {}) == {"name": "second"}
+        assert finished.is_set(), "the abandoned call was cancelled after all"
     finally:
         caller.close()
 

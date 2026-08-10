@@ -235,6 +235,17 @@ def measure_overlap(
         raise SwarmReportError(
             f"expected {expected} reports but found {len(reports)} present reports"
         )
+    # A run in which no worker survived produces zero duplicated examinations,
+    # which is the best possible score and means nothing at all. That is not a
+    # hypothetical: when every worker crashed on startup, `make swarm-demo`
+    # printed "duplicated examinations 0" from a run that examined no asset.
+    # An unmeasurable run has to say so rather than report a perfect one.
+    if expected > 0 and not reports:
+        raise SwarmReportError(
+            f"no worker reports were found of {expected} expected: the run cannot "
+            "be measured, and zero duplication here would mean no work was done "
+            "rather than no work was repeated"
+        )
 
     worker_ids = [report.worker_id for report in reports]
     if len(set(worker_ids)) != len(worker_ids):

@@ -1,6 +1,6 @@
 # Devpost gallery boards
 
-Six 1920×1080 boards for the submission gallery, composed in the landing
+Seven boards — six at 1920×1080 for the gallery, plus a 1800×1200 thumbnail — for the submission gallery, composed in the landing
 page's exact palette and type system. The rendered PNGs sit beside this file;
 the HTML sources live in `src/`.
 

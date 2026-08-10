@@ -194,3 +194,29 @@ def test_swarm_overlap_cli_reads_a_directory_and_rejects_bad_reports(
     (tmp_path / "broken.json").write_text("{", encoding="utf-8")
     assert cli.main(["swarm-overlap", str(tmp_path)]) == 2
     assert "broken.json: malformed JSON" in capsys.readouterr().err
+
+
+def test_a_run_with_no_surviving_reports_is_refused_not_scored() -> None:
+    """Zero duplication from zero workers is the best score and the worst answer.
+
+    When every worker crashed before writing its report, the counters were all
+    honestly zero and the demo printed "duplicated examinations 0" — a perfect
+    result from a run that examined nothing. The expected-versus-found line was
+    right there and still lost the argument to the headline number, which is
+    exactly the failure this project refuses everywhere else: an unperformed
+    measurement must never render as a clean one.
+    """
+    with pytest.raises(SwarmReportError) as raised:
+        measure_overlap([], expected_reports=4)
+
+    message = str(raised.value)
+    assert "no worker reports were found of 4 expected" in message
+    assert "no work was done" in message
+
+
+def test_zero_expected_and_zero_reports_is_still_allowed() -> None:
+    """Asking about nothing is not the same as failing to measure something."""
+    overlap = measure_overlap([], expected_reports=0)
+
+    assert overlap.total_examinations == 0
+    assert overlap.duplicated_examinations == 0

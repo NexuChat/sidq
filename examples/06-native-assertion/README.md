@@ -52,7 +52,9 @@ set that variable to a dataset that already holds a Sidq receipt.
 
 ```sh
 export DATAHUB_GMS_URL=http://localhost:8080
-export DATAHUB_GMS_TOKEN=...   # omit on an unauthenticated quickstart
+export DATAHUB_GMS_TOKEN=...   # required by read_back.sh, even on an
+                               # unauthenticated quickstart, where any
+                               # non-empty value is accepted
 .venv/bin/python examples/06-native-assertion/mirror_assertion.py
 ./examples/06-native-assertion/read_back.sh
 ```

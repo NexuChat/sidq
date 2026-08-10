@@ -1,9 +1,35 @@
 # Security and production deployment
 
-The public landing page contains no DataHub login, access token, database
-password, or tunnel token. Judges receive a DataHub **Reader** login out of band
-through the Devpost testing instructions. Do not put that login in HTML,
+The public landing page contains no access token, database password, or tunnel
+token, and no credential that can change anything. Do not put those in HTML,
 JavaScript, screenshots, repository files, browser storage, or shell history.
+
+**The judge's DataHub login is the deliberate exception, and it is published.**
+An earlier version of this document said judges receive it out of band. That was
+never true of this submission: the entry form has no private field, so any
+credential a judge needs is public by necessity. Pretending otherwise put the
+same login on Devpost while this file forbade it, and left the landing page
+linking to a catalog it gave nobody the key to.
+
+What makes publishing it safe is not secrecy but the account itself, and that is
+verified rather than asserted. `sidq-judge@local.invalid` holds DataHub's Reader
+role and nothing more. Re-checked against the live deployment on 2026-08-10, each
+returning `403 UNAUTHORIZED`:
+
+| Attempted | Result |
+|---|---|
+| `addTag` on a dataset | refused |
+| `createAccessToken` (personal token) | refused |
+| `createPolicy` | refused |
+| `batchUpdateSoftDeleted` | refused |
+| `createInviteToken` | refused |
+
+`me { platformPrivileges }` reports `managePolicies: false` and
+`manageIngestion: false`. The personal-token refusal is the one that depends on
+an operator step: v1.5.0.6 grants `GENERATE_PERSONAL_ACCESS_TOKENS` to all users
+by default, and the deployment procedure below removes it. Re-run that table
+after any policy change, because this account's harmlessness is a property of
+the live policy set, not of the role name.
 
 ## Pin DataHub and create its secrets
 
