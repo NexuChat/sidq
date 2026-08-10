@@ -13,6 +13,7 @@ from sidq.agent.auditor import (
 from sidq.agent.memory import PriorReceipt, recall
 from sidq.agent.writeback import (
     WriteOutcome,
+    gaps_for,
     receipts_for,
     render_writeback,
     write_receipts,
@@ -25,6 +26,7 @@ __all__ = (
     "Target",
     "WriteOutcome",
     "audit",
+    "gaps_for",
     "recall",
     "receipts_for",
     "render",

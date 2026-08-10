@@ -23,6 +23,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from collections.abc import Iterable, Sequence
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
@@ -38,6 +39,11 @@ _CUSTOM_TYPE = "sidq.policy_rule"
 # spending a single aspect read on it.
 _URN_PREFIX = "urn:li:assertion:sidq-"
 _RETIRED_SUMMARY = "This rule did not fire in the latest Sidq evaluation."
+# An examined asset on which nothing could be established. Not a policy rule:
+# no rule fired, which is precisely what this row exists to say. It shares the
+# rule-id namespace so a later run that does establish something retires it
+# through the same sweep that retires any rule which stopped firing.
+_GAP_RULE_ID = "not_established"
 # DataHub's quality chip counts passing against failing with no third state, so
 # a WARN lands among the failures whatever Sidq does. What Sidq can still do is
 # stop a warning from reading as a block in the row a human actually looks at.
@@ -162,6 +168,8 @@ def assertion_result_type(verdict: str) -> str:
     describe a run that started or could not complete. Every verdict Sidq
     publishes is a completed evaluation, so only the two outcome values apply,
     and ``WARN`` takes ``FAILURE`` because the policy condition did not pass.
+    ``ERROR`` is used by exactly one other path — ``emit_gap_assertions`` — for
+    examinations that established nothing, which is DataHub's meaning for it.
     """
 
     if verdict == "PASS":
@@ -182,6 +190,115 @@ def assertion_result_for_severity(severity: str) -> str:
     """
 
     return "FAILURE" if severity.lower() in {"warn", "block"} else "SUCCESS"
+
+
+@dataclass(frozen=True, slots=True)
+class CoverageGap:
+    """One examined asset on which the audit could establish nothing.
+
+    These assets deliberately get no receipt — a receipt is authorization
+    state, and "could not check" must never be read as coverage. But leaving
+    the gap only in the run's own report means the catalog shows nothing where
+    the checks would be, and the next reader cannot tell "nobody looked" from
+    "someone looked and could not establish anything". This record carries the
+    second statement into the catalog's own quality surface, as an assertion
+    whose result type is ``ERROR`` — DataHub's word for an evaluation that
+    could not complete, which is exactly what happened.
+    """
+
+    urn: str
+    # (kind, detail) per unverifiable item, in the order the audit recorded
+    # them — the reason each check could not run is the substance of the row.
+    unverifiable: tuple[tuple[str, str], ...]
+    policy_hash: str
+    commit_sha: str
+    checked_at: str
+
+
+def emit_gap_assertions(
+    gaps: Sequence[CoverageGap],
+    transport: Any | None = None,
+    *,
+    gms_url: str | None = None,
+) -> dict[str, tuple[str, ...]]:
+    """Mirror not-established examinations as native ``ERROR`` assertions.
+
+    Additive only: a gap says nothing about any policy rule, so unlike
+    ``emit_assertions`` this never retires other rows. Retirement of the gap
+    itself happens through the ordinary sweep the next time the same dataset
+    earns real receipts — the gap's URN is then a Sidq rule absent from that
+    run, which is the retirement condition already in force.
+    """
+
+    if not gaps:
+        return {"created": (), "existing": (), "runs": (), "skipped": ()}
+
+    if transport is None:
+        target = gms_url or os.environ.get("DATAHUB_GMS_URL", "")
+        if not target:
+            raise AssertionMirrorUnavailable(_MIRROR_CONFIG_REQUIRED)
+        transport = _GmsTransport(target, os.environ.get("DATAHUB_GMS_TOKEN"))
+
+    created: list[str] = []
+    existing: list[str] = []
+    runs: list[str] = []
+    skipped: list[str] = []
+
+    for gap in gaps:
+        urn = assertion_urn(gap.urn, _GAP_RULE_ID)
+        current = transport.get_aspect_json(urn, "assertionInfo")
+        if _is_removed(transport, urn):
+            # Same contract as the rule mirror: an operator's soft delete is a
+            # decision, and re-writing the row would silently reverse it.
+            skipped.append(urn)
+            continue
+
+        reasons = "; ".join(
+            f"{kind}: {detail}" if detail else kind for kind, detail in gap.unverifiable
+        )
+        _upsert_definition(
+            transport,
+            urn,
+            gap.urn,
+            f"{_NAME_PREFIX}{_GAP_RULE_ID}",
+            (
+                f"Sidq examined this dataset under policy "
+                f"{gap.policy_hash[:12]} and could establish nothing: "
+                f"{len(gap.unverifiable)} check(s) were unverifiable "
+                f"({reasons}). Not verified is not clean — this row exists "
+                f"so the gap is visible where the checks would be."
+            ),
+        )
+        (existing if current is not None else created).append(urn)
+
+        runs.append(
+            _report_run(
+                transport,
+                urn,
+                gap.checked_at,
+                {
+                    "sidq.verdict": "NOT_ESTABLISHED",
+                    "sidq.rule_id": _GAP_RULE_ID,
+                    "sidq.severity": "gap",
+                    "sidq.policy_hash": gap.policy_hash,
+                    "sidq.commit_sha": gap.commit_sha,
+                    "sidq.checked_at": gap.checked_at,
+                    "sidq.evidence_summary": reasons,
+                },
+                # ERROR is DataHub's own vocabulary for a run that could not
+                # complete its evaluation. SUCCESS would claim a check passed;
+                # FAILURE would claim one failed; neither happened.
+                "ERROR",
+                freshly_created=current is None,
+            )
+        )
+
+    return {
+        "created": tuple(created),
+        "existing": tuple(existing),
+        "runs": tuple(runs),
+        "skipped": tuple(skipped),
+    }
 
 
 def emit_assertions(
@@ -264,7 +381,7 @@ def emit_assertions(
                 _report_run(
                     transport,
                     urn,
-                    receipt,
+                    receipt.checked_at,
                     _native_results(receipt, rule_id, severity, summary),
                     assertion_result_type(receipt.verdict)
                     if not severity
@@ -298,7 +415,7 @@ def emit_assertions(
                 _report_run(
                     transport,
                     stale,
-                    receipt,
+                    receipt.checked_at,
                     _native_results(receipt, stale_rule, "retired", _RETIRED_SUMMARY),
                     "SUCCESS",
                 )
@@ -357,14 +474,14 @@ _PROPAGATION_WAIT_SECONDS = 2.0
 def _report_run(
     transport: Any,
     urn: str,
-    receipt: Receipt,
+    checked_at: str,
     results: dict[str, str],
     result_type: str,
     *,
     evidence_url: str = "",
     freshly_created: bool = False,
 ) -> str:
-    timestamp = _checked_at_millis(receipt.checked_at)
+    timestamp = _checked_at_millis(checked_at)
     result: dict[str, Any] = {
         "type": result_type,
         "timestampMillis": timestamp,

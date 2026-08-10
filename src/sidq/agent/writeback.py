@@ -25,11 +25,12 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 from sidq.agent.auditor import AuditRun
 from sidq.policy.engine import PolicyEngine
+from sidq.receipt.assertion import CoverageGap
 from sidq.receipt.build import Receipt, build_receipt
 
 # The write surface is the receipt module's own, not a second declaration of it.
@@ -89,6 +90,53 @@ def receipts_for(
             )
         )
     return receipts
+
+
+def gaps_for(
+    result: AuditRun,
+    *,
+    policy_path: str | Path | None = None,
+    commit_sha: str = "",
+    checked_at: datetime | None = None,
+) -> list[CoverageGap]:
+    """The examinations that established nothing, as catalog-visible records.
+
+    ``receipts_for`` deliberately excludes these assets: a receipt is
+    authorization state, and "could not check" written as a receipt would be
+    read as coverage. But the exclusion also meant the catalog showed nothing
+    at all where the checks would be, so a reader could not tell "nobody
+    looked" from "someone looked and could not establish anything". These are
+    the second statement, bound to the same policy hash and commit as the
+    receipts from the same run, destined for the assertion mirror rather than
+    the receipt path.
+    """
+    engine = PolicyEngine(policy_path)
+    policy_hash = engine.decide((), commit_sha="").policy_hash
+    stamp = (
+        (checked_at or datetime.now(UTC)).astimezone(UTC).replace(microsecond=0)
+    ).isoformat()
+    gaps: list[CoverageGap] = []
+    for urn in result.unestablished:
+        unverifiable = tuple(
+            (item.kind, str(item.detail.get("reason", "")))
+            for item in result.evidence_by_urn.get(urn, ())
+            if item.kind.endswith("_unverifiable")
+        )
+        if not unverifiable:
+            # ``unestablished`` is defined as examined-with-only-unverifiable
+            # evidence, so an entry without any is an upstream bookkeeping bug.
+            # Emitting an empty gap would publish a row that explains nothing.
+            continue
+        gaps.append(
+            CoverageGap(
+                urn=urn,
+                unverifiable=unverifiable,
+                policy_hash=policy_hash,
+                commit_sha=commit_sha,
+                checked_at=stamp,
+            )
+        )
+    return gaps
 
 
 def write_receipts(
