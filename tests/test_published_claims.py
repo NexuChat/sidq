@@ -1549,7 +1549,28 @@ def test_architecture_names_the_current_delivery_surfaces_and_mcp_tools() -> Non
 
 
 def test_landing_calls_its_buttons_live_demos_not_all_agents() -> None:
-    """Five agent capabilities are backed by exactly five safe live demos."""
+    """Five agent capabilities are backed by exactly five safe live demos.
 
+    This used to pin one exact sentence, which made it a copy-editing tripwire
+    rather than a claim guard: rewording the line failed the build while
+    changing the number of buttons did not. What matters is that the page says
+    five and that five is what the server will actually run, so both halves are
+    checked against each other instead.
+    """
     landing = (ROOT / "web" / "index.html").read_text(encoding="utf-8")
-    assert "All five live proofs are available above" in landing
+    server = (ROOT / "web" / "server.py").read_text(encoding="utf-8")
+
+    assert re.search(r"\bFive live proofs\b", landing), (
+        "the landing page must state how many live proofs it offers"
+    )
+
+    runnable = server[server.index("RUNNABLE:") :]
+    runnable = runnable[: runnable.index("\nCLIENT_RUN_LIMIT")]
+    offered = set(re.findall(r'^    "([a-z-]+)":', runnable, re.M))
+    wired = set(re.findall(r'data-run="([a-z-]+)"', landing))
+
+    assert len(offered) == 5, f"the server offers {len(offered)} commands, not five"
+    assert wired == offered, (
+        f"the page's buttons and the server's closed table disagree: "
+        f"page-only {sorted(wired - offered)}, server-only {sorted(offered - wired)}"
+    )
