@@ -780,6 +780,12 @@ def test_write_acknowledgement_without_visible_receipt_is_not_success() -> None:
 
 
 def test_write_confirmation_transport_call_respects_deadline() -> None:
+    """A deadline makes the caller give up locally, not cancel issued transport work.
+
+    This contract replaced in-flight cancellation because cancelling a synchronous
+    MCP handler can crash the shared server session.
+    """
+
     hub = _LiveReceiptHub()
     entered = threading.Event()
     release = threading.Event()
@@ -818,6 +824,7 @@ def test_write_confirmation_transport_call_respects_deadline() -> None:
         worker.join(timeout=0.1)
         assert not worker.is_alive()
         assert time.monotonic() - started < 2.5
+        assert not returned.is_set()
         assert caught.value.receipt_rollback_errors == (
             "get_entities: ReceiptWriteUnconfirmed",
         )
@@ -2515,7 +2522,7 @@ class _MCPResponse:
 def test_receipt_stdio_bounded_request_times_out_without_poisoning_session(
     monkeypatch,
 ) -> None:
-    caller = StdioMCPReceiptToolCaller(frozenset({"first", "second"}))
+    caller = StdioMCPReceiptToolCaller(frozenset({"warmup", "first", "second"}))
 
     class _Session:
         def __init__(self, read: object, write: object) -> None:
@@ -2528,8 +2535,8 @@ def test_receipt_stdio_bounded_request_times_out_without_poisoning_session(
             self, name: str, arguments: dict[str, object]
         ) -> _MCPResponse:
             if name == "first":
-                await anyio.sleep_forever()
-            return _MCPResponse('{"ok": true}')
+                await anyio.sleep(0.05)
+            return _MCPResponse(f'{{"name": "{name}"}}')
 
         async def __aenter__(self) -> Self:
             return self
@@ -2548,15 +2555,81 @@ def test_receipt_stdio_bounded_request_times_out_without_poisoning_session(
     )
 
     try:
+        assert caller("warmup", {}) == {"name": "warmup"}
         with pytest.raises(TimeoutError):
             caller.call_with_timeout("first", {}, timeout=0.01)
-        assert caller("second", {}) == {"ok": True}
+        assert caller("second", {}) == {"name": "second"}
     finally:
         caller.close()
 
 
+def test_receipt_stdio_deadline_does_not_cancel_in_flight_request(
+    monkeypatch,
+) -> None:
+    caller = StdioMCPReceiptToolCaller(frozenset({"warmup", "first", "second"}))
+    first_entered = threading.Event()
+    release_first = threading.Event()
+    calls: list[str] = []
+    cancellations: list[str] = []
+
+    class _Session:
+        def __init__(self, read: object, write: object) -> None:
+            pass
+
+        async def initialize(self) -> None:
+            pass
+
+        async def call_tool(
+            self, name: str, arguments: dict[str, object]
+        ) -> _MCPResponse:
+            calls.append(name)
+            if name == "first":
+                first_entered.set()
+                try:
+                    while not release_first.is_set():
+                        await anyio.sleep(0.001)
+                except anyio.get_cancelled_exc_class():
+                    cancellations.append(name)
+                    raise
+            return _MCPResponse(f'{{"name": "{name}"}}')
+
+        async def __aenter__(self) -> Self:
+            return self
+
+        async def __aexit__(self, *args: object) -> None:
+            return None
+
+    monkeypatch.setattr(mcp, "ClientSession", _Session)
+    monkeypatch.setattr(
+        mcp.client.stdio,
+        "stdio_client",
+        lambda parameters: _AsyncContext((object(), object())),
+    )
+    monkeypatch.setattr(
+        mcp.client.stdio, "StdioServerParameters", lambda **kwargs: kwargs
+    )
+
+    try:
+        assert caller("warmup", {}) == {"name": "warmup"}
+        calls.clear()
+        with pytest.raises(TimeoutError):
+            caller.call_with_timeout("first", {}, timeout=0.02)
+        assert first_entered.is_set()
+        assert cancellations == []
+
+        release_first.set()
+        assert caller("second", {}) == {"name": "second"}
+        assert calls == ["first", "second"]
+        assert cancellations == []
+    finally:
+        release_first.set()
+        caller.close()
+
+
 def test_receipt_stdio_bounded_request_expires_while_queued(monkeypatch) -> None:
-    caller = StdioMCPReceiptToolCaller(frozenset({"first", "second", "third"}))
+    caller = StdioMCPReceiptToolCaller(
+        frozenset({"warmup", "first", "second", "third"})
+    )
     first_entered = threading.Event()
     release_first = threading.Event()
     calls: list[str] = []
@@ -2602,6 +2675,8 @@ def test_receipt_stdio_bounded_request_expires_while_queued(monkeypatch) -> None
         except BaseException as error:  # noqa: BLE001 - relay the worker outcome
             first_result.set_exception(error)
 
+    assert caller("warmup", {}) == {"name": "warmup"}
+    calls.clear()
     worker = threading.Thread(target=first_request, daemon=True)
     worker.start()
     try:

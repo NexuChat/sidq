@@ -129,7 +129,7 @@ class StdioMCPReceiptToolCaller:
     def call_with_timeout(
         self, name: str, arguments: Mapping[str, Any], *, timeout: float
     ) -> Any:
-        """Call one tool without letting it block the shared MCP session forever."""
+        """Call one tool without letting the calling thread wait forever."""
         if timeout < 0:
             raise ValueError("timeout must be non-negative")
         return self._call(name, arguments, deadline=time.monotonic() + timeout)
@@ -196,13 +196,12 @@ class StdioMCPReceiptToolCaller:
                         )
                         continue
                     try:
-                        if timeout is None:
-                            response = await session.call_tool(name, dict(arguments))
-                        else:
-                            with anyio.fail_after(timeout):
-                                response = await session.call_tool(
-                                    name, dict(arguments)
-                                )
+                        # Never cancel an in-flight call: a synchronous MCP handler
+                        # cannot observe cancellation, so mcp 1.29.0 responds twice
+                        # and trips `assert not self._completed, "Request already responded to"`.
+                        # The caller gives up via Future.result; this thread finishes
+                        # the call, and the next queued request waits behind it.
+                        response = await session.call_tool(name, dict(arguments))
                         is_error = getattr(response, "is_error", None)
                         if is_error is None:
                             is_error = getattr(response, "isError", False)
