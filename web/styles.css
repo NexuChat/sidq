@@ -917,3 +917,16 @@ h2 code { font-size: 0.88em; color: var(--red); }
 }
 .native-shot figcaption { margin-top: 0.85rem; }
 .standing { padding-bottom: 1.5rem; }
+
+/* The live-DataHub link dead-ended at a login until the read-only judge account
+   was named beside it. Kept adjacent to the link rather than in a FAQ, because
+   a credential a judge has to hunt for is the same as no credential. */
+.judge-key { margin-top: 0.9rem; }
+
+/* Two claims about the same column, side by side, because the disagreement is
+   the product. Stacks on narrow screens rather than shrinking the values. */
+.drift-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 1.75rem; }
+.drift-side { padding: 1.25rem 1.4rem; border: 1px solid var(--rule, #34332f); border-radius: 2px; }
+.drift-val { margin: 0.7rem 0 0.6rem; font-size: 1.15rem; word-break: break-word; }
+.drift-verdict { margin-top: 1.5rem; font-size: 1.1rem; }
+@media (max-width: 640px) { .drift-pair { grid-template-columns: 1fr; } }
