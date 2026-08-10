@@ -359,6 +359,45 @@ No findings. This published zero is a result, not a skipped check.
 - `urn:li:dataset:(urn:li:dataPlatform:tableau,b2fd91.8bfe7483-1c9a-a0e1-ec84-57207dd37a15,PROD)` — the catalog records downstream consumer(s) `urn:li:dataset:(urn:li:dataPlatform:tableau,b2fd91.b980a8c5-28eb-119e-f6ca-4da32732e5be,PROD)` while its ownership aspect contains no owner.
 - `urn:li:dataset:(urn:li:dataPlatform:tableau,b2fd91.f32082e5-06b8-f46e-9047-4611fffe66b0,PROD)` — the catalog records downstream consumer(s) `urn:li:dataset:(urn:li:dataPlatform:tableau,b2fd91.f8fb6a0b-7be6-690b-cc45-3c6e0fd2bcde,PROD)` while its ownership aspect contains no owner.
 
+## Who wrote both sides
+
+Counting contradictions says a catalog is wrong. It does not say what to fix. So
+each side of every finding was attributed to the ingestion run that persisted
+it, using `systemMetadata` on the same aspect read — one query parameter, no
+extra calls:
+
+```
+GET /openapi/v3/entity/dataset/{urn}?aspects=upstreamLineage&systemMetadata=true
+```
+
+Measured 2026-08-10 against DataHub OSS v1.5.0.6, across all five affected
+assets and every stored version of both aspects — ten comparisons:
+
+| | |
+|---|---|
+| Versions where the same run wrote **both** the lineage and the schema | **10 of 10** |
+| Distinct ingestion runs involved | 2 |
+| Versions in which the contradiction is absent | **0** |
+
+Every asset carries 58 fine-grained lineage records naming upstream columns,
+against its own stored schema of between 2 and 12 fields, and in each stored
+version the run that wrote the lineage is the run that wrote the schema.
+
+Two things follow, and neither is visible from the counts alone.
+
+**These are not two sources disagreeing.** The usual reading of a catalog
+contradiction is that one system said one thing and another said something
+else. Here a single writer produced both halves in the same run, so there is no
+second party to reconcile with — the contradiction was born, not accumulated.
+
+**And re-ingesting does not fix it.** Two runs wrote these assets, and the
+second reproduced the same 58-against-2 shape exactly. It is deterministic
+output of the ingestion rather than a transient failure, which is why the
+finding names a job to repair rather than a state to refresh.
+
+This is also the reason the total decomposes as five sibling assets times 57:
+one ingestion path, one defect, replicated across the assets it emits.
+
 ## What this means
 
 A curated, shipped sample catalog is internally inconsistent in 285 persisted field-level lineage claims: each names a downstream schema field its own schema does not contain. It also has 29 consumed entities with no recorded owner. This is not an assertion about source-code correctness; it is stronger and narrower: these are conflicts between catalog claims visible in the DataHub UI itself.

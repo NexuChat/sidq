@@ -210,6 +210,7 @@ Swarm worker gamma
           </div>
 
           <p class="verdict-line">Both statements live inside the catalog. <strong>No source system was consulted.</strong> They cannot both be true.</p>
+          <p class="fine">And the same read says who wrote them. Attributing each side to its ingestion run — one query parameter, no extra calls — shows that the run which wrote the lineage is the run that wrote the schema, in all five affected assets and every stored version: ten out of ten. So this is not two sources disagreeing; one writer produced both halves in the same run. A later run reproduced the shape exactly rather than repairing it, which is why the finding names a job to fix rather than a state to refresh. <a href="https://github.com/NexuChat/sidq/blob/main/docs/TRUTH-REPORT.md">How that was measured ↗</a></p>
 
           <dl class="stats" aria-label="Audit results on the shipped sample catalog">
             <div><dt class="stat-red">285</dt><dd>internal contradictions</dd></div>
