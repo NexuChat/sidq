@@ -189,6 +189,11 @@ converge-demo: | $(VENV)/.sidq-dev-lock
 # fifth process that reads only DataHub prints who did what.
 SWARM_BUDGET ?= 6
 swarm-demo: | $(VENV)/.sidq-dev-lock
+	@# Four workers fail four times in parallel, so an unauthenticated run prints
+	@# four Python tracebacks and buries the one line that explains it. The other
+	@# catalog targets already preflight; this one, the loudest, did not.
+	@catalog_status=$$(if [ -n "$${DATAHUB_GMS_TOKEN:-}" ]; then printf 'header = "Authorization: Bearer %s"\n' "$$DATAHUB_GMS_TOKEN" | curl --config - --silent --output /dev/null --write-out '%{http_code}' --header 'Content-Type: application/json' --data '{"query":"{ __typename }"}' "$(DATAHUB_GMS_URL)/api/graphql"; else curl --silent --output /dev/null --write-out '%{http_code}' --header 'Content-Type: application/json' --data '{"query":"{ __typename }"}' "$(DATAHUB_GMS_URL)/api/graphql"; fi); \
+	  if [ "$$catalog_status" = 200 ]; then :; elif [ "$$catalog_status" = 401 ]; then echo "ERROR: DataHub catalog authentication failed (401); export a valid DATAHUB_GMS_TOKEN from your secret manager and retry." >&2; exit 1; else echo "ERROR: DataHub catalog preflight returned HTTP $$catalog_status." >&2; exit 1; fi
 	@run=swarm-$$(date +%s); \
 	echo "== four workers start together — no coordinator, no IPC, run $$run =="; \
 	pids=""; \
