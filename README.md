@@ -2,10 +2,11 @@
 
 [![CI](https://github.com/NexuChat/sidq/actions/workflows/ci.yml/badge.svg)](https://github.com/NexuChat/sidq/actions/workflows/ci.yml)
 
-> **A team of agents that refuse, repair, and remember — on your catalog.**
-> Sidq blocks a change the evidence cannot support, proposes only the fix its own
-> engine re-proves, and writes what it learned back into DataHub so the next agent
-> inherits it. Four of them can work one catalog at once with no coordinator.
+> **When DataHub says a column exists but PostgreSQL says it doesn't, Sidq blocks
+> the agent — and writes the proof back through DataHub's official MCP tools.**
+> It refuses what the evidence cannot support, proposes only the fix its own engine
+> re-proves, and leaves a receipt the next agent inherits. Four of them can work one
+> catalog at once with no coordinator.
 
 **Submission film:** real footage in five of six chapters — the live catalog
 audit, the committed `BLOCK` replay ending on the public sealed PR thread, the
@@ -29,8 +30,7 @@ Every row is one command or one committed artifact. Nothing here is a screenshot
 
 | Criterion | The claim | Check it |
 |---|---|---|
-| **Use of DataHub** | Read → decide → write a receipt through the **official MCP server**, then a *separate process* reads it back and recomputes its own verdict. Verdicts also land in DataHub's own **Quality tab** as native assertions (platform `sidq`). | `make live-loop` · [`examples/06-native-assertion/`](examples/06-native-assertion/) |
-| **Agents as a team** | **Four workers, no coordinator, no IPC** — they divide one catalog purely through the receipts they write, survive a peer killed mid-run, and a fifth process that audited nothing reads the ledger back out of the catalog. | `make swarm-demo` · [`src/sidq/agent/swarm.py`](src/sidq/agent/swarm.py) |
+| **Use of DataHub** | Read → decide → **write** through the official MCP server, then a *separate process* reads the receipt back and recomputes its own verdict. Verdicts also land in DataHub's own **Quality tab** as native assertions (platform `sidq`). And the catalog is not only the output — it is the **only shared state four concurrent workers have**: no coordinator, no IPC, a peer killed mid-run, 14 distinct assets in 18 examinations, measured. | `make live-loop` · `make swarm-demo` · [`examples/06-native-assertion/`](examples/06-native-assertion/) |
 | **Technical execution** | 1,170 tests, lint, format and types in one gate; the flagship `BLOCK` re-derives **byte-identical** from committed evidence. Published numbers are guarded — a stale one fails the build. | `make check` · `make gate-demo` |
 | **Originality** | The question is not "what is in the catalog" but "is the catalog telling the truth" — proved on DataHub's **own shipped sample**: examining all **67 datasets** found 285 internal contradictions, concentrated in **5 assets**. And against reality: the live source renames a column, the catalog does not, Sidq blocks the context. | [`docs/TRUTH-REPORT.md`](docs/TRUTH-REPORT.md) · `make demo-break` |
 | **Real-world usefulness** | A PII removal is blocked with its lineage path to a Looker dashboard. The repair agent **refuses its own obvious fix** because the engine re-proved it moves the leak instead of closing it. | [`examples/01-blocked-pii-dashboard/`](examples/01-blocked-pii-dashboard/) · `make repair-demo` |

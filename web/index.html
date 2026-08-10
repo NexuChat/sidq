@@ -45,9 +45,9 @@
         <div class="wrap hero-grid">
           <div class="hero-copy">
             <p class="eyebrow reveal">Catalog truth verification · DataHub-native</p>
-            <h1 id="hero-heading" class="reveal r1">Everyone is teaching agents to read the catalog.
-              <span class="lying">Nobody is asking whether it is lying.</span></h1>
-            <p class="sub reveal r2">Sidq checks schema, lineage, governance, and documented claims against evidence before an agent acts — <strong>PASS</strong>, <strong>WARN</strong>, or <strong>BLOCK</strong> — and writes a receipt the next agent independently re-verifies.</p>
+            <h1 id="hero-heading" class="reveal r1">DataHub says the column exists.
+              <span class="lying">The source says it does not.</span></h1>
+            <p class="sub reveal r2">Sidq blocks the agent before it builds on the disagreement — and writes the proof back through DataHub’s official MCP tools. The judged path is deterministic: <strong>PASS</strong>, <strong>WARN</strong>, or <strong>BLOCK</strong>. No LLM takes part in it.</p>
             <div class="cta-row reveal r3">
               <button class="btn-primary" type="button" data-run="handoff" aria-controls="run-output">Run the live receipt read</button>
               <a class="btn-ghost" href="#exhibit-a-heading">See a catalog contradict itself ↓</a>
@@ -62,7 +62,7 @@
             </div>
             <div class="terminal-body">
               <section id="recorded-proof" aria-labelledby="recorded-proof-label">
-                <p class="fine" id="recorded-proof-label"><strong>Recorded proof — not live.</strong> Output of <code>make gate-demo</code>, captured at git revision <code>f006136</code>. “Offline verdict” below re-runs the same command live on this host.</p>
+                <p class="fine" id="recorded-proof-label"><strong>Recorded proof — not live.</strong> Output of <code>make gate-demo</code>, captured at git revision <code>f006136</code>. <strong>Offline verdict</strong> below re-runs this exact command live on this host; the buttons beside it run different proofs.</p>
                 <pre id="recorded-output" tabindex="0" aria-label="Recorded stdout from make gate-demo">examples/01 and every artifact quoting its hash are current
 
 DECISION : BLOCK
