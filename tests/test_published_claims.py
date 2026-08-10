@@ -68,6 +68,48 @@ def test_the_headline_contradiction_count_matches_the_evidence() -> None:
     assert "contradictions across 67 datasets" not in text
 
 
+def test_no_judge_facing_surface_conflates_examined_with_affected() -> None:
+    """The conflation was banned in the README, then published in a picture.
+
+    The guard above reads one file. The submission gallery is composed as HTML
+    and rendered to PNG, and those boards say the same numbers to the same
+    judges — so the phrasing the README may not use, a board may not use
+    either. This was not hypothetical: `docs/gallery/src/02-the-sample.html`
+    carried "internal contradictions across 67 datasets" while the README was
+    forbidden from saying it, and a rendered slide is invisible to any check
+    that only reads prose.
+
+    The boards are the reason this scans sources rather than images. Nothing
+    here can read a PNG; keeping the wording honest in the HTML the PNG is
+    rendered from is what keeps the rendered board honest.
+
+    Markup is stripped before matching, and that is the whole difficulty. The
+    offending board read `across <strong>67 datasets</strong>`, so the banned
+    phrase never appeared literally in the file — a substring check against raw
+    HTML reports clean on the exact text it exists to forbid. A reader sees the
+    sentence; only a reader that strips tags sees it too.
+    """
+    surfaces = [
+        *ROOT.glob("*.md"),
+        *(ROOT / "docs").glob("*.md"),
+        *(ROOT / "docs" / "gallery" / "src").glob("*.html"),
+        *(ROOT / "web").glob("*.html"),
+    ]
+    assert surfaces, "no judge-facing surfaces were found to check"
+
+    offenders = []
+    for path in surfaces:
+        raw = path.read_text(encoding="utf-8")
+        rendered = re.sub(r"<[^>]+>", "", raw) if path.suffix == ".html" else raw
+        if "contradictions across 67 datasets" in " ".join(rendered.split()):
+            offenders.append(path.relative_to(ROOT).as_posix())
+
+    assert not offenders, (
+        "67 is the number of datasets examined, not the number affected; "
+        f"these surfaces conflate the two: {offenders}"
+    )
+
+
 def test_the_unowned_asset_count_matches_the_evidence() -> None:
     entry = _summary()["unowned_consumed"]
 
