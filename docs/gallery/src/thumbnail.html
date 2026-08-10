@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sidq — submission thumbnail</title>
+<link rel="stylesheet" href="board.css">
+<style>
+  /* The gallery boards are 1920x1080. Devpost asks 3:2 for the thumbnail and
+     renders it at 333x222 on the card, so a 16:9 board cropped to 3:2 loses a
+     third of its frame and every line under about 40px becomes unreadable.
+     This is sized for the card first: one claim, three type sizes, nothing
+     that needs a second look. Rendered at 1800x1200 for a 5.4x downscale. */
+  body { width: 1800px; height: 1200px; padding: 0; }
+  .bar { width: 18px; }
+  .wrap { display: flex; flex-direction: column; height: 100%; padding: 84px 96px 76px 120px; }
+  .top { display: flex; justify-content: space-between; align-items: baseline; }
+  .brand { font-family: var(--display); font-size: 76px; font-weight: 700; letter-spacing: -0.07em; }
+  .brand span { margin-left: 20px; color: var(--acid); font-family: var(--mono); font-size: 30px; letter-spacing: 0.1em; }
+  .kicker { color: var(--dim); font-size: 27px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; }
+
+  .claim { margin-top: 92px; font-family: var(--display); font-size: 104px; line-height: 1.0; letter-spacing: -0.05em; }
+  .claim .them { color: var(--paper); }
+  .claim .src  { color: var(--soft); font-style: italic; }
+
+  .rows { margin-top: 74px; display: grid; grid-template-columns: 300px 1fr; gap: 26px 46px; align-items: center; }
+  .lab { color: var(--dim); font-size: 34px; letter-spacing: 0.14em; text-transform: uppercase; }
+  .val { font-family: var(--mono); font-size: 50px; }
+  .val.gone { color: var(--signal); text-decoration: line-through; text-decoration-thickness: 4px; }
+
+  .verdict { margin-top: auto; display: flex; align-items: flex-end; justify-content: space-between; }
+  .block { font-family: var(--display); font-style: italic; font-size: 190px; line-height: 0.8; color: var(--signal); letter-spacing: -0.05em; }
+  .why { max-width: 700px; padding-bottom: 18px; text-align: right; color: var(--dim); font-size: 31px; line-height: 1.42; }
+  .why strong { color: var(--paper); }
+</style>
+</head>
+<body>
+  <div class="bar"></div>
+  <div class="wrap">
+    <div class="top">
+      <div class="brand">Sidq<span>صدق</span></div>
+      <div class="kicker">DataHub-native · deterministic</div>
+    </div>
+
+    <h1 class="claim"><span class="them">The catalog says the column exists.</span><br>
+      <span class="src">The source says it does not.</span></h1>
+
+    <div class="rows">
+      <div class="lab">DataHub</div><div class="val gone">customers.email</div>
+      <div class="lab">Live source</div><div class="val">customers.email_address</div>
+    </div>
+
+    <div class="verdict">
+      <div class="block">BLOCK</div>
+      <p class="why">The agent is stopped before it builds on the disagreement — and the proof is written back through DataHub’s <strong>official MCP tools</strong>.</p>
+    </div>
+  </div>
+</body>
+</html>
