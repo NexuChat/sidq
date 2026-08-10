@@ -75,7 +75,14 @@ COOLDOWN_SECONDS = 30
 CLIENT_WINDOW_SECONDS = 10 * 60
 GLOBAL_START_WINDOW_SECONDS = 10 * 60
 GLOBAL_START_LIMIT = 20
-GLOBAL_CONCURRENCY = 2
+# Measured on this host rather than guessed: four concurrent `sidq audit`
+# runs completed together in 26s — no slower than one alone, because the work
+# is DataHub round trips rather than CPU — with 9 GB of 30 GB used and a load
+# average of 5.3 across 16 cores. Two was leaving judges queued behind a
+# 40-second run for no reason. Raise this only with a fresh measurement; the
+# per-command locks below still serialise identical commands, which is what
+# keeps one client from monopolising a slot.
+GLOBAL_CONCURRENCY = 4
 BUSY_RETRY_SECONDS = 5
 READINESS_TIMEOUT_SECONDS = 2
 READINESS_CACHE_TTL_SECONDS = 10

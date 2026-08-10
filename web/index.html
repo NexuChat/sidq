@@ -78,12 +78,12 @@ byte-identical verdict. Full evidence: examples/01-blocked-pii-dashboard/verdict
               <p id="run-progress" aria-live="polite" hidden></p>
               <pre id="run-output" tabindex="-1" hidden></pre>
               <div class="run-row">
-                <button class="chip" type="button" data-run="claims" aria-controls="run-output">Test the docs against live PostgreSQL · ~40s</button>
+                <button class="chip" type="button" data-run="claims" aria-controls="run-output">Test the docs against live PostgreSQL · ~5s</button>
                 <button class="chip" type="button" data-run="gate-demo" aria-controls="run-output">Offline verdict</button>
                 <button class="chip" type="button" data-run="audit" aria-controls="run-output">Catalog audit</button>
-                <button class="chip" type="button" data-run="repair" aria-controls="run-output">Repair agent</button>
+                <button class="chip" type="button" data-run="repair" aria-controls="run-output">Repair agent · ~55s</button>
               </div>
-              <p class="fine">Five live proofs, each a fixed read-only command from a closed table. The first is the one no catalog can answer on its own: it compiles what DataHub <em>documents</em> about a field into bounded SQL and runs it against the source.</p>
+              <p class="fine">Five live proofs, each a fixed read-only command from a closed table. The times beside them are measured on this host, not estimated. The first is the one no catalog can answer on its own: it compiles what DataHub <em>documents</em> about a field into bounded SQL and runs it against the source.</p>
               <details class="mcp-tools">
                 <summary>Three read-only MCP tools</summary>
                 <p class="fine">No hidden mutation. Their verification store is not a DataHub Receipt reader — the independent Receipt read is the proof above.</p>
@@ -150,7 +150,7 @@ byte-identical verdict. Full evidence: examples/01-blocked-pii-dashboard/verdict
           </dl>
 
           <div class="section-run">
-            <button class="btn-secondary" type="button" data-run="audit" aria-controls="run-output">Hunt contradictions in the live catalog · ~45s</button>
+            <button class="btn-secondary" type="button" data-run="audit" aria-controls="run-output">Hunt contradictions in the live catalog · ~40s</button>
             <span class="fine">Real read-only audit over the official MCP server. Output prints in the console above.</span>
           </div>
         </div>
@@ -191,7 +191,7 @@ byte-identical verdict. Full evidence: examples/01-blocked-pii-dashboard/verdict
           </ol>
 
           <div class="section-run">
-            <button class="btn-secondary" type="button" data-run="gate-demo" aria-controls="run-output">Re-derive this BLOCK from the committed fixture · ~15s</button>
+            <button class="btn-secondary" type="button" data-run="gate-demo" aria-controls="run-output">Re-derive this BLOCK from the committed fixture · under a second</button>
             <span class="fine">Byte-identical replay — no DataHub, no credentials. Output prints in the console above.</span>
           </div>
         </div>
