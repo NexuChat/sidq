@@ -7,6 +7,7 @@ that cannot provide a snapshot get explicit ``*_unverifiable`` evidence instead.
 
 from __future__ import annotations
 
+import collections
 import re
 from collections import defaultdict, deque
 from collections.abc import Iterable, Mapping, Sequence
@@ -178,10 +179,29 @@ class CatalogSnapshot:
 
         # Most-consumed first: the same ordering the auditor uses, so the assets
         # whose field lineage gets resolved are the ones it will examine.
-        ranked = sorted(
-            (entity.urn for entity in entities),
-            key=lambda urn: (-len(table_edges.get(urn, ())), urn),
-        )
+        #
+        # The aspect reader needs the opposite ordering, and sharing this one
+        # made the feature far weaker than it looked. `get_lineage` resolves
+        # from the SOURCE outward, so most-consumed-first points it at assets it
+        # can resolve. `upstreamLineage` is stored on the TARGET, so the same
+        # ordering points at pure sources — which hold no such aspect at all —
+        # and spends the budget on the one set guaranteed to return nothing,
+        # while the marts carrying every fine-grained edge rank last and fall
+        # outside the budget first.
+        incoming: collections.Counter[str] = collections.Counter()
+        for source_edges in table_edges.values():
+            for edge in source_edges:
+                incoming[getattr(edge, "target", "") or ""] += 1
+        if field_lineage_reader is None:
+            ranked = sorted(
+                (entity.urn for entity in entities),
+                key=lambda urn: (-len(table_edges.get(urn, ())), urn),
+            )
+        else:
+            ranked = sorted(
+                (entity.urn for entity in entities),
+                key=lambda urn: (-incoming[urn], urn),
+            )
         affordable = set(ranked[: max(field_lineage_budget, 0)])
         resolved: set[str] = set()
         edges: list[LineageEdge] = []

@@ -127,25 +127,45 @@ def order_for_worker(worker_id: str, plan: Sequence[Target]) -> list[Target]:
 
 
 def _consequence_tiers(plan: Sequence[Target]) -> list[list[Target]]:
-    """Make bounded rank tiers without mixing notable and trivial exposure."""
+    """Make bounded rank tiers without mixing notable and trivial exposure.
+
+    A tier is closed at a score boundary, never inside one: splitting a tie
+    would rank two identically-consequential assets against each other on
+    nothing. The size is therefore a target rather than a hard cap, and one
+    tie run larger than the target is unavoidably its own oversized tier.
+
+    What is NOT allowed is that run absorbing the assets ranked above it. An
+    earlier version closed a tier only once it was already full, so fifteen
+    distinct high scores followed by four hundred assets tied at fifteen — the
+    ordinary shape of a catalog, where every unowned leaf table scores exactly
+    fifteen — produced a single tier of four hundred and fifteen, and a worker
+    with a budget of six could spend its whole shift at consequence fifteen
+    while the most consequential asset in the catalog sat three hundred places
+    away, unexamined. Each score's whole run is now measured before it is
+    admitted, so a run that would overflow the tier starts a new one instead.
+    """
     ranked = sorted(
         plan,
         key=lambda target: (-target.consequence, target.urn, target.reasons),
     )
+    runs: list[list[Target]] = []
+    for target in ranked:
+        if runs and runs[-1][0].consequence == target.consequence:
+            runs[-1].append(target)
+        else:
+            runs.append([target])
+
     tiers: list[list[Target]] = []
     tier: list[Target] = []
-    for target in ranked:
+    for run in runs:
         crosses_zero = bool(tier) and (tier[0].consequence > 0) != (
-            target.consequence > 0
+            run[0].consequence > 0
         )
-        follows_full_tier = (
-            len(tier) >= _CONSEQUENCE_TIER_SIZE
-            and target.consequence != tier[-1].consequence
-        )
-        if crosses_zero or follows_full_tier:
+        would_overflow = bool(tier) and len(tier) + len(run) > _CONSEQUENCE_TIER_SIZE
+        if crosses_zero or would_overflow:
             tiers.append(tier)
             tier = []
-        tier.append(target)
+        tier.extend(run)
     if tier:
         tiers.append(tier)
     return tiers

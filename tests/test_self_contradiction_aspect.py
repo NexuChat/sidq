@@ -227,3 +227,41 @@ class _Supplied:
 
     def catalog_snapshot(self) -> CatalogSnapshot:
         return self.snapshot
+
+
+def test_a_binding_budget_is_spent_on_the_asset_that_holds_the_aspect() -> None:
+    """The two paths read opposite directions, so they cannot share one ranking.
+
+    `get_lineage` resolves from the source outward, so most-consumed-first
+    points it at assets it can resolve. `upstreamLineage` is stored on the
+    target, so the same ordering points at pure sources — which hold no such
+    aspect — and spends the whole budget on the one set guaranteed to return
+    nothing, while the marts holding every fine-grained edge rank last and fall
+    outside it first.
+
+    Every other test in this file uses a budget of ten against a two-asset
+    graph, which makes the budget non-binding and hides this completely. This
+    one sets it to one, where the choice of ordering is the entire result.
+    """
+    reader = _AspectReader(
+        {
+            _urn("mart"): _aspect(_fine_edge(source="email", target="customer_email")),
+            _urn("orders"): None,  # a pure source has no upstreamLineage at all
+        }
+    )
+
+    snapshot = CatalogSnapshot.from_mcp(
+        _Graph(), field_lineage_budget=1, field_lineage_reader=reader
+    )
+
+    read = [urn for urn, _aspect_name in reader.calls]
+    assert read == [_urn("mart")], (
+        "the single affordable read was spent on an asset with no aspect"
+    )
+
+    assert snapshot.field_lineage_resolved == frozenset({_urn("mart")})
+    assert {
+        (edge.source_field, edge.target_field)
+        for edge in snapshot.edges
+        if edge.source_field is not None
+    } == {("email", "customer_email")}
