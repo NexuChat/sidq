@@ -8,7 +8,7 @@
     <link rel="canonical" href="https://sidq.mlki.app/">
     <meta property="og:type" content="website">
     <meta property="og:title" content="Sidq — Is the catalog lying?">
-    <meta property="og:description" content="Evidence-first trust infrastructure with deterministic enforcement for agents that act on DataHub context.">
+    <meta property="og:description" content="When DataHub says a column exists but the source says it does not, Sidq blocks the agent before it builds on the disagreement.">
     <meta property="og:url" content="https://sidq.mlki.app/">
     <meta property="og:image" content="https://sidq.mlki.app/social-preview.png">
     <meta property="og:image:width" content="1200">
@@ -47,7 +47,7 @@
             <p class="eyebrow reveal">Catalog truth verification · DataHub-native</p>
             <h1 id="hero-heading" class="reveal r1">DataHub says the column exists.
               <span class="lying">The source says it does not.</span></h1>
-            <p class="sub reveal r2">Sidq blocks the agent before it builds on the disagreement — and writes the proof back through DataHub’s official MCP tools. The judged path is deterministic: <strong>PASS</strong>, <strong>WARN</strong>, or <strong>BLOCK</strong>. No LLM takes part in it.</p>
+            <p class="sub reveal r2">Sidq blocks the agent before it builds on the disagreement — and, on request, writes the proof back through DataHub’s official MCP tools. The judged path is deterministic: <strong>PASS</strong>, <strong>WARN</strong>, or <strong>BLOCK</strong>. No LLM decides it.</p>
             <div class="cta-row reveal r3">
               <button class="btn-primary" type="button" data-run="handoff" aria-controls="run-output">Run the live receipt read</button>
               <a class="btn-ghost" href="#exhibit-a-heading">See a catalog contradict itself ↓</a>
@@ -98,7 +98,7 @@ byte-identical verdict. Full evidence: examples/01-blocked-pii-dashboard/verdict
         <div class="wrap">
           <p class="kicker"><span class="kicker-no">01</span> Catalog vs reality</p>
           <h2 id="drift-heading">The headline, demonstrated.</h2>
-          <p class="lede">Comparing a catalog with itself finds contradictions. It cannot find the case where the catalog is perfectly consistent and simply out of date. So Sidq also asks the system the data actually lives in.</p>
+          <p class="lede">Comparing a catalog with itself finds contradictions. It cannot find the case where the catalog is perfectly consistent and simply out of date. So Sidq also checks the live source.</p>
 
           <div class="drift-pair">
             <div class="drift-side">

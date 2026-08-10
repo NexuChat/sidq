@@ -3,9 +3,9 @@
 [![CI](https://github.com/NexuChat/sidq/actions/workflows/ci.yml/badge.svg)](https://github.com/NexuChat/sidq/actions/workflows/ci.yml)
 
 > **When DataHub says a column exists but PostgreSQL says it doesn't, Sidq blocks
-> the agent — and writes the proof back through DataHub's official MCP tools.**
-> It refuses what the evidence cannot support, proposes only the fix its own engine
-> re-proves, and leaves a receipt the next agent inherits. Four of them can work one
+> the agent — and, on request, writes the proof back through DataHub's official
+> MCP tools.** It refuses what the evidence cannot support, proposes only the fix
+> its own engine re-proves, and can leave a receipt the next agent inherits. Four of them can work one
 > catalog at once with no coordinator.
 
 **Submission film:** real footage in five of six chapters — the live catalog
@@ -26,7 +26,7 @@ Sidq is a DataHub-native verification layer for agents and data-code changes. It
 
 ## Proof, one row per judging criterion
 
-Every row is one command or one committed artifact. Nothing here is a screenshot of itself.
+Every row is one command or one committed artifact. No claim here rests on a screenshot alone.
 
 | Criterion | The claim | Check it |
 |---|---|---|
@@ -187,7 +187,7 @@ latest structured-property values, not append-only examination history.
 
 **Cost.** Apache-2.0, self-hosted, zero API fees. The gate, audit, repair, and
 swarm paths do not call a model; the optional documentation reader runs locally.
-The deterministic decision took 51 ns in the recorded single-machine benchmark,
+The deterministic decision took **51 ns** in the recorded single-machine benchmark,
 so ordinary run cost is dominated by MCP reads. Column lineage spends one MCP
 call per column and is explicitly budgeted; its wall time is environment- and
 catalog-dependent. Resumed audits do not repay work while a current Receipt
