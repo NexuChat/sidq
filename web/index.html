@@ -77,16 +77,13 @@ byte-identical verdict. Full evidence: examples/01-blocked-pii-dashboard/verdict
               <p id="run-status" aria-live="polite">Agent B reads a receipt Agent A persisted in DataHub, then re-derives the answer itself. Read-only.</p>
               <p id="run-progress" aria-live="polite" hidden></p>
               <pre id="run-output" tabindex="-1" hidden></pre>
-              <details class="more-live">
-                <summary>Other live proofs</summary>
-                <p class="fine">All five live proofs are available above; each runs a fixed, read-only command from a closed table.</p>
-                <div class="run-row">
-                  <button class="chip" type="button" data-run="gate-demo" aria-controls="run-output">Offline verdict</button>
-                  <button class="chip" type="button" data-run="audit" aria-controls="run-output">Catalog audit</button>
-                  <button class="chip" type="button" data-run="repair" aria-controls="run-output">Repair agent</button>
-                  <button class="chip" type="button" data-run="claims" aria-controls="run-output">Measured claims</button>
-                </div>
-              </details>
+              <div class="run-row">
+                <button class="chip" type="button" data-run="claims" aria-controls="run-output">Test the docs against live PostgreSQL · ~40s</button>
+                <button class="chip" type="button" data-run="gate-demo" aria-controls="run-output">Offline verdict</button>
+                <button class="chip" type="button" data-run="audit" aria-controls="run-output">Catalog audit</button>
+                <button class="chip" type="button" data-run="repair" aria-controls="run-output">Repair agent</button>
+              </div>
+              <p class="fine">Five live proofs, each a fixed read-only command from a closed table. The first is the one no catalog can answer on its own: it compiles what DataHub <em>documents</em> about a field into bounded SQL and runs it against the source.</p>
               <details class="mcp-tools">
                 <summary>Three read-only MCP tools</summary>
                 <p class="fine">No hidden mutation. Their verification store is not a DataHub Receipt reader — the independent Receipt read is the proof above.</p>
