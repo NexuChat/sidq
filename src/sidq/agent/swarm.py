@@ -22,9 +22,19 @@ modulus collision that made two rotations share one cyclic path, but it cannot
 exclude collisions. Two orders can share a next target, a prefix, or — by full-
 permutation coincidence — an entire consequence tier. Workers that reach the
 same unreceipted asset before either receipt becomes visible will both examine
-it. That is safe — the engine is deterministic, so both write the same verdict.
-DataHub exposes the latest receipt, not an append-only examination history, so
-the observer does not claim it can count collisions after the fact.
+it. DataHub exposes the latest receipt, not an append-only examination history,
+so the observer does not claim it can count collisions after the fact.
+
+That duplication used to be defended with the sentence "the engine is
+deterministic, so both write the same verdict" — which is an assertion about
+the very property the swarm is least able to take on faith, since its workers
+are the only things in the system that ever examine one asset twice. So each
+worker now records a digest of every examination it performed, and
+`swarm-overlap` compares the digests wherever two workers met. The waste is not
+removed; it is spent on evidence. Agreement across independent workers is
+evidence for determinism, not proof of it: a disagreement means the two did not
+see the same catalog *or* the engine is not deterministic, and the observer
+reports the disagreement rather than choosing between those readings.
 
 **Why the work splits at all.** The exact consequence ranking is cut into
 bounded tiers, then each worker independently orders a tier by a digest of its
@@ -54,8 +64,35 @@ from sidq.policy.engine import PolicyEngine
 from sidq.receipt.build import build_receipt
 from sidq.receipt.read import ToolCaller, get_verification_status
 from sidq.receipt.state import judge
+from sidq.serialization import canonical_json
 
 _CONSEQUENCE_TIER_SIZE = 16
+
+
+def examination_digest(evidence: Sequence[Evidence]) -> str:
+    """Identify what an examination concluded, so two of them can be compared.
+
+    Evidence order depends on the order rules happened to fire, which is an
+    implementation detail rather than part of the conclusion, so the items are
+    sorted before hashing. Everything a reader would call part of the verdict is
+    inside: the kind, the subject, the detail, and the graph links that support
+    it. Nothing that varies between two runs of the same examination is — the
+    examination is a pure function of the catalog slice it is handed, and this
+    digest is only meaningful because that is true.
+    """
+    return hashlib.sha256(
+        canonical_json(
+            [
+                {
+                    "kind": item.kind,
+                    "subject": item.subject,
+                    "detail": item.detail,
+                    "graph_links": sorted(item.graph_links),
+                }
+                for item in sorted(evidence, key=lambda item: (item.kind, item.subject))
+            ]
+        )
+    ).hexdigest()
 
 
 @dataclass
@@ -77,6 +114,11 @@ class WorkerRun:
     # from the vouched lists, because a refusal is not a peer's approval.
     refused: list[str] = field(default_factory=list)
     write_failures: list[tuple[str, str]] = field(default_factory=list)
+    # urn -> examination_digest, for every asset in `examined`. Where two
+    # workers examined the same asset, these are what make the duplication
+    # worth something: `swarm-overlap` compares them instead of assuming they
+    # would have matched.
+    verdicts: dict[str, str] = field(default_factory=dict)
 
     def summary(self) -> dict[str, object]:
         return {
@@ -238,6 +280,10 @@ class SwarmWorker:
             # examination verbatim so both paths cannot drift apart.
             evidence = self._auditor._examine(target)
             result.examined.append(target.urn)
+            # Recorded for every examination, not only the ones that produced a
+            # receipt: two workers agreeing that an asset established nothing is
+            # the same evidence as two workers agreeing on a finding.
+            result.verdicts[target.urn] = examination_digest(evidence)
             found = [
                 item for item in evidence if not item.kind.endswith("_unverifiable")
             ]

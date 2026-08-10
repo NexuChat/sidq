@@ -47,6 +47,7 @@ class WorkerAccount:
     swarm_run: str
     examined: tuple[str, ...]
     written: tuple[str, ...]
+    verdicts: Mapping[str, str]
     summary: Mapping[str, object]
 
 
@@ -61,6 +62,12 @@ class SwarmOverlap:
     distinct_assets_examined: int
     duplicated_examinations: int
     overlapping_assets: Mapping[str, tuple[str, ...]]
+    # Assets two or more workers examined and independently concluded the same
+    # thing about.
+    agreed_assets: tuple[str, ...]
+    # urn -> worker_id -> examination digest, for every overlap where the
+    # workers did not conclude the same thing.
+    diverged_assets: Mapping[str, Mapping[str, str]]
 
     def summary(self) -> dict[str, object]:
         return {
@@ -71,6 +78,11 @@ class SwarmOverlap:
             "distinct_assets_examined": self.distinct_assets_examined,
             "duplicated_examinations": self.duplicated_examinations,
             "overlapping_assets": dict(self.overlapping_assets),
+            "cross_checked_assets": len(self.agreed_assets) + len(self.diverged_assets),
+            "agreed_assets": list(self.agreed_assets),
+            "diverged_assets": {
+                urn: dict(digests) for urn, digests in self.diverged_assets.items()
+            },
         }
 
     def render(self) -> list[str]:
@@ -89,9 +101,37 @@ class SwarmOverlap:
         ]
         if self.overlapping_assets:
             for urn, workers in sorted(self.overlapping_assets.items()):
-                lines.append(f"  {urn}  ({', '.join(workers)})")
+                verdict = "diverged" if urn in self.diverged_assets else "agreed"
+                lines.append(f"  {urn}  ({', '.join(workers)}) — {verdict}")
         else:
             lines.append("  (none)")
+
+        lines.extend(
+            [
+                "",
+                "What the duplicated work bought:",
+                (
+                    f"  cross-checked assets     "
+                    f"{len(self.agreed_assets) + len(self.diverged_assets)}"
+                ),
+                f"  independently agreed     {len(self.agreed_assets)}",
+                f"  diverged                 {len(self.diverged_assets)}",
+            ]
+        )
+        if self.diverged_assets:
+            lines.append("")
+            lines.append(
+                "DIVERGENCE — two workers examined one asset and did not conclude"
+            )
+            lines.append(
+                "the same thing. Either they did not read the same catalog, or the"
+            )
+            lines.append("engine is not deterministic. This does not say which:")
+            for urn, digests in sorted(self.diverged_assets.items()):
+                lines.append(f"  {urn}")
+                for worker, digest in sorted(digests.items()):
+                    lines.append(f"    {worker:<12} {digest[:16]}")
+
         lines.extend(
             [
                 "",
@@ -104,18 +144,36 @@ class SwarmOverlap:
                     "against itself rather than flattering itself; the coverage "
                     "ledger that follows is still read independently out of DataHub."
                 ),
+                (
+                    "Agreement is evidence for determinism over the assets two "
+                    "workers happened to share, not proof of it: no asset examined "
+                    "once is cross-checked here at all."
+                ),
             ]
         )
         return lines
 
 
 def worker_report(run: WorkerRun) -> dict[str, object]:
-    """Build the worker's JSON account, including lists and existing counts."""
+    """Build the worker's JSON account, including lists and existing counts.
+
+    The same invariant the parser enforces is enforced here, so the writer and
+    the reader cannot disagree about what a valid report is: a run that examined
+    an asset without recording what it concluded is refused at the point of
+    publication rather than at the point some other process tries to read it.
+    """
+    if set(run.verdicts) != set(run.examined):
+        raise SwarmReportError(
+            f"{run.worker_id}: cannot publish a report whose verdicts do not cover "
+            f"its examinations ({len(run.examined)} examined, "
+            f"{len(run.verdicts)} recorded)"
+        )
     return {
         "worker_id": run.worker_id,
         "swarm_run": run.swarm_run,
         "examined": list(run.examined),
         "written": list(run.written),
+        "verdicts": dict(run.verdicts),
         "summary": run.summary(),
     }
 
@@ -194,6 +252,7 @@ def parse_report(value: object, *, source: str = "worker report") -> WorkerAccou
     swarm_run = _required_string(value, "swarm_run", source)
     examined = _required_string_list(value, "examined", source)
     written = _required_string_list(value, "written", source)
+    verdicts = _required_verdicts(value, examined, source)
     summary = value.get("summary")
     if not isinstance(summary, Mapping):
         raise SwarmReportError(f"{source}: summary must be a JSON object")
@@ -220,6 +279,7 @@ def parse_report(value: object, *, source: str = "worker report") -> WorkerAccou
         swarm_run=swarm_run,
         examined=examined,
         written=written,
+        verdicts=verdicts,
         summary={str(key): item for key, item in summary.items()},
     )
 
@@ -266,6 +326,20 @@ def measure_overlap(
         for urn, workers in sorted(workers_by_asset.items())
         if len(workers) > 1
     }
+
+    # The point of the duplication. Every asset two workers reached is a chance
+    # to compare two independent examinations of it; the digests are what makes
+    # that comparison possible without re-running anything.
+    verdicts_by_worker = {report.worker_id: report.verdicts for report in reports}
+    agreed: list[str] = []
+    diverged: dict[str, Mapping[str, str]] = {}
+    for urn, workers in overlapping_assets.items():
+        digests = {worker: verdicts_by_worker[worker][urn] for worker in workers}
+        if len(set(digests.values())) == 1:
+            agreed.append(urn)
+        else:
+            diverged[urn] = digests
+
     distinct_assets = len(workers_by_asset)
     return SwarmOverlap(
         swarm_run=next(iter(swarm_runs), ""),
@@ -275,6 +349,8 @@ def measure_overlap(
         distinct_assets_examined=distinct_assets,
         duplicated_examinations=total_examinations - distinct_assets,
         overlapping_assets=overlapping_assets,
+        agreed_assets=tuple(agreed),
+        diverged_assets=diverged,
     )
 
 
@@ -283,6 +359,43 @@ def _required_string(value: Mapping[object, object], key: str, source: str) -> s
     if not isinstance(item, str) or not item:
         raise SwarmReportError(f"{source}: {key} must be a nonempty string")
     return item
+
+
+def _required_verdicts(
+    value: Mapping[object, object], examined: Sequence[str], source: str
+) -> Mapping[str, str]:
+    """Every examined asset must carry a digest, and nothing else may.
+
+    A report missing one is rejected rather than measured with a gap in it: a
+    silently absent digest reads downstream as "these workers were not compared"
+    when what happened is "this worker did not say what it concluded", and the
+    difference is the whole value of the check.
+    """
+    items = value.get("verdicts")
+    if not isinstance(items, Mapping):
+        raise SwarmReportError(
+            f"{source}: verdicts must be a JSON object mapping each examined "
+            "asset to its examination digest"
+        )
+    verdicts: dict[str, str] = {}
+    for urn, digest in items.items():
+        if not isinstance(urn, str) or not isinstance(digest, str) or not digest:
+            raise SwarmReportError(
+                f"{source}: every verdict must map a URN to a nonempty digest"
+            )
+        verdicts[urn] = digest
+    if set(verdicts) != set(examined):
+        missing = sorted(set(examined) - set(verdicts))
+        extra = sorted(set(verdicts) - set(examined))
+        detail = []
+        if missing:
+            detail.append(f"{len(missing)} examined without a verdict")
+        if extra:
+            detail.append(f"{len(extra)} recorded for an asset it did not examine")
+        raise SwarmReportError(
+            f"{source}: verdicts do not cover examined ({'; '.join(detail)})"
+        )
+    return verdicts
 
 
 def _required_string_list(
