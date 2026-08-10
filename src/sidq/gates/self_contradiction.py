@@ -105,6 +105,7 @@ class CatalogSnapshot:
         query: str = "*",
         depth: int = 2,
         field_lineage_budget: int = 0,
+        field_lineage_reader: Any | None = None,
     ) -> CatalogSnapshot:
         """Read the snapshot through the official DataHub MCP server.
 
@@ -124,6 +125,14 @@ class CatalogSnapshot:
         the most connected ones first, since a wrong claim about a widely consumed
         asset is the one that propagates. Everything past the cap is recorded as
         unresolved, never as clean.
+
+        Supplying `field_lineage_reader` is an explicit alternative evidence
+        boundary. It must expose `get_aspect_json` and reads each selected
+        dataset's stored `upstreamLineage` aspect once, deriving every fine-grained
+        edge in that record. This does not make the MCP default silently use
+        Rest.li: without the argument, the per-column agent-facing calls above are
+        unchanged. Missing, unreadable, or partially malformed aspects leave the
+        dataset unresolved.
         """
         search = getattr(graph, "search_assets", None) or getattr(
             graph, "_search", None
@@ -174,22 +183,39 @@ class CatalogSnapshot:
             key=lambda urn: (-len(table_edges.get(urn, ())), urn),
         )
         affordable = set(ranked[: max(field_lineage_budget, 0)])
-        by_urn = {entity.urn: entity for entity in entities}
         resolved: set[str] = set()
         edges: list[LineageEdge] = []
-        for urn, table_only in table_edges.items():
-            if urn not in affordable:
-                edges.extend(table_only)
-                continue
-            try:
-                field_edges = _mcp_field_edges(graph, by_urn[urn], depth)
-            except _Unverifiable:
-                # Budgeted for, but not actually read: keep the table-level view
-                # and leave the asset out of `resolved` so it is reported as such.
-                edges.extend(table_only)
-                continue
-            resolved.add(urn)
-            edges.extend(field_edges or table_only)
+        if field_lineage_reader is None:
+            by_urn = {entity.urn: entity for entity in entities}
+            for urn, table_only in table_edges.items():
+                if urn not in affordable:
+                    edges.extend(table_only)
+                    continue
+                try:
+                    field_edges = _mcp_field_edges(graph, by_urn[urn], depth)
+                except _Unverifiable:
+                    # Budgeted for, but not actually read: keep the table-level view
+                    # and leave the asset out of `resolved` so it is reported as such.
+                    edges.extend(table_only)
+                    continue
+                resolved.add(urn)
+                edges.extend(field_edges or table_only)
+        else:
+            # An upstreamLineage aspect is stored on the target dataset, whereas
+            # MCP's per-column query above starts at the source. Keep the complete
+            # MCP table view and merge each aspect's incoming fine-grained edges;
+            # treating them as per-source replacements would drop unrelated
+            # outgoing table edges.
+            edges.extend(edge for group in table_edges.values() for edge in group)
+            for urn in table_edges:
+                if urn not in affordable:
+                    continue
+                try:
+                    field_edges = _restli_field_edges(field_lineage_reader, urn)
+                except _Unverifiable:
+                    continue
+                resolved.add(urn)
+                edges.extend(field_edges)
         return cls(
             tuple(sorted(entities, key=lambda item: item.urn)),
             tuple(sorted(edges, key=_edge_key)),
@@ -426,6 +452,76 @@ def _mcp_field_edges(
                 LineageEdge(entity.urn, field.path, str(target), str(target_field))
                 for target_field in target_fields or ()
             )
+    return edges
+
+
+def _restli_field_edges(reader: Any, target_urn: str) -> list[LineageEdge]:
+    """Read and strictly decode one dataset's complete fine-grained aspect.
+
+    Strictness is the completeness proof: accepting one good record while
+    discarding a malformed neighbour would turn partial lineage into a resolved
+    asset. Every record and endpoint must therefore be readable before any edge
+    is returned.
+    """
+    get_aspect = getattr(reader, "get_aspect_json", None)
+    if not callable(get_aspect):
+        raise _Unverifiable("field-lineage reader has no aspect read method")
+    try:
+        payload = get_aspect(target_urn, "upstreamLineage")
+    except Exception as error:
+        raise _Unverifiable(
+            f"upstreamLineage aspect could not be read for {target_urn}"
+        ) from error
+    if payload is None:
+        raise _Unverifiable(f"upstreamLineage aspect is absent for {target_urn}")
+    if not isinstance(payload, Mapping):
+        raise _Unverifiable(f"upstreamLineage response is unreadable for {target_urn}")
+    aspect = payload.get("aspect")
+    if not isinstance(aspect, Mapping):
+        raise _Unverifiable(f"upstreamLineage wrapper is unreadable for {target_urn}")
+    lineage = aspect.get("com.linkedin.dataset.UpstreamLineage")
+    if not isinstance(lineage, Mapping):
+        raise _Unverifiable(f"upstreamLineage value is unreadable for {target_urn}")
+    records = lineage.get("fineGrainedLineages", ())
+    if not isinstance(records, Sequence) or isinstance(records, (str, bytes)):
+        raise _Unverifiable(f"fine-grained lineage list is unreadable for {target_urn}")
+
+    edges: list[LineageEdge] = []
+    for record in records:
+        if not isinstance(record, Mapping):
+            raise _Unverifiable(
+                f"fine-grained lineage record is unreadable for {target_urn}"
+            )
+        upstreams = record.get("upstreams")
+        downstreams = record.get("downstreams")
+        if (
+            not isinstance(upstreams, Sequence)
+            or isinstance(upstreams, (str, bytes))
+            or not upstreams
+            or not isinstance(downstreams, Sequence)
+            or isinstance(downstreams, (str, bytes))
+            or not downstreams
+        ):
+            raise _Unverifiable(
+                f"fine-grained lineage endpoints are unreadable for {target_urn}"
+            )
+        sources = [_schema_field(endpoint) for endpoint in upstreams]
+        targets = [_schema_field(endpoint) for endpoint in downstreams]
+        if any(endpoint is None for endpoint in (*sources, *targets)):
+            raise _Unverifiable(
+                f"fine-grained lineage endpoint is unreadable for {target_urn}"
+            )
+        typed_sources = [endpoint for endpoint in sources if endpoint is not None]
+        typed_targets = [endpoint for endpoint in targets if endpoint is not None]
+        if any(dataset != target_urn for dataset, _ in typed_targets):
+            raise _Unverifiable(
+                f"fine-grained lineage target does not match {target_urn}"
+            )
+        edges.extend(
+            LineageEdge(source_urn, source_field, target, target_field)
+            for source_urn, source_field in typed_sources
+            for target, target_field in typed_targets
+        )
     return edges
 
 
@@ -795,7 +891,8 @@ def _field_lineage_unresolved(
     return [
         _unverifiable(
             "lineage_field_missing",
-            "column lineage was not fetched for this asset (field-lineage budget)",
+            "column lineage was not resolved for this asset "
+            "(field-lineage budget or read failure)",
             urn,
         )
         for urn, entity in sorted(entities.items())

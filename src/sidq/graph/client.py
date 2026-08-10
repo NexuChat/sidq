@@ -7,6 +7,9 @@ import os
 import queue
 import tempfile
 import threading
+import urllib.error
+import urllib.parse
+import urllib.request
 from collections.abc import Callable, Mapping, Sequence
 from concurrent.futures import Future
 from dataclasses import dataclass
@@ -95,6 +98,75 @@ type ToolCaller = Callable[[str, Mapping[str, Any]], Any]
 
 class GraphResponseError(RuntimeError):
     """An MCP tool returned a payload that cannot prove the requested result."""
+
+
+# OpenAPI v3 names an aspect by its short name; the readers downstream expect the
+# fully-qualified Rest.li model name. Only the aspects Sidq actually reads belong
+# here — an unknown name passes through rather than being guessed at.
+_RESTLI_ASPECT_NAMES = {"upstreamLineage": "com.linkedin.dataset.UpstreamLineage"}
+
+
+class DataHubAspectClient:
+    """Read stored DataHub aspects over the authenticated OpenAPI v3 endpoint.
+
+    This is intentionally separate from :class:`MCPGraphClient`: callers must opt
+    into the stored-aspect evidence boundary explicitly. The URL and token are the
+    same variables used by DataHub's MCP process and Sidq's assertion mirror, so a
+    run cannot silently read field lineage from a different catalog.
+
+    OpenAPI v3 rather than the older Rest.li `/aspects` route, deliberately.
+    DataHub's own API guidance documents GraphQL, the SDKs and OpenAPI, calling
+    OpenAPI the "lower-level API for advanced users"; it does not mention the
+    Rest.li aspect route at all. Neither is marked deprecated, and both were
+    measured returning byte-identical fine-grained lineage for the same asset,
+    so this is a choice about which surface is documented rather than which one
+    works.
+    """
+
+    def __init__(self, gms_url: str | None = None) -> None:
+        target = gms_url or os.environ.get("DATAHUB_GMS_URL", "")
+        if not target:
+            raise RuntimeError(
+                "cannot read DataHub aspects without DATAHUB_GMS_URL: "
+                "it names the catalog to read"
+            )
+        self._gms_url = target.rstrip("/")
+        self._token = os.environ.get("DATAHUB_GMS_TOKEN")
+
+    def get_aspect_json(self, urn: str, aspect: str) -> dict[str, Any] | None:
+        """Return one aspect's stored value; HTTP 404 means it is absent.
+
+        The envelope is normalised to the Rest.li shape the callers already read,
+        because the two routes disagree about it: OpenAPI v3 answers
+        `{"<aspect>": {"value": {...}}}` while Rest.li answers
+        `{"aspect": {"com.linkedin.…": {...}}}`. Normalising here keeps the
+        transport choice from leaking into every reader.
+        """
+        headers = {"Accept": "application/json"}
+        if self._token:
+            headers["Authorization"] = f"Bearer {self._token}"
+        encoded_urn = urllib.parse.quote(urn, safe="")
+        query = urllib.parse.urlencode({"aspects": aspect})
+        request = urllib.request.Request(
+            f"{self._gms_url}/openapi/v3/entity/dataset/{encoded_urn}?{query}",
+            headers=headers,
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=15) as response:
+                payload = json.load(response)
+        except urllib.error.HTTPError as error:
+            if error.code == 404:
+                return None
+            raise
+        if not isinstance(payload, dict):
+            raise TypeError("DataHub aspect response was not an object")
+        envelope = payload.get(aspect)
+        if not isinstance(envelope, dict):
+            return None
+        value = envelope.get("value")
+        if not isinstance(value, dict):
+            return None
+        return {"aspect": {_RESTLI_ASPECT_NAMES.get(aspect, aspect): value}}
 
 
 class MCPGraphClient:

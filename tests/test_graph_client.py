@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import urllib.error
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -9,6 +10,7 @@ import pytest
 from mcp.types import TextContent
 
 from sidq.graph.client import (
+    DataHubAspectClient,
     DatasetInfo,
     GraphResponseError,
     LineagePath,
@@ -22,6 +24,108 @@ from sidq.graph.fixtures import RecordingGraphClient, ReplayGraphClient, _lineag
 
 URN = "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.orders,PROD)"
 DOWNSTREAM = "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.dashboard,PROD)"
+
+
+def test_aspect_client_reads_the_documented_openapi_v3_route(monkeypatch) -> None:
+    """The route moved from Rest.li to OpenAPI v3, and the envelope moved with it.
+
+    Both routes were measured returning byte-identical fine-grained lineage for
+    the same asset, so this is not a correctness fix — DataHub's API guidance
+    documents OpenAPI and never mentions the Rest.li aspect route, and a
+    submission judged on its use of DataHub should read the documented surface.
+
+    The two disagree about the envelope: OpenAPI v3 answers
+    `{"<aspect>": {"value": …}}` where Rest.li answered
+    `{"aspect": {"com.linkedin.…": …}}`. The client normalises to the latter so
+    the transport choice stays out of every reader, and that normalisation is
+    what this pins.
+    """
+    observed: dict[str, object] = {}
+
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args) -> None:
+            pass
+
+        def read(self) -> bytes:
+            return b'{"upstreamLineage":{"value":{"stored":true}}}'
+
+    def open_request(request, *, timeout: int):
+        observed["url"] = request.full_url
+        observed["headers"] = dict(request.header_items())
+        observed["timeout"] = timeout
+        return Response()
+
+    monkeypatch.setenv("DATAHUB_GMS_URL", "https://catalog.example.test/")
+    monkeypatch.setenv("DATAHUB_GMS_TOKEN", "reader-token")
+    monkeypatch.setattr("sidq.graph.client.urllib.request.urlopen", open_request)
+
+    payload = DataHubAspectClient().get_aspect_json(URN, "upstreamLineage")
+
+    assert payload == {
+        "aspect": {"com.linkedin.dataset.UpstreamLineage": {"stored": True}}
+    }
+    assert observed["url"] == (
+        "https://catalog.example.test/openapi/v3/entity/dataset/"
+        "urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Adbt%2C"
+        "warehouse.orders%2CPROD%29?aspects=upstreamLineage"
+    )
+    assert observed["headers"] == {
+        "Accept": "application/json",
+        "Authorization": "Bearer reader-token",
+    }
+    assert observed["timeout"] == 15
+
+
+def test_restli_client_refuses_an_unnamed_catalog(monkeypatch) -> None:
+    monkeypatch.delenv("DATAHUB_GMS_URL", raising=False)
+
+    with pytest.raises(RuntimeError, match="DATAHUB_GMS_URL"):
+        DataHubAspectClient()
+
+
+def test_restli_client_treats_only_http_404_as_a_missing_aspect(monkeypatch) -> None:
+    def missing(request, *, timeout: int):
+        del timeout
+        raise urllib.error.HTTPError(request.full_url, 404, "missing", {}, None)
+
+    monkeypatch.setenv("DATAHUB_GMS_URL", "https://catalog.example.test")
+    monkeypatch.setattr("sidq.graph.client.urllib.request.urlopen", missing)
+
+    assert DataHubAspectClient().get_aspect_json(URN, "upstreamLineage") is None
+
+    def forbidden(request, *, timeout: int):
+        del timeout
+        raise urllib.error.HTTPError(request.full_url, 403, "forbidden", {}, None)
+
+    monkeypatch.setattr("sidq.graph.client.urllib.request.urlopen", forbidden)
+
+    with pytest.raises(urllib.error.HTTPError) as error:
+        DataHubAspectClient().get_aspect_json(URN, "upstreamLineage")
+    assert error.value.code == 403
+
+
+def test_restli_client_rejects_a_non_object_aspect_response(monkeypatch) -> None:
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args) -> None:
+            pass
+
+        def read(self) -> bytes:
+            return b"[]"
+
+    monkeypatch.setenv("DATAHUB_GMS_URL", "https://catalog.example.test")
+    monkeypatch.setattr(
+        "sidq.graph.client.urllib.request.urlopen",
+        lambda request, *, timeout: Response(),
+    )
+
+    with pytest.raises(TypeError, match="aspect response was not an object"):
+        DataHubAspectClient().get_aspect_json(URN, "upstreamLineage")
 
 
 def test_read_only_mcp_subprocess_environment_is_closed(monkeypatch) -> None:
