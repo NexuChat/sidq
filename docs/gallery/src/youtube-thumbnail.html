@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sidq — YouTube thumbnail</title>
+<link rel="stylesheet" href="board.css">
+<style>
+  /* 1280x720, the size YouTube stores. It is not the Devpost thumbnail cropped:
+     16:9 is wider than 3:2, so the 3:2 composition leaves a dead band through
+     the middle. Here the verdict sits beside the evidence rather than under it,
+     which is what the extra width is for.
+
+     Two constraints the 3:2 card does not have. YouTube prints a duration badge
+     over the bottom-right corner, so nothing that must be read goes there. And
+     the Devpost embed renders this about 320px wide — a 4x downscale — so the
+     smallest type is 23px, which survives it. */
+  body { width: 1280px; height: 720px; padding: 0; }
+  .bar { width: 12px; }
+  .wrap { display: flex; flex-direction: column; height: 100%; padding: 52px 64px 46px 76px; }
+  .top { display: flex; justify-content: space-between; align-items: baseline; }
+  .brand { font-family: var(--display); font-size: 54px; font-weight: 700; letter-spacing: -0.07em; }
+  .brand span { margin-left: 14px; color: var(--acid); font-family: var(--mono); font-size: 21px; letter-spacing: 0.1em; }
+  .kicker { color: var(--dim); font-size: 19px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; }
+
+  .claim { margin-top: 46px; font-family: var(--display); font-size: 76px; line-height: 1.02; letter-spacing: -0.05em; }
+  .claim .them { color: var(--paper); }
+  .claim .src  { color: var(--signal); font-style: italic; }
+
+  /* Evidence left, verdict right — the width the 3:2 card did not have. */
+  .body { margin-top: auto; display: grid; grid-template-columns: 1fr auto; gap: 40px; align-items: end; }
+
+  .rows { display: grid; grid-template-columns: 200px 1fr; gap: 18px 30px; align-items: center; }
+  .lab { color: var(--dim); font-size: 23px; letter-spacing: 0.14em; text-transform: uppercase; }
+  .val { font-family: var(--mono); font-size: 36px; }
+  .val.gone { color: var(--signal); text-decoration: line-through; text-decoration-thickness: 3px; }
+
+  .why { margin-top: 26px; max-width: 560px; color: var(--dim); font-size: 22px; line-height: 1.45; }
+  .why strong { color: var(--paper); }
+
+  /* Right column. It stops 54px short of the bottom so YouTube's duration badge
+     lands on empty ground instead of on the word BLOCK. */
+  .verdict { padding-bottom: 54px; text-align: right; }
+  .block { font-family: var(--display); font-style: italic; font-size: 116px; line-height: 0.78; color: var(--signal); letter-spacing: -0.05em; }
+  .stamp { margin-top: 14px; color: var(--acid); font-family: var(--mono); font-size: 20px; letter-spacing: 0.12em; }
+</style>
+</head>
+<body>
+  <div class="bar"></div>
+  <div class="wrap">
+    <div class="top">
+      <div class="brand">Sidq<span>صدق</span></div>
+      <div class="kicker">DataHub-native · deterministic</div>
+    </div>
+
+    <h1 class="claim"><span class="them">The catalog says the column exists.</span><br>
+      <span class="src">The source says it does not.</span></h1>
+
+    <div class="body">
+      <div>
+        <div class="rows">
+          <div class="lab">DataHub</div><div class="val gone">customers.email</div>
+          <div class="lab">Live source</div><div class="val">customers.email_address</div>
+        </div>
+        <p class="why">The agent is stopped before it builds on the disagreement — and the
+          proof is written back through DataHub’s <strong>official MCP tools</strong>.</p>
+      </div>
+      <div class="verdict">
+        <div class="block">BLOCK</div>
+        <div class="stamp">RECEIPT WRITTEN</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
