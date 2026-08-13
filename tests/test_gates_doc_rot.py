@@ -73,6 +73,23 @@ def test_doc_rot_skips_when_the_graph_does_not_supply_documentation() -> None:
     )
 
 
+def test_doc_rot_sorts_graph_unavailable_evidence_that_names_no_field() -> None:
+    class UnreadableDatasetGraph(ReplayDocumentationGraph):
+        def get_dataset(self, urn: str) -> object:
+            raise ConnectionError("catalog unreachable")
+
+    graph = UnreadableDatasetGraph(
+        {"description": "The legacy `old_status` column remains available."}
+    )
+
+    evidence = DocRotGate().collect([_change(removed=("old_status",))], graph)
+
+    assert [(item.kind, item.subject) for item in evidence] == [
+        ("graph_unavailable", ORDERS)
+    ]
+    assert "mentioned_field" not in evidence[0].detail
+
+
 def test_default_policy_warns_for_change_scoped_doc_rot() -> None:
     verdict = PolicyEngine().decide([Evidence("doc_rot", ORDERS, {})])
 

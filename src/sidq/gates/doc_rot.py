@@ -65,7 +65,11 @@ class DocRotGate:
                         )
                     )
         return sorted(
-            evidence, key=lambda item: (item.subject, item.detail["mentioned_field"])
+            evidence,
+            key=lambda item: (
+                item.subject,
+                str(item.detail.get("mentioned_field", "")),
+            ),
         )
 
 
