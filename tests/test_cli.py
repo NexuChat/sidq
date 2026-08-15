@@ -60,18 +60,40 @@ def test_module_and_console_entry_points_match() -> None:
     assert module.stderr == console.stderr
 
 
-def test_evidence_is_enriched_with_a_dataset_deep_link() -> None:
-    evidence = Evidence(
+def _unknown_field_evidence() -> Evidence:
+    return Evidence(
         "unknown_field",
         "urn:li:dataset:(urn:li:dataPlatform:dbt,warehouse.customers,PROD)#email",
         {},
     )
 
-    enriched = cli._with_graph_links([evidence])
+
+def test_evidence_is_enriched_with_a_dataset_deep_link(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SIDQ_DATAHUB_UI_URL", "https://datahub.example.com/")
+
+    enriched = cli._with_graph_links([_unknown_field_evidence()])
 
     assert enriched[0].graph_links == (
-        "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Adbt%2Cwarehouse.customers%2CPROD%29",
+        "https://datahub.example.com/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Adbt%2Cwarehouse.customers%2CPROD%29",
     )
+
+
+def test_evidence_carries_no_link_when_no_catalog_ui_was_configured(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A link to the auditing machine's own port is worse than naming the asset.
+
+    The comment renders `(no DataHub deep link was recorded)` for link-less
+    evidence, which is true. `http://localhost:9002` published to a reviewer is
+    not — it resolves, on their machine, to whatever they happen to be running.
+    """
+    monkeypatch.delenv("SIDQ_DATAHUB_UI_URL", raising=False)
+
+    enriched = cli._with_graph_links([_unknown_field_evidence()])
+
+    assert enriched[0].graph_links == ()
 
 
 def test_commit_sha_resolves_the_right_hand_ref_without_running_git(

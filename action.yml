@@ -30,6 +30,13 @@ inputs:
     description: Path to the official mcp-server-datahub executable in live mode
     required: false
     default: ""
+  datahub-ui-url:
+    description: >
+      Base URL of the DataHub UI a reader of the comment can actually open, e.g.
+      https://datahub.example.com. Left empty, findings name their asset without
+      a deep link rather than pointing at a port on the reader's own machine.
+    required: false
+    default: ""
   publish-results:
     description: Publish the sticky comment and check; false prints the verdict only
     required: false
@@ -44,6 +51,7 @@ runs:
         GITHUB_TOKEN: ${{ inputs.token }}
         SIDQ_ACTION_PATH: ${{ github.action_path }}
         SIDQ_DATAHUB_MCP_COMMAND: ${{ inputs.datahub-mcp-command }}
+        SIDQ_DATAHUB_UI_URL: ${{ inputs.datahub-ui-url }}
         SIDQ_FIXTURE_DIR: ${{ inputs.fixture-dir }}
         SIDQ_MODE: ${{ inputs.mode }}
         SIDQ_POLICY: ${{ inputs.policy }}

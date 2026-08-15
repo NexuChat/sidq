@@ -43,3 +43,6 @@ jobs:
           token: ${{ github.token }}
           mode: fixture
           repo-root: .sidq-pr
+          # The fixtures replay this project's own catalog, so the assets they
+          # name are the ones a reader can open at the published judge instance.
+          datahub-ui-url: https://datahub.mlki.app
