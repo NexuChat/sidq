@@ -6,8 +6,10 @@ on:
 
 permissions:
   contents: read
-  pull-requests: read
-  issues: write
+  # The bot posts through /issues/{n}/comments, but the target is a pull
+  # request: that endpoint needs pull-requests: write. issues: write reads
+  # as sufficient from the path and is not — GitHub answers 403.
+  pull-requests: write
   checks: write
 
 concurrency:
