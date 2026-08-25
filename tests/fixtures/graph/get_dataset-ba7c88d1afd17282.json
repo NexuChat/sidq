@@ -1,0 +1,34 @@
+{
+  "_provenance": "Reconstructed from examples/pr-3/verdict.json \u2014 the verdict this PR actually produced against the live catalog on 2026-07-29. NOT re-read from DataHub: the catalog has drifted since (policy 6b54ee7e -> 66f48004), so a fresh recording would answer a different question than the sealed verdict asked. Fields, downstream urns, column mapping and the hop chain are copied verbatim from that verdict's blast_radius and catalog_reality_mismatch evidence.",
+  "deprecated": false,
+  "field_descriptions": {},
+  "fields": [
+    {
+      "native_type": "BIGINT",
+      "nullable": false,
+      "path": "customer_id"
+    },
+    {
+      "native_type": "TEXT",
+      "nullable": false,
+      "path": "country"
+    },
+    {
+      "native_type": "TEXT",
+      "nullable": false,
+      "path": "email"
+    },
+    {
+      "native_type": "TEXT",
+      "nullable": false,
+      "path": "full_name"
+    },
+    {
+      "native_type": "TIMESTAMP WITH TIME ZONE",
+      "nullable": false,
+      "path": "created_at"
+    }
+  ],
+  "name": "sidq-demo.warehouse.raw.customers",
+  "urn": "urn:li:dataset:(urn:li:dataPlatform:postgres,sidq-demo.warehouse.raw.customers,PROD)"
+}

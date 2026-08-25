@@ -1,0 +1,31 @@
+{
+  "_provenance": "Reconstructed from examples/pr-3/verdict.json \u2014 the verdict this PR actually produced against the live catalog on 2026-07-29. NOT re-read from DataHub: the catalog has drifted since (policy 6b54ee7e -> 66f48004), so a fresh recording would answer a different question than the sealed verdict asked. Fields, downstream urns, column mapping and the hop chain are copied verbatim from that verdict's blast_radius and catalog_reality_mismatch evidence.",
+  "columns": {
+    "urn:li:dataset:(urn:li:dataPlatform:postgres,sidq-demo.warehouse.analytics.customer_revenue,PROD)": [
+      "email"
+    ]
+  },
+  "entity_types": {
+    "urn:li:dataset:(urn:li:dataPlatform:postgres,sidq-demo.warehouse.analytics.customer_revenue,PROD)": "DATASET"
+  },
+  "granularity": "column",
+  "metadata": {
+    "queryType": "column-level-lineage"
+  },
+  "paths": [
+    {
+      "granularity": "column",
+      "urns": [
+        "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:postgres,sidq-demo.warehouse.raw.customers,PROD),email)",
+        "urn:li:query:view_urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Apostgres%2Csidq-demo.warehouse.analytics.customer_revenue%2CPROD%29",
+        "urn:li:schemaField:(urn:li:dataset:(urn:li:dataPlatform:postgres,sidq-demo.warehouse.analytics.customer_revenue,PROD),email)"
+      ]
+    }
+  ],
+  "tags": {
+    "urn:li:dataset:(urn:li:dataPlatform:postgres,sidq-demo.warehouse.analytics.customer_revenue,PROD)": []
+  },
+  "urns": [
+    "urn:li:dataset:(urn:li:dataPlatform:postgres,sidq-demo.warehouse.analytics.customer_revenue,PROD)"
+  ]
+}
