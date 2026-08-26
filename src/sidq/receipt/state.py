@@ -124,6 +124,19 @@ def judge(status: Mapping[str, Any]) -> ReceiptJudgment:
     if not verdict:
         return _not_applicable(ReceiptState.ABSENT, None, "no receipt on this asset")
 
+    # A signature that does not cover the body it sits on is settled before the
+    # verdict is even read. Detecting forgery and then reporting CONTINUE anyway
+    # would make the signature decoration: an agent asks `may_continue`, not
+    # whether a line further down said TAMPERED. `UNATTESTED` deliberately does
+    # not land here — unproven is not disproven, and collapsing the two would
+    # refuse every receipt written before a key existed.
+    if status.get("attestation") == "TAMPERED":
+        return _not_applicable(
+            ReceiptState.INVALID,
+            str(verdict),
+            "receipt signature does not cover this body; it is not the engine's",
+        )
+
     verdict = str(verdict)
     if verdict not in VERDICTS:
         return _not_applicable(

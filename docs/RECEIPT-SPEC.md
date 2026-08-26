@@ -250,6 +250,44 @@ So an analytics agent asking "is this asset verified?" gets a real answer — *"
 commit 9f2c1ab, but it has changed since"* — instead of a badge that means nothing. A
 receipt that cannot go stale is a sticker.
 
+## 3b. Attestation — is this receipt Sidq's at all?
+
+A receipt is structured-property strings on a dataset. Anyone who can write to the
+catalog can write `sidq.verdict = PASS` by hand, and `context_hash` is no defence:
+it hashes the semantic entity and its immediate lineage, all public catalog data,
+with a published function, so a forger computes a valid one. A project whose whole
+claim is *the graph may be lying* cannot leave its only trust anchor inside the
+graph.
+
+`sidq.signature` is base64 Ed25519 over the receipt body **and the asset URN**,
+canonically serialised. The URN is in there deliberately: without it a genuine
+`PASS` receipt could be lifted off a harmless dataset and pasted onto a dangerous
+one, and every field in it would still verify.
+
+The public key is committed at `src/sidq/receipt/signing-key.pub` and pinned to the
+revision. The private key never is; a writer reads it from `SIDQ_SIGNING_KEY` as
+base64 of the 32-byte seed, the same way every other credential reaches this
+system. Unusable key material raises rather than silently signing nothing.
+
+Every readback names one of three states, and the third is the point:
+
+| State | Meaning |
+|---|---|
+| `SIGNED` | The signature covers this body, for this URN, under the pinned key. |
+| `TAMPERED` | A signature is present and does not. Do not rely on the receipt. |
+| `UNATTESTED` | No signature to check. **Not proven forged; not proven Sidq's.** |
+
+Collapsing `UNATTESTED` into `TAMPERED` would repeat exactly the mistake the
+coverage gaps were built to fix: one blank standing for two different facts. A
+receipt written before signing existed, or by an operator without the key, is
+unproven — not proven false. A reader holding no public key answers `UNATTESTED`
+for everything, because a reader that cannot check a signature has not proven one
+wrong.
+
+What this does not do: an attacker with catalog write access can still delete a
+real receipt. Signing prevents forgery, not denial — and between the two, forgery
+is the one that manufactures false confidence rather than an honest absence.
+
 ## 4. Demo obligation (DECISION §6, scene 4)
 
 The PASS receipt must be **visible in the DataHub UI** (that is what the tag buys us), and

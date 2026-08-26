@@ -7,6 +7,7 @@ from collections.abc import Callable, Mapping, Sequence
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from sidq.receipt.attestation import attest
 from sidq.serialization import canonical_json
 
 from .state import judge
@@ -145,6 +146,12 @@ def _status_of(
     )
     result["stale"] = stale
     result["stale_reason"] = reason
+    # A fourth axis, independent of the other three: a receipt can be perfectly
+    # current and still be one nobody can prove Sidq wrote. Staleness asks whether
+    # the receipt still applies; this asks whether it is the engine's at all.
+    result["attestation"] = attest(
+        urn, {f"{_PREFIX}{name}": value for name, value in values.items()}
+    ).value
     return result
 
 
@@ -599,4 +606,19 @@ def render_verification(urn: str, status: Mapping[str, Any]) -> list[str]:
     rules = status.get("rules_fired") or []
     if rules:
         lines.append(f"  {'rules':<10}  {', '.join(rules)}")
+    # Named on every readback, including when it is UNATTESTED. A line that only
+    # appears on success is a line a reader learns to stop looking for, and the
+    # whole point of the third state is that its absence is itself the finding.
+    attestation = status.get("attestation")
+    if attestation:
+        lines.append(f"  {'signature':<10}  {_ATTESTATION_NOTE[attestation]}")
     return lines
+
+
+_ATTESTATION_NOTE = {
+    "SIGNED": "SIGNED — this receipt was produced by the engine holding the key",
+    "TAMPERED": "TAMPERED — the signature does not cover this body; do not rely on it",
+    "UNATTESTED": (
+        "UNATTESTED — no signature to check. Not proven forged; not proven Sidq's"
+    ),
+}
