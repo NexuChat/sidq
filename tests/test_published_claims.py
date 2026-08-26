@@ -1340,7 +1340,10 @@ def test_the_reader_document_quotes_the_report_it_was_trained_from() -> None:
     assert f"{report['train_rows']:,} rows" in text
     assert report["embedding_model"] in text
     assert report["embedding_revision"] in text
-    assert report["chosen"] == "logistic regression", (
+    # The guard is about *which family* ships, not which regularisation strength.
+    # Selection now walks a ladder of strengths on the calibration split, so the
+    # name carries a `C=`; a different family still has to rewrite the document.
+    assert str(report["chosen"]).startswith("logistic regression"), (
         "the shipped head changed; docs/CLAIM-READER.md explains why the linear "
         "one was chosen and must be rewritten before a different one ships"
     )

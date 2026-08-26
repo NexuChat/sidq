@@ -239,9 +239,11 @@ model-proposed claim that could not be tested contributes nothing and is dropped
 so it can never cause a `BLOCK`.
 
 The reader is a linear head over `microsoft/harrier-oss-v1-270m`, a multilingual
-embedding model covering 94+ languages. Trained on 2,048 rows and evaluated on a
-held-out 528, it reaches 95.8% precision and 58.0% recall at its operating point
-on 72 proposals. It proposes only `unique` and `not_null`, the two claim types
+embedding model covering 94+ languages. Selection and measurement are separate rows: 1,538 fit the
+candidates, 510 held out of training chose the head and its 0.74 threshold, and
+the figure is measured **once** on the held-out 528 that selection never touched,
+with the chosen head refit on all 2,048. It reaches 97.1% precision and 55.5%
+recall at that operating point, on 68 proposals. It proposes only `unique` and `not_null`, the two claim types
 that need no arguments. A gradient-boosted head had the same precision within
 noise and 16 points worse recall, while adding a training stack to inference.
 On the documented `make claims-demo` path, 6 documented fields produce 3

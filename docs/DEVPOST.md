@@ -202,7 +202,7 @@ is dropped, so it can never cause a `BLOCK`.
 
 The reader is a linear head over `microsoft/harrier-oss-v1-270m`, a multilingual
 embedding model covering 94+ languages, trained on 2,048 rows and evaluated on a
-held-out 528. At its operating point it reaches 95.8% precision and 58.0% recall
+held-out 528. At its operating point it reaches 97.1% precision and 55.5% recall
 on 72 proposals, and proposes only the argument-free `unique` and `not_null`
 claim types. A gradient-boosted head had the same precision within noise and 16
 points worse recall, while adding a training stack to inference. On the documented

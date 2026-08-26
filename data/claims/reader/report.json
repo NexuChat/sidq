@@ -1,21 +1,50 @@
 {
+  "calibration_point": {
+    "precision": 0.9538461538461539,
+    "proposals": 65.0,
+    "recall": 0.5081967213114754,
+    "threshold": 0.74
+  },
+  "calibration_rows": 510,
   "candidates": {
-    "catboost": {
-      "accuracy": 0.8768939393939394,
-      "precision": 0.9615384615384616,
-      "proposals": 52.0,
-      "recall": 0.42016806722689076,
-      "threshold": 0.72
+    "logistic regression (C=1.0)": {
+      "accuracy": 0.8823529411764706,
+      "precision": 0.9636363636363636,
+      "proposals": 55.0,
+      "recall": 0.4344262295081967,
+      "threshold": 0.58
     },
-    "logistic regression": {
-      "accuracy": 0.8920454545454546,
-      "precision": 0.9583333333333334,
-      "proposals": 72.0,
-      "recall": 0.5798319327731093,
-      "threshold": 0.51
+    "logistic regression (C=10.0)": {
+      "accuracy": 0.903921568627451,
+      "precision": 0.9538461538461539,
+      "proposals": 65.0,
+      "recall": 0.5081967213114754,
+      "threshold": 0.74
+    },
+    "logistic regression (C=100.0)": {
+      "accuracy": 0.8980392156862745,
+      "precision": 0.9516129032258065,
+      "proposals": 62.0,
+      "recall": 0.48360655737704916,
+      "threshold": 0.93
+    },
+    "logistic regression (C=3.0)": {
+      "accuracy": 0.8980392156862745,
+      "precision": 0.9508196721311475,
+      "proposals": 61.0,
+      "recall": 0.47540983606557374,
+      "threshold": 0.63
+    },
+    "logistic regression (C=30.0)": {
+      "accuracy": 0.907843137254902,
+      "precision": 0.9538461538461539,
+      "proposals": 65.0,
+      "recall": 0.5081967213114754,
+      "threshold": 0.86
     }
   },
-  "chosen": "logistic regression",
+  "challenger_available": false,
+  "chosen": "logistic regression (C=10.0)",
   "embedding_model": "microsoft/harrier-oss-v1-270m",
   "embedding_revision": "31de22b673913c7d658c0f03f792d77c2dcf8ebd",
   "eval_rows": 528,
@@ -28,19 +57,21 @@
     "expression"
   ],
   "operating_point": {
-    "precision": 0.9583333333333334,
-    "proposals": 72.0,
-    "recall": 0.5798319327731093,
-    "threshold": 0.51
+    "precision": 0.9705882352941176,
+    "proposals": 68.0,
+    "recall": 0.5546218487394958,
+    "threshold": 0.74
   },
   "proposable": [
     "unique",
     "not_null"
   ],
+  "refit_rows": 2048,
   "rule_baseline": {
     "precision": 0.17391304347826086,
     "proposals": 23.0,
     "recall": 0.03361344537815126
   },
-  "train_rows": 2048
+  "selection_note": "The threshold and the head were chosen on `calibration_rows`, carved out of training and unseen by the fit. `operating_point` is measured on `eval_rows`, which selection never touched. The head then ships refit on all `refit_rows`. `calibration_point` is kept beside the published one so the gap between them is visible rather than absorbed.",
+  "train_rows": 1538
 }
