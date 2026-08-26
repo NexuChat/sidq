@@ -1,0 +1,343 @@
+{
+  "rules": [
+    {
+      "id": "unresolved_asset",
+      "match": {
+        "evidence_kind": "unresolved_asset"
+      },
+      "message": "Sidq could not inspect {subject} because it could not map the changed file to an asset. This is a refusal to certify the change, not a claim that the change is unsafe.",
+      "reason_code": "UNVERIFIABLE_CHANGE",
+      "severity": "block"
+    },
+    {
+      "id": "unparseable_sql",
+      "match": {
+        "evidence_kind": "unparseable_sql"
+      },
+      "message": "Sidq could not inspect the SQL for {subject}. This is a refusal to certify the change, not a claim that the change is unsafe.",
+      "reason_code": "UNVERIFIABLE_CHANGE",
+      "severity": "block"
+    },
+    {
+      "id": "graph_unavailable",
+      "match": {
+        "evidence_kind": "graph_unavailable"
+      },
+      "message": "Sidq could not inspect the required graph data for {subject}. This is a refusal to certify the change, not a claim that the change is unsafe.",
+      "reason_code": "UNVERIFIABLE_CHANGE",
+      "severity": "block"
+    },
+    {
+      "id": "catalog_reality_mismatch",
+      "match": {
+        "evidence_kind": "catalog_reality_mismatch"
+      },
+      "message": "The catalog disagrees with the live source for {subject}. Graph: {detail.graph_fields}. Source: {detail.live_fields}.",
+      "reason_code": "STALE_CONTEXT",
+      "severity": "block"
+    },
+    {
+      "id": "unknown_field",
+      "match": {
+        "evidence_kind": "unknown_field"
+      },
+      "message": "Referenced field is not present in the catalog: {subject}.",
+      "severity": "block"
+    },
+    {
+      "id": "unknown_dataset",
+      "match": {
+        "evidence_kind": "unknown_dataset"
+      },
+      "message": "Sidq could not inspect the referenced dataset {subject} because it is absent from the catalog. This is a refusal to certify the change, not a claim that the change is unsafe.",
+      "reason_code": "UNVERIFIABLE_CHANGE",
+      "severity": "block"
+    },
+    {
+      "id": "type_mismatch",
+      "match": {
+        "evidence_kind": "type_mismatch"
+      },
+      "message": "The referenced field type for {subject} is incompatible with the catalog type.",
+      "severity": "block"
+    },
+    {
+      "id": "pii_exposure",
+      "match": {
+        "evidence_kind": "pii_exposure"
+      },
+      "message": "A proven proposed PII route reaches an unapproved destination from {subject}.",
+      "severity": "block"
+    },
+    {
+      "id": "assertion_dependency_break",
+      "match": {
+        "evidence_kind": "assertion_dependency_break"
+      },
+      "message": "A required assertion depends on a removed or renamed field in {subject}.",
+      "severity": "block"
+    },
+    {
+      "id": "critical_downstream",
+      "match": {
+        "evidence_kind": "blast_radius",
+        "where_any": [
+          {
+            "field": "detail.critical_assets",
+            "op": "not_empty"
+          },
+          {
+            "field": "detail.cross_team_owners",
+            "op": "not_empty"
+          }
+        ]
+      },
+      "message": "This change has critical or cross-team downstream consumers for {subject}.",
+      "severity": "block"
+    },
+    {
+      "id": "partial_blast_radius",
+      "match": {
+        "evidence_kind": "blast_radius",
+        "where_any": [
+          {
+            "field": "detail.unreadable_assets",
+            "op": "not_empty"
+          }
+        ]
+      },
+      "message": "Sidq could not fully read downstream governance for {subject}, so ownership and criticality could not be ruled out. This is a refusal to certify the change, not a claim that the change is unsafe.",
+      "reason_code": "UNVERIFIABLE_CHANGE",
+      "severity": "block"
+    },
+    {
+      "id": "wide_blast_radius",
+      "match": {
+        "evidence_kind": "blast_radius",
+        "where": [
+          {
+            "field": "detail.downstream_count",
+            "op": "gt",
+            "value": "$settings.wide_blast_radius_threshold"
+          }
+        ]
+      },
+      "message": "This change affects {detail.downstream_count} downstream consumers for {subject}.",
+      "severity": "warn"
+    },
+    {
+      "id": "deprecated_upstream",
+      "match": {
+        "evidence_kind": "deprecated_upstream"
+      },
+      "message": "This change depends on a deprecated upstream asset: {subject}.",
+      "severity": "warn"
+    },
+    {
+      "id": "unowned_asset",
+      "match": {
+        "evidence_kind": "unowned_asset"
+      },
+      "message": "The touched asset has no owner: {subject}.",
+      "severity": "warn"
+    },
+    {
+      "id": "access_policy_conflict",
+      "match": {
+        "evidence_kind": "access_policy_conflict"
+      },
+      "message": "A proven proposed route sends restricted data to an unrestricted asset from {subject}.",
+      "severity": "warn"
+    },
+    {
+      "id": "doc_rot",
+      "match": {
+        "evidence_kind": "doc_rot"
+      },
+      "message": "Documentation no longer matches the post-change schema for {subject}.",
+      "severity": "warn"
+    },
+    {
+      "id": "doc_claim_violated",
+      "match": {
+        "evidence_kind": "doc_claim_violated"
+      },
+      "message": "Documentation claim was contradicted by the live source for {subject}.",
+      "severity": "warn"
+    },
+    {
+      "id": "doc_claim_unverifiable",
+      "match": {
+        "evidence_kind": "doc_claim_unverifiable"
+      },
+      "message": "Sidq could not inspect the live documentation claim for {subject}. This is a refusal to certify the change, not a claim that the change is unsafe.",
+      "reason_code": "UNVERIFIABLE_CHANGE",
+      "severity": "block"
+    },
+    {
+      "id": "constraint_contradicts_catalog",
+      "match": {
+        "evidence_kind": "constraint_contradicts_catalog"
+      },
+      "message": "The catalog constraint claim disagrees with the live database for {subject}.",
+      "severity": "warn"
+    },
+    {
+      "id": "lineage_rot",
+      "match": {
+        "evidence_kind": "lineage_rot_missing"
+      },
+      "message": "The catalog claims a column lineage edge that the current SQL does not produce for {subject}.",
+      "severity": "warn"
+    },
+    {
+      "id": "lineage_rot_extra",
+      "match": {
+        "evidence_kind": "lineage_rot_extra"
+      },
+      "message": "The current SQL produces a column lineage edge the catalog does not know for {subject}.",
+      "severity": "warn"
+    },
+    {
+      "id": "lineage_field_missing",
+      "match": {
+        "evidence_kind": "lineage_field_missing"
+      },
+      "message": "A stored lineage edge targets a schema field that the catalog does not list: {subject}.",
+      "severity": "warn"
+    },
+    {
+      "id": "pii_leak_untagged",
+      "match": {
+        "evidence_kind": "pii_leak_untagged"
+      },
+      "message": "A field-level PII tag is not preserved by the catalog lineage edge into {subject}.",
+      "severity": "warn"
+    },
+    {
+      "id": "doc_references_missing_column",
+      "match": {
+        "evidence_kind": "doc_references_missing_column"
+      },
+      "message": "Catalog documentation references a column absent from the listed schema: {subject}.",
+      "severity": "warn"
+    },
+    {
+      "id": "orphan_lineage",
+      "match": {
+        "evidence_kind": "orphan_lineage"
+      },
+      "message": "A catalog lineage edge references an entity that is absent from this catalog snapshot: {subject}.",
+      "severity": "warn"
+    },
+    {
+      "id": "deprecated_upstream_of_live",
+      "match": {
+        "evidence_kind": "deprecated_upstream_of_live"
+      },
+      "message": "A deprecated catalog asset still feeds a live chart or dashboard: {subject}.",
+      "severity": "warn"
+    },
+    {
+      "id": "doc_claim_holds",
+      "match": {
+        "evidence_kind": "doc_claim_holds"
+      },
+      "message": "The live source supports the documentation claim for {subject}.",
+      "severity": "info"
+    },
+    {
+      "id": "constraint_confirmed",
+      "match": {
+        "evidence_kind": "constraint_confirmed"
+      },
+      "message": "The live source enforces the catalog constraint claim for {subject}.",
+      "severity": "info"
+    },
+    {
+      "id": "constraint_missing_in_catalog",
+      "match": {
+        "evidence_kind": "constraint_missing_in_catalog"
+      },
+      "message": "The live source enforces a constraint not represented in the catalog for {subject}.",
+      "severity": "info"
+    },
+    {
+      "id": "constraint_unverifiable",
+      "match": {
+        "evidence_kind": "constraint_unverifiable"
+      },
+      "message": "Constraint equivalence could not be established for {subject}; no contradiction is claimed.",
+      "severity": "info"
+    },
+    {
+      "id": "lineage_unverifiable",
+      "match": {
+        "evidence_kind": "lineage_unverifiable"
+      },
+      "message": "Catalog-health lineage could not be assessed for {subject}.",
+      "severity": "info"
+    },
+    {
+      "id": "unowned_consumed",
+      "match": {
+        "evidence_kind": "unowned_consumed"
+      },
+      "message": "A non-change-scoped consumed asset has no owner: {subject}.",
+      "severity": "info"
+    },
+    {
+      "id": "deprecated_upstream_of_live_unverifiable",
+      "match": {
+        "evidence_kind": "deprecated_upstream_of_live_unverifiable"
+      },
+      "message": "Deprecated-upstream catalog health could not be assessed for {subject}.",
+      "severity": "info"
+    },
+    {
+      "id": "doc_references_missing_column_unverifiable",
+      "match": {
+        "evidence_kind": "doc_references_missing_column_unverifiable"
+      },
+      "message": "Documentation-reference catalog health could not be assessed for {subject}.",
+      "severity": "info"
+    },
+    {
+      "id": "lineage_field_missing_unverifiable",
+      "match": {
+        "evidence_kind": "lineage_field_missing_unverifiable"
+      },
+      "message": "Field-lineage catalog health could not be assessed for {subject}.",
+      "severity": "info"
+    },
+    {
+      "id": "orphan_lineage_unverifiable",
+      "match": {
+        "evidence_kind": "orphan_lineage_unverifiable"
+      },
+      "message": "Orphan-lineage catalog health could not be assessed for {subject}.",
+      "severity": "info"
+    },
+    {
+      "id": "pii_leak_untagged_unverifiable",
+      "match": {
+        "evidence_kind": "pii_leak_untagged_unverifiable"
+      },
+      "message": "PII-lineage catalog health could not be assessed for {subject}.",
+      "severity": "info"
+    },
+    {
+      "id": "unowned_consumed_unverifiable",
+      "match": {
+        "evidence_kind": "unowned_consumed_unverifiable"
+      },
+      "message": "Consumed-asset ownership could not be assessed for {subject}.",
+      "severity": "info"
+    }
+  ],
+  "settings": {
+    "wide_blast_radius_threshold": 5
+  },
+  "unhandled_evidence": "block",
+  "version": 1
+}
