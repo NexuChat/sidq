@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime
 from typing import Any
 
@@ -28,6 +28,10 @@ class Receipt:
     # record, and writing an empty worker id would imply one where none existed.
     swarm_run: str = ""
     worker_id: str = ""
+    # Base64 Ed25519 over the URN and the rest of this body, written only when a
+    # signing key is configured. Empty is `UNATTESTED`, which is a third state and
+    # not a quiet synonym for forged — see `receipt/attestation.py`.
+    signature: str = ""
 
     def structured_property_values(self) -> dict[str, list[str]]:
         """The exact MCP shape for the queryable receipt body."""
@@ -52,7 +56,29 @@ class Receipt:
                 if self.swarm_run
                 else {}
             ),
+            # Last, and only when signed: the signature covers every property
+            # above, so a receipt written without a key is short one property
+            # rather than carrying an empty one that reads like a failed check.
+            **(
+                {"urn:li:structuredProperty:sidq.signature": [self.signature]}
+                if self.signature
+                else {}
+            ),
         }
+
+    def signed(self, key: object) -> Receipt:
+        """The same receipt, carrying a signature over its URN and body.
+
+        Kept out of `__post_init__` on purpose: signing is an act with a key, at a
+        moment, by a process that has one — not a property a dataclass acquires by
+        existing. A caller without a key gets an unsigned receipt and says so.
+        """
+        from sidq.receipt.attestation import sign
+
+        return replace(
+            self,
+            signature=sign(self.urn, self.structured_property_values(), key),  # type: ignore[arg-type]
+        )
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
