@@ -219,10 +219,18 @@ def _resolver_root_and_files(
 
 
 def _with_graph_links(evidence: Sequence[Evidence]) -> list[Evidence]:
-    """Attach a directly usable DataHub UI link to every emitted evidence item."""
-    datahub_ui_url = os.environ.get(
-        "SIDQ_DATAHUB_UI_URL", "http://localhost:9002"
-    ).rstrip("/")
+    """Attach a DataHub UI link, but only one the reader of the finding can open.
+
+    The catalog UI lives wherever the operator put it, so there is no default
+    worth guessing. `http://localhost:9002` is the quickstart's address on the
+    machine that ran the audit; published into a pull-request comment it hands
+    every other reader a link to a port on their own laptop. Evidence carrying
+    no link still renders — the comment says no deep link was recorded — which
+    is true, where a localhost link is confidently false.
+    """
+    datahub_ui_url = os.environ.get("SIDQ_DATAHUB_UI_URL", "").strip().rstrip("/")
+    if not datahub_ui_url:
+        return list(evidence)
     return [
         item
         if item.graph_links
