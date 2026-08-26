@@ -31,7 +31,7 @@ Every row is one command or one committed artifact. No claim here rests on a scr
 | Criterion | The claim | Check it |
 |---|---|---|
 | **Use of DataHub** | Read → decide → **write** through the official MCP server, then a *separate process* reads the receipt back and recomputes its own verdict. Verdicts also land in DataHub's own **Quality tab** as native assertions (platform `sidq`). And the catalog is not only the output — it is the **only shared state four concurrent workers have**: no coordinator, no IPC, a peer killed mid-run, 14 distinct assets in 18 examinations, measured — and the assets two workers both reached are cross-checked against each other rather than counted as waste. | `make live-loop` · `make swarm-demo` · [`examples/06-native-assertion/`](examples/06-native-assertion/) |
-| **Technical execution** | 1,180 tests, lint, format and types in one gate; the flagship `BLOCK` re-derives **byte-identical** from committed evidence. Published numbers are guarded — a stale one fails the build. | `make check` · `make gate-demo` |
+| **Technical execution** | 1,188 tests, lint, format and types in one gate; the flagship `BLOCK` re-derives **byte-identical** from committed evidence. Published numbers are guarded — a stale one fails the build. | `make check` · `make gate-demo` |
 | **Originality** | The question is not "what is in the catalog" but "is the catalog telling the truth" — proved on DataHub's **own shipped sample**: examining all **67 datasets** found 285 internal contradictions, concentrated in **5 assets**. And against reality: the live source renames a column, the catalog does not, Sidq blocks the context. | [`docs/TRUTH-REPORT.md`](docs/TRUTH-REPORT.md) · `make demo-break` |
 | **Real-world usefulness** | A PII removal is blocked with its lineage path to a Looker dashboard. The repair agent **refuses its own obvious fix** because the engine re-proved it moves the leak instead of closing it. | [`examples/01-blocked-pii-dashboard/`](examples/01-blocked-pii-dashboard/) · `make repair-demo` |
 | **Submission quality** | A 2:51 film with real footage, a live console whose buttons run the real commands, and a read-only judge account on a live DataHub. | [the film](https://www.youtube.com/watch?v=W0uHsq2Kb0E) · [sidq.mlki.app](https://sidq.mlki.app) · [`docs/QA-RESULTS.md`](docs/QA-RESULTS.md) |
@@ -120,7 +120,7 @@ file on first use, so that first run needs package-index access.
 | # | Command | Needs | What it proves | Takes |
 |---|---|---|---|---|
 | 1 | `make gate-demo` | Python 3.12; package downloads on first use; no DataHub or credentials | The published `BLOCK` verdict is re-derived from the committed graph recording, byte-identical, with the same `policy_hash`. Hand-editing an artifact fails this. | ~2s after bootstrap |
-| 2 | `make check` | Python 3.12; package downloads on first use | 1180 tests, lint, format, types — 1179 passed, 1 optional integration skipped, with 84.22% branch coverage; the same gates CI runs. | ~70s after bootstrap |
+| 2 | `make check` | Python 3.12; package downloads on first use | 1188 tests, lint, format, types — 1187 passed, 1 optional integration skipped, with 84.20% branch coverage; the same gates CI runs. | ~70s after bootstrap |
 | 3 | `make live-loop` | a running DataHub ([`docs/SETUP.md`](docs/SETUP.md)) | The whole agent loop over the **official MCP server only**: read → decide → write a receipt → a *separate process* reads it back → an asset carrying no receipt returns `NOT VERIFIED`. | ~60s |
 | 4 | `make repair-demo` | the same DataHub | The repair agent proposes a fix from catalog evidence, re-runs the deterministic engine against the catalog that fix *would* create, and shows what it proved and what it refused. | ~40s |
 | 5 | `make swarm-demo` | the same DataHub | **Four agents on one catalog with no coordinator and no IPC.** They divide the work purely through the receipts they write, one is killed mid-run and its unfinished assets are never lost, and a fifth process that audited nothing reads the ledger back out of DataHub. Expect a different split each run — nothing is assigned, so which worker reaches which asset first is a race; what holds is that the survivors cover the catalog and that every asset two of them both examined comes back agreed. Needs `DATAHUB_GMS_TOKEN` exported. | ~90s |
@@ -239,9 +239,11 @@ model-proposed claim that could not be tested contributes nothing and is dropped
 so it can never cause a `BLOCK`.
 
 The reader is a linear head over `microsoft/harrier-oss-v1-270m`, a multilingual
-embedding model covering 94+ languages. Trained on 2,048 rows and evaluated on a
-held-out 528, it reaches 95.8% precision and 58.0% recall at its operating point
-on 72 proposals. It proposes only `unique` and `not_null`, the two claim types
+embedding model covering 94+ languages. Selection and measurement are separate rows: 1,538 fit the
+candidates, 510 held out of training chose the head and its 0.74 threshold, and
+the figure is measured **once** on the held-out 528 that selection never touched,
+with the chosen head refit on all 2,048. It reaches 97.1% precision and 55.5%
+recall at that operating point, on 68 proposals. It proposes only `unique` and `not_null`, the two claim types
 that need no arguments. A gradient-boosted head had the same precision within
 noise and 16 points worse recall, while adding a training stack to inference.
 On the documented `make claims-demo` path, 6 documented fields produce 3

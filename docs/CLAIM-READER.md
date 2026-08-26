@@ -35,7 +35,14 @@ already exercises eight. A regular expression reads one of them.
 
 ## What it was measured at
 
-Trained on 2,048 rows, evaluated on a held-out 528 from `data/claims/`.
+Three splits from `data/claims/`, because one held-out set cannot both choose
+an operating point and honestly report it. **1,538 rows** fit the candidates,
+**510** carved out of training — unseen by the fit — chose the head and the
+threshold, and the published figure is measured once on the **528** `eval` rows
+selection never touched. The chosen head then ships refit on all 2,048.
+
+Candidates are scored on the calibration rows; the table below is that scoring,
+not the published result.
 
 | head | accuracy | precision | recall | proposals |
 | --- | ---: | ---: | ---: | ---: |
@@ -62,7 +69,7 @@ selective, so both are scored by the same code path in the same run.
 | reading a documented sentence | proposals | precision | recall |
 | --- | ---: | ---: | ---: |
 | the deterministic reader | 23 | 17.4% | 3.4% |
-| the trained reader | 72 | **95.8%** | **58.0%** |
+| the trained reader | 68 | **97.1%** | **55.5%** |
 
 The rules are not badly written; they are being asked for something regular
 expressions do not do. Their nineteen mistakes divide into three kinds, and one
@@ -87,7 +94,7 @@ tasks are the two sides of the boundary.**
 
 | | deciding a verdict | reading a sentence |
 | --- | --- | --- |
-| accuracy | identical — the rule ties the classifier | not close — 95.8% against 17.4% |
+| accuracy | identical — the rule ties the classifier | not close — 97.1% against 17.4% |
 | speed | rule wins by ~2,700× | rule is faster and it does not matter |
 | what ships | **the rule** | **the model** |
 
