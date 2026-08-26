@@ -42,9 +42,11 @@ trusting a receipt that could not be read would cost the thesis.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+import sys
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from typing import Any
 
 from sidq.receipt.read import ToolCaller, get_verification_statuses
 from sidq.receipt.state import Action, ReceiptState, judge
@@ -121,3 +123,74 @@ def recall(
             worker_id=str(status.get("worker_id") or ""),
         )
     return prior
+
+
+# -- the other half: what a previous run could NOT establish --------------------
+
+_GAP_BATCH = 25
+
+
+def standing_gaps(urns: Sequence[str], transport: Any) -> frozenset[str]:
+    """Which of these assets a previous run examined and established nothing on.
+
+    `recall` above reads back the receipts a run *earned* and skips those assets.
+    This reads back the coverage gaps a run *left* — the `ERROR` assertions
+    `emit_gap_assertions` writes for an examined asset that yielded nothing — and
+    hands them to the planner as a tie-break, never as a demotion.
+
+    The asymmetry it fixes is worth naming. An agent that remembers only its
+    successes spends every budget re-examining the same assets that already
+    resisted it, while the assets no run has ever touched wait forever. Coverage
+    converges on the successes and stalls on the tail. Remembering the scars is
+    what lets the budget move past them without abandoning them: consequence
+    still decides who goes first, and this only settles who goes first among
+    equals.
+
+    A gap URN is derived, not stored: `assertion_urn(asset, "not_established")`
+    is deterministic, so this asks the catalog about addresses it computed rather
+    than about a list it has to keep somewhere and keep honest.
+
+    Anything unreadable is simply not a gap. A transport failure must not invent
+    scars — the honest failure here is to plan as though nothing had ever been
+    tried, which is the order this agent used before any of this existed.
+    """
+    from sidq.receipt.assertion import _GAP_RULE_ID, assertion_urn
+
+    wanted = {assertion_urn(urn, _GAP_RULE_ID): urn for urn in dict.fromkeys(urns)}
+    if not wanted:
+        return frozenset()
+
+    standing: set[str] = set()
+    addresses = list(wanted)
+    for start in range(0, len(addresses), _GAP_BATCH):
+        chunk = addresses[start : start + _GAP_BATCH]
+        aliases = "\n".join(
+            f'a{index}: assertion(urn: "{address}") '
+            "{ runEvents(limit: 1) { runEvents { result { type } } } }"
+            for index, address in enumerate(chunk)
+        )
+        try:
+            data = transport.graphql("{ " + aliases + " }", {})
+        except Exception as error:  # noqa: BLE001 - transports raise several types
+            # Not silence. Planning as though nothing was ever tried is the safe
+            # failure, but an operator who is never told will read the resulting
+            # order as a decision rather than as a degraded one.
+            print(
+                f"sidq: could not read coverage gaps for {len(chunk)} asset(s): "
+                f"{type(error).__name__}",
+                file=sys.stderr,
+            )
+            continue
+        if not isinstance(data, Mapping):
+            continue
+        for index, address in enumerate(chunk):
+            node = data.get(f"a{index}")
+            if not isinstance(node, Mapping):
+                continue
+            events = (node.get("runEvents") or {}).get("runEvents") or []
+            latest = events[0] if events else None
+            if not isinstance(latest, Mapping):
+                continue
+            if ((latest.get("result") or {}).get("type")) == "ERROR":
+                standing.add(wanted[address])
+    return frozenset(standing)

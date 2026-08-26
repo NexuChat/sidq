@@ -87,6 +87,10 @@ re-measured and the 2026-08-02 session remains its record.
 - Host branch coverage on that run: 84.23%, above the enforced 80.0% threshold.
   The browser, accessibility, and performance measurements below are from the
   2026-08-02 session in this document's title and were not re-run.
+- Host run of 2026-08-26, after coverage gaps entered the audit order: 1195
+  collected, 1194 passed, the same optional integration test skipped, at
+  84.38% branch coverage. The 2026-08-10 line above is left as it was
+  recorded rather than rewritten — it is what that run measured.
 - Ruff lint, Ruff format, and mypy: pass.
 - The authoritative latest-main status is the [main-branch CI workflow
   view](https://github.com/NexuChat/sidq/actions/workflows/ci.yml?query=branch%3Amain).

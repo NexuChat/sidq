@@ -23,10 +23,12 @@ from sidq.models import Evidence, Finding, Verdict
 from sidq.policy.engine import PolicyEngine
 from sidq.receipt.assertion import (
     AssertionMirrorUnavailable,
+    CoverageGap,
     _checked_at_millis,
     assertion_result_type,
     assertion_urn,
     emit_assertions,
+    emit_gap_assertions,
     require_mirror_config,
 )
 from sidq.receipt.bootstrap import (
@@ -2984,3 +2986,122 @@ def test_a_stale_transcript_hash_must_be_labelled_historical() -> None:
             "the transcript policy_hash no longer matches the shipped policy, so "
             "the README must label it historical instead of implying it is current"
         )
+
+
+def _gap(urn: str = URN) -> CoverageGap:
+    return CoverageGap(
+        urn=urn,
+        unverifiable=(
+            ("lineage_unverifiable", "no SQL is available for this model"),
+            ("doc_rot_unverifiable", "the document store did not answer"),
+        ),
+        policy_hash="a" * 64,
+        commit_sha="b" * 40,
+        checked_at="2026-08-11T00:00:00+00:00",
+    )
+
+
+def test_a_coverage_gap_becomes_an_error_assertion_not_a_pass_or_fail() -> None:
+    """An examined asset that established nothing gets a voice in the catalog.
+
+    These assets deliberately get no receipt, and for a long time that meant
+    they got nothing at all: the catalog showed the same blank for "nobody
+    looked" and "someone looked and could not establish anything". The mirror
+    now writes the second statement where the checks would be — with result
+    type ERROR, because no check passed and no check failed.
+    """
+    graph = _FakeCatalog()
+
+    result = emit_gap_assertions([_gap()], graph)
+
+    urn = assertion_urn(URN, "not_established")
+    assert result["created"] == (urn,)
+    assert result["runs"] and result["skipped"] == ()
+
+    definition = graph.definitions[urn]
+    assert definition["description"] == "Sidq policy rule not_established"
+    logic = definition["customAssertion"]["logic"]
+    assert "could establish nothing" in logic
+    assert "no SQL is available for this model" in logic
+    assert "Not verified is not clean" in logic
+
+    [(reported_urn, event)] = graph.reported
+    assert reported_urn == urn
+    assert event["type"] == "ERROR"
+    properties = {item["key"]: item["value"] for item in event["properties"]}
+    assert properties["sidq.verdict"] == "NOT_ESTABLISHED"
+    assert properties["sidq.severity"] == "gap"
+    assert properties["sidq.policy_hash"] == "a" * 64
+
+
+def test_gap_emission_is_idempotent_and_respects_a_soft_delete() -> None:
+    graph = _FakeCatalog()
+    urn = assertion_urn(URN, "not_established")
+
+    first = emit_gap_assertions([_gap()], graph)
+    second = emit_gap_assertions([_gap()], graph)
+    assert first["created"] == (urn,)
+    assert second["existing"] == (urn,)
+
+    # The operator deletes the row; the next run must not resurrect it.
+    graph.soft_deleted.add(urn)
+    third = emit_gap_assertions([_gap()], graph)
+    assert third["skipped"] == (urn,)
+    assert third["runs"] == ()
+
+
+def test_a_later_established_run_retires_the_gap_through_the_ordinary_sweep() -> None:
+    """The gap shares the rule-id namespace precisely so this happens for free.
+
+    When the same dataset later earns a real receipt, the gap row is a Sidq
+    rule absent from that run — which is the existing retirement condition. No
+    special case: the sweep that closes any rule which stopped firing closes
+    this one too, and the catalog stops claiming a gap that was since filled.
+    """
+    graph = _FakeCatalog()
+    emit_gap_assertions([_gap()], graph)
+    gap_urn = assertion_urn(URN, "not_established")
+
+    receipt = build_receipt(
+        URN, _verdict("PASS"), checked_at=datetime(2026, 8, 11, 1, 0, tzinfo=UTC)
+    )
+    result = emit_assertions([receipt], graph)
+
+    assert gap_urn in result["retired"]
+    assert graph.definitions[gap_urn]["customAssertion"]["logic"] == (
+        "This rule did not fire in the latest Sidq evaluation."
+    )
+
+
+def test_no_gaps_touches_nothing_and_opens_no_transport() -> None:
+    assert emit_gap_assertions([]) == {
+        "created": (),
+        "existing": (),
+        "runs": (),
+        "skipped": (),
+    }
+
+
+def test_gaps_for_builds_only_from_unestablished_examinations() -> None:
+    """The gap list mirrors the audit's own bookkeeping, never re-deciding it."""
+    from sidq.agent.auditor import AuditRun
+    from sidq.agent.writeback import gaps_for
+    from sidq.models import Evidence
+
+    result = AuditRun()
+    result.examined.extend([URN, URN.replace("test", "established")])
+    result.unestablished.append(URN)
+    result.evidence_by_urn[URN] = [
+        Evidence(
+            kind="lineage_unverifiable",
+            subject=URN,
+            detail={"reason": "no SQL is available", "confidence": "none"},
+        )
+    ]
+
+    [gap] = gaps_for(result, commit_sha="c" * 40)
+
+    assert gap.urn == URN
+    assert gap.unverifiable == (("lineage_unverifiable", "no SQL is available"),)
+    assert gap.commit_sha == "c" * 40
+    assert len(gap.policy_hash) == 64

@@ -420,6 +420,8 @@ def test_audit_resumes_writes_receipts_and_names_unreached_failures(
     finding = Evidence("lineage_field_missing", URN, {})
     result = SimpleNamespace(
         findings=(finding,),
+        unestablished=[],
+        evidence_by_urn={},
         summary=lambda: {"examined": 1, "findings": 1},
     )
     callers: list[_Closable] = []
@@ -475,6 +477,8 @@ def test_audit_write_failure_exits_nonzero_without_clean_success(
 ) -> None:
     result = SimpleNamespace(
         findings=(),
+        unestablished=[],
+        evidence_by_urn={},
         summary=lambda: {"examined": 1, "findings": 0},
     )
     transport = _Closable()
@@ -513,7 +517,12 @@ def test_audit_write_failure_exits_nonzero_without_clean_success(
 
 
 def test_audit_json_is_the_canonical_summary(monkeypatch, capsysbinary) -> None:
-    result = SimpleNamespace(findings=(), summary=lambda: {"examined": 2})
+    result = SimpleNamespace(
+        findings=(),
+        unestablished=[],
+        evidence_by_urn={},
+        summary=lambda: {"examined": 2},
+    )
 
     class _Auditor:
         def __init__(self, snapshot, *, budget, prior) -> None:
@@ -535,6 +544,8 @@ def test_audit_json_names_every_rollback_incomplete_write(
 ) -> None:
     result = SimpleNamespace(
         findings=(),
+        unestablished=[],
+        evidence_by_urn={},
         summary=lambda: {"examined": 6, "findings": 0},
     )
     transport = _Closable()
@@ -609,6 +620,8 @@ def test_audit_json_reports_success_and_zero_eligible_writes(
 ) -> None:
     result = SimpleNamespace(
         findings=(),
+        unestablished=[],
+        evidence_by_urn={},
         summary=lambda: {"examined": 1, "findings": 0},
     )
     transport = _Closable()
@@ -717,7 +730,12 @@ def test_native_assertions_mirror_only_the_receipts_the_catalog_accepted(
     monkeypatch, capsysbinary
 ) -> None:
     """A rejected receipt is not evidence, so it must not become an assertion."""
-    result = SimpleNamespace(findings=(), summary=lambda: {"examined": 2})
+    result = SimpleNamespace(
+        findings=(),
+        unestablished=[],
+        evidence_by_urn={},
+        summary=lambda: {"examined": 2},
+    )
     written = SimpleNamespace(urn=URN, verdict="PASS", written=True, detail="")
     rejected = SimpleNamespace(
         urn=URN + ".other", verdict="PASS", written=False, detail="Timeout"
@@ -789,7 +807,12 @@ def test_a_failed_assertion_write_is_reported_without_counts_and_does_not_pass(
     Reporting zero created would claim the catalog is untouched when it may not
     be, so the failure carries no counts at all.
     """
-    result = SimpleNamespace(findings=(), summary=lambda: {"examined": 1})
+    result = SimpleNamespace(
+        findings=(),
+        unestablished=[],
+        evidence_by_urn={},
+        summary=lambda: {"examined": 1},
+    )
     outcome = SimpleNamespace(urn=URN, verdict="PASS", written=True, detail="")
 
     class _Auditor:
@@ -1542,3 +1565,74 @@ def test_verify_transport_failure_is_not_reported_as_unverified(
     assert cli._verify(_arguments()) == 2
     assert "could not read the receipt" in capsys.readouterr().err
     assert transport.closed
+
+
+def test_the_audit_mirrors_coverage_gaps_and_says_so(monkeypatch, capsys) -> None:
+    """Not-established examinations reach the catalog as ERROR assertions.
+
+    The receipts path deliberately skips them, which for a long time meant the
+    catalog showed the same blank for "nobody looked" and "someone looked and
+    could not establish anything". The audit output now accounts for the gap
+    mirror in the same breath as the receipt mirror.
+    """
+    from sidq.receipt.assertion import CoverageGap
+
+    result = SimpleNamespace(
+        findings=(),
+        unestablished=[URN],
+        evidence_by_urn={},
+        summary=lambda: {"examined": 1},
+    )
+    gap = CoverageGap(
+        urn=URN,
+        unverifiable=(("lineage_unverifiable", "no SQL"),),
+        policy_hash="a" * 64,
+        commit_sha="b" * 40,
+        checked_at="2026-08-11T00:00:00+00:00",
+    )
+
+    class _Auditor:
+        def __init__(self, snapshot, *, budget, prior) -> None:
+            pass
+
+        def run(self):
+            return result
+
+    emitted: dict[str, object] = {}
+
+    def emit_gaps(gaps):
+        emitted["gaps"] = gaps
+        return {"created": ("u",), "existing": (), "runs": ("u@1",), "skipped": ()}
+
+    monkeypatch.setattr(cli, "_read_snapshot", lambda arguments: object())
+    monkeypatch.setattr(cli, "CatalogAuditor", _Auditor)
+    monkeypatch.setattr(cli, "render", lambda run, *, catalog: ["unused"])
+    monkeypatch.setattr(
+        cli, "StdioMCPReceiptToolCaller", lambda allowed_tools: _Closable()
+    )
+    monkeypatch.setattr(cli, "receipts_for", lambda run, *, commit_sha: [])
+    monkeypatch.setattr(cli, "write_receipts", lambda supplied, caller: [])
+    monkeypatch.setattr(cli, "render_writeback", lambda supplied: ["unused"])
+    monkeypatch.setattr(cli, "commit_sha_for_ref", lambda ref: "b" * 40)
+    monkeypatch.setattr(
+        cli,
+        "emit_assertions",
+        lambda receipts: {
+            "created": (),
+            "existing": (),
+            "runs": (),
+            "retired": (),
+            "skipped": (),
+        },
+    )
+    monkeypatch.setattr(cli, "gaps_for", lambda run, *, commit_sha: [gap])
+    monkeypatch.setattr(cli, "emit_gap_assertions", emit_gaps)
+    monkeypatch.setattr(cli, "require_mirror_config", lambda: None)
+
+    code = cli._audit(_arguments(write_receipts=True, write_assertions=True))
+
+    assert code == 0
+    assert emitted["gaps"] == [gap]
+    assert "coverage gaps     1 of 1 mirrored as ERROR assertions" in (
+        capsys.readouterr().out
+    )

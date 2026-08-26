@@ -29,7 +29,7 @@ the catalog itself, any sidq instance resumes where any other stopped.
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 
 from sidq.agent.memory import PriorReceipt
@@ -71,6 +71,11 @@ class Target:
     urn: str
     consequence: int
     reasons: tuple[str, ...]
+    # A previous run examined this asset and could establish nothing on it — the
+    # coverage gap standing in the catalog. It does not lower the asset's
+    # consequence, because resisting a check is not evidence of being harmless.
+    # It breaks ties, and only ties: see `plan`.
+    resisted: bool = False
 
 
 @dataclass
@@ -118,6 +123,11 @@ class AuditRun:
             "vouched_by_receipt": len(self.vouched),
             "blocked_by_receipt": len(self.refused),
             "promoted_by_a_finding": len(self.promoted),
+            # How much of this plan the catalog had already resisted. Reported
+            # because a run that spends its whole budget on assets a previous
+            # run could establish nothing on has learned nothing, and the only
+            # way anyone notices is if the number is printed.
+            "already_resisted": sum(1 for item in self.order if item.resisted),
         }
 
 
@@ -131,6 +141,7 @@ class CatalogAuditor:
         budget: int = DEFAULT_BUDGET,
         gate: SelfContradictionGate | None = None,
         prior: Mapping[str, PriorReceipt] | None = None,
+        gaps: Iterable[str] | None = None,
     ) -> None:
         self._snapshot = snapshot
         self._budget = max(0, budget)
@@ -139,6 +150,7 @@ class CatalogAuditor:
         # Empty means amnesia, and amnesia is the safe default: nothing is ever
         # skipped on the strength of a receipt nobody read.
         self._prior = dict(prior or {})
+        self._gaps = frozenset(gaps or ())
         # Every URN the catalog actually contains. Slicing hides most of them
         # from the gate, so this is what tells a genuine dangling edge apart
         # from the edge of the window.
@@ -172,13 +184,35 @@ class CatalogAuditor:
         if not entity.schema_available:
             score += 25
             reasons.append("no stored schema")
-        return Target(entity.urn, score, tuple(reasons) or ("no notable exposure",))
+        if entity.urn in self._gaps:
+            reasons.append("a previous run could establish nothing here")
+        return Target(
+            entity.urn,
+            score,
+            tuple(reasons) or ("no notable exposure",),
+            resisted=entity.urn in self._gaps,
+        )
 
     def plan(self) -> list[Target]:
-        """Order the catalog by consequence. This is the agent's first decision."""
+        """Order the catalog by consequence. This is the agent's first decision.
+
+        Consequence dominates absolutely. A standing coverage gap is the second
+        key and never the first: an asset that resisted examination is not
+        thereby less consequential, and demoting it for having been hard would
+        bury exactly the assets most worth understanding. What it does settle is
+        ties — between two assets a lie about which would cost the same, the one
+        no run has ever established anything on goes first, because that is where
+        the budget buys something new.
+
+        This is the other half of `sidq.agent.memory`. That reads back what a
+        previous run *established* and skips it; this reads back what a previous
+        run *could not* establish and stops it from crowding out the untouched
+        tail. Remembering only the successes is how an agent spends every budget
+        re-failing the same assets.
+        """
         return sorted(
             (self._consequence(entity) for entity in self._snapshot.entities),
-            key=lambda target: (-target.consequence, target.urn),
+            key=lambda target: (-target.consequence, target.resisted, target.urn),
         )
 
     # -- action ----------------------------------------------------------

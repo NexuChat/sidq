@@ -17,6 +17,7 @@ from urllib.parse import quote
 from sidq.agent import (
     CatalogAuditor,
     PriorReceipt,
+    gaps_for,
     recall,
     receipts_for,
     render,
@@ -53,6 +54,7 @@ from sidq.policy.engine import PolicyEngine, load_policy
 from sidq.receipt.assertion import (
     AssertionMirrorUnavailable,
     emit_assertions,
+    emit_gap_assertions,
     require_mirror_config,
 )
 from sidq.receipt.read import (
@@ -896,6 +898,28 @@ def _audit(arguments: Any) -> int:
                 f"{assertion_summary['retired']} retired, "
                 f"{assertion_summary['skipped']} left deleted"
             )
+
+        # Gaps mirror independently of receipts: an examined asset that
+        # established nothing has no receipt by design, and that is exactly
+        # why its absence needed a voice of its own in the catalog. ERROR is
+        # the result type, because no check passed and no check failed.
+        gaps = gaps_for(result, commit_sha=commit_sha_for_ref("HEAD"))
+        if gaps:
+            try:
+                gap_result = emit_gap_assertions(gaps)
+            except Exception as error:  # noqa: BLE001 - DataHub transports raise several types
+                assertion_failed = True
+                print(
+                    f"sidq: could not mirror coverage gaps: {error}",
+                    file=sys.stderr,
+                )
+                lines.append("  coverage gaps     mirror failed, counts unknown")
+            else:
+                lines.append(
+                    f"  coverage gaps     {len(gap_result['runs'])} of "
+                    f"{len(gaps)} mirrored as ERROR assertions "
+                    f"({len(gap_result['skipped'])} left deleted)"
+                )
 
     if arguments.as_json:
         output = result.summary()
