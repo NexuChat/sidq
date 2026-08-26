@@ -114,6 +114,9 @@ decision-cost: | $(VENV)/.sidq-dev-lock
 # opens did not work. It runs the flagship change through the real engine against
 # the committed graph recording and prints the verdict, so it produces the same
 # answer after the locked first-run bootstrap, with no DataHub or credentials.
+rederive:
+	@scripts/rederive.sh examples/01-blocked-pii-dashboard/verdict.json
+
 gate-demo: | $(VENV)/.sidq-dev-lock
 	@$(VENV)/bin/python scripts/regenerate_example_01.py --check
 	@echo
