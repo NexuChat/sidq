@@ -3,7 +3,7 @@
 The project requires that "every number in the README traces to
 a file in the repo — no unsupported claim". That was verified by hand, which means
 it holds only until the next edit. These tests mechanise it, so a headline number
-that drifts from its evidence breaks the build instead of reaching a judge.
+that drifts from its evidence breaks the build instead of reaching a reader.
 
 The catalog audit and the reconciliation example both need a live DataHub, so
 their artifacts cannot be regenerated inside a unit test. What can be checked
@@ -15,7 +15,6 @@ from __future__ import annotations
 import gzip
 import json
 import re
-import struct
 import subprocess
 import sys
 from pathlib import Path
@@ -34,7 +33,7 @@ ROOT = Path(__file__).parents[1]
 # pass. That distinction is the project's own rule applied to its own test
 # suite: a check that could not run is not a check that succeeded. Silently
 # passing them would have been the more convenient lie, and `make check` — which
-# the README hands to a judge — would have reported four green results for
+# the README hands to every reader — would have reported four green results for
 # assertions nothing verified.
 _CORPUS = ROOT / "data" / "benchmark" / "labelled-regression.jsonl.gz"
 README = ROOT / "README.md"
@@ -68,23 +67,15 @@ def test_the_headline_contradiction_count_matches_the_evidence() -> None:
     assert "contradictions across 67 datasets" not in text
 
 
-def test_no_judge_facing_surface_conflates_examined_with_affected() -> None:
-    """The conflation was banned in the README, then published in a picture.
+def test_no_published_surface_conflates_examined_with_affected() -> None:
+    """The conflation was banned in the README; no other surface may use it.
 
-    The guard above reads one file. The submission gallery is composed as HTML
-    and rendered to PNG, and those boards say the same numbers to the same
-    judges — so the phrasing the README may not use, a board may not use
-    either. This was not hypothetical: `docs/gallery/src/02-the-sample.html`
-    carried "internal contradictions across 67 datasets" while the README was
-    forbidden from saying it, and a rendered slide is invisible to any check
-    that only reads prose.
-
-    The boards are the reason this scans sources rather than images. Nothing
-    here can read a PNG; keeping the wording honest in the HTML the PNG is
-    rendered from is what keeps the rendered board honest.
+    The guard above reads one file. The Markdown documents and the HTML pages
+    say the same numbers to the same readers — so the phrasing the README may
+    not use, a page may not use either.
 
     Markup is stripped before matching, and that is the whole difficulty. The
-    offending board read `across <strong>67 datasets</strong>`, so the banned
+    offending page read `across <strong>67 datasets</strong>`, so the banned
     phrase never appeared literally in the file — a substring check against raw
     HTML reports clean on the exact text it exists to forbid. A reader sees the
     sentence; only a reader that strips tags sees it too.
@@ -92,10 +83,9 @@ def test_no_judge_facing_surface_conflates_examined_with_affected() -> None:
     surfaces = [
         *ROOT.glob("*.md"),
         *(ROOT / "docs").glob("*.md"),
-        *(ROOT / "docs" / "gallery" / "src").glob("*.html"),
         *(ROOT / "web").glob("*.html"),
     ]
-    assert surfaces, "no judge-facing surfaces were found to check"
+    assert surfaces, "no published surfaces were found to check"
 
     offenders = []
     for path in surfaces:
@@ -126,7 +116,7 @@ def test_the_powerbi_example_number_is_the_one_the_evidence_holds() -> None:
     and a reader can count them. The 58 was a total-edge figure for that asset
     that no committed artifact records — `report.json` stores the findings, and
     its `scope.lineage_edges` counts the whole catalog, not one asset. A number
-    a judge cannot trace is the exact defect this project exists to catch, so
+    a reader cannot trace is the exact defect this project exists to catch, so
     the total was dropped rather than evidenced from a live run nobody can
     repeat. This guard pins the surviving claim to the evidence and keeps the
     unprovable one from coming back.
@@ -161,7 +151,7 @@ def test_the_powerbi_example_number_is_the_one_the_evidence_holds() -> None:
     }
     assert claimed, "the README must still quote the missing-target edge count"
     # Every claimed value, not just the largest: a wrong second figure sitting
-    # beside the right one is still a wrong figure on a judge-facing page.
+    # beside the right one is still a wrong figure on a published page.
     assert claimed == {len(edges)}, (
         f"README claims {sorted(claimed)} contradicted edges for {subject}; "
         f"the evidence file has {len(edges)}"
@@ -287,7 +277,7 @@ def test_the_readme_audit_section_agrees_with_the_published_evidence() -> None:
     assert "Same check, different catalog contents." in text
 
 
-def test_the_readme_leads_with_something_a_judge_can_run() -> None:
+def test_the_readme_leads_with_something_a_reader_can_run() -> None:
     """The first actionable thing must be a command, not an installation."""
     text = README.read_text(encoding="utf-8")
 
@@ -299,11 +289,11 @@ def test_the_readme_leads_with_something_a_judge_can_run() -> None:
 
 # ---------------------------------------------------------------------------
 # Commands we tell people to run must exist. Checking the landing page's numbers
-# while never checking its instructions is how `make gate-demo` reached a judge-
-# facing surface without ever being a target.
+# while never checking its instructions is how `make gate-demo` reached a
+# published surface without ever being a target.
 # ---------------------------------------------------------------------------
 
-# A judge surface is any page a judge is sent to, not the front door
+# A published surface is any page a reader is sent to, not the front door
 # specifically. Pinning the scoping sentences to `web/index.html` forced 676
 # words of caveat onto the one screen that has to be usable in seconds — and
 # every attempt to thin the page put them straight back. They belong on a
@@ -311,7 +301,7 @@ def test_the_readme_leads_with_something_a_judge_can_run() -> None:
 # the page that has to convince in ten seconds.
 SCOPE_SURFACE = "web/scope.html"
 
-JUDGE_FACING = ("README.md", SCOPE_SURFACE, "docs/SETUP.md", "docs/DEVPOST.md")
+PUBLISHED_SURFACES = ("README.md", SCOPE_SURFACE, "docs/SETUP.md")
 
 
 def _make_targets() -> set[str]:
@@ -319,7 +309,7 @@ def _make_targets() -> set[str]:
     return set(re.findall(r"^([a-zA-Z][\w-]*):", text, flags=re.MULTILINE))
 
 
-@pytest.mark.parametrize("document", JUDGE_FACING)
+@pytest.mark.parametrize("document", PUBLISHED_SURFACES)
 def test_every_make_command_we_publish_exists(document: str) -> None:
     """A published instruction that fails is worse than no instruction."""
     text = (ROOT / document).read_text(encoding="utf-8")
@@ -349,14 +339,13 @@ def test_the_landing_page_command_is_the_one_that_reproduces_the_verdict() -> No
 
 
 def test_the_prior_work_disclosure_matches_what_is_shipped() -> None:
-    """The rules require disclosing pre-existing work, and we ship mined corpora.
+    """We ship mined corpora, so the README must disclose third-party material.
 
-    `docs/DEVPOST.md` previously said no pre-existing code was incorporated while
-    `data/claims/` shipped material derived from SchemaStore, FHIR and dozens of
+    `data/claims/` ships material derived from SchemaStore, FHIR and dozens of
     dbt repositories. Sidq's own source is original; the data is not, and a
-    submission field that says otherwise is a rules problem, not a wording one.
+    README that says otherwise is a licensing problem, not a wording one.
     """
-    text = (ROOT / "docs" / "DEVPOST.md").read_text(encoding="utf-8")
+    text = README.read_text(encoding="utf-8")
 
     assert "Third-party material is included" in text
     for source in ("SchemaStore", "FHIR", "showcase-ecommerce"):
@@ -367,7 +356,7 @@ def test_the_prior_work_disclosure_matches_what_is_shipped() -> None:
 def test_the_published_reader_scores_are_the_ones_the_artifact_records() -> None:
     """The one measured ML claim in the project must come from its own evidence.
 
-    95.8% precision was quoted in three judge-facing documents and tied to
+    95.8% precision was quoted in three published documents and tied to
     nothing: retraining the head would have changed `report.json` and left the
     prose stating an old number, which is the drift every other published
     figure here is guarded against.
@@ -401,16 +390,16 @@ def test_the_published_reader_scores_are_the_ones_the_artifact_records() -> None
     assert quoted["baseline"] in matrix
 
 
-def test_the_test_count_in_the_judge_runbook_is_the_real_one() -> None:
-    """The runbook tells a judge how many tests `make check` runs; it must be true.
+def test_the_test_count_in_the_runbook_is_the_real_one() -> None:
+    """The runbook tells a reader how many tests `make check` runs; it must be true.
 
-    A stale number is a small lie in the first table a judge reads, on the one
+    A stale number is a small lie in the first table a reader reads, on the one
     page whose whole argument is that published claims are checked. Collected
     rather than run, so this stays fast and cannot recurse into itself.
     """
     text = (ROOT / "README.md").read_text(encoding="utf-8")
     match = re.search(r"(\d[\d,]*) tests, lint, format, types", text)
-    assert match, "the judge runbook no longer states a test count"
+    assert match, "the runbook no longer states a test count"
 
     completed = subprocess.run(
         [sys.executable, "-m", "pytest", "--collect-only", "-q"],
@@ -434,30 +423,26 @@ def test_the_test_count_in_the_judge_runbook_is_the_real_one() -> None:
         r"with ([\d.]+)% branch coverage",
         text,
     )
-    assert outcome, "the judge runbook no longer states pass, skip, and coverage data"
+    assert outcome, "the runbook no longer states pass, skip, and coverage data"
     passed = int(outcome.group(1).replace(",", ""))
     skipped = int(outcome.group(2).replace(",", ""))
     coverage = outcome.group(3)
     assert passed + skipped == actual
 
-    qa = (ROOT / "docs/QA-RESULTS.md").read_text(encoding="utf-8")
     claims = (ROOT / "docs/CLAIMS-MATRIX.md").read_text(encoding="utf-8")
     audit = (ROOT / "docs/SECURITY-AUDIT.md").read_text(encoding="utf-8")
-    normalized_qa = " ".join(qa.split())
     normalized_claims = " ".join(claims.split())
     normalized_audit = " ".join(audit.split())
-    assert f"{passed} passed" in normalized_qa
-    # One skip reads "1 optional integration test skipped"; two read "…tests…".
+    # One skip reads "1 optional integration skips"; two read "…integrations…".
     # The count is the claim; the grammar around it must be allowed to agree.
-    assert re.search(rf"{skipped} optional integration tests? skipped", normalized_qa)
     assert f"{passed} pass" in normalized_claims
     assert re.search(rf"{skipped} optional integrations? skips?", normalized_claims)
     assert f"{passed} passed, {skipped} skipped" in normalized_audit
-    for evidence in (qa, claims, audit):
+    for evidence in (claims, audit):
         assert f"{coverage}%" in evidence
 
-    # Any judge-facing document that quotes a suite size must quote this one.
-    # The rubric table in ARCHITECTURE.md was the first to restate it outside
+    # Any published document that quotes a suite size must quote this one.
+    # The evidence table in ARCHITECTURE.md was the first to restate it outside
     # the runbook, and nothing would have caught it drifting.
     for name in ("ARCHITECTURE.md", "README.md", "docs/CLAIMS-MATRIX.md"):
         document = (ROOT / name).read_text(encoding="utf-8")
@@ -521,8 +506,8 @@ def _stub_handler(server, monkeypatch, responses, path: str):
     handler.path = path
     handler.client_address = ("192.0.2.1", 12345)
     handler.headers = {
-        "Host": "sidq.mlki.app",
-        "Origin": "https://sidq.mlki.app",
+        "Host": "127.0.0.1:8766",
+        "Origin": "http://127.0.0.1:8766",
         "Sec-Fetch-Site": "same-origin",
         server.DEMO_REQUEST_HEADER: server.DEMO_REQUEST_HEADER_VALUE,
         server.CAPABILITY_HEADER: server._issue_capability(
@@ -563,7 +548,7 @@ def test_the_cooldown_does_not_punish_a_reader_trying_the_next_button(
 ) -> None:
     """The page offers three buttons and a reader clicks them in sequence.
 
-    A per-client cooldown would make the second click fail, which costs a judge
+    A per-client cooldown would make the second click fail, which costs a visitor
     the demonstration and buys nothing: `_lock` already permits one run at a
     time regardless of who asks. The key is (client, command) for that reason,
     and the first version of this keyed on the client alone.
@@ -583,7 +568,7 @@ def test_the_cooldown_does_not_punish_a_reader_trying_the_next_button(
 
 
 def test_the_landing_page_run_buttons_name_commands_that_exist() -> None:
-    """A button wired to a name outside the table is a 404 in a judge's face."""
+    """A button wired to a name outside the table is a 404 in a visitor's face."""
     from web.server import RUNNABLE
 
     html = (ROOT / "web" / "index.html").read_text(encoding="utf-8")
@@ -600,7 +585,7 @@ def test_the_landing_page_run_buttons_name_commands_that_exist() -> None:
 
 
 def test_the_live_handoff_is_a_fixed_read_only_receipt_read() -> None:
-    """The winning demo reads shared memory without granting public writes."""
+    """The handoff demo reads shared memory without granting public writes."""
     from web.server import RUNNABLE
 
     _, argv = RUNNABLE["handoff"]
@@ -740,59 +725,6 @@ def test_the_operations_runbook_covers_probe_release_and_rollback() -> None:
         assert f'"$runtime_compatible_release/{prerequisite}"' in rollback
 
 
-def test_the_video_runbook_fits_the_limit_and_leads_with_the_handoff() -> None:
-    """The film document must describe the film that exists, honestly.
-
-    The current film is built from real footage: a live catalog audit, the
-    committed fixture replay, and one continuous session on the deployed
-    console. The document has to carry the truth-label system, the declared
-    playback rates, the artifact identity, and the owner-only upload gate —
-    whatever the numbers are this week.
-    """
-    video = (ROOT / "docs/VIDEO.md").read_text()
-    normalized_video = " ".join(video.lower().split())
-
-    assert "under three minutes" in normalized_video
-    # Was "burned english": the superseded cut baked the narration into the
-    # frames. It no longer does — a viewer cannot turn baked words off or have
-    # them machine-translated — so the record has to state where the transcript
-    # went instead of asserting a property the film stopped having.
-    assert "sidecar srt" in normalized_video
-    assert "ILLUSTRATION" in video
-    assert "LIVE CAPTURE" in video
-    assert "REPRODUCIBLE OFFLINE REPLAY" in video
-    # The captures keep the address bar in frame, and any speed change is
-    # declared as a playback rate rather than hidden as an edit.
-    for visible_capture_detail in ("address bar", "playback rate"):
-        assert visible_capture_detail in normalized_video
-    assert "independent receipt read" in normalized_video
-    # Was the `sidq verify` terminal string. The receipt re-read is now shown
-    # on the deployed page rather than in a terminal take, so the claim the
-    # record must carry is the property, not that one line of output.
-    assert "policy hash" in normalized_video
-    assert "DECISION : BLOCK" in video or "`BLOCK`" in video
-    # The document always carries the current artifact's exact identity.
-    assert re.search(r"\d+\.\d{3} seconds", video)
-    assert re.search(r"SHA-256[\s`:—-]*[0-9a-f]{64}", video)
-    assert "not presented as a live mutation" in normalized_video
-    assert "owner-only" in normalized_video
-    assert "do not upload the video" in normalized_video
-
-
-def test_the_browser_qa_record_covers_every_live_journey_and_viewport() -> None:
-    qa = (ROOT / "docs/QA-RESULTS.md").read_text()
-    normalized_qa = " ".join(qa.lower().split())
-
-    for viewport in ("375x812", "768x1024", "1440x1000"):
-        assert viewport in qa
-    for journey in ("handoff", "gate-demo", "audit", "repair", "claims"):
-        assert journey in qa
-    assert "AccessLint" in qa and "0 violations" in qa
-    assert "5/5" in qa and "HTTP 200" in qa
-    assert "1 proposed, 0 proven, 1 rejected" in normalized_qa
-    assert "catalog-dependent snapshot" in normalized_qa
-
-
 def test_pull_request_ci_executes_the_local_action_without_publish_authority() -> None:
     workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text()
 
@@ -841,22 +773,21 @@ def test_clean_clone_carries_the_preflight_regression_evidence() -> None:
     assert eval_preflight.evaluate(rows)["distinct_labels"] == 3
 
 
-def test_judge_copy_does_not_overstate_reproducibility_or_exclusivity() -> None:
+def test_published_copy_does_not_overstate_reproducibility_or_exclusivity() -> None:
     readme = README.read_text(encoding="utf-8")
-    devpost = (ROOT / "docs" / "DEVPOST.md").read_text(encoding="utf-8")
     landing = (ROOT / "web" / "index.html").read_text(encoding="utf-8")
 
     assert "the only one asking" not in readme
     assert (
         "no network"
-        not in readme.split("## Judge runbook", 1)[1].split("## The questions", 1)[0]
+        not in readme.split("## Local runbook", 1)[1].split("## The questions", 1)[0]
     )
     assert "guards on every claim this README makes" not in readme
     assert "every number this README states is pinned" not in readme
     assert "carries each verdict back" not in readme
     assert "every claim" not in landing.lower()
     scope = (ROOT / SCOPE_SURFACE).read_text(encoding="utf-8")
-    for surface in (readme, devpost, scope):
+    for surface in (readme, scope):
         normalized = " ".join(surface.lower().split())
         assert "complete-lineage regression" in normalized
         assert "live" in normalized and "fails closed" in normalized
@@ -877,7 +808,7 @@ def test_judge_copy_does_not_overstate_reproducibility_or_exclusivity() -> None:
 
 
 def test_the_readme_repair_transcript_is_output_the_repository_can_produce() -> None:
-    """The transcript a judge reads must be what the committed code prints.
+    """The transcript a reader reads must be what the committed code prints.
 
     Banning the retired "6 columns across dbt, Snowflake and Looker" figure was
     only half the repair: the README went on quoting an engine transcript from
@@ -935,79 +866,12 @@ def test_the_readme_repair_transcript_is_output_the_repository_can_produce() -> 
     assert "does resolve the finding" in text.replace("*", "")
 
 
-def test_submission_copy_does_not_publish_a_stale_video_or_deny_catalog_io() -> None:
-    readme = README.read_text(encoding="utf-8")
-    devpost = (ROOT / "docs" / "DEVPOST.md").read_text(encoding="utf-8")
-
-    assert "The 2:26 film" not in readme
-    assert "youtu.be/5izxVeQ11dY" not in readme
-    assert "**Public video:** https://www.youtube.com/watch?v=W0uHsq2Kb0E" in devpost
-    assert "<PUBLIC_VIDEO_URL>" not in devpost
-    assert "not the input to that loop, nor its output" not in devpost
-
-
-def test_one_film_identity_across_every_document_that_states_one() -> None:
-    """Two linked docs describing two different films is a one-click defect.
-
-    `QA-RESULTS.md` documented the superseded 2026-08-02 export as "the upload
-    artifact" — its SHA, its byte count, its duration, its cue count — for three
-    days after a different file was uploaded, while `VIDEO.md`, one README link
-    away, gave the real numbers. Nothing caught it: the guards pinned the URL and
-    the SHA separately, and neither noticed the documents disagreed. Every figure
-    that identifies the film is pinned here, in one place, for every surface.
-
-    The superseded values may still appear — the corrected record explains what
-    changed — but only where the same passage calls them superseded, because a
-    retired number a reader can still find is exactly what this project exists
-    to catch.
-    """
-    final = {
-        "b9318837f8a36fad25db310e20cfc5d5e7e71b21b66bbdcaa0c9b84ed12fa592",
-        "11,802,599",
-        "171.051",
-    }
-    superseded = {
-        "0811a494c3ee6f78f907c3f2d14908ca18df403d81e38d63093cfa7dab46beef",
-        "29,636,338",
-        "169.216",
-        "5,075",
-    }
-    # A passage is a blank-line paragraph, one bullet, or one table row. Whole
-    # paragraphs are too coarse for CLAIMS-MATRIX.md, where the entire table is
-    # one block and a policy hash three rows away would read as the film's.
-    passage = re.compile(r"\n\s*\n|\n(?=\s*(?:[-*+]\s|\|))")
-
-    for document in sorted(ROOT.glob("docs/*.md")) + [README]:
-        name = document.relative_to(ROOT)
-        for chunk in passage.split(document.read_text(encoding="utf-8")):
-            flat = " ".join(chunk.split())
-            retired = "supersede" in flat.lower()
-
-            stale = sorted(value for value in superseded if value in flat)
-            assert not stale or retired, (
-                f"{name} states {stale} without calling them superseded; "
-                "a judge reading this passage learns the wrong film"
-            )
-
-            # A document need not repeat every figure, but a passage that names
-            # the artifact and gives it a hash must give it the right hash —
-            # that is how the wrong SHA sat in QA-RESULTS.md for three days.
-            if "sidq-final-en.mp4" not in flat or retired:
-                continue
-            for digest in re.findall(r"\b[0-9a-f]{64}\b", flat):
-                assert digest in final, (
-                    f"{name} pairs the film artifact with {digest[:8]}…, which "
-                    "is not the SHA-256 of the submitted file"
-                )
-
-
 def test_receipt_docs_define_the_fail_closed_semantic_staleness_boundary() -> None:
     readme = README.read_text(encoding="utf-8")
-    devpost = (ROOT / "docs" / "DEVPOST.md").read_text(encoding="utf-8")
     receipt_spec = (ROOT / "docs" / "RECEIPT-SPEC.md").read_text(encoding="utf-8")
 
     assert "pinned by a test in four scripts" not in readme
-    for surface in (readme, devpost, receipt_spec):
+    for surface in (readme, receipt_spec):
         normalized = " ".join(surface.lower().split())
         assert "semantic entity metadata" in normalized
         assert "complete one-hop upstream and downstream lineage" in normalized
@@ -1019,18 +883,14 @@ def test_receipt_docs_define_the_fail_closed_semantic_staleness_boundary() -> No
         assert "policy-hash mismatch invalidates immediately" in normalized
         assert "default maximum age is 7 days" in normalized
 
-    for judge_surface in (readme, devpost):
-        normalized = " ".join(judge_surface.lower().split())
-        assert "hosted public handoff alone uses 45 days" in normalized
-        assert "through august 31, 2026" in normalized
+    for surface in (readme, receipt_spec):
+        normalized = " ".join(surface.lower().split())
+        assert "receipt-handoff demo alone passes 45 days" in normalized
         assert "context or policy change still invalidates immediately" in normalized
 
 
 def test_swarm_docs_match_latest_receipt_observability() -> None:
-    surfaces = (
-        README.read_text(encoding="utf-8"),
-        (ROOT / "docs" / "DEVPOST.md").read_text(encoding="utf-8"),
-    )
+    surfaces = (README.read_text(encoding="utf-8"),)
 
     for surface in surfaces:
         normalized = " ".join(surface.lower().split())
@@ -1068,65 +928,26 @@ def test_swarm_docs_match_latest_receipt_observability() -> None:
 def test_supported_python_copy_matches_the_single_tested_minor() -> None:
     project = (ROOT / "pyproject.toml").read_text()
     surfaces = "\n".join(
-        (ROOT / name).read_text()
-        for name in ("README.md", "docs/DEVPOST.md", "docs/PR-BOT.md")
+        (ROOT / name).read_text() for name in ("README.md", "docs/PR-BOT.md")
     )
 
     assert 'requires-python = ">=3.12,<3.13"' in project
     assert "Python 3.12 or newer" not in surfaces
 
 
-def test_devpost_has_submission_fields_and_no_committed_demo_password() -> None:
-    """The submission copy must name judge access without publishing a secret.
-
-    This guard used to require the phrases "Testing instructions" and "visible to
-    judges", because the plan was to hide the judge account in Devpost's private
-    testing-instructions box. Checking the live submission form on 2026-08-06
-    settled it: this hackathon has fourteen fields and none of them is that box.
-    Anything a judge needs in order to reach the catalog is public by necessity,
-    which is exactly why the published account has to be read-only. The guard now
-    pins that reasoning instead of the field that does not exist, so nobody
-    restores the old instruction and then wonders where to paste it.
-    """
-    text = (ROOT / "docs" / "DEVPOST.md").read_text()
-    normalized = " ".join(text.split())
-
-    for required in (
-        "Reader",
-        "<READER_USERNAME>",
-        "<READER_PASSWORD>",
-        "AI coding assistants",
-        "pre-existing",
-        "feedback",
-        "Public video",
-        "Repository",
-        "Live project",
-    ):
-        assert required in text
-    assert "no private field" in normalized, (
-        "the copy must say why the judge account is public, or the next reader "
-        "will look for a testing-instructions box that this form does not have"
-    )
-    assert "must be read-only" in normalized or "must therefore be read-only" in (
-        normalized
-    )
-    assert "password `datahub`" not in text
-    assert "username `datahub`" not in text
-
-
-def test_committed_judge_docs_do_not_contain_default_reader_credentials() -> None:
-    for path in (ROOT / "README.md", ROOT / "docs" / "DEVPOST.md"):
+def test_committed_docs_do_not_contain_default_reader_credentials() -> None:
+    for path in (ROOT / "README.md", ROOT / "SECURITY.md"):
         lowered = path.read_text().lower()
         assert "username `datahub`" not in lowered
         assert "password `datahub`" not in lowered
 
 
-def test_the_upstream_skill_contribution_is_linked_on_judge_surfaces() -> None:
+def test_the_upstream_skill_contribution_is_linked_consistently() -> None:
     """One open PR, cited identically everywhere it is cited.
 
     There were briefly two upstream pull requests for this skill, and closing the
-    superseded one left three documents pointing at a closed thread — a judge
-    checking the bonus criterion would have followed a dead link. Asserting that
+    superseded one left three documents pointing at a closed thread — a reader
+    checking the contribution would have followed a dead link. Asserting that
     every reference resolves to the same number is what makes the next
     supersession a build failure rather than a stale citation.
     """
@@ -1134,7 +955,7 @@ def test_the_upstream_skill_contribution_is_linked_on_judge_surfaces() -> None:
 
     cited = {
         name: (ROOT / name).read_text(encoding="utf-8")
-        for name in ("README.md", "docs/DEVPOST.md", "ARCHITECTURE.md")
+        for name in ("README.md", "ARCHITECTURE.md")
     }
     for name, text in cited.items():
         assert contribution in text, name
@@ -1163,7 +984,6 @@ def test_liveness_is_dependency_free_and_names_the_exact_demo_surface(
             "state": "local/dev",
             "commit_sha": None,
             "commit_sha_describes": "release directory",
-            "submission_baseline": "02969cb46a86c44a7b411ff98d9e05c4f6fd3c93",
             "content": "live-presentation-copy",
         },
     }
@@ -1181,7 +1001,6 @@ def test_release_sha_is_validated_or_derived_from_the_resolved_release_path(
         "state": "deployed",
         "commit_sha": explicit.lower(),
         "commit_sha_describes": "release directory",
-        "submission_baseline": "02969cb46a86c44a7b411ff98d9e05c4f6fd3c93",
         "content": "live-presentation-copy",
     }
 
@@ -1201,7 +1020,6 @@ def test_release_sha_is_validated_or_derived_from_the_resolved_release_path(
         "state": "local/dev",
         "commit_sha": None,
         "commit_sha_describes": "release directory",
-        "submission_baseline": "02969cb46a86c44a7b411ff98d9e05c4f6fd3c93",
         "content": "live-presentation-copy",
     }
     assert "/opt/" not in rendered and str(ROOT) not in rendered
@@ -1271,7 +1089,7 @@ def test_the_contradiction_count_and_its_concentration_are_both_true() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Cross-references. A document we point a judge at must exist, or the pointer is
+# Cross-references. A document we point a reader at must exist, or the pointer is
 # a broken promise on the surface whose whole argument is that claims are checked.
 # ---------------------------------------------------------------------------
 
@@ -1406,7 +1224,7 @@ def test_the_rules_versus_model_comparison_quotes_the_same_report() -> None:
 # ---------------------------------------------------------------------------
 # The model and privacy boundary. `sidq claims` widened the product after the
 # operations copy was written; these guards keep the old, narrower claims from
-# silently surviving on the two surfaces a judge reads first.
+# silently surviving on the two surfaces a reader reads first.
 # ---------------------------------------------------------------------------
 
 
@@ -1450,16 +1268,11 @@ def test_model_drift_copy_names_the_optional_reader_boundary(document: str) -> N
 
 
 def test_every_architecture_surface_contains_the_same_svg() -> None:
-    """One edited diagram must not leave the landing page or gallery stale."""
+    """One edited diagram must not leave the landing page stale."""
     canonical = (ROOT / "docs" / "architecture.svg").read_text(encoding="utf-8")
     web = (ROOT / "web" / "architecture.svg").read_text(encoding="utf-8")
-    gallery = (ROOT / "docs" / "gallery" / "src" / "03-architecture.html").read_text(
-        encoding="utf-8"
-    )
-    embedded = gallery[gallery.index("<svg") : gallery.index("</svg>") + len("</svg>")]
 
     assert web == canonical
-    assert embedded == canonical.strip()
 
 
 def test_architecture_draws_the_model_outside_the_judged_path() -> None:
@@ -1487,7 +1300,7 @@ def test_architecture_draws_the_model_outside_the_judged_path() -> None:
         "docs/architecture.svg",
     ),
 )
-def test_judge_surfaces_reject_ledger_and_proof_overclaims(document: str) -> None:
+def test_published_surfaces_reject_ledger_and_proof_overclaims(document: str) -> None:
     text = (ROOT / document).read_text(encoding="utf-8")
     lowered = text.lower()
 
@@ -1511,13 +1324,6 @@ def test_shared_state_copy_names_latest_values_and_optional_receipt_writes(
     assert "optional" in lowered and "receipt" in lowered
 
 
-def test_architecture_png_is_the_full_size_regenerated_board() -> None:
-    png = (ROOT / "docs" / "gallery" / "03-architecture.png").read_bytes()
-
-    assert png[:8] == b"\x89PNG\r\n\x1a\n"
-    assert struct.unpack(">II", png[16:24]) == (1920, 1080)
-
-
 def test_architecture_gap_claim_names_sidqs_contribution_without_absolutes() -> None:
     architecture = (ROOT / "ARCHITECTURE.md").read_text(encoding="utf-8")
     gap = architecture.split("## The gap", 1)[1].split("## The flow", 1)[0]
@@ -1525,16 +1331,6 @@ def test_architecture_gap_claim_names_sidqs_contribution_without_absolutes() -> 
     assert "Nobody gates" not in gap
     assert "Sidq's contribution" in gap
     assert "deterministic, DataHub-native pre-merge refusal path" in gap
-
-
-def test_devpost_resume_claim_stays_within_latest_value_and_race_boundaries() -> None:
-    devpost = (ROOT / "docs" / "DEVPOST.md").read_text(encoding="utf-8")
-    lowered = " ".join(devpost.lower().split())
-
-    assert "any Sidq instance resumes where any other stopped" not in devpost
-    assert "latest receipt values" in lowered
-    assert "not append-only history" in lowered
-    assert "does not provide exactly-once coordination" in lowered
 
 
 def test_architecture_flow_marks_receipt_write_as_operator_enabled_and_optional() -> (
@@ -1606,9 +1402,9 @@ def test_every_button_time_on_the_page_is_inside_the_server_s_own_ceiling() -> N
 
     Nothing tied those two numbers together, and they drifted: the live-source
     button advertised five seconds while a measured run on the host took
-    thirty-five. A judge who clicks that and waits seven times the promise does
+    thirty-five. A visitor who clicks that and waits seven times the promise does
     not conclude the demo is thorough — the page says these times are measured
-    on this host, and a number that large a judge can check by waiting is the
+    on this host, and a number that large a visitor can check by waiting is the
     worst place to be loose.
 
     A duration cannot be measured in CI, which has no DataHub. What CI can hold

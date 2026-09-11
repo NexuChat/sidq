@@ -8,9 +8,8 @@ does: it searches for an asset, verifies it, and then branches. Depending on wha
 the catalog turns out to be, it proceeds, switches to a different asset, or
 refuses to answer at all. A script would emit the same SQL regardless.
 
-It is deliberately not LLM-driven. §5 of the same document notes that many
-hackathon demos fail on stage because the model behaves differently under the
-lights; this agent's control flow is deterministic, so the same catalog state
+It is deliberately not LLM-driven. Many live demos fail because the model
+behaves differently under the lights; this agent's control flow is deterministic, so the same catalog state
 always produces the same transcript. The LLM-free property is the product, not a
 limitation — the model is what Sidq exists to stop, so putting one on the demo's
 decision path would undercut the claim.

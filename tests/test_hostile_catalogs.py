@@ -393,7 +393,7 @@ def test_a_transport_that_raises_does_not_silently_pass_the_catalog() -> None:
 
 
 def test_an_unreachable_catalog_fails_fast_and_says_so() -> None:
-    """A judge who mistypes a port must get an answer, not a hang.
+    """A user who mistypes a port must get an answer, not a hang.
 
     The SDK's defaults retry a dead endpoint for minutes; measured before this
     guard, `sidq audit --server http://localhost:9999` never returned. The CLI

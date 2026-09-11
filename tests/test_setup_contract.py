@@ -253,9 +253,9 @@ def test_operations_uses_drop_ins_for_non_secrets_and_credentials_for_secrets() 
     assert "systemctl edit sidq-landing" in operations
     assert "sidq-landing.service.d/override.conf" in operations
     assert "[Service]" in operations
-    assert "SIDQ_ALLOWED_ORIGINS=https://sidq.mlki.app" in operations
+    assert "SIDQ_ALLOWED_ORIGINS=https://sidq.example.com" in operations
     assert "systemctl daemon-reload" in operations
     assert "systemctl restart sidq-landing" in operations
     assert "LoadCredential" in operations
     assert "EnvironmentFile=" not in service
-    assert "Environment=SIDQ_ALLOWED_ORIGINS=https://sidq.mlki.app" in service
+    assert "Environment=SIDQ_ALLOWED_ORIGINS=https://sidq.example.com" in service

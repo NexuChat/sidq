@@ -115,7 +115,7 @@ class Gate(Protocol):
 |---|---|---|
 | `reality` | `catalog_reality_mismatch` | Compares the graph's schema for each touched dataset against the **live source** (Postgres `information_schema`). `detail` carries `graph_fields`, `live_fields`, `missing_in_graph`, `missing_in_source`. |
 | `schema` | `unknown_field`, `unknown_dataset`, `type_mismatch` | Referenced tables/columns exist in the graph, types compatible. |
-| `blast` | `blast_radius` | Downstream impact per touched asset, via `get_lineage` **and `get_lineage_paths_between`** — record the *path*, not just a count; the path is the evidence a judge wants rendered. `detail`: `downstream_count`, `downstream_urns`, `paths`, `dashboards`, `critical_assets`, `cross_team_owners`, `pii_tags`, `depth`, `granularity` (`"column"` or `"table"` — set from RECON; if column-level lineage is absent in the sample, degrade to table-level and record that honestly). `pii_tags` is sensitivity context, not proof that the proposed change created a route. |
+| `blast` | `blast_radius` | Downstream impact per touched asset, via `get_lineage` **and `get_lineage_paths_between`** — record the *path*, not just a count; the path is the evidence a reviewer wants rendered. `detail`: `downstream_count`, `downstream_urns`, `paths`, `dashboards`, `critical_assets`, `cross_team_owners`, `pii_tags`, `depth`, `granularity` (`"column"` or `"table"` — set from RECON; if column-level lineage is absent in the sample, degrade to table-level and record that honestly). `pii_tags` is sensitivity context, not proof that the proposed change created a route. |
 | `governance` | `unowned_asset`, `deprecated_upstream` | Reads ownership and deprecation evidence for the changed asset. It does not infer route changes from the catalog's current graph. |
 | `doc_rot` | `doc_rot` | Checks whether catalog descriptions reference fields the stored schema does not contain. |
 | `lineage_rot` | `lineage_rot_missing`, `lineage_rot_extra`, `lineage_unverifiable` | Compares stored column-lineage claims with locally available model SQL and reports missing prerequisites explicitly. |
@@ -216,7 +216,7 @@ canonical machine artifact that every other surface (MCP, bot, receipt) consumes
   real published example, `examples/01-blocked-pii-dashboard`, rather than the
   `bad_change.sql` / `good_change.sql` fixtures named in the first draft of this
   spec — those were never created, so for a time this regression did not exist and
-  the engine could have changed its verdict on the artifact a judge opens. The test
+  the engine could have changed its verdict on the artifact a reader opens. The test
   runs offline from the committed replay snapshot and pins the BLOCK decision, the
   offline-provable rule ids, the column-level lineage under them, and byte
   determinism. Its scope limits and one known drift are recorded in

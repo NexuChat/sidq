@@ -23,7 +23,7 @@ data/lora/*.pid
 data/lora/progress.json
 
 # Large benchmark intermediates stay local; the tiny published GPU measurement
-# below is judge-facing evidence and is intentionally versioned.
+# below is published evidence and is intentionally versioned.
 data/benchmark/*
 !data/benchmark/decision-cost-gpu.json
 !data/benchmark/labelled-regression.jsonl.gz
@@ -83,7 +83,7 @@ catboost_info/
 # Local prompt scratchpad — never publish.
 prompt-end.md
 
-# Submission audit — internal working area, never judge-facing
+# Local audit working area — never committed
 submission-audit/
 
 # Local QA artifacts — screenshots and page snapshots, never shipped

@@ -58,7 +58,7 @@ edits, not sample-pack source, and using them would have manufactured a finding.
 
 ## Why this artifact exists
 
-Every entrant can say the problem is real. This is the version a judge can check:
+Anyone can say the problem is real. This is the version a reader can check:
 run the command, read `report.json`, and compare it against a catalog they can
 install themselves in one command. The numbers here are pinned by
 `tests/test_published_claims.py` against `report.json`, so the README, the

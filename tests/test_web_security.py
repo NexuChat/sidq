@@ -1,4 +1,4 @@
-"""Security boundary tests for the public judge-facing demo service."""
+"""Security boundary tests for the public demo service."""
 
 from __future__ import annotations
 
@@ -42,8 +42,8 @@ def _handler(server, monkeypatch, responses, path: str, *, peer: str = "127.0.0.
     handler.path = path
     handler.client_address = (peer, 12345)
     handler.headers = {
-        "Host": "sidq.mlki.app",
-        "Origin": "https://sidq.mlki.app",
+        "Host": "127.0.0.1:8766",
+        "Origin": "http://127.0.0.1:8766",
         "Sec-Fetch-Site": "same-origin",
         server.DEMO_REQUEST_HEADER: server.DEMO_REQUEST_HEADER_VALUE,
         server.CAPABILITY_HEADER: server._issue_capability(
@@ -69,18 +69,18 @@ def _reset_public_server_state():
     "headers",
     (
         {
-            "Host": "sidq.mlki.app",
+            "Host": "sidq.example.com",
             "Origin": "https://attacker.example",
             "Sec-Fetch-Site": "cross-site",
         },
         {
-            "Host": "sidq.mlki.app",
-            "Origin": "https://sidq.mlki.app",
+            "Host": "sidq.example.com",
+            "Origin": "https://sidq.example.com",
             "Sec-Fetch-Site": "same-origin",
         },
         {
-            "Host": "sidq.mlki.app",
-            "Origin": "https://sidq.mlki.app",
+            "Host": "sidq.example.com",
+            "Origin": "https://sidq.example.com",
             "Sec-Fetch-Site": "same-site",
             "X-Sidq-Demo": "run",
         },
@@ -114,7 +114,7 @@ def test_configured_origin_is_matched_exactly(monkeypatch) -> None:
 
     monkeypatch.setenv(
         "SIDQ_ALLOWED_ORIGINS",
-        "https://sidq.mlki.app,https://preview.sidq.example",
+        "https://sidq.example.com,https://preview.sidq.example",
     )
     valid = {
         "Host": "preview.sidq.example",
@@ -313,16 +313,16 @@ def test_256_spoofed_forwarded_identities_cannot_fill_capability_issuance(
         handler.headers.pop(server.CAPABILITY_HEADER)
         handler.do_GET()
 
-    judge = _handler(
+    visitor = _handler(
         server,
         monkeypatch,
         responses,
         "/capability?command=audit",
     )
-    judge.headers[server.DEMO_REQUEST_HEADER] = server.CAPABILITY_REQUEST_VALUE
-    judge.headers["CF-Connecting-IP"] = "203.0.113.19"
-    judge.headers.pop(server.CAPABILITY_HEADER)
-    judge.do_GET()
+    visitor.headers[server.DEMO_REQUEST_HEADER] = server.CAPABILITY_REQUEST_VALUE
+    visitor.headers["CF-Connecting-IP"] = "203.0.113.19"
+    visitor.headers.pop(server.CAPABILITY_HEADER)
+    visitor.do_GET()
 
     assert len(responses) == 257
     assert all(status == 200 for status, _ in responses)
@@ -464,7 +464,7 @@ def test_invalid_cloudflare_client_ip_has_no_attributable_identity() -> None:
     )
 
 
-def test_one_judge_can_run_every_demo_but_not_evade_limits_by_alternating() -> None:
+def test_one_client_can_run_every_demo_but_not_evade_limits_by_alternating() -> None:
     from web import server
 
     for offset, name in enumerate(server.RUNNABLE):
@@ -838,7 +838,7 @@ def test_run_returns_a_generic_result_when_setup_or_process_start_fails(
     assert secret not in str(result)
 
 
-def test_handoff_has_explicit_judging_age_and_complete_semantic_context() -> None:
+def test_handoff_has_explicit_demo_age_and_complete_semantic_context() -> None:
     from web import server
 
     description, argv = server.RUNNABLE["handoff"]
@@ -1091,7 +1091,7 @@ def test_trusted_proxy_http_requests_redirect_to_the_allowed_https_origin(
     from web import server
 
     monkeypatch.setenv("SIDQ_TRUSTED_PROXIES", "127.0.0.1/32")
-    monkeypatch.setenv("SIDQ_ALLOWED_ORIGINS", "https://sidq.mlki.app")
+    monkeypatch.setenv("SIDQ_ALLOWED_ORIGINS", "https://sidq.example.com")
 
     with server.Server(("127.0.0.1", 0), server.Handler) as service:
         thread = threading.Thread(target=service.serve_forever, daemon=True)
@@ -1102,7 +1102,7 @@ def test_trusted_proxy_http_requests_redirect_to_the_allowed_https_origin(
                 method,
                 "/proof?source=http",
                 headers={
-                    "Host": "sidq.mlki.app",
+                    "Host": "sidq.example.com",
                     "X-Forwarded-Proto": "http",
                 },
             )
@@ -1114,7 +1114,9 @@ def test_trusted_proxy_http_requests_redirect_to_the_allowed_https_origin(
             thread.join(timeout=2)
 
     assert response.status == 308
-    assert response.getheader("Location") == "https://sidq.mlki.app/proof?source=http"
+    assert (
+        response.getheader("Location") == "https://sidq.example.com/proof?source=http"
+    )
     assert response.getheader("Cache-Control") == "no-store"
     for name, value in server.SECURITY_HEADERS.items():
         assert response.getheader(name) == value
@@ -1123,11 +1125,11 @@ def test_trusted_proxy_http_requests_redirect_to_the_allowed_https_origin(
 @pytest.mark.parametrize(
     ("trusted_proxies", "host", "forwarded_proto"),
     (
-        ("198.51.100.0/24", "sidq.mlki.app", "http"),
+        ("198.51.100.0/24", "sidq.example.com", "http"),
         ("127.0.0.1/32", "attacker.example", "http"),
-        ("127.0.0.1/32", "sidq.mlki.app.attacker.test", "http"),
-        ("127.0.0.1/32", "sidq.mlki.app", "https"),
-        ("127.0.0.1/32", "sidq.mlki.app", "http, https"),
+        ("127.0.0.1/32", "sidq.example.com.attacker.test", "http"),
+        ("127.0.0.1/32", "sidq.example.com", "https"),
+        ("127.0.0.1/32", "sidq.example.com", "http, https"),
     ),
 )
 def test_https_redirect_ignores_untrusted_or_ambiguous_forwarding_metadata(
@@ -1136,7 +1138,7 @@ def test_https_redirect_ignores_untrusted_or_ambiguous_forwarding_metadata(
     from web import server
 
     monkeypatch.setenv("SIDQ_TRUSTED_PROXIES", trusted_proxies)
-    monkeypatch.setenv("SIDQ_ALLOWED_ORIGINS", "https://sidq.mlki.app")
+    monkeypatch.setenv("SIDQ_ALLOWED_ORIGINS", "https://sidq.example.com")
 
     assert (
         server._https_redirect_target(
@@ -1199,7 +1201,7 @@ def test_landing_external_static_assets_are_content_addressed() -> None:
     }
     for reference, asset in assets:
         # A link to another *document* is navigation, not a cached sub-resource;
-        # versioning it would break the URL a judge is given.
+        # versioning it would break the URL a visitor is given.
         if asset.suffix == ".html":
             continue
         version = parse_qs(urlsplit(reference).query).get("v")
@@ -1215,9 +1217,9 @@ def test_static_serving_is_allowlisted_and_keeps_landing_assets_reachable() -> N
     web_root = ROOT / "web"
     parser = _StaticAssetParser()
     parser.feed((web_root / "index.html").read_text(encoding="utf-8"))
-    # Same-origin means either a relative reference or an absolute one pointing at
-    # the public host; both oblige this server to serve the file.
-    public_hosts = {"sidq.mlki.app"}
+    # Same-origin means a relative reference; it obliges this server to serve
+    # the file. Absolute URLs point at other hosts.
+    public_hosts: set[str] = set()
     referenced_assets = set()
     for reference in parser.references:
         split = urlsplit(reference)
@@ -1339,7 +1341,7 @@ def test_deployment_keeps_raw_services_local_and_secrets_out_of_units() -> None:
         "/opt/sidq/current",
         "LoadCredential",
         "default is 7 days",
-        "45-day judging window",
+        "45-day demo window",
         "microsoft/harrier-oss-v1-270m",
         "HF_HUB_OFFLINE=1",
     ):

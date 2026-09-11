@@ -1,4 +1,4 @@
-"""The judge-facing agent commands, tested as complete CLI journeys."""
+"""The public agent commands, tested as complete CLI journeys."""
 
 from __future__ import annotations
 

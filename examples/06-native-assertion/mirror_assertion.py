@@ -9,7 +9,7 @@ This runs from the project environment directly::
 
 No DataHub SDK is involved. The mirror speaks DataHub's documented GraphQL
 custom-assertion API (``upsertCustomAssertion`` / ``reportAssertionResult``)
-over plain HTTP, which is why the one interpreter a judge already has is
+over plain HTTP, which is why the one interpreter a reader already has is
 enough. Earlier revisions of this example needed a second, SDK-carrying
 interpreter; the git history records that boundary and why it fell.
 """

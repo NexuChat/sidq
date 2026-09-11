@@ -5,7 +5,7 @@ quickstart with GMS v1.5.0.6. It shows that Sidq can mirror an
 already-written receipt into DataHub's native Assertion surface, where the
 verdict reaches the Validation/Quality tab — using DataHub's documented
 GraphQL custom-assertion API (`upsertCustomAssertion` /
-`reportAssertionResult`), from the same environment the judge runbook
+`reportAssertionResult`), from the same environment the local runbook
 installs, with zero dependencies beyond the Python standard library.
 
 An earlier revision of this example wrote the same aspects through the

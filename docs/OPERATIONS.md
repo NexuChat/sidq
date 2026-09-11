@@ -1,6 +1,6 @@
 # Sidq landing operations
 
-This runbook covers the judge-facing landing process. The public endpoint exposes
+This runbook covers the public landing process. The public endpoint exposes
 only fixed, read-only demonstrations. DataHub and PostgreSQL remain separately
 managed dependencies.
 
@@ -453,7 +453,7 @@ Verify liveness, dependency readiness, and the public TLS route:
 ```bash
 curl --fail --silent http://127.0.0.1:8766/healthz
 curl --fail --silent http://127.0.0.1:8766/readyz
-curl --fail --silent https://sidq.mlki.app/healthz
+curl --fail --silent https://sidq.example.com/healthz
 systemctl is-active sidq-landing
 ```
 
@@ -470,7 +470,8 @@ the root-owned credential files loaded by its `LoadCredential=` directives:
 the repository, the unit, a drop-in, or an `EnvironmentFile=`.
 
 Use a systemd drop-in only for non-secret operator overrides. For production,
-keep the public origin pinned to `https://sidq.mlki.app`; local development
+keep the public origin pinned to your own HTTPS origin (shown here as
+`https://sidq.example.com`); local development
 defaults must never broaden the deployed origin policy. Run:
 
 ```bash
@@ -483,7 +484,7 @@ Save the following exact drop-in (systemd writes it as
 ```ini
 [Service]
 Environment=DATAHUB_GMS_URL=http://127.0.0.1:8080
-Environment=SIDQ_ALLOWED_ORIGINS=https://sidq.mlki.app
+Environment=SIDQ_ALLOWED_ORIGINS=https://sidq.example.com
 ```
 
 Then apply the non-secret override and restart the process:

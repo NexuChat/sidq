@@ -32,7 +32,7 @@ def test_aspect_client_reads_the_documented_openapi_v3_route(monkeypatch) -> Non
     Both routes were measured returning byte-identical fine-grained lineage for
     the same asset, so this is not a correctness fix — DataHub's API guidance
     documents OpenAPI and never mentions the Rest.li aspect route, and a
-    submission judged on its use of DataHub should read the documented surface.
+    project built on DataHub should read the documented surface.
 
     The two disagree about the envelope: OpenAPI v3 answers
     `{"<aspect>": {"value": …}}` where Rest.li answered

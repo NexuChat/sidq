@@ -45,7 +45,7 @@ DEFAULT_MODELS = (
     "qwen3.5:2b",
 )
 # Ollama's downloaded artifact sizes, in decimal megabytes.  This is the
-# relevant footprint for a judge downloading and running a candidate locally.
+# relevant footprint for anyone downloading and running a candidate locally.
 MODEL_SIZES_MB = {
     "qwen3:0.6b": 522,
     "granite4:350m": 708,

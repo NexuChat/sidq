@@ -105,7 +105,7 @@ and those are independent facts.
 Label variance requires the oracle to reach real verdicts, which requires
 graph coverage for the eighteen newer models. That means ingesting the demo
 dbt project into DataHub and recording its fixtures — a write to the live
-graph a judge browses, so it is an owner decision, not a side effect of a
+graph others browse, so it is an owner decision, not a side effect of a
 training script.
 
 Until then the honest position is the one §6 pre-committed to: the

@@ -17,7 +17,7 @@ REPAIR_BUDGET ?= 15
 
 # The runbook's first row promises a clone and `make` are enough, and until
 # 2026-07-31 that promise was false: a fresh clone had no virtualenv and the
-# first command a judge types died with a path error. This rule keeps the
+# first command a reader types died with a path error. This rule keeps the
 # promise — the first target that needs the venv builds it, once, with exactly
 # the dev extras `make check` runs. Order-only (`|`) everywhere below, so an
 # existing venv is never rebuilt behind anyone's back. The live rows still
@@ -109,8 +109,8 @@ regen-check: | $(VENV)/.sidq-dev-lock $(BENCH_VENV)/.sidq-bench-lock
 decision-cost: | $(VENV)/.sidq-dev-lock
 	$(VENV)/bin/python scripts/measure_decision_cost.py --write
 
-# The command the landing page tells a judge to run. It existed only on the page
-# until 2026-07-30, which meant the one instruction on the first surface a judge
+# The command the landing page tells a visitor to run. It existed only on the page
+# until 2026-07-30, which meant the one instruction on the first surface a visitor
 # opens did not work. It runs the flagship change through the real engine against
 # the committed graph recording and prints the verdict, so it produces the same
 # answer after the locked first-run bootstrap, with no DataHub or credentials.

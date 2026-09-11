@@ -1,7 +1,7 @@
 """The upstream-bound skill must stay true to the engine and to its house style.
 
 `skills/datahub-verify/` is prepared as a contribution to
-`datahub-project/datahub-skills`, which is a stated bonus criterion rather than
+`datahub-project/datahub-skills`, which is an upstream contribution rather than
 decoration. Two ways it can rot, and both are silent:
 
 1. **It can teach a vocabulary the code no longer speaks.** The skill tells an
@@ -10,7 +10,7 @@ decoration. Two ways it can rot, and both are silent:
    look for output that never arrives — the exact failure it exists to prevent,
    committed in the document that prevents it.
 
-2. **It can drift out of the shape upstream accepts.** The sponsor's repo runs
+2. **It can drift out of the shape upstream accepts.** DataHub's skills repository runs
    prettier and markdownlint over every skill and expects a consistent section
    layout. A contribution that does not look like the other five reads as a dump
    rather than a contribution, and nothing in this repository would notice.
@@ -118,7 +118,7 @@ def test_the_generated_block_leaves_the_blank_line_upstream_lint_requires(
 
     `scripts/regenerate_example_01.py` owns the worked-example section, and it
     wrote that section flush against the horizontal rule below it.
-    `markdownlint` — which the sponsor's repository runs over every skill —
+    `markdownlint` — which DataHub's skills repository runs over every skill —
     rejects that. `make regen-check` would have demanded the blank line be
     removed on every run, and the upstream lint would have demanded it back.
 
@@ -138,7 +138,7 @@ def test_the_skill_tables_are_pipe_aligned_as_upstream_formats_them(
 ) -> None:
     """Prettier aligns markdown table pipes; upstream CI rejects a table that is
     not aligned. Checking the shape here means a hand edit fails in this
-    repository rather than in the sponsor's review queue."""
+    repository rather than in DataHub's review queue."""
     rows: list[str] = []
     for line in skill.splitlines():
         stripped = line.strip()

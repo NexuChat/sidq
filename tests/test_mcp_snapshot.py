@@ -1,7 +1,7 @@
 """The MCP read path: does the agent run on the official surface, and admit its bounds?
 
 `from_datahub` reads through the DataHub Python SDK. That is a legitimate client,
-but a submission claiming its agent works over the official MCP server should have
+but a project claiming its agent works over the official MCP server should have
 an agent that actually does. These pin the MCP path's two hard parts: it reads only
 through tools `mcp-server-datahub` exposes, and — because column lineage costs one
 call per column — it never lets an asset it could not afford to read pass for a

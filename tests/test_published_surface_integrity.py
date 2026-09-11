@@ -1,4 +1,4 @@
-"""Nothing a judge can click, grep, or count may be wrong.
+"""Nothing a reader can click, grep, or count may be wrong.
 
 Individual guards already pin individual numbers. These pin the *classes* of
 defect that keep recurring across surfaces, so the next one fails here instead of
@@ -10,7 +10,7 @@ in front of a reviewer:
 - a placeholder that survived into a published document
 - copy that describes a limit the server does not actually enforce
 
-Each check reads the judge-facing surfaces only. Internal notes are free to be
+Each check reads the published surfaces only. Internal notes are free to be
 rough; the documents linked from the README are not.
 """
 
@@ -24,9 +24,9 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 
-# Everything a judge is pointed at from the README, the repo root, or a worked
+# Everything a reader is pointed at from the README, the repo root, or a worked
 # example. `docs/` is included wholesale because the README links into it.
-JUDGE_SURFACES: tuple[Path, ...] = (
+PUBLISHED_SURFACES: tuple[Path, ...] = (
     ROOT / "README.md",
     ROOT / "ARCHITECTURE.md",
     ROOT / "SECURITY.md",
@@ -54,11 +54,6 @@ NOT_OURS_TO_SHIP = frozenset(
         "datahub/cli/datapack/resources/DATAPACK_AGENT_CONTEXT.md",
         "datahub/cli/datapack/resources/registry.json",
         "datahub/cli/datapack/registry.py",
-        # The film is produced in a separate repository; VIDEO.md is the
-        # production contract for it, and says so.
-        "public/v4/audio/narration.provenance.json",
-        "public/v4/proof/block-current.png",
-        "datahub-receipt-ui.png",
     }
 )
 
@@ -96,7 +91,7 @@ _DISCLAIMED = (
 
 
 @pytest.mark.parametrize(
-    "document", JUDGE_SURFACES, ids=lambda path: str(path.relative_to(ROOT))
+    "document", PUBLISHED_SURFACES, ids=lambda path: str(path.relative_to(ROOT))
 )
 def test_every_relative_link_resolves(document: Path) -> None:
     """A broken link is the cheapest possible way to look careless."""
@@ -113,7 +108,7 @@ def test_every_relative_link_resolves(document: Path) -> None:
 
 
 @pytest.mark.parametrize(
-    "document", JUDGE_SURFACES, ids=lambda path: str(path.relative_to(ROOT))
+    "document", PUBLISHED_SURFACES, ids=lambda path: str(path.relative_to(ROOT))
 )
 def test_every_cited_repository_path_is_shipped(document: Path) -> None:
     """Citing a file the release does not contain is an unverifiable claim.
@@ -162,7 +157,7 @@ _PLACEHOLDER = re.compile(
 
 
 @pytest.mark.parametrize(
-    "document", JUDGE_SURFACES, ids=lambda path: str(path.relative_to(ROOT))
+    "document", PUBLISHED_SURFACES, ids=lambda path: str(path.relative_to(ROOT))
 )
 def test_no_placeholder_survived_into_a_published_document(document: Path) -> None:
     text = document.read_text(encoding="utf-8")
@@ -174,57 +169,11 @@ def test_no_placeholder_survived_into_a_published_document(document: Path) -> No
     assert not found, f"{document.relative_to(ROOT)} still contains {sorted(found)}"
 
 
-def test_the_published_video_url_is_the_same_one_everywhere() -> None:
-    """The film went public on 2026-08-06; every surface must cite that URL.
-
-    Until the owner uploaded, this guard asserted the opposite — that no URL
-    was published anywhere. The invariant that survives the flip is oneness:
-    a judge who follows the video link from the README, the runbook, or the
-    submission copy must land on the same watch page, and no stray YouTube id
-    from a draft or a superseded cut may sit beside it.
-    """
-    canonical_id = "W0uHsq2Kb0E"
-    canonical_url = f"https://www.youtube.com/watch?v={canonical_id}"
-
-    # Every judge surface, not the three that happened to carry a link on the
-    # day this was written: CLAIMS-MATRIX.md and QA-RESULTS.md also cite the
-    # film, and a stray id in either is just as reachable from the README.
-    # Normalised, because the citations wrap across lines and a guard that a
-    # reflow can silence is not a guard.
-    surfaces = {
-        document.relative_to(ROOT): " ".join(
-            document.read_text(encoding="utf-8").split()
-        )
-        for document in (*JUDGE_SURFACES, ROOT / "web" / "index.html")
-    }
-
-    # Every shape YouTube serves a video under, so a `shorts/` or `live/` link
-    # to a re-upload cannot slip past a regex written for `watch?v=`.
-    citation = re.compile(
-        r"(?:youtube\.com/(?:watch\?[\w=&%-]*?v=|embed/|shorts/|live/|v/)"
-        r"|youtu\.be/)([\w-]{11})"
-    )
-
-    cited = 0
-    for name, text in surfaces.items():
-        for match in citation.finditer(text):
-            cited += 1
-            assert match.group(1) == canonical_id, (
-                f"{name} cites a YouTube id other than the published film: "
-                f"{match.group(1)}"
-            )
-    assert cited, "no judge surface cites the published film at all"
-
-    for name in ("README.md", "docs/VIDEO.md", "docs/DEVPOST.md"):
-        text = surfaces[Path(name)]
-        assert canonical_url in text, f"{name} must cite the published film"
-
-
 def test_the_landing_quota_copy_matches_what_the_server_enforces() -> None:
-    """The page tells a judge the rate limit before they hit it.
+    """The page tells a visitor the rate limit before they hit it.
 
     Stating a limit the server does not enforce is a small lie with an immediate
-    cost: a judge who reads "5 runs per 10 minutes" and is refused on the third
+    cost: a visitor who reads "5 runs per 10 minutes" and is refused on the third
     concludes the demo is broken, not that the copy was stale.
     """
     from web import server

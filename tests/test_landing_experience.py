@@ -106,7 +106,7 @@ def test_cache_revalidation_refreshes_documents_and_reuses_unchanged_assets(path
 
 
 def test_recorded_and_live_proofs_precede_the_argument() -> None:
-    """A judge sees recorded proof and can try the live thing before the argument.
+    """A visitor sees recorded proof and can try the live thing before the argument.
 
     The run button spent most of this project's life on the sixth screen, after
     the entire case had been made. Whatever the page looks like, the action and
@@ -203,10 +203,10 @@ def test_scoping_answers_survive_whatever_the_page_looks_like() -> None:
     assert "query results never enter a model" in text
 
 
-def test_the_evidence_a_judge_would_open_is_linked() -> None:
+def test_the_evidence_a_reader_would_open_is_linked() -> None:
     """One click from the console, not crowded onto it.
 
-    The console has to be usable in seconds; the evidence a judge opens when
+    The console has to be usable in seconds; the evidence a reader opens when
     they want to check the claim lives on the scope page, which the console
     links. What matters is that the trail exists and is one hop away.
     """
@@ -219,7 +219,6 @@ def test_the_evidence_a_judge_would_open_is_linked() -> None:
         "https://github.com/NexuChat/sidq/blob/02969cb46a86c44a7b411ff98d9e05c4f6fd3c93/examples/01-blocked-pii-dashboard/verdict.json",
         "https://github.com/NexuChat/sidq/blob/02969cb46a86c44a7b411ff98d9e05c4f6fd3c93/examples/03-catalog-truth-report/report.json",
         "https://github.com/NexuChat/sidq/commit/5addb753788935d4d1aa6a9483c28c6fc124e5c7",
-        "https://datahub.mlki.app",
     ):
         assert f'href="{url}"' in scope, url
 
@@ -242,7 +241,7 @@ def test_the_page_never_ships_a_simulated_run() -> None:
     assert html.count("<script") == 1
 
 
-def test_the_reproduce_path_is_one_command_a_judge_can_paste() -> None:
+def test_the_reproduce_path_is_one_command_a_reader_can_paste() -> None:
     html = _landing()
     reproduce = html[html.index('id="reproduce-heading"') :]
 

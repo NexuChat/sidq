@@ -1,5 +1,5 @@
 [Unit]
-Description=Sidq judge-facing landing page with runnable demos
+Description=Sidq landing page with runnable demos
 Wants=network-online.target
 After=network-online.target
 StartLimitIntervalSec=0
@@ -10,7 +10,7 @@ DynamicUser=true
 UMask=0077
 WorkingDirectory=/opt/sidq/current
 Environment=SIDQ_LANDING_PORT=8766
-Environment=SIDQ_ALLOWED_ORIGINS=https://sidq.mlki.app
+Environment=SIDQ_ALLOWED_ORIGINS=https://sidq.example.com
 Environment=SIDQ_TRUSTED_PROXIES=127.0.0.1/32
 Environment=SIDQ_VENV_DIR=/opt/sidq/runtime/venv
 Environment=SIDQ_RUNTIME_DIR=/opt/sidq/runtime

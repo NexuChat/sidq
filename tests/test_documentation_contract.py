@@ -10,8 +10,6 @@ README = (ROOT / "README.md").read_text(encoding="utf-8")
 SETUP = (ROOT / "docs" / "SETUP.md").read_text(encoding="utf-8")
 MCP = (ROOT / "docs" / "MCP-SERVER.md").read_text(encoding="utf-8")
 OPERATIONS = (ROOT / "docs" / "OPERATIONS.md").read_text(encoding="utf-8")
-DELIVERY = (ROOT / "docs" / "DELIVERY-SPEC.md").read_text(encoding="utf-8")
-DEVPOST = (ROOT / "docs" / "DEVPOST.md").read_text(encoding="utf-8")
 ENGINE = (ROOT / "docs" / "ENGINE-SPEC.md").read_text(encoding="utf-8")
 RECEIPT = (ROOT / "docs" / "RECEIPT-SPEC.md").read_text(encoding="utf-8")
 ARCHITECTURE = (ROOT / "ARCHITECTURE.md").read_text(encoding="utf-8")
@@ -226,7 +224,7 @@ def test_operations_define_swapped_runtime_recovery_and_cleanup() -> None:
 
 def test_skill_install_is_codex_specific_and_does_not_claim_to_attach_mcp() -> None:
     command = "npx skills add NexuChat/sidq --skill datahub-verify --agent codex"
-    combined = _combine(README, DEVPOST, SKILL, SKILL_README)
+    combined = _combine(README, SKILL, SKILL_README)
 
     assert command in combined
     assert ".agents/skills/datahub-verify" in combined
@@ -315,8 +313,6 @@ def test_specs_describe_the_current_contract_without_stale_surfaces() -> None:
         ARCHITECTURE,
         SETUP,
         MCP,
-        DELIVERY,
-        DEVPOST,
         ENGINE,
         RECEIPT,
         DEMO,
@@ -333,11 +329,6 @@ def test_specs_describe_the_current_contract_without_stale_surfaces() -> None:
         "static one file",
     ):
         assert stale not in owned
-
-    assert "historical" in DELIVERY.lower()
-    assert "superseded" in DELIVERY.lower()
-    assert "dynamic" in DELIVERY.lower()
-    assert "hosted" in DELIVERY.lower()
 
 
 def test_receipt_consumption_names_cli_and_only_real_sidq_mcp_tools() -> None:

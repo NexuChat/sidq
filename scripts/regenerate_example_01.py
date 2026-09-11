@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Regenerate `examples/01-blocked-pii-dashboard/verdict.json` from the engine.
 
-The flagship example is the artifact a judge opens, and the README publishes a
+The flagship example is the artifact a reader opens, and the README publishes a
 reproduction command against its `policy_hash` + `commit_sha`. That only means
 anything if the committed verdict is what the shipped engine and policy actually
 produce. It was maintained by hand and drifted: the policy gained rules, its hash
 changed, and the published file kept citing the old one — so the reproduction
-command a judge would run no longer matched.
+command a reader would run no longer matched.
 
 This makes the artifact generated rather than curated, and
 `tests/test_golden_examples.py` fails if the committed copy differs from a fresh
@@ -63,10 +63,10 @@ CONTRACT_COLUMNS = ("cust_email",)
 COMMIT_SHA = "5addb753788935d4d1aa6a9483c28c6fc124e5c7"
 
 # Evidence carries a DataHub UI link built from this variable, which defaults to
-# localhost. A published artifact must point at the host a judge can actually
+# localhost. A published artifact must point at the host a reader can actually
 # open, so it is pinned here rather than left to the caller's shell — a
 # regeneration run from a bare terminal would otherwise reintroduce the dead
-# localhost links that were deliberately removed from every judge-facing output.
+# localhost links that were deliberately removed from every published output.
 DATAHUB_UI_URL = "https://datahub.mlki.app"
 
 
@@ -140,7 +140,7 @@ def comment() -> str:
     `canonical_data` orders findings differently from the engine's insertion
     order, and the production bot renders straight off the live object, so the two
     disagree on the order the rule ids appear in the heading. Publishing in
-    canonical order keeps the two files a judge reads side by side consistent with
+    canonical order keeps the two files a reader reads side by side consistent with
     each other; the divergence itself is pinned by a test.
 
     Findings are matched by their canonical serialisation, not by rule id. Rule
@@ -232,7 +232,7 @@ def _replace_skill_worked_example(text: str, section: str) -> str:
     flush against the `---` that follows, which `markdownlint` rejects — and the
     skill is a contribution to a repository that runs `markdownlint` over every
     file. Two gates in this repo would then disagree forever: `make regen-check`
-    would demand the blank line be removed, and the sponsor's lint would demand
+    would demand the blank line be removed, and DataHub's lint would demand
     it be restored.
     """
     pattern = r"### Worked example:.*?(?=\n---\n)"

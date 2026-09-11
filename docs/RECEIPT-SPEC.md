@@ -2,8 +2,8 @@
 
 Verified facts: `docs/RECON.md`.
 
-The receipt is the answer to judging criterion #1 ("depth of DataHub use **including
-writing back to the graph**"). It fails that criterion the moment it becomes decorative.
+The receipt is how Sidq writes back to the graph. It is worthless the moment it
+becomes decorative.
 Two properties make it non-decorative: it is **queryable**, and it is **read by someone
 who is not us**.
 
@@ -12,7 +12,7 @@ who is not us**.
 ## 1. Vehicle — through the official MCP server, not a side channel
 
 `mcp-server-datahub` v0.6.0 exposes mutation tools behind `TOOLS_IS_MUTATION_ENABLED=true`.
-We use the required component to both read and write. Three parts, each with a job:
+We use the official server to both read and write. Three parts, each with a job:
 
 | Part | Tool | Job |
 |---|---|---|
@@ -22,7 +22,7 @@ We use the required component to both read and write. Three parts, each with a j
 
 **Gotcha — do this first:** structured properties must be *defined* as entities before any
 value can be set on an asset. Wave 3 starts by creating the definitions once, idempotently,
-and `demo/` or `scripts/` must carry that bootstrap so a judge's fresh environment works.
+and `demo/` or `scripts/` must carry that bootstrap so a fresh environment works.
 If structured properties prove awkward, the documented fallback is
 `DataHubGraph` + `DatasetPatchBuilder.set_custom_properties()` + `emit()` — but try
 structured properties first; they are searchable and the custom-properties path is legacy.
@@ -242,9 +242,9 @@ in both cases; the printed headline is what tells them apart.
   7 days.
 
 Sidq's own receipt properties, badges, and evidence documents are excluded from
-the context hash so a receipt does not invalidate itself. The hosted public
-handoff alone uses 45 days solely to span judging through August 31, 2026; any
-context or policy change still invalidates immediately.
+the context hash so a receipt does not invalidate itself. The landing page's
+receipt-handoff demo alone passes 45 days; any context or policy change still
+invalidates immediately.
 
 So an analytics agent asking "is this asset verified?" gets a real answer — *"verified at
 commit 9f2c1ab, but it has changed since"* — instead of a badge that means nothing. A

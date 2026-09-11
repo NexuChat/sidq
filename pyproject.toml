@@ -109,7 +109,7 @@ disallow_untyped_defs = true
 # it is lazy, and each call site handles ImportError with a working alternative
 # (`--via-mcp` reads through the official MCP server with no SDK at all). A
 # clean clone must type-check without it — the same property `make check`
-# promises a judge.
+# promises every contributor.
 [[tool.mypy.overrides]]
 module = ["datahub.*"]
 ignore_missing_imports = true

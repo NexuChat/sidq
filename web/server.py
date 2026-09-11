@@ -1,8 +1,8 @@
-"""Serve the landing page, and let a judge actually run the thing from it.
+"""Serve the landing page, and let a visitor actually run the thing from it.
 
-The page used to be static: it printed a verdict and a command, and a judge who
+The page used to be static: it printed a verdict and a command, and a visitor who
 wanted to know whether either was real had to clone the repository. That is a fair
-criticism of a submission whose entire claim is "do not take our word for it".
+criticism of a project whose entire claim is "do not take our word for it".
 
 So this serves the same page and adds five endpoints that run the real commands on
 the real machine. There is no input to any. The runnable set is a fixed table
@@ -53,15 +53,16 @@ PUBLIC_ASSET_PATHS = frozenset(
         "/app.js",
         "/architecture.svg",
         "/index.html",
-        # DataHub's own Quality tab, so a judge can see the native assertion
+        # DataHub's own Quality tab, so a visitor can see the native assertion
         # without a login. Copied from examples/06-native-assertion/, which
         # keeps the reproducible GraphQL half beside it.
         "/quality-tab.png",
         "/scope.html",
-        # Referenced by og:image and twitter:image as an ABSOLUTE url, so it does
-        # not appear in a relative href/src scan. Omitting it breaks the link
-        # preview wherever the demo url is shared. social-preview.svg is the
-        # generation source and is deliberately NOT public.
+        # Referenced by og:image and twitter:image from a meta content
+        # attribute, so it does not appear in an href/src scan. Omitting it
+        # breaks the link preview wherever the page is shared.
+        # social-preview.svg is the generation source and is deliberately NOT
+        # public.
         "/social-preview.png",
         "/styles.css",
     }
@@ -78,7 +79,7 @@ GLOBAL_START_LIMIT = 20
 # Measured on this host rather than guessed: four concurrent `sidq audit`
 # runs completed together in 26s — no slower than one alone, because the work
 # is DataHub round trips rather than CPU — with 9 GB of 30 GB used and a load
-# average of 5.3 across 16 cores. Two was leaving judges queued behind a
+# average of 5.3 across 16 cores. Two was leaving visitors queued behind a
 # 40-second run for no reason. Raise this only with a fresh measurement; the
 # per-command locks below still serialise identical commands, which is what
 # keeps one client from monopolising a slot.
@@ -99,8 +100,9 @@ MAX_CAPABILITY_TOKEN_LENGTH = 256
 MAX_CAPABILITY_EXPIRY_DIGITS = 20
 MAX_CAPABILITY_NONCE_LENGTH = 64
 HANDOFF_URN = "urn:li:dataset:(urn:li:dataPlatform:postgres,sidq.receipt.consumed,DEV)"
+# Local development origins only. A public deployment names its own origin
+# through SIDQ_ALLOWED_ORIGINS (see deploy/sidq-landing.service).
 DEFAULT_ALLOWED_ORIGINS = (
-    "https://sidq.mlki.app",
     "http://127.0.0.1:8766",
     "http://localhost:8766",
 )
@@ -213,7 +215,6 @@ _INTERNAL_URL_RE = re.compile(
 )
 _RELEASE_SHA_RE = re.compile(r"[0-9a-fA-F]{40}\Z")
 _RELEASES_ROOT = Path("/opt/sidq/releases")
-_SUBMISSION_BASELINE = "02969cb46a86c44a7b411ff98d9e05c4f6fd3c93"
 
 
 def _normalised_static_path(request_target: str) -> str | None:
@@ -642,14 +643,13 @@ def _health_payload() -> dict[str, object]:
         "live_demos": sorted(RUNNABLE),
         "release": {
             "state": "deployed" if release_sha is not None else "local/dev",
-            # The release directory is named for the submission commit, and the
+            # The release directory is named for the released commit, and the
             # files inside it can be updated in place afterwards. `commit_sha`
             # therefore identifies the directory, never a hash of what is being
             # served, so both facts are stated instead of one standing in for
             # the other.
             "commit_sha": release_sha,
             "commit_sha_describes": "release directory",
-            "submission_baseline": _SUBMISSION_BASELINE,
             "content": "live-presentation-copy",
         },
     }
@@ -846,8 +846,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         return path.endswith(("/", ".html"))
 
     def _drop_stale_validators(self) -> None:
-        # Every file in a release directory carries the submission timestamp, on
-        # purpose: the deployed tree must keep the date it was submitted with. So
+        # Every file in a release directory carries the release timestamp, on
+        # purpose: the deployed tree must keep the date it was released with. So
         # `Last-Modified` never moves, even when the bytes behind it do. A browser
         # that already holds an older copy revalidates, is truthfully told the
         # timestamp has not changed, and keeps showing the stale page — with no

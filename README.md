@@ -2,27 +2,12 @@
 
 [![CI](https://github.com/NexuChat/sidq/actions/workflows/ci.yml/badge.svg)](https://github.com/NexuChat/sidq/actions/workflows/ci.yml)
 
-**Post-competition development:** the submitted build is preserved as
-[`hackathon-submission-2026-08-10`](https://github.com/NexuChat/sidq/tree/hackathon-submission-2026-08-10).
-This branch includes the later fixes and the findings page previously hosted
-separately at sidq2.mlki.app. See [publication notes](docs/POST-COMPETITION.md)
-for the changes, validation and local demo command.
-
 > **When DataHub says a column exists but PostgreSQL says it doesn't, Sidq blocks
 > the agent — and, on request, writes the proof back through DataHub's official
 > MCP tools.** It refuses what the evidence cannot support, proposes only the fix
 > its own engine re-proves, and can leave a receipt the next agent inherits. Four of them can work one
 > catalog at once with no coordinator.
 
-**Submission film:** real footage in 4 of 7 chapters — the live catalog
-audit, the committed `BLOCK` replay ending on the public sealed PR thread, the
-deployed console, the receipt inside the DataHub UI with its independent
-`sidq verify` read, and the same agent run blind and guarded;
-production contract and artifact identity in [`docs/VIDEO.md`](docs/VIDEO.md).
-Watch it at
-[youtube.com/watch?v=W0uHsq2Kb0E](https://www.youtube.com/watch?v=W0uHsq2Kb0E).
-Public browser,
-accessibility, interaction, and deployment evidence: [`docs/QA-RESULTS.md`](docs/QA-RESULTS.md).
 Contributions are welcome under [`CONTRIBUTING.md`](CONTRIBUTING.md) and the
 [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md).
 
@@ -30,18 +15,17 @@ Contributions are welcome under [`CONTRIBUTING.md`](CONTRIBUTING.md) and the
 
 Sidq is a DataHub-native verification layer for agents and data-code changes. It checks whether catalog context is truthful before an agent relies on it — against the catalog's own claims *and* against the live source — then applies an explicit policy and leaves evidence in DataHub that the next agent inherits.
 
-## Proof, one row per judging criterion
+## Proof at a glance
 
 Every row is one command or one committed artifact. No claim here rests on a screenshot alone.
 
-| Criterion | The claim | Check it |
+| Area | The claim | Check it |
 |---|---|---|
-| **Use of DataHub** | Read → decide → **write** through the official MCP server, then a *separate process* reads the receipt back and recomputes its own verdict. Verdicts also land in DataHub's own **Quality tab** as native assertions (platform `sidq`). And the catalog is not only the output — it is the **only shared state four concurrent workers have**: no coordinator, no IPC, a peer killed mid-run, 14 distinct assets in 18 examinations, measured — and the assets two workers both reached are cross-checked against each other rather than counted as waste. | `make live-loop` · `make swarm-demo` · [`examples/06-native-assertion/`](examples/06-native-assertion/) |
-| **Technical execution** | 1,284 tests, lint, format and types in one gate; the flagship `BLOCK` re-derives **byte-identical** from committed evidence. Published numbers are guarded — a stale one fails the build. | `make check` · `make gate-demo` |
-| **Originality** | The question is not "what is in the catalog" but "is the catalog telling the truth" — proved on DataHub's **own shipped sample**: examining all **67 datasets** found 285 internal contradictions, concentrated in **5 assets**. And against reality: the live source renames a column, the catalog does not, Sidq blocks the context. | [`docs/TRUTH-REPORT.md`](docs/TRUTH-REPORT.md) · `make demo-break` |
-| **Real-world usefulness** | A PII removal is blocked with its lineage path to a Looker dashboard. The repair agent **refuses its own obvious fix** because the engine re-proved it moves the leak instead of closing it. | [`examples/01-blocked-pii-dashboard/`](examples/01-blocked-pii-dashboard/) · `make repair-demo` |
-| **Submission quality** | A 2:51 film with real footage, a live console whose buttons run the real commands, and a read-only judge account on a live DataHub. | [the film](https://www.youtube.com/watch?v=W0uHsq2Kb0E) · [sidq.mlki.app](https://sidq.mlki.app) · [`docs/QA-RESULTS.md`](docs/QA-RESULTS.md) |
-| **Bonus: OSS contribution** | A DataHub packaging report closed as superseded by the equivalent merged #19038 change; the proposed `datahub-verify` skill remains open. The upstream merged commit is not ours. | [datahub#19017](https://github.com/datahub-project/datahub/pull/19017) · [datahub-skills#81](https://github.com/datahub-project/datahub-skills/pull/81) |
+| **DataHub integration** | Read → decide → **write** through the official MCP server, then a *separate process* reads the receipt back and recomputes its own verdict. Verdicts also land in DataHub's own **Quality tab** as native assertions (platform `sidq`). And the catalog is not only the output — it is the **only shared state four concurrent workers have**: no coordinator, no IPC, a peer killed mid-run, 14 distinct assets in 18 examinations, measured — and the assets two workers both reached are cross-checked against each other rather than counted as waste. | `make live-loop` · `make swarm-demo` · [`examples/06-native-assertion/`](examples/06-native-assertion/) |
+| **Reproducibility** | 1,258 tests, lint, format and types in one gate; the flagship `BLOCK` re-derives **byte-identical** from committed evidence. Published numbers are guarded — a stale one fails the build. | `make check` · `make gate-demo` |
+| **Catalog truth** | The question is not "what is in the catalog" but "is the catalog telling the truth" — proved on DataHub's **own shipped sample**: examining all **67 datasets** found 285 internal contradictions, concentrated in **5 assets**. And against reality: the live source renames a column, the catalog does not, Sidq blocks the context. | [`docs/TRUTH-REPORT.md`](docs/TRUTH-REPORT.md) · `make demo-break` |
+| **Change safety** | A PII removal is blocked with its lineage path to a Looker dashboard. The repair agent **refuses its own obvious fix** because the engine re-proved it moves the leak instead of closing it. | [`examples/01-blocked-pii-dashboard/`](examples/01-blocked-pii-dashboard/) · `make repair-demo` |
+| **Upstream contributions** | A DataHub packaging report closed as superseded by the equivalent merged #19038 change; the proposed `datahub-verify` skill remains open. The upstream merged commit is not ours. | [datahub#19017](https://github.com/datahub-project/datahub/pull/19017) · [datahub-skills#81](https://github.com/datahub-project/datahub-skills/pull/81) |
 
 ## Why the name
 
@@ -55,7 +39,7 @@ fails closed. An agent that cannot confirm the catalog refuses to build on it.
 Every one of those behaviors is the same single idea, and Arabic has one word
 for it.
 
-That is also why the name is the correct kind of untranslatable: a judge who
+That is also why the name is the correct kind of untranslatable: anyone who
 asks what "Sidq" means gets the entire design philosophy in the answer.
 
 ## Install and connect
@@ -117,7 +101,7 @@ verification store; it is not a DataHub receipt reader. The independent Receipt
 consumer is `sidq verify <urn>`, which reads the Receipt and current context from
 DataHub in a separate process.
 
-## Judge runbook
+## Local runbook
 
 Five commands, in order of how much runtime infrastructure they need. Rows 1 and
 2 bootstrap a Python 3.12 environment from the committed hash-locked dependency
@@ -126,7 +110,7 @@ file on first use, so that first run needs package-index access.
 | # | Command | Needs | What it proves | Takes |
 |---|---|---|---|---|
 | 1 | `make gate-demo` | Python 3.12; package downloads on first use; no DataHub or credentials | The published `BLOCK` verdict is re-derived from the committed graph recording, byte-identical, with the same `policy_hash`. Hand-editing an artifact fails this. | ~2s after bootstrap |
-| 2 | `make check` | Python 3.12; package downloads on first use | 1284 tests, lint, format, types — 1283 passed, 1 optional integration skipped, with 84.61% branch coverage; the same gates CI runs. | ~70s after bootstrap |
+| 2 | `make check` | Python 3.12; package downloads on first use | 1258 tests, lint, format, types — 1257 passed, 1 optional integration skipped, with 84.61% branch coverage; the same gates CI runs. | ~70s after bootstrap |
 | 3 | `make live-loop` | a running DataHub ([`docs/SETUP.md`](docs/SETUP.md)) | The whole agent loop over the **official MCP server only**: read → decide → write a receipt → a *separate process* reads it back → an asset carrying no receipt returns `NOT VERIFIED`. | ~60s |
 | 4 | `make repair-demo` | the same DataHub | The repair agent proposes a fix from catalog evidence, re-runs the deterministic engine against the catalog that fix *would* create, and shows what it proved and what it refused. | ~40s |
 | 5 | `make swarm-demo` | the same DataHub | **Four agents on one catalog with no coordinator and no IPC.** They divide the work purely through the receipts they write, one is killed mid-run and its unfinished assets are never lost, and a fifth process that audited nothing reads the ledger back out of DataHub. Expect a different split each run — nothing is assigned, so which worker reaches which asset first is a race; what holds is that the survivors cover the catalog and that every asset two of them both examined comes back agreed. Needs `DATAHUB_GMS_TOKEN` exported. | ~90s |
@@ -134,14 +118,19 @@ file on first use, so that first run needs package-index access.
 Nothing above is pre-rendered output. If you have no DataHub, run 1 and 2: after
 the locked bootstrap they replay committed evidence locally without connecting
 to a catalog or source. Update the lock intentionally with `make lock`; ordinary
-judge bootstrap consumes it and never derives dependencies from an ambient
+bootstrap consumes it and never derives dependencies from an ambient
 environment.
 
-You can also run row 1, a live catalog audit, and row 4's dry run from the
-hosted page without cloning anything: [sidq.mlki.app](https://sidq.mlki.app) has
-**Run it here** buttons that execute the real commands on the host and print the
-real output. The runnable set is a closed table with no request input, and a
-test asserts it contains nothing that can write to a catalog.
+The same proofs also run from a browser. After row 1 has built the environment,
+`.venv/bin/python web/server.py` serves the landing page at
+`http://127.0.0.1:8766`; its buttons execute row 1, a live catalog audit, row 4's
+dry run, an independent receipt read, and a documented-claims check on your
+machine and print the real output. The runnable set is a closed table with no
+request input, and a test asserts it contains nothing that can write to a
+catalog. The offline verdict needs nothing further. The DataHub-backed buttons
+read a Reader token from the file named by `SIDQ_DATAHUB_TOKEN_FILE` (and the
+claims check a read-only DSN from `SIDQ_CLAIMS_DSN_FILE`); without them they
+answer `command unavailable` instead of running.
 
 **What to look at if you only have five minutes.** Run `make gate-demo`, then open
 [`examples/01-blocked-pii-dashboard/verdict.json`](examples/01-blocked-pii-dashboard/verdict.json)
@@ -171,8 +160,9 @@ one-hop upstream and downstream lineage. Sidq's own receipt properties, badges,
 and evidence documents are excluded so a successful write does not invalidate
 itself. Missing, partial, or error context is stale (fail-closed), and a
 policy-hash mismatch invalidates immediately. The CLI default maximum age is 7
-days. The hosted public handoff alone uses 45 days solely to span judging through
-August 31, 2026; any context or policy change still invalidates immediately.
+days. The landing page's receipt-handoff demo alone passes 45 days, so a receipt
+written once for that demonstration does not age out while the demo catalog sits
+idle; any context or policy change still invalidates immediately.
 
 **Model drift.** No model can block or grant permission. The deterministic gate
 beat the classifier on cost at equal held-out fixture-regression consistency; for one change, the classifier is
@@ -693,3 +683,22 @@ Fixture replay: run <code>make gate-demo</code>, which uses the committed diff, 
 policy, pinned code revision, and canonical serialization. Provenance:
 <code>policy_hash=66f48004804c5ce02955699710466b6d58ae7a868f876a4774e548c5c15920b8</code> ·
 <code>commit_sha=5addb753788935d4d1aa6a9483c28c6fc124e5c7</code>
+
+## License and third-party material
+
+Sidq is licensed under Apache-2.0; see [`LICENSE`](LICENSE). Its own source,
+tests, and documentation are original to this repository.
+
+**Third-party material is included, and it is data rather than code.** The
+claim-extraction corpus under `data/claims/` is mined from permissively licensed
+public sources — dbt repositories (MIT, Apache-2.0, BSD, Unlicense, CC0-1.0),
+SchemaStore (Apache-2.0), FHIR R5 core (CC0-1.0), and application-code and
+error-message corpora (MIT, Apache-2.0, BSD-3-Clause). Every released row retains
+its source path, commit or version, and licence. The graph fixtures under
+`tests/fixtures/graph/` are recordings of DataHub's own shipped
+`showcase-ecommerce` sample. Full provenance is in
+[`data/claims/ATTRIBUTION.md`](data/claims/ATTRIBUTION.md),
+[`data/claims/NOTICE`](data/claims/NOTICE), and
+[`data/claims/DATASHEET.md`](data/claims/DATASHEET.md). Google Discovery JSON
+was deliberately excluded because its redistribution licence could not be
+confirmed.

@@ -5,7 +5,7 @@ verdict: the engine must keep producing the exact decision and rule ids that the
 repository publishes. It named fixtures (`examples/bad_change.sql`,
 `examples/good_change.sql`) that were never created, so the regression it
 specifies did not exist and the engine could have silently changed its verdict on
-the artifact a judge actually opens.
+the artifact a reader actually opens.
 
 This closes that gap against the real published example instead of inventing new
 fixtures, and it runs entirely offline from the committed graph replay snapshot.
@@ -80,7 +80,7 @@ def _project(tmp_path: Path, sql: str) -> tuple[Path, Path]:
 
 
 def test_the_published_verdict_json_is_still_a_block() -> None:
-    """The artifact a judge opens must not have drifted from the engine."""
+    """The artifact a reader opens must not have drifted from the engine."""
     published = _published()
 
     assert published["decision"] == "BLOCK"
@@ -214,7 +214,7 @@ def test_the_committed_verdict_matches_a_fresh_engine_run() -> None:
 
     This file drifted once already: the policy gained rules, its hash changed,
     and the published verdict kept citing the old one, so the reproduction
-    command a judge would run no longer matched. Regenerating is now a script and
+    command a reader would run no longer matched. Regenerating is now a script and
     this is its guard.
     """
     assert regenerate_example_01.rendered() == (BLOCKED / "verdict.json").read_text(
@@ -363,7 +363,7 @@ def test_the_published_comment_order_is_a_deliberate_reorder_not_production_orde
     The production bot renders straight off the live Verdict, whose findings are in
     engine insertion order. `canonical_data` sorts every list by the full JSON text
     of its items, so `verdict.json` stores a different order. The published comment
-    is rendered in the canonical order on purpose, so the two files a judge reads
+    is rendered in the canonical order on purpose, so the two files a reader reads
     side by side agree — and all four `sealed/pr-*` branches carry that same order.
 
     Sorting the heading alphabetically instead would look tidier and is wrong: it
@@ -387,10 +387,10 @@ def test_the_published_comment_order_is_a_deliberate_reorder_not_production_orde
 
 
 def test_the_published_comment_heading_matches_every_sealed_branch() -> None:
-    """The four sealed demo branches are judge-facing; main must not drift from them.
+    """The four sealed demo branches are published; main must not drift from them.
 
     Skips rather than passes when the clone has no demo remote-tracking refs — a
-    judge's fresh checkout may fetch only main, and asserting against branches
+    reader's fresh checkout may fetch only main, and asserting against branches
     that were never fetched would either fail spuriously or, worse, pass vacuously.
     """
     heading = next(

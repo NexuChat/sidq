@@ -275,7 +275,7 @@ h1 {
   line-height: 1.6;
 }
 
-/* The five things behind the headline, before a judge scrolls. It is a list
+/* The five things behind the headline, before a visitor scrolls. It is a list
    rather than a dot-separated sentence so a screen reader announces five items
    instead of one run-on line, and the separator is drawn in CSS so it is never
    read aloud as a word. */
@@ -937,7 +937,7 @@ h2 code { font-size: 0.88em; color: var(--red); }
   overflow-wrap: anywhere;
 }
 
-/* The loop a judge otherwise has to reassemble from four sections. Numbered
+/* The loop a reader otherwise has to reassemble from four sections. Numbered
    because the order is the argument: a write nobody read back is not evidence. */
 .loop-steps {
   display: grid;
@@ -1094,11 +1094,6 @@ h2 code { font-size: 0.88em; color: var(--red); }
 .native-shot figcaption { margin-top: 0.85rem; }
 .standing { padding-bottom: 1.5rem; }
 
-/* The live-DataHub link dead-ended at a login until the read-only judge account
-   was named beside it. Kept adjacent to the link rather than in a FAQ, because
-   a credential a judge has to hunt for is the same as no credential. */
-.judge-key { margin-top: 0.9rem; }
-
 /* Two claims about the same column, side by side, because the disagreement is
    the product. Stacks on narrow screens rather than shrinking the values. */
 .drift-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 1.75rem; }
@@ -1165,7 +1160,7 @@ h2 code { font-size: 0.88em; color: var(--red); }
 /* The six real ways in, stated where the gate is explained. */
 .surface-row { max-width: none; margin-top: clamp(28px, 3.5vh, 40px); }
 
-/* The four numbers a judge needs before any transcript. */
+/* The four numbers a reader needs before any transcript. */
 .swarm-numbers { max-width: none; margin-top: clamp(24px, 3vh, 34px); }
 
 /* The nine subcommands, available without turning the page into a man page. */
@@ -1239,7 +1234,7 @@ h2 code { font-size: 0.88em; color: var(--red); }
 .compare-card .fine { margin: 0; }
 
 /* Rhymes with the hero's proof strip on purpose — same kind of claim, same
-   treatment, nothing for a judge to relearn. */
+   treatment, nothing for a reader to relearn. */
 .triad-depth { max-width: none; margin: 1.4rem 0 1.6rem; }
 
 /* ---- Proof 04: the repair callout ---- */
@@ -1296,7 +1291,7 @@ h2 code { font-size: 0.88em; color: var(--red); }
 
 @media (max-width: 960px) { .compare-triad { grid-template-columns: 1fr; } }
 
-/* A judge with four minutes should learn what exists here without scrolling to
+/* A visitor with four minutes should learn what exists here without scrolling to
    find out. Plain anchors: no script, nothing to fail, and every section is
    linkable so one can be sent to a colleague on its own. */
 .evidence-index { margin: 1.75rem 0 0.5rem; }

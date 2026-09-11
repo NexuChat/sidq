@@ -6,8 +6,8 @@ The final review found no known unresolved **P0** or **P1** issue in the scoped
 repository and public landing path. This is not a claim that the system is free
 of all vulnerabilities.
 
-- **P0:** invalidates safety, eligibility, or the core truth claim.
-- **P1:** likely harms security, correctness, or judging.
+- **P0:** invalidates safety or the core truth claim.
+- **P1:** likely harms security or correctness.
 - **P2:** meaningful robustness or defence-in-depth gap.
 - **P3:** optional hardening or polish.
 
@@ -27,10 +27,10 @@ test, every transitive platform service, or host compromise.
 | P1 | `audit --write-receipts --json` hid rollback detail behind a summary. | JSON now includes deterministic attempted/written/failed counts and an untruncated failure list with URN, verdict, and detail. No-write JSON remains byte-identical. |
 | P1 | Public action execution needed a closed, abuse-resistant boundary. | The server accepts only five fixed argument arrays, rejects bodies/unknown commands, uses no shell interpolation, caps input/output/time/concurrency/rate, escapes output, validates capability replay, and never exposes a write flag. Tests cover XSS, traversal, proxy spoofing, IPv4/IPv6 identities, CSRF expectations, cooldowns, and redaction. |
 | P1 | Credential values could be partially exposed when one secret overlapped another secret or an internal runtime path. | Public-output redaction now finds every credential match on the original text, merges overlapping spans, and redacts them before host paths or URLs. Regression tests cover containment and partial overlap; an independent adversarial review returned no remaining finding. |
-| P1 | Public `make` demos could treat a newer immutable release lockfile as a reason to rebuild the shared read-only runtime. | The hosted allowlist passes Make's exact internal `--old-file` operand for the existing runtime marker and hides that operand from the judge-facing command. Regression tests pin the subprocess argv, public-label omission, and runtime-path redaction; deployment separately byte-compares all runtime inputs before activation. Local clone behavior is unchanged. |
+| P1 | Public `make` demos could treat a newer immutable release lockfile as a reason to rebuild the shared read-only runtime. | The hosted allowlist passes Make's exact internal `--old-file` operand for the existing runtime marker and hides that operand from the public command label. Regression tests pin the subprocess argv, public-label omission, and runtime-path redaction; deployment separately byte-compares all runtime inputs before activation. Local clone behavior is unchanged. |
 
-Focused adversarial suites and the full required suite pass; exact counts are in
-[`QA-RESULTS.md`](QA-RESULTS.md).
+Focused adversarial suites and the full required suite pass; exact counts are
+under [Verification performed](#verification-performed).
 
 ## Remaining bounded risks
 
@@ -72,7 +72,7 @@ make check
   Ruff check: pass
   Ruff format --check: pass
   mypy src/: pass
-  pytest: 1284 collected, 1283 passed, 1 skipped   # publication check 2026-09-11
+  pytest: 1258 collected, 1257 passed, 1 skipped   # re-run 2026-09-11
   branch coverage: 84.61% (minimum 80%)
 
 uv audit --locked --no-cache
@@ -83,7 +83,6 @@ uvx pip-audit --disable-pip --requirement requirements-mcp.lock
 
 high-signal current-tree scan: clean
 high-signal full-Git-history patch scan: clean
-final-film source, package, subtitle, and frame review: clean
 ```
 
 The high-signal scans covered common AWS, GitHub, OpenAI-style secret prefixes
@@ -91,9 +90,6 @@ and private-key headers without printing candidate values. They are not a
 substitute for provider-side secret scanning; `gitleaks` was unavailable on this
 host.
 
-The final-film check also scanned high-confidence secret-value patterns across
-the source, SRT, provenance, and upload package, and visually reviewed contact
-sheets sampled every two seconds. It found no actionable leak or stale claim.
 The literal `pii_exposure` and `live writeback was captured` source hits are
 negative assertions in the forbidden-output and forbidden-claim contracts.
 

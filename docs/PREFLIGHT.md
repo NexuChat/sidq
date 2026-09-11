@@ -128,7 +128,7 @@ Written before the first training run, and binding.
 3. the winning rung beats L0 **and** the rung below it on the same held-out split
 
 **If any fails:** pre-flight is not shipped. `docs/PREFLIGHT.md` gains a "Result:
-not shipped" section stating the measured numbers, and the submission ships the
+not shipped" section stating the measured numbers, and the project ships the
 deterministic engine alone — which is complete without it.
 
 A recorded negative result is a real contribution. A model shipped past its own

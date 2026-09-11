@@ -4,17 +4,11 @@ The public landing page contains no access token, database password, or tunnel
 token, and no credential that can change anything. Do not put those in HTML,
 JavaScript, screenshots, repository files, browser storage, or shell history.
 
-**The judge's DataHub login is the deliberate exception, and it is published.**
-An earlier version of this document said judges receive it out of band. That was
-never true of this submission: the entry form has no private field, so any
-credential a judge needs is public by necessity. Pretending otherwise put the
-same login on Devpost while this file forbade it, and left the landing page
-linking to a catalog it gave nobody the key to.
-
-What makes publishing it safe is not secrecy but the account itself, and that is
-verified rather than asserted. `sidq-judge@local.invalid` holds DataHub's Reader
-role and nothing more. Re-checked against the live deployment on 2026-08-10, each
-returning `403 UNAUTHORIZED`:
+**A published read-only DataHub login is the only acceptable exception.** If a
+deployment publishes a login so visitors can browse its catalog, what makes that
+safe is not secrecy but the account itself, and that must be verified rather
+than asserted: the account holds DataHub's Reader role and nothing more. Each of
+these must return `403 UNAUTHORIZED` for it:
 
 | Attempted | Result |
 |---|---|
@@ -448,7 +442,7 @@ sudo -u nobody env HOME=/tmp HF_HOME=/opt/sidq/runtime/huggingface \
 ```
 
 The claims child receives `HF_HUB_OFFLINE=1`, `TRANSFORMERS_OFFLINE=1`, and the
-root-owned cache paths from its closed environment. The judge run therefore has
+root-owned cache paths from its closed environment. The hosted run therefore has
 no dependency on an ambient `/home` cache or a model download.
 
 ## Install service credentials and units
@@ -510,8 +504,8 @@ root-owned runtime paths. `ProtectProc=invisible`, `ProtectHome=true`, a strict
 filesystem, and an empty capability set keep the service away from developer
 homes and other processes.
 
-The server accepts exactly the configured `SIDQ_ALLOWED_ORIGINS` value (default
-`https://sidq.mlki.app`) together with same-origin fetch metadata and a custom
+The server accepts exactly the configured `SIDQ_ALLOWED_ORIGINS` value (default:
+the local development origins on port 8766 only) together with same-origin fetch metadata and a custom
 header. Each browser run also consumes a short-lived one-time capability bound
 to the selected command and, when one is attributable through an explicitly
 trusted proxy, the client address. Issuance is stateless: the process signs the
@@ -550,8 +544,8 @@ new immutable release timestamp from triggering a package install into the
 read-only runtime. The public command label omits only that exact operand, and
 public output redacts credentials before runtime paths and internal URLs.
 
-The CLI default is 7 days for receipt age. The hosted judging handoff explicitly
-passes `--max-age-days 45` for the August judging period. This 45-day judging window
+The CLI default is 7 days for receipt age. The landing's receipt-handoff demo
+explicitly passes `--max-age-days 45`. This 45-day demo window
 relaxes only the age check: a semantic entity, complete one-hop lineage,
 policy, or context change still invalidates the receipt.
 
