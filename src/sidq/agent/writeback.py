@@ -1,6 +1,6 @@
 """Carry the auditor's result back into the catalog as receipts.
 
-This is the half of the first judging criterion that reading alone cannot satisfy:
+This is the half of metadata-aware work that reading alone cannot satisfy:
 the agent traverses the graph, and then writes what it concluded back where the
 next agent can read it. The independent DataHub receipt consumer is ``sidq
 verify``/``get_verification_status``. The similarly named ``search_verified``

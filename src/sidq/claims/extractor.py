@@ -306,7 +306,7 @@ class ModelExtractor:
             "prompt": prompt,
             "stream": False,
             # Force the bake-off (and default local extractor) onto CPU so
-            # results are portable to a judge's laptop.
+            # results are portable to an ordinary laptop.
             "options": {"temperature": 0, "num_predict": 48, "num_gpu": 0},
         }
         if _is_reasoning_model(self.model):

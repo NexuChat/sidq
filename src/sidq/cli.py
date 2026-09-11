@@ -80,7 +80,7 @@ from sidq.resolver import Resolver
 from sidq.serialization import canonical_json
 
 # Named here rather than reaching into the extractor, so `--model` with no value
-# and `ModelExtractor()` cannot drift apart in a help string a judge reads.
+# and `ModelExtractor()` cannot drift apart in a help string a user reads.
 _DEFAULT_CLAIM_MODEL = "ibm/granite4:1b-q4_1"
 
 
@@ -147,7 +147,7 @@ def collect_evidence(
     # `lineage_rot` was wired here and then removed. On the flagship example it
     # produced twenty-two `lineage_unverifiable` records, none adjudicable, which
     # the engine turns into twenty-two `informational` findings — flooding the
-    # verdict a judge reads with noise and no signal. Suppressing the unverifiable
+    # verdict a reviewer reads with noise and no signal. Suppressing the unverifiable
     # ones instead would violate the rule the whole product rests on: an
     # unperformed check must never be reported as a clean one. The policy already
     # settled the scope question by classifying `lineage_unverifiable` as a
@@ -652,7 +652,7 @@ def _read_snapshot(arguments: Any) -> CatalogSnapshot | None:
                 DatahubClientConfig(
                     server=arguments.server,
                     # The SDK's defaults retry a dead endpoint for minutes. A
-                    # judge who mistypes a port deserves a refusal, not a hang:
+                    # user who mistypes a port deserves a refusal, not a hang:
                     # an unreachable catalog is an answer this tool can give in
                     # seconds, and giving it slowly looks like a broken tool.
                     timeout_sec=arguments.timeout,
