@@ -25,7 +25,7 @@ Every row is one command or one committed artifact. No claim here rests on a scr
 | **Reproducibility** | 1,258 tests, lint, format and types in one gate; the flagship `BLOCK` re-derives **byte-identical** from committed evidence. Published numbers are guarded — a stale one fails the build. | `make check` · `make gate-demo` |
 | **Catalog truth** | The question is not "what is in the catalog" but "is the catalog telling the truth" — proved on DataHub's **own shipped sample**: examining all **67 datasets** found 285 internal contradictions, concentrated in **5 assets**. And against reality: the live source renames a column, the catalog does not, Sidq blocks the context. | [`docs/TRUTH-REPORT.md`](docs/TRUTH-REPORT.md) · `make demo-break` |
 | **Change safety** | A PII removal is blocked with its lineage path to a Looker dashboard. The repair agent **refuses its own obvious fix** because the engine re-proved it moves the leak instead of closing it. | [`examples/01-blocked-pii-dashboard/`](examples/01-blocked-pii-dashboard/) · `make repair-demo` |
-| **Upstream contributions** | A DataHub packaging report closed as superseded by the equivalent merged #19038 change; the proposed `datahub-verify` skill remains open. The upstream merged commit is not ours. | [datahub#19017](https://github.com/datahub-project/datahub/pull/19017) · [datahub-skills#81](https://github.com/datahub-project/datahub-skills/pull/81) |
+| **Upstream contributions** | Sidq's receipt signing, independent decision replay and resumable audit coverage are proposed to DataHub as three RFCs, each linking the Sidq code that prototypes it. Three DataHub fixes found while building Sidq, and the `datahub-verify` skill, are proposed alongside them. An earlier packaging report was closed as superseded by DataHub's equivalent merged #19038 change, whose commit is not ours. | [RFC #19729](https://github.com/datahub-project/datahub/pull/19729) · [RFC #19730](https://github.com/datahub-project/datahub/pull/19730) · [RFC #19731](https://github.com/datahub-project/datahub/pull/19731) · [datahub#19728](https://github.com/datahub-project/datahub/pull/19728) · [datahub#19678](https://github.com/datahub-project/datahub/pull/19678) · [datahub#19680](https://github.com/datahub-project/datahub/pull/19680) · [datahub-skills#81](https://github.com/datahub-project/datahub-skills/pull/81) |
 
 ## Why the name
 
@@ -110,7 +110,7 @@ file on first use, so that first run needs package-index access.
 | # | Command | Needs | What it proves | Takes |
 |---|---|---|---|---|
 | 1 | `make gate-demo` | Python 3.12; package downloads on first use; no DataHub or credentials | The published `BLOCK` verdict is re-derived from the committed graph recording, byte-identical, with the same `policy_hash`. Hand-editing an artifact fails this. | ~2s after bootstrap |
-| 2 | `make check` | Python 3.12; package downloads on first use | 1258 tests, lint, format, types — 1257 passed, 1 optional integration skipped, with 84.61% branch coverage; the same gates CI runs. | ~70s after bootstrap |
+| 2 | `make check` | Python 3.12; package downloads on first use | 1258 tests, lint, format, types — 1257 passed, 1 optional integration skipped, with 84.44% branch coverage; the same gates CI runs. | ~70s after bootstrap |
 | 3 | `make live-loop` | a running DataHub ([`docs/SETUP.md`](docs/SETUP.md)) | The whole agent loop over the **official MCP server only**: read → decide → write a receipt → a *separate process* reads it back → an asset carrying no receipt returns `NOT VERIFIED`. | ~60s |
 | 4 | `make repair-demo` | the same DataHub | The repair agent proposes a fix from catalog evidence, re-runs the deterministic engine against the catalog that fix *would* create, and shows what it proved and what it refused. | ~40s |
 | 5 | `make swarm-demo` | the same DataHub | **Four agents on one catalog with no coordinator and no IPC.** They divide the work purely through the receipts they write, one is killed mid-run and its unfinished assets are never lost, and a fifth process that audited nothing reads the ledger back out of DataHub. Expect a different split each run — nothing is assigned, so which worker reaches which asset first is a race; what holds is that the survivors cover the catalog and that every asset two of them both examined comes back agreed. Needs `DATAHUB_GMS_TOKEN` exported. | ~90s |
@@ -625,13 +625,36 @@ The pull request is public review evidence, not a claim that DataHub has merged 
 endorsed it.
 
 Setting up the connected path also turned up a packaging bug in DataHub itself,
-proposed upstream as
+first reported as
 [datahub-project/datahub#19017](https://github.com/datahub-project/datahub/pull/19017):
 `datahub.cli.datapack.resources` is missing from `package_data`, so
 `datahub/cli/datapack/resources/DATAPACK_AGENT_CONTEXT.md` and `datahub/cli/datapack/resources/registry.json` never reach the built wheel.
 `datahub datapack --help` therefore raises `FileNotFoundError` whenever stdout is
-not a TTY, and the bundled registry fallback cannot fire. That one is also open
-and also unmerged; `docs/SETUP.md` still documents the workaround.
+not a TTY, and the bundled registry fallback cannot fire. That report was closed
+as superseded by DataHub's own equivalent merged change, #19038; the upstream
+merged commit is not ours. The follow-up
+[datahub-project/datahub#19678](https://github.com/datahub-project/datahub/pull/19678)
+ships the other resource files DataHub reads at runtime and never packaged, and
+makes a build that drops one fail. `docs/SETUP.md` still documents the workaround
+for releases without the fix.
+
+The receipt mechanisms themselves are proposed to DataHub as three RFCs. Each links
+the pinned Sidq code and tests that prototype it:
+
+| DataHub RFC | What it proposes | Sidq prototype |
+|---|---|---|
+| [#19729](https://github.com/datahub-project/datahub/pull/19729) — asset-bound metadata attestations | An opt-in attestation contract with independently trusted keys, so a verification signal written into the catalog authenticates its producer. | [`src/sidq/receipt/attestation.py`](src/sidq/receipt/attestation.py) · [`demos/attestation.py`](demos/attestation.py) |
+| [#19730](https://github.com/datahub-project/datahub/pull/19730) — independently replayable agent decisions | An evidence and policy contract that lets a separate implementation reproduce a stored decision, with three outcomes: match, mismatch, or unverifiable. | [`scripts/rederive.sh`](scripts/rederive.sh) · [`scripts/rederive.jq`](scripts/rederive.jq) · [`scripts/policy_to_json.py`](scripts/policy_to_json.py) |
+| [#19731](https://github.com/datahub-project/datahub/pull/19731) — resumable audit coverage | A convention that separates assets a bounded auditor never reached from checks it attempted but could not complete, so the next run resumes the gaps. | [`src/sidq/agent/memory.py`](src/sidq/agent/memory.py) · [`src/sidq/receipt/assertion.py`](src/sidq/receipt/assertion.py) · [`demos/gap_order.py`](demos/gap_order.py) |
+
+Two more DataHub fixes came out of the same work:
+[datahub-project/datahub#19728](https://github.com/datahub-project/datahub/pull/19728)
+lets an assertion circuit breaker clear only when every assertion's latest result
+succeeded, and
+[datahub-project/datahub#19680](https://github.com/datahub-project/datahub/pull/19680)
+stops a metrics-publishing job from failing on forks. Like the skill, the RFCs and
+these fixes are public review evidence, not a claim that DataHub has merged or
+endorsed them.
 
 ### 3. CLI
 
