@@ -51,16 +51,18 @@ for (const button of copyButtons) {
 
 // Each name is matched by the server against a closed table of fixed commands.
 const expectedSeconds = {
-  "gate-demo": 15,
-  audit: 45,
-  repair: 90,
-  handoff: 30,
-  claims: 90,
+  rederive: 1,
+  attestation: 1,
+  "gap-order": 1,
+  "gate-demo": 1,
 };
 const runOutput = document.querySelector("#run-output");
 const runProgress = document.querySelector("#run-progress");
 const runStatus = document.querySelector("#run-status");
 const runButtons = document.querySelectorAll("[data-run]");
+// The busy region is presentational; the command is not. Reading a method off
+// a missing element threw before the fetch was ever issued, which is the same
+// shape that once left the page's only Copy button dead in every browser.
 const runRegion = document.querySelector(".handoff-run");
 const recordedProof = document.querySelector("#recorded-proof");
 
@@ -100,7 +102,7 @@ async function renderReleaseIdentity() {
       /^[0-9a-f]{40}$/.test(release.commit_sha)
     ) {
       releaseIdentity.textContent =
-        `Release directory: ${release.commit_sha} · live presentation copy`;
+        `Submission baseline: ${release.commit_sha} · live presentation copy`;
     } else if (response.ok && release?.state === "local/dev") {
       releaseIdentity.textContent = "Release: local/dev";
     } else {
@@ -120,11 +122,15 @@ for (const button of runButtons) {
     const started = performance.now();
     const updateProgress = () => {
       const elapsed = Math.floor((performance.now() - started) / 1000);
-      runProgress.textContent = `${elapsed}s elapsed · expected about ${expected}s`;
+      // A command with no recorded estimate is a normal state, not a number.
+      // Printing "expected about undefineds" is worse than printing nothing.
+      runProgress.textContent = expected
+        ? `${elapsed}s elapsed · expected about ${expected}s`
+        : `${elapsed}s elapsed`;
     };
     for (const other of runButtons) other.disabled = true;
     if (recordedProof) recordedProof.hidden = true;
-    runRegion.setAttribute("aria-busy", "true");
+    if (runRegion) runRegion.setAttribute("aria-busy", "true");
     button.textContent = "Running…";
     runStatus.textContent = "Running on the host now. This is not a recording.";
     runProgress.hidden = false;
@@ -169,7 +175,9 @@ for (const button of runButtons) {
       } else {
         runOutput.textContent = `$ ${result.command}\n\n${result.output}`;
         runOutput.focus();
-        runProgress.textContent = `${result.elapsed_seconds}s elapsed · expected about ${result.expected_seconds}s`;
+        runProgress.textContent = result.expected_seconds
+          ? `${result.elapsed_seconds}s elapsed · expected about ${result.expected_seconds}s`
+          : `${result.elapsed_seconds}s elapsed`;
         if (result.exit_code === 0) {
           runStatus.textContent = `${result.description} Exit 0.`;
         } else if (result.exit_code === 1) {
@@ -187,7 +195,7 @@ for (const button of runButtons) {
       runOutput.hidden = true;
     } finally {
       window.clearInterval(progressTimer);
-      runRegion.setAttribute("aria-busy", "false");
+      if (runRegion) runRegion.setAttribute("aria-busy", "false");
       for (const other of runButtons) other.disabled = false;
       button.textContent = label;
     }

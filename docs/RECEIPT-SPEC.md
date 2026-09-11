@@ -269,6 +269,13 @@ revision. The private key never is; a writer reads it from `SIDQ_SIGNING_KEY` as
 base64 of the 32-byte seed, the same way every other credential reaches this
 system. Unusable key material raises rather than silently signing nothing.
 
+The writer checks that the configured private key matches the pinned public key
+before making any catalog calls. It signs only after the final context hash and
+evidence-document reference are known. Bootstrap includes the `sidq.signature`
+property, and the installable package includes the verifying key. If a later
+write has no signing key, it removes the previous signature; failed writes
+restore that signature along with the previous receipt body.
+
 Every readback names one of three states, and the third is the point:
 
 | State | Meaning |
@@ -284,9 +291,12 @@ unproven — not proven false. A reader holding no public key answers `UNATTESTE
 for everything, because a reader that cannot check a signature has not proven one
 wrong.
 
-What this does not do: an attacker with catalog write access can still delete a
-real receipt. Signing prevents forgery, not denial — and between the two, forgery
-is the one that manufactures false confidence rather than an honest absence.
+Attestation is optional for compatibility with older receipts. `TAMPERED` always
+requires rechecking, but `UNATTESTED` retains the existing verdict policy. A writer
+with catalog access can strip the signature and produce `UNATTESTED`, so consumers
+requiring authenticated provenance must require `SIGNED` in addition to an
+applicable verdict. A signature detects changes while present; it does not prevent
+deletion or make an unsigned receipt trustworthy.
 
 ## 4. Demo obligation (DECISION §6, scene 4)
 

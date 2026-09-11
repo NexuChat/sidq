@@ -6,6 +6,7 @@ requires-python = ">=3.12,<3.13"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
 dependencies = [
+    "cryptography>=50,<51",  # Ed25519 receipt attestation
     "sqlglot",  # SQL parsing for the schema gate — deterministic, no LLM
     "pyyaml",   # restricted policy and asset-map loading
     # Official MCP client, talks to mcp-server-datahub. The floor is 2 because
@@ -66,7 +67,7 @@ build-backend = "setuptools.build_meta"
 where = ["src"]
 
 [tool.setuptools.package-data]
-sidq = ["claims/head.npz", "policy/default_policy.yaml"]
+sidq = ["claims/head.npz", "policy/default_policy.yaml", "receipt/signing-key.pub"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

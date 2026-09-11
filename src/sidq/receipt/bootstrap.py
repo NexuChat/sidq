@@ -51,6 +51,10 @@ PROPERTY_DEFINITIONS = (
         "context_hash",
         "SHA-256 hash of the semantic entity and complete one-hop lineage context.",
     ),
+    PropertyDefinition(
+        "signature",
+        "Base64 Ed25519 signature over the asset URN and receipt properties.",
+    ),
     # Swarm identity. A solo audit writes neither, so their presence is itself
     # the statement that several cooperating workers produced this receipt —
     # and the ledger reads them back to say which worker covered what.

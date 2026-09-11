@@ -1558,6 +1558,7 @@ name = "sidq"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "cryptography" },
     { name = "mcp" },
     { name = "pyyaml" },
     { name = "sqlglot" },
@@ -1608,6 +1609,7 @@ train = [
 [package.metadata]
 requires-dist = [
     { name = "accelerate", marker = "extra == 'train'", specifier = ">=1.0" },
+    { name = "cryptography", specifier = ">=50,<51" },
     { name = "datasets", marker = "extra == 'train'", specifier = ">=3.0" },
     { name = "hypothesis", marker = "extra == 'dev'" },
     { name = "mcp", specifier = ">=2,<3" },

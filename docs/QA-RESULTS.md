@@ -92,6 +92,15 @@ re-measured and the 2026-08-02 session remains its record.
   branch coverage. The dated line above is left as it was recorded rather than
   rewritten — it is what that run measured, and a record edited to agree with a
   later one stops being a record.
+- Publication check on 2026-09-11: 1284 collected, 1283 passed,
+  1 optional integration test skipped; 84.61% branch coverage.
+- Local browser checks on 2026-09-11: both presentations fit 375, 768 and
+  1440 CSS-pixel viewports without horizontal overflow or broken in-page
+  anchors. The main page's clipboard control and offline BLOCK replay worked;
+  its lazy Quality image loaded at its declared 1500 x 820 dimensions. All
+  four findings-page controls completed successfully. The final findings-page
+  browser session had no console errors, and command output contained no host
+  checkout paths. These checks exercised local previews, not a deployment.
 - Ruff lint, Ruff format, and mypy: pass.
 - The authoritative latest-main status is the [main-branch CI workflow
   view](https://github.com/NexuChat/sidq/actions/workflows/ci.yml?query=branch%3Amain).

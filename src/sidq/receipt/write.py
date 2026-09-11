@@ -13,6 +13,7 @@ from concurrent.futures import Future, InvalidStateError
 from dataclasses import replace
 from typing import Any
 
+from .attestation import SigningKeyError, load_private_key, load_public_key
 from .build import Receipt
 from .read import _sidq_values, _single_entity, decision_context_hash
 
@@ -326,6 +327,20 @@ def _write_receipt_under_lock(
     sleep: Sleeper,
 ) -> dict[str, Any]:
 
+    signing_key = load_private_key()
+    if signing_key is not None:
+        public_key = load_public_key()
+        if public_key is None or (
+            public_key.public_bytes_raw() != signing_key.public_key().public_bytes_raw()
+        ):
+            raise SigningKeyError(
+                "SIDQ_SIGNING_KEY does not match the pinned public key"
+            )
+    elif receipt.signature:
+        raise SigningKeyError(
+            "SIDQ_SIGNING_KEY is required to re-sign the final receipt"
+        )
+
     entity = _single_entity(
         tool_caller("get_entities", {"urns": [receipt.urn]}), receipt.urn
     )
@@ -336,7 +351,7 @@ def _write_receipt_under_lock(
             f"write_unconfirmed: conflicting tag URN aliases for {receipt.urn}"
         )
     context_hash = decision_context_hash(receipt.urn, entity, tool_caller)
-    prepared = replace(receipt, context_hash=context_hash)
+    prepared = replace(receipt, context_hash=context_hash, signature="")
     saved = tool_caller(
         "save_document",
         {
@@ -351,12 +366,21 @@ def _write_receipt_under_lock(
         raise RuntimeError("save_document did not return a valid document URN")
     evidence_url = prepared.evidence_url or document_reference
     persisted = replace(prepared, evidence_url=evidence_url)
+    if signing_key is not None:
+        persisted = persisted.signed(signing_key)
     desired_badge = _BADGE_BY_VERDICT[persisted.verdict]
     property_values = persisted.structured_property_values()
     badge_mutation_attempted = False
     touched_properties: set[str] = set()
     tag: Any = {"unchanged": True}
     try:
+        if not persisted.signature and "signature" in existing_sidq_values:
+            signature_urn = f"{_SIDQ_PROPERTY_PREFIX}signature"
+            touched_properties.add(signature_urn)
+            tool_caller(
+                "remove_structured_properties",
+                {"property_urns": [signature_urn], "entity_urns": [persisted.urn]},
+            )
         obsolete_badges = sorted(existing_badges - {desired_badge})
         if obsolete_badges:
             badge_mutation_attempted = True

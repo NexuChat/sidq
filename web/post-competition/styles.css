@@ -1320,3 +1320,12 @@ h2 code { font-size: 0.88em; color: var(--red); }
 html { scroll-padding-top: 1.5rem; }
 .exhibit[id] { scroll-margin-top: 1.5rem; }
 @media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+
+/* A 64-character digest is one unbreakable word to a layout engine, so a phone
+   got a page that scrolled sideways. Inline code may break anywhere; code inside
+   a `pre` is excluded, because those blocks scroll on purpose and breaking a
+   recorded command line would misrepresent what was run. */
+:not(pre) > code {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}

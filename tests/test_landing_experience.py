@@ -19,6 +19,8 @@ import threading
 from html.parser import HTMLParser
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).parents[1]
 HTML = ROOT / "web" / "index.html"
 SCRIPT = ROOT / "web" / "app.js"
@@ -74,6 +76,33 @@ def _served_landing() -> str:
 
     assert response.status == 200
     return payload.decode("utf-8")
+
+
+@pytest.mark.parametrize("path", ["/", "/index.html", "/scope.html", "/styles.css"])
+def test_cache_revalidation_refreshes_documents_and_reuses_unchanged_assets(path):
+    from web import server
+
+    with server.Server(("127.0.0.1", 0), server.Handler) as service:
+        thread = threading.Thread(target=service.serve_forever, daemon=True)
+        thread.start()
+        connection = http.client.HTTPConnection(*service.server_address, timeout=2)
+        try:
+            connection.request("GET", path)
+            first = connection.getresponse()
+            original = first.read()
+            modified = first.getheader("Last-Modified")
+            assert first.status == 200 and modified
+            connection.request("GET", path, headers={"If-Modified-Since": modified})
+            second = connection.getresponse()
+            current = second.read()
+            if path.endswith(".css"):
+                assert second.status == 304 and current == b""
+            else:
+                assert second.status == 200 and current == original
+        finally:
+            connection.close()
+            service.shutdown()
+            thread.join(timeout=2)
 
 
 def test_recorded_and_live_proofs_precede_the_argument() -> None:
@@ -187,8 +216,8 @@ def test_the_evidence_a_judge_would_open_is_linked() -> None:
     assert 'href="/scope.html"' in html
 
     for url in (
-        "https://github.com/NexuChat/sidq/blob/main/examples/01-blocked-pii-dashboard/verdict.json",
-        "https://github.com/NexuChat/sidq/blob/main/examples/03-catalog-truth-report/report.json",
+        "https://github.com/NexuChat/sidq/blob/02969cb46a86c44a7b411ff98d9e05c4f6fd3c93/examples/01-blocked-pii-dashboard/verdict.json",
+        "https://github.com/NexuChat/sidq/blob/02969cb46a86c44a7b411ff98d9e05c4f6fd3c93/examples/03-catalog-truth-report/report.json",
         "https://github.com/NexuChat/sidq/commit/5addb753788935d4d1aa6a9483c28c6fc124e5c7",
         "https://datahub.mlki.app",
     ):

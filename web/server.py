@@ -213,6 +213,7 @@ _INTERNAL_URL_RE = re.compile(
 )
 _RELEASE_SHA_RE = re.compile(r"[0-9a-fA-F]{40}\Z")
 _RELEASES_ROOT = Path("/opt/sidq/releases")
+_SUBMISSION_BASELINE = "02969cb46a86c44a7b411ff98d9e05c4f6fd3c93"
 
 
 def _normalised_static_path(request_target: str) -> str | None:
@@ -300,7 +301,14 @@ def _public_command(argv: tuple[str, ...]) -> str:
     elif argv and argv[0] == "make":
         public_argv = tuple(arg for arg in argv if arg != _RUNTIME_LOCK_ARGUMENT)
     else:
-        public_argv = argv
+        public_argv = tuple(
+            ".venv/bin/python"
+            if arg == str(VENV / "python")
+            else str(Path(arg).relative_to(REPO))
+            if Path(arg).is_absolute() and Path(arg).is_relative_to(REPO)
+            else arg
+            for arg in argv
+        )
     return shlex.join(public_argv)
 
 
@@ -634,7 +642,15 @@ def _health_payload() -> dict[str, object]:
         "live_demos": sorted(RUNNABLE),
         "release": {
             "state": "deployed" if release_sha is not None else "local/dev",
+            # The release directory is named for the submission commit, and the
+            # files inside it can be updated in place afterwards. `commit_sha`
+            # therefore identifies the directory, never a hash of what is being
+            # served, so both facts are stated instead of one standing in for
+            # the other.
             "commit_sha": release_sha,
+            "commit_sha_describes": "release directory",
+            "submission_baseline": _SUBMISSION_BASELINE,
+            "content": "live-presentation-copy",
         },
     }
 
@@ -825,6 +841,25 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self.send_header(name, value)
         super().end_headers()
 
+    def _is_document(self) -> bool:
+        path = urllib.parse.urlsplit(self.path).path
+        return path.endswith(("/", ".html"))
+
+    def _drop_stale_validators(self) -> None:
+        # Every file in a release directory carries the submission timestamp, on
+        # purpose: the deployed tree must keep the date it was submitted with. So
+        # `Last-Modified` never moves, even when the bytes behind it do. A browser
+        # that already holds an older copy revalidates, is truthfully told the
+        # timestamp has not changed, and keeps showing the stale page — with no
+        # date left to disagree with, the cache can never be talked out of it.
+        #
+        # Documents therefore answer every conditional request in full. The static
+        # assets keep theirs: their URLs carry a hash of their contents, so a
+        # changed byte is already a changed URL and 304 there is always correct.
+        if self._is_document():
+            del self.headers["If-Modified-Since"]
+            del self.headers["If-None-Match"]
+
     def _redirect_forwarded_http(self) -> bool:
         target = _https_redirect_target(self.client_address[0], self.headers, self.path)
         if target is None:
@@ -873,6 +908,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         if path not in PUBLIC_ASSET_PATHS:
             self.send_error(404, "File not found")
             return None
+        self._drop_stale_validators()
         return super().send_head()
 
     def list_directory(self, path: str):

@@ -74,7 +74,7 @@ def signing_payload(urn: str, values: Mapping[str, list[str]]) -> bytes:
     # a receipt with no rules fired from reading as tampered on the way back;
     # anything with content is left exactly as it was signed.
     body = {
-        key: list(value)
+        key: sorted(value)
         for key, value in values.items()
         if key != SIGNATURE_PROPERTY and list(value)
     }
@@ -148,6 +148,8 @@ def attest(
     shipped key instead of declining.
     """
     signatures = values.get(SIGNATURE_PROPERTY) or []
+    if len(signatures) > 1:
+        return Attestation.TAMPERED
     signature = signatures[0] if signatures else ""
     if not signature:
         return Attestation.UNATTESTED

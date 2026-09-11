@@ -14,6 +14,8 @@ signed payload.
 from __future__ import annotations
 
 import base64
+from dataclasses import replace
+from pathlib import Path
 
 import pytest
 from cryptography.hazmat.primitives import serialization
@@ -29,7 +31,10 @@ from sidq.receipt.attestation import (
     sign,
     signing_payload,
 )
+from sidq.receipt.bootstrap import property_urn
 from sidq.receipt.build import Receipt
+from sidq.receipt.read import get_verification_status
+from sidq.receipt.write import write_receipt
 
 HARMLESS = "urn:li:dataset:(urn:li:dataPlatform:postgres,shop.lookup_country,DEV)"
 DANGEROUS = "urn:li:dataset:(urn:li:dataPlatform:postgres,shop.customers_pii,PROD)"
@@ -38,6 +43,165 @@ DANGEROUS = "urn:li:dataset:(urn:li:dataPlatform:postgres,shop.customers_pii,PRO
 @pytest.fixture
 def key() -> Ed25519PrivateKey:
     return Ed25519PrivateKey.generate()
+
+
+@pytest.fixture
+def configured_key(key, monkeypatch, tmp_path: Path):
+    public_path = tmp_path / "signing-key.pub"
+    public_path.write_bytes(base64.b64encode(key.public_key().public_bytes_raw()))
+    monkeypatch.setattr("sidq.receipt.attestation.PUBLIC_KEY_FILE", public_path)
+    monkeypatch.setenv(
+        "SIDQ_SIGNING_KEY", base64.b64encode(key.private_bytes_raw()).decode()
+    )
+    return key
+
+
+class ReceiptCatalog:
+    def __init__(self):
+        self.properties = {}
+        self.tags = set()
+        self.calls = []
+        self.reject_next_properties = False
+
+    def __call__(self, name, arguments):
+        self.calls.append(name)
+        if name == "get_entities":
+            return {
+                "entities": [
+                    {
+                        "urn": HARMLESS,
+                        "globalTags": {
+                            "tags": [{"tag": {"urn": tag}} for tag in self.tags]
+                        },
+                        "structuredProperties": {
+                            "properties": [
+                                {
+                                    "structuredProperty": {"urn": urn},
+                                    "values": [
+                                        {"stringValue": value} for value in values
+                                    ],
+                                }
+                                for urn, values in self.properties.items()
+                            ]
+                        },
+                    }
+                ]
+            }
+        if name == "get_lineage":
+            direction = "upstreams" if arguments["upstream"] else "downstreams"
+            return {
+                direction: {
+                    "total": 0,
+                    "returned": 0,
+                    "hasMore": False,
+                    "searchResults": [],
+                }
+            }
+        if name == "save_document":
+            return {"urn": "urn:li:document:written-evidence"}
+        if name == "add_structured_properties":
+            self.properties.update(arguments["property_values"])
+            if self.reject_next_properties:
+                self.reject_next_properties = False
+                raise RuntimeError("write rejected")
+        elif name == "remove_structured_properties":
+            for urn in arguments["property_urns"]:
+                self.properties.pop(urn, None)
+        elif name == "add_tags":
+            self.tags.update(arguments["tag_urns"])
+        elif name == "remove_tags":
+            self.tags.difference_update(arguments["tag_urns"])
+        else:
+            raise AssertionError(name)
+        return {}
+
+
+def test_writer_signs_final_context_and_document_before_independent_readback(
+    configured_key,
+):
+    catalog = ReceiptCatalog()
+    receipt = replace(_receipt(), evidence_url="")
+    result = write_receipt(receipt, catalog, confirmation_timeout=0)
+    assert result["confirmed"] is True
+    assert result["receipt"]["context_hash"] != receipt.context_hash
+    assert result["receipt"]["evidence_url"] == "urn:li:document:written-evidence"
+    status = get_verification_status(HARMLESS, catalog)
+    assert status["attestation"] == "SIGNED"
+    assert property_urn("signature") == SIGNATURE_PROPERTY
+    catalog.properties[property_urn("policy_hash")] = ["changed"]
+    assert get_verification_status(HARMLESS, catalog)["attestation"] == "TAMPERED"
+
+
+@pytest.mark.parametrize(
+    "invalid_key", ["invalid-base64", "wrong-key", "missing-public-key"]
+)
+def test_writer_rejects_unusable_signing_identity_before_catalog_calls(
+    configured_key, invalid_key, monkeypatch, tmp_path: Path
+):
+    if invalid_key == "missing-public-key":
+        monkeypatch.setattr(
+            "sidq.receipt.attestation.PUBLIC_KEY_FILE", tmp_path / "missing"
+        )
+    else:
+        material = (
+            "invalid-base64"
+            if invalid_key == "invalid-base64"
+            else base64.b64encode(
+                Ed25519PrivateKey.generate().private_bytes_raw()
+            ).decode()
+        )
+        monkeypatch.setenv("SIDQ_SIGNING_KEY", material)
+    catalog = ReceiptCatalog()
+    with pytest.raises(SigningKeyError):
+        write_receipt(_receipt(), catalog, confirmation_timeout=0)
+    assert catalog.calls == []
+
+
+def test_unsigned_rewrite_removes_the_previous_signature(configured_key, monkeypatch):
+    catalog = ReceiptCatalog()
+    write_receipt(_receipt(), catalog, confirmation_timeout=0)
+    assert SIGNATURE_PROPERTY in catalog.properties
+    monkeypatch.delenv("SIDQ_SIGNING_KEY")
+    write_receipt(replace(_receipt(), verdict="WARN"), catalog, confirmation_timeout=0)
+    assert SIGNATURE_PROPERTY not in catalog.properties
+    assert get_verification_status(HARMLESS, catalog)["attestation"] == "UNATTESTED"
+
+
+def test_failed_unsigned_rewrite_restores_the_previous_signature(
+    configured_key, monkeypatch
+):
+    catalog = ReceiptCatalog()
+    write_receipt(_receipt(), catalog, confirmation_timeout=0)
+    before = dict(catalog.properties)
+    monkeypatch.delenv("SIDQ_SIGNING_KEY")
+    catalog.reject_next_properties = True
+    with pytest.raises(RuntimeError, match="write rejected"):
+        write_receipt(
+            replace(_receipt(), verdict="WARN"), catalog, confirmation_timeout=0
+        )
+    assert catalog.properties == before
+    assert get_verification_status(HARMLESS, catalog)["attestation"] == "SIGNED"
+
+
+def test_presigned_body_requires_the_key_to_bind_the_final_write(key, monkeypatch):
+    monkeypatch.delenv("SIDQ_SIGNING_KEY", raising=False)
+    catalog = ReceiptCatalog()
+    with pytest.raises(SigningKeyError):
+        write_receipt(_receipt().signed(key), catalog, confirmation_timeout=0)
+    assert catalog.calls == []
+
+
+def test_catalog_reordering_multivalue_properties_preserves_signature(key):
+    receipt = replace(_receipt(), rules_fired=("a", "b")).signed(key)
+    values = receipt.structured_property_values()
+    values[property_urn("rules_fired")].reverse()
+    assert attest(HARMLESS, values, key.public_key()) is Attestation.SIGNED
+
+
+def test_multiple_signatures_are_rejected(key):
+    values = _receipt().signed(key).structured_property_values()
+    values[SIGNATURE_PROPERTY].append("another-signature")
+    assert attest(HARMLESS, values, key.public_key()) is Attestation.TAMPERED
 
 
 def _receipt(urn: str = HARMLESS) -> Receipt:

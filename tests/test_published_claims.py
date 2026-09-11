@@ -1159,7 +1159,13 @@ def test_liveness_is_dependency_free_and_names_the_exact_demo_surface(
         "status": "ok",
         "service": "sidq-landing",
         "live_demos": sorted(server.RUNNABLE),
-        "release": {"state": "local/dev", "commit_sha": None},
+        "release": {
+            "state": "local/dev",
+            "commit_sha": None,
+            "commit_sha_describes": "release directory",
+            "submission_baseline": "02969cb46a86c44a7b411ff98d9e05c4f6fd3c93",
+            "content": "live-presentation-copy",
+        },
     }
 
 
@@ -1174,6 +1180,9 @@ def test_release_sha_is_validated_or_derived_from_the_resolved_release_path(
     assert server._health_payload()["release"] == {
         "state": "deployed",
         "commit_sha": explicit.lower(),
+        "commit_sha_describes": "release directory",
+        "submission_baseline": "02969cb46a86c44a7b411ff98d9e05c4f6fd3c93",
+        "content": "live-presentation-copy",
     }
 
     monkeypatch.setenv("SIDQ_RELEASE_SHA", "../../etc/passwd")
@@ -1188,7 +1197,13 @@ def test_release_sha_is_validated_or_derived_from_the_resolved_release_path(
     assert server._release_sha() is None
     payload = server._health_payload()
     rendered = json.dumps(payload)
-    assert payload["release"] == {"state": "local/dev", "commit_sha": None}
+    assert payload["release"] == {
+        "state": "local/dev",
+        "commit_sha": None,
+        "commit_sha_describes": "release directory",
+        "submission_baseline": "02969cb46a86c44a7b411ff98d9e05c4f6fd3c93",
+        "content": "live-presentation-copy",
+    }
     assert "/opt/" not in rendered and str(ROOT) not in rendered
 
 
@@ -1570,7 +1585,7 @@ def test_landing_calls_its_buttons_live_demos_not_all_agents() -> None:
     landing = (ROOT / "web" / "index.html").read_text(encoding="utf-8")
     server = (ROOT / "web" / "server.py").read_text(encoding="utf-8")
 
-    assert re.search(r"\bFive live proofs\b", landing), (
+    assert re.search(r"\bFive runnable demonstrations\b", landing), (
         "the landing page must state how many live proofs it offers"
     )
 

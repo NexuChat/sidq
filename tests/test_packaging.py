@@ -18,7 +18,11 @@ def test_package_metadata_declares_runtime_resources_and_pep639_license() -> Non
     assert project["project"]["license"] == "Apache-2.0"
     assert project["project"]["license-files"] == ["LICENSE"]
     assert project["tool"]["setuptools"]["package-data"] == {
-        "sidq": ["claims/head.npz", "policy/default_policy.yaml"]
+        "sidq": [
+            "claims/head.npz",
+            "policy/default_policy.yaml",
+            "receipt/signing-key.pub",
+        ]
     }
 
 
@@ -102,11 +106,13 @@ sys.path.insert(0, str(install_dir))
 import sidq
 from sidq.claims.reader import EmbeddingClaimReader
 from sidq.policy.engine import load_policy
+from sidq.receipt.attestation import load_public_key
 
 module_path = Path(sidq.__file__).resolve()
 assert module_path.is_relative_to(install_dir), module_path
 assert not module_path.is_relative_to(repo_root), module_path
 assert load_policy().rules
+assert load_public_key() is not None, "the installed wheel lost its receipt verification key"
 reader = EmbeddingClaimReader()
 packaged_head = module_path.parent / "claims" / "head.npz"
 assert packaged_head.is_file()

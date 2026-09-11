@@ -3,24 +3,24 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Sidq verifies schema, lineage, governance, ownership, and documented claims before DataHub agents act, then returns a deterministic PASS, WARN, or BLOCK decision.">
+    <meta name="description" content="Sidq verifies DataHub against itself, live PostgreSQL—including documented promises and enforced constraints—and transformation SQL before agents act.">
     <meta name="theme-color" content="#0a0a09">
     <link rel="canonical" href="https://sidq.mlki.app/">
     <meta property="og:type" content="website">
-    <meta property="og:title" content="Sidq — Is the catalog lying?">
-    <meta property="og:description" content="When DataHub says a column exists but the source says it does not, Sidq blocks the agent before it builds on the disagreement.">
+    <meta property="og:title" content="Sidq — Verify DataHub Context Before Agents Act">
+    <meta property="og:description" content="DataHub says the column exists. PostgreSQL says it doesn’t. Sidq checks schema, documented promises, constraints, and lineage before an agent acts.">
     <meta property="og:url" content="https://sidq.mlki.app/">
     <meta property="og:image" content="https://sidq.mlki.app/social-preview.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
     <meta property="og:image:alt" content="Sidq evidence graph ending in a deterministic BLOCK and an optional receipt">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="Sidq — Is the catalog lying?">
-    <meta name="twitter:description" content="Prove the context before the agent acts.">
+    <meta name="twitter:title" content="Sidq — Verify DataHub Context Before Agents Act">
+    <meta name="twitter:description" content="Verify schemas, documented promises, constraints, and lineage before the agent acts.">
     <meta name="twitter:image" content="https://sidq.mlki.app/social-preview.png">
     <link rel="icon" type="image/png" href="data:image/png;base64,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">
-    <title>Sidq — Is the catalog lying? Truth verification for DataHub agents</title>
-    <link rel="stylesheet" href="styles.css?v=034705980703a972">
+    <title>Sidq — Verify DataHub Context Before Agents Act</title>
+    <link rel="stylesheet" href="styles.css?v=82d5eaa2c44574e7">
   </head>
 <body>
     <header class="masthead">
@@ -30,12 +30,12 @@
           <span class="brand-name">SIDQ <span lang="ar" class="brand-ar">صدق</span></span>
         </a>
         <nav class="top-nav" aria-label="Sections">
-          <a href="#drift">Reality</a>
-          <a href="#written-back">Written back</a>
-          <a href="#as-a-team">As a team</a>
-          <a href="#catalog-conflict">The lie</a>
+          <a href="#drift">The claim</a>
+          <a href="#gate">The gate</a>
           <a href="#refusal">The refusal</a>
+          <a href="#repair">The repair</a>
           <a href="#receipt">The receipt</a>
+          <a href="#as-a-team">The swarm</a>
           <a href="#reproduce">Reproduce</a>
           <a href="/scope.html">Scope</a>
         </nav>
@@ -47,23 +47,31 @@
       <section class="hero" aria-labelledby="hero-heading">
         <div class="wrap hero-grid">
           <div class="hero-copy">
-            <p class="eyebrow reveal">Catalog truth verification · DataHub-native</p>
+            <p class="eyebrow reveal">Verification control for DataHub agents</p>
             <h1 id="hero-heading" class="reveal r1">DataHub says the column exists.
-              <span class="lying">The source says it does not.</span></h1>
-            <p class="sub reveal r2">Sidq blocks the agent before it builds on the disagreement — and, on request, writes the proof back through DataHub’s official MCP tools. The judged path is deterministic: <strong>PASS</strong>, <strong>WARN</strong>, or <strong>BLOCK</strong>. No LLM decides it.</p>
+              <span class="lying">PostgreSQL says it doesn’t.</span></h1>
+            <p class="sub reveal r2">Sidq cross-checks DataHub against its own graph, live PostgreSQL, and the transformation SQL behind stored lineage before an agent acts. A deterministic policy returns <strong>PASS</strong>, <strong>WARN</strong>, or <strong>BLOCK</strong>, proves any repair, and writes re-verifiable evidence back to DataHub.</p>
+            <p class="boundary reveal r2">No LLM decides. Missing evidence never becomes a pass.</p>
+            <ul class="proof-strip reveal r2" role="list" aria-label="What backs this page">
+              <li>Live PostgreSQL</li>
+              <li><strong>285</strong> contradictions in DataHub’s own showcase catalog</li>
+              <li>Docs + constraints vs PostgreSQL</li>
+              <li><strong>1,180</strong> tests · <strong>84.20%</strong> branch</li>
+              <li>Official DataHub MCP</li>
+            </ul>
             <div class="cta-row reveal r3">
-              <button class="btn-primary" type="button" data-run="handoff" aria-controls="run-output">Run the live receipt read</button>
-              <a class="btn-ghost" href="#exhibit-a-heading">See a catalog contradict itself ↓</a>
+              <button class="btn-primary" type="button" data-run="claims" aria-controls="run-output">Test DataHub against live PostgreSQL · ~35s</button>
+              <button class="btn-secondary" type="button" data-run="gate-demo" aria-controls="run-output">Re-derive a BLOCK · under a second</button>
             </div>
             <nav class="evidence-index reveal r3" aria-label="Evidence on this page">
-              <p class="eyebrow">Seven proofs below, in judging order</p>
+              <p class="eyebrow">Compare → Decide → Prove → Remember</p>
               <ol>
-                <li><a href="#drift">Catalog vs reality</a> — the disagreement above, shown</li>
-                <li><a href="#written-back">Written back</a> — the verdict in DataHub&rsquo;s own Quality tab</li>
-                <li><a href="#as-a-team">As a team</a> — four agents, the catalog their only shared state</li>
-                <li><a href="#catalog-conflict">The catalog vs itself</a> — 285 contradictions in DataHub&rsquo;s own sample</li>
-                <li><a href="#refusal">The refusal</a> — a PII removal blocked along its lineage</li>
-                <li><a href="#receipt">The receipt</a> — a second agent re-derives the answer</li>
+                <li><a href="#drift">The claim</a> — a catalog can disagree with the source, and with itself</li>
+                <li><a href="#gate">The gate</a> — the same agent, with and without permission to check</li>
+                <li><a href="#refusal">The refusal</a> — a PII removal blocked along real lineage</li>
+                <li><a href="#repair">The repair</a> — a fix that only moves the leak is rejected</li>
+                <li><a href="#receipt">The receipt</a> — written into DataHub, then verified by someone else</li>
+                <li><a href="#as-a-team">The swarm</a> — four agents, the catalog their only shared state</li>
                 <li><a href="#reproduce">Reproduce</a> — re-derive the BLOCK on your machine</li>
               </ol>
             </nav>
@@ -73,12 +81,18 @@
           <div class="terminal handoff-run reveal r2" aria-busy="false">
             <div class="terminal-bar">
               <span class="tl-dot" aria-hidden="true"></span><span class="tl-dot" aria-hidden="true"></span><span class="tl-dot" aria-hidden="true"></span>
-              <span class="terminal-title">agent-b · independent receipt read</span>
+              <span class="terminal-title">the sidq loop · live proof console</span>
             </div>
             <div class="terminal-body">
+              <dl class="sidq-loop" aria-label="What Sidq does, in four steps">
+                <div><dt>Compare</dt><dd>DataHub ↔ DataHub · live PostgreSQL · transformation SQL</dd></div>
+                <div><dt>Decide</dt><dd>one deterministic policy → PASS · WARN · BLOCK</dd></div>
+                <div><dt>Prove</dt><dd>simulate the repair, then re-run every check against the catalog it would create</dd></div>
+                <div><dt>Remember</dt><dd>native Assertion + Receipt → a separate reader verifies it again</dd></div>
+              </dl>
               <section id="recorded-proof" aria-labelledby="recorded-proof-label">
                 <p class="fine" id="recorded-proof-label"><strong>Recorded proof — not live.</strong> Output of <code>make gate-demo</code>, captured at git revision <code>f006136</code>. <strong>Offline verdict</strong> below re-runs this exact command live on this host; the buttons beside it run different proofs.</p>
-                <pre id="recorded-output" tabindex="0" aria-label="Recorded stdout from make gate-demo">examples/01 and every artifact quoting its hash are current
+                <pre id="recorded-output" tabindex="0" role="region" aria-label="Recorded stdout from make gate-demo">examples/01 and every artifact quoting its hash are current
 
 DECISION : BLOCK
 RULES    : wide_blast_radius, critical_downstream
@@ -89,31 +103,55 @@ Reproduced from examples/01-blocked-pii-dashboard/ — same policy, same commit,
 byte-identical verdict. Full evidence: examples/01-blocked-pii-dashboard/verdict.json
 </pre>
               </section>
-              <p id="run-status" aria-live="polite">Agent B reads a receipt Agent A persisted in DataHub, then re-derives the answer itself. Read-only.</p>
+              <p id="run-status" aria-live="polite">Five fixed read-only commands run on this host. Output prints here.</p>
               <p id="run-progress" aria-live="polite" hidden></p>
               <pre id="run-output" tabindex="-1" hidden></pre>
               <div class="run-row">
                 <button class="chip" type="button" data-run="claims" aria-controls="run-output">Test the docs against live PostgreSQL · ~35s</button>
                 <button class="chip" type="button" data-run="gate-demo" aria-controls="run-output">Offline verdict</button>
                 <button class="chip" type="button" data-run="audit" aria-controls="run-output">Catalog audit</button>
-                <button class="chip" type="button" data-run="repair" aria-controls="run-output">Repair agent · ~45s</button>
+                <button class="chip" type="button" data-run="repair" aria-controls="run-output">Prove repairs — dry run · ~45s</button>
+                <button class="chip" type="button" data-run="handoff" aria-controls="run-output">Verify the Receipt handoff · ~25s</button>
               </div>
-              <p class="fine">Five live proofs, each a fixed read-only command from a closed table. The times beside them are measured on this host, not estimated. The first is the one no catalog can answer on its own: it compiles what DataHub <em>documents</em> about a field into bounded SQL and runs it against the source.</p>
+              <p class="fine">Five runnable demonstrations, each a fixed read-only command from a closed table. They are what this host will execute for you — not the whole of what the page proves. Claims turns DataHub prose into bounded SELECT-only SQL against PostgreSQL; audit hunts catalog contradictions; repair proves proposed fixes without applying them; handoff re-verifies persisted state; gate-demo re-derives the committed BLOCK offline. The times beside them are measured on this host, not estimated.</p>
               <details class="mcp-tools">
                 <summary>Three read-only MCP tools</summary>
                 <p class="fine">No hidden mutation. Their verification store is not a DataHub Receipt reader — the independent Receipt read is the proof above.</p>
                 <p class="tool-row"><code>check_change</code> · <code>verify_context</code> · <code>search_verified</code></p>
+              </details>
+              <details class="mcp-tools">
+                <summary>Use Sidq in an agent or CI</summary>
+                <p class="fine">One engine and one policy hash behind every surface: an MCP server agents call directly, a DataHub Skill that fires on &ldquo;can I trust this asset&rdquo;, the CLI, a GitHub Action, and a PR bot that posts a single provenance-honest verdict on the diff.</p>
+                <p class="tool-row"><code>sidq-mcp</code> · <code>skills/datahub-verify</code> · <code>action.yml</code> · <code>python -m sidq.bot.action</code></p>
+                <p class="fine">Nothing below is a placeholder. <code>$PWD</code> resolves while you stand in the checkout, so the MCP registration needs no path editing at all:</p>
+                <pre class="install-lines" tabindex="0" role="region" aria-label="Register the Sidq MCP server">cd sidq &amp;&amp; make install
+
+codex mcp add sidq \
+  --env DATAHUB_GMS_URL=http://localhost:8080 \
+  --env SIDQ_REPO_ROOT="$PWD" \
+  -- "$PWD/.venv/bin/sidq-mcp"</pre>
+                <p class="fine"><code>SIDQ_REPO_ROOT</code> is the repository whose SQL gets gated. The Sidq checkout works for a first run; point it at your own repository afterwards.</p>
+                <p class="fine">The Skill is the one place a path is genuinely yours — it installs <em>into</em> the data repository, not into Sidq:</p>
+                <pre class="install-lines" tabindex="0" role="region" aria-label="Install the DataHub verification Skill">cd /the/data-repository-you-want-verified
+npx skills add NexuChat/sidq --skill datahub-verify --agent codex</pre>
               </details>
             </div>
           </div>
         </div>
       </section>
 
-      <section class="exhibit" id="drift" aria-labelledby="drift-heading">
+
+
+
+
+
+
+
+<section class="exhibit" id="drift" aria-labelledby="drift-heading">
         <div class="wrap">
-          <p class="kicker"><span class="kicker-no">01</span> Catalog vs reality</p>
-          <h2 id="drift-heading">The headline, demonstrated.</h2>
-          <p class="lede">Comparing a catalog with itself finds contradictions. It cannot find the case where the catalog is perfectly consistent and simply out of date. So Sidq also checks the live source.</p>
+          <p class="kicker"><span class="kicker-no">01</span> The claim</p>
+          <h2 id="drift-heading">A catalog can agree with itself&mdash;and still be wrong.</h2>
+          <p class="lede">Catalog-only checks can expose contradictions inside metadata. They cannot detect a catalog that is internally consistent but no longer matches the source. Sidq crosses that boundary before an agent plans or writes.</p>
 
           <div class="drift-pair">
             <div class="drift-side">
@@ -129,69 +167,34 @@ byte-identical verdict. Full evidence: examples/01-blocked-pii-dashboard/verdict
           </div>
 
           <p class="drift-verdict"><strong>BLOCK</strong> — on the context, before the agent plans against a column that no longer exists.</p>
-          <p class="fine">Neither side of that comparison is available to a tool that only reads metadata. The nearest live proof on this page is the first button above: <code>sidq claims</code> takes what DataHub <em>documents</em> about a field, compiles it to bounded read-only SQL, runs it against the source, and lets the deterministic engine judge the row count that comes back. The schema-drift demo itself needs the local PostgreSQL from the runbook, because it alters a real table.</p>
-        </div>
-      </section>
 
-<section class="exhibit" id="written-back" aria-labelledby="native-heading">
-        <div class="wrap">
-          <p class="kicker"><span class="kicker-no">02</span> Written back</p>
-          <h2 id="native-heading">The verdict lands in DataHub's own Quality tab.</h2>
-          <p class="lede">Not a dashboard of Sidq's own. Each policy rule becomes a native DataHub Assertion through the documented custom-assertion API, reported by that rule's own severity, sitting beside the dataset's real owners and glossary terms — with <code>sidq</code> as the assertion platform.</p>
-
-          <figure class="native-shot">
-            <img src="quality-tab.png?v=2e8b83ce11bfdd0f" alt="DataHub's Quality tab for the products dataset: one passing assertion named Sidq policy rule sidq.verdict, platform sidq, category SIDQ.POLICY_RULE, from an External source." loading="lazy">
-            <figcaption class="fine">DataHub OSS v1.5.0.6, captured in a logged-in browser session. The filter row reads <strong>Passing (1)</strong>, <strong>SIDQ.POLICY_RULE (1)</strong>, <strong>External (1)</strong>. A rule that stops firing is retired once; an assertion an operator soft-deleted is never resurrected. The reproducible half — the GraphQL response DataHub's own UI issues — is in <a href="https://github.com/NexuChat/sidq/tree/main/examples/06-native-assertion">examples/06-native-assertion ↗</a>.</figcaption>
-          </figure>
-        </div>
-      </section>
-
-<section class="exhibit" id="as-a-team" aria-labelledby="swarm-heading">
-        <div class="wrap">
-          <p class="kicker"><span class="kicker-no">03</span> As a team</p>
-          <h2 id="swarm-heading">Four agents, one catalog, no boss.</h2>
-          <p class="lede">The receipts are not only the output — they are the only shared state four concurrent auditors have. No coordinator, no message bus, no lock service, no shared filesystem. One is killed thirty seconds in, and nothing is stranded, because nothing was ever assigned to it.</p>
-
-          <p class="fine"><strong>Recorded, not runnable here — and that is the point.</strong> Every proof button on this page runs a command that cannot write to a catalog. The swarm coordinates <em>by writing</em>, so it can never be one of them; a read-only swarm would demonstrate nothing. This is the verbatim output of <code>make swarm-demo</code> against a DataHub OSS v1.5.0.6 quickstart, run <code>swarm-1786323944</code>. Run it yourself with the five-command runbook.</p>
-
-          <pre class="recorded-swarm" tabindex="0" aria-label="Recorded stdout from make swarm-demo">== four workers start together — no coordinator, no IPC ==
-
-Swarm worker alpha
-  examined          6
-  receipts written  6
-  vouched by peers  1 (beta) — their receipts held, so this worker moved on
-Swarm worker beta
-  examined          6
-  receipts written  5
-  vouched by peers  1 (alpha) — their receipts held, so this worker moved on
-  write failures    1
-Swarm worker gamma
-  examined          6
-  receipts written  3
-  vouched by peers  4 (alpha, beta) — their receipts held, so this worker moved on
-
-  >> killed delta mid-run — its unfinished assets were never assigned to it
-
-== overlap, from the surviving workers' own reports ==
-  worker reports found     3 of 4 expected
-  total examinations       18
-  distinct assets examined 14
-  duplicated examinations  4
-
-== the ledger, read from DataHub by a process that audited nothing ==
-  current valid receipts   9 of 50
-  alpha 4 · beta 2 · gamma 3
-</pre>
-
-          <p class="fine">Two different kinds of evidence, kept apart. The overlap is what each surviving worker reported about <em>itself</em> — DataHub stores only the latest receipt and cannot count collisions after the fact. The ledger beneath it was read back out of the catalog by a fifth process that examined nothing. The first measurement of this run failed, at 6 distinct assets of 18 examinations, and two defects were found and fixed because the number existed.</p>
-        </div>
-      </section>
-
-<section class="exhibit" id="catalog-conflict" aria-labelledby="exhibit-a-heading">
-        <div class="wrap">
-          <p class="kicker"><span class="kicker-no">04</span> The catalog vs itself</p>
-          <h2 id="exhibit-a-heading">Two claims. Same catalog.<br>Both cannot be true.</h2>
-          <p class="lede">Sidq's read-only audit of <code>showcase-ecommerce</code> — the sample catalog DataHub itself ships — found internal contradictions. Here is one, whole.</p>
+          <h3 class="triad-heading">One context. Three independent comparisons.</h3>
+          <div class="compare-triad">
+            <div class="compare-card">
+              <p class="compare-pair"><code>DataHub</code> <span class="compare-rel" aria-hidden="true">&harr;</span><span class="sr-only">compared with</span> <code>DataHub</code></p>
+              <p class="fine">Six contradiction families across stored schema, field lineage, protection metadata, documentation, deprecation, and ownership.</p>
+            </div>
+            <div class="compare-card">
+              <p class="compare-pair"><code>DataHub</code> <span class="compare-rel" aria-hidden="true">&harr;</span><span class="sr-only">compared with</span> <code>PostgreSQL</code></p>
+              <p class="fine">Schema fields, documented row-level promises, and the constraints the database actually enforces.</p>
+            </div>
+            <div class="compare-card">
+              <p class="compare-pair"><code>Stored lineage</code> <span class="compare-rel" aria-hidden="true">&harr;</span><span class="sr-only">compared with</span> <code>SQL</code></p>
+              <p class="fine">Edges DataHub stores but SQL no longer produces&mdash;and edges SQL produces that DataHub never recorded.</p>
+            </div>
+          </div>
+          <ul class="proof-strip triad-depth" role="list" aria-label="Verification surface">
+            <li><strong>5</strong> claim types</li>
+            <li><strong>6</strong> catalog contradiction families</li>
+            <li><strong>38</strong> explicit policy rules</li>
+            <li><strong>3</strong> read-only MCP tools</li>
+          </ul>
+          <p class="fine">The public <code>claims</code> run is the non-mutating live-source proof: DataHub prose becomes bounded SELECT-only SQL, and only returned row counts determine the verdict. The schema-rename demonstration remains in the local runbook because it deliberately changes PostgreSQL. Any missing comparison is reported as unverifiable, never clean.</p>
+          <details class="mcp-tools"><summary>Where a model is allowed to act</summary>
+            <p class="fine">Turning a documented sentence into a testable claim is the one place a model earns its keep &mdash; and the only place it is allowed to act. A 16&nbsp;KB linear head over frozen third-party embeddings proposes claims at <strong>95.8% precision</strong> and <strong>58.0% recall</strong> across 72 proposals, against a <strong>17.4%</strong> rule baseline. It proposes only <code>unique</code> and <code>not_null</code>; a proposal that cannot be compiled to SQL is dropped; and it never emits a verdict. It may extend <strong>WARN</strong> coverage after the deterministic rules abstain, and it can never turn a <strong>PASS</strong> into a <strong>BLOCK</strong>.</p>
+          </details>
+          <h3 class="chapter-sub" id="exhibit-a-heading"><span class="stat-red">285</span> contradictions.<br>In DataHub&rsquo;s own showcase catalog.</h3>
+          <p class="lede">A read-only audit found 285 instances of one contradiction family: stored lineage pointing to fields the destination datasets&rsquo; own schemas say do not exist — in <code>showcase-ecommerce</code>, the sample catalog DataHub itself ships. Here is one, whole.</p>
 
           <div class="clash" role="group" aria-label="Two contradicting catalog claims">
             <div class="claim-card">
@@ -210,25 +213,64 @@ Swarm worker gamma
           </div>
 
           <p class="verdict-line">Both statements live inside the catalog. <strong>No source system was consulted.</strong> They cannot both be true.</p>
-          <p class="fine">And the same read says who wrote them. Attributing each side to its ingestion run — one query parameter, no extra calls — shows that the run which wrote the lineage is the run that wrote the schema, in all five affected assets and every stored version: ten out of ten. So this is not two sources disagreeing; one writer produced both halves in the same run. A later run reproduced the shape exactly rather than repairing it, which is why the finding names a job to fix rather than a state to refresh. <a href="https://github.com/NexuChat/sidq/blob/main/docs/TRUTH-REPORT.md">How that was measured ↗</a></p>
+          <p class="fine">And the same read says who wrote them. Attributing each side to its ingestion run — one query parameter, no extra calls — shows that the run which wrote the lineage is the run that wrote the schema, in all five affected assets and every stored version: ten out of ten. So this is not two sources disagreeing; one writer produced both halves in the same run. A later run reproduced the shape exactly rather than repairing it, which is why the finding names a job to fix rather than a state to refresh. <a href="https://github.com/NexuChat/sidq/blob/02969cb46a86c44a7b411ff98d9e05c4f6fd3c93/docs/TRUTH-REPORT.md">How that was measured ↗</a></p>
+          <p class="fine">That is one of six catalog-self-checks. Sidq also checks for protection markers lost across field lineage, documentation naming absent columns, orphan edges, deprecated assets feeding live BI, and consumed assets with no owner. A bounded or incomplete read is reported as unverifiable, not clean.</p>
+          <p class="fine">It also decides what to look at. The audit ranks every asset by how much damage a lie about it would do and spends its budget on the worst first &mdash; then lets what it finds change the order: an asset caught in a contradiction promotes its neighbours ahead of their static score, because contradictions cluster. Same catalog, same sequence every time; a different catalog, a different one.</p>
 
           <dl class="stats" aria-label="Audit results on the shipped sample catalog">
             <div><dt class="stat-red">285</dt><dd>internal contradictions</dd></div>
             <div><dt>67</dt><dd>datasets examined</dd></div>
             <div><dt>5</dt><dd>assets they cluster in</dd></div>
-            <div><dt>0</dt><dd>source systems consulted</dd></div>
+            <div><dt>29</dt><dd>consumed assets with no owner</dd></div>
           </dl>
 
           <div class="section-run">
             <button class="btn-secondary" type="button" data-run="audit" aria-controls="run-output">Hunt contradictions in the live catalog · ~30s</button>
             <span class="fine">Real read-only audit over the official MCP server. Output prints in the console above.</span>
           </div>
+
+        </div>
+      </section>
+
+<section class="exhibit" id="gate" aria-labelledby="gate-heading">
+        <div class="wrap">
+          <p class="kicker"><span class="kicker-no">02</span> The gate</p>
+          <h2 id="gate-heading">No LLM decides whether the agent may act.</h2>
+          <p class="lede">Five evidence gates feed one deterministic policy. A model may propose a bounded read-only test; only returned evidence can move the verdict.</p>
+          <h3 class="triad-heading">Same agent. Same goal. Same catalog.<br>Only one of them is allowed to check.</h3>
+          <div class="drift-pair agent-pair">
+            <div class="drift-side">
+              <p class="kicker">Without Sidq</p>
+              <p class="fine">Reads the catalog, sees 22 columns including <code>cust_email</code>, and writes the query. Nothing here is careless — the catalog answered, and there was nothing else to ask.</p>
+              <pre class="agent-out" tabindex="0" role="region" aria-label="SQL the unguarded agent produced">select region_id, count(cust_email)
+from order_entry.customers
+group by region_id</pre>
+            </div>
+            <div class="drift-side drift-side--stopped">
+              <p class="kicker">With Sidq</p>
+              <p class="fine">Same code path, one addition: it verifies before it proposes. <code>verify_context</code> returns <strong>0 findings</strong> and <strong>24 checks it could not complete</strong>.</p>
+              <pre class="agent-out" tabindex="0" role="region" aria-label="What the guarded agent produced">-- No SQL proposed.
+--   not checked: schema_drift (no live source configured)
+--   not checked: lineage_rot ×22 (no target-side column lineage)
+--   not checked: constraint_reconciliation</pre>
+            </div>
+          </div>
+          <p class="fine"><strong>Read that refusal precisely.</strong> Offline, the agent did not catch the catalog lying — it produced zero findings. It stopped because three checks could not run at all, and it names each one instead of dropping it. That is the exact substitution this project exists to refuse: <strong>“we did not check” is not “we checked and it passed.”</strong> <a href="https://github.com/NexuChat/sidq/tree/02969cb46a86c44a7b411ff98d9e05c4f6fd3c93/examples/05-agent-that-stops" rel="noopener">Both transcripts ↗</a></p>
+
+          <ul class="proof-strip surface-row" role="list" aria-label="Ways to use Sidq">
+            <li>Adaptive auditor</li>
+            <li>Sidq MCP</li>
+            <li>Agent Skill</li>
+            <li>CLI</li>
+            <li>GitHub Action</li>
+            <li>PR bot</li>
+          </ul>
         </div>
       </section>
 
 <section class="exhibit" id="refusal" aria-labelledby="exhibit-b-heading">
         <div class="wrap">
-          <p class="kicker"><span class="kicker-no">05</span> The refusal</p>
+          <p class="kicker"><span class="kicker-no">03</span> The refusal</p>
           <div class="refusal-head">
             <span class="block-chip">BLOCK</span>
             <h2 id="exhibit-b-heading">An agent proposed removing <code>cust_email</code>.<br>Sidq refused — with evidence.</h2>
@@ -264,14 +306,62 @@ Swarm worker gamma
             <button class="btn-secondary" type="button" data-run="gate-demo" aria-controls="run-output">Re-derive this BLOCK from the committed fixture · under a second</button>
             <span class="fine">Byte-identical replay — no DataHub, no credentials. Output prints in the console above.</span>
           </div>
+
+          <h3 class="triad-heading">The same refusal, on real pull requests.</h3>
+          <p class="fine">Four public pull requests on this repository carry the PR bot&rsquo;s own verdicts, each read against a <strong>live DataHub</strong>, not a fixture. Two pass, two are refused with the rules named. One sticky comment per PR, rewritten in place rather than repeated.</p>
+          <ol class="pr-verdicts" aria-label="Bot verdicts on public pull requests">
+            <li><a href="https://github.com/NexuChat/sidq/pull/1" rel="noopener">#1 harmless column ↗</a><span class="pill pill-green">PASS</span><span>no blocking or warning rule fired · <a href="https://github.com/NexuChat/sidq/blob/cea2b1a35701/examples/pr-1/verdict.json" rel="noopener">verdict.json ↗</a></span></li>
+            <li><a href="https://github.com/NexuChat/sidq/pull/2" rel="noopener">#2 remove <code>cust_email</code> ↗</a><span class="pill pill-red">BLOCKED</span><span><code>pii_exposure</code> · <code>critical_downstream</code> · <a href="https://github.com/NexuChat/sidq/blob/90983db407dc/examples/pr-2/verdict.json" rel="noopener">verdict.json ↗</a></span></li>
+            <li><a href="https://github.com/NexuChat/sidq/pull/3" rel="noopener">#3 stale catalog context ↗</a><span class="pill pill-red">BLOCKED</span><span><code>unknown_field</code> · <code>catalog_reality_mismatch</code> · <a href="https://github.com/NexuChat/sidq/blob/5806348b44a9/examples/pr-3/verdict.json" rel="noopener">verdict.json ↗</a></span></li>
+            <li><a href="https://github.com/NexuChat/sidq/pull/4" rel="noopener">#4 compatible migration ↗</a><span class="pill pill-green">PASS</span><span>proven against the live graph, with a receipt · <a href="https://github.com/NexuChat/sidq/blob/9514aa3c6e26/examples/pr-4/verdict.json" rel="noopener">verdict.json ↗</a></span></li>
+          </ol>
+          <div class="callout">
+            <p class="callout-heading">The checks on these four pull requests are red. The reason is published here rather than left to be found.</p>
+            <p class="fine">Both defects are in the bot that posts, not in the engine that decides. The workflow grants <code>issues: write</code>, but GitHub governs commenting on a pull request under <code>pull-requests</code> &mdash; so the bot is refused with 403 and the run fails. On <a href="https://github.com/NexuChat/sidq/pull/3" rel="noopener">#3 &#8599;</a> a second defect fires first: one graph recording is absent from the committed fixtures, and the doc-rot gate turned that unavailable catalog into a <code>KeyError</code> instead of a refusal to certify.</p>
+            <p class="fine">The verdicts above were read against a live catalog, and each is linked in full so it stands without the bot. These defects describe the preserved submission. Both fixes are included in the post-competition code; the historical PR checks still describe the revisions they tested. A tool whose whole claim is that an unperformed check must never be reported as a clean one owes that standard to its own CI first.</p>
+          </div>
+        </div>
+      </section>
+
+<section class="exhibit" id="repair" aria-labelledby="repair-heading">
+        <div class="wrap">
+          <p class="kicker"><span class="kicker-no">04</span> The repair</p>
+          <h2 id="repair-heading">Sidq rejects fixes that only move the failure.</h2>
+          <p class="lede">A proposal is not a repair until the same deterministic engine re-runs against the catalog it would create.</p>
+          <div class="callout">
+            <h3 class="callout-heading">A repair must survive its own audit.</h3>
+            <p class="fine">Sidq repairs only what the catalog already proves. It can propagate a protection marker across the full downstream field-lineage closure, or assign an owner only when every owned upstream agrees. The other four contradiction families remain open with an explicit reason — because plausible metadata is still invented metadata.</p>
+            <p class="fine">A two-hop leak makes the point. <code>source</code> carries the PII marker; <code>middle</code> and <code>sink</code> do not.</p>
+            <div class="drift-pair repair-pair">
+              <div class="drift-side drift-side--rejected">
+                <p class="kicker">Rejected</p>
+                <p class="fine">Tag <code>middle#email</code> only. The named finding <em>is</em> resolved — and Sidq still refuses it, because re-running every check against the catalog it would create surfaces a new <code>pii_leak_untagged</code> on <code>sink</code>. It resolved the ticket and moved the leak.</p>
+              </div>
+              <div class="drift-side drift-side--proven">
+                <p class="kicker">Proven</p>
+                <p class="fine">Tag the full field-lineage closure — <code>middle</code> and <code>sink</code> together, in one call. Every check re-runs, no new finding appears, and the set is verified jointly rather than one at a time.</p>
+              </div>
+            </div>
+            <p class="fine">This is a pinned regression, not an illustration: the one-hop refusal is the exact failure a live catalog produced.</p>
+            <ol class="proof-chain" aria-label="How a repair is proven">
+              <li>Propose</li>
+              <li>Simulate</li>
+              <li>Re-run every check</li>
+              <li>Reject collateral</li>
+              <li>Prove the surviving set together</li>
+              <li>Write only with <code>--apply</code></li>
+              <li>Re-read live state</li>
+            </ol>
+            <p class="fine">An acknowledged mutation stays open until direct readback proves the original finding is gone and no new one appeared.</p>
+          </div>
         </div>
       </section>
 
 <section class="exhibit" id="receipt" aria-labelledby="receipt-heading">
         <div class="wrap">
-          <p class="kicker"><span class="kicker-no">06</span> The receipt</p>
+          <p class="kicker"><span class="kicker-no">05</span> The receipt</p>
           <h2 id="receipt-heading">The next agent verifies for itself.</h2>
-          <p class="lede">A receipt is not authority. A separate reader re-reads the graph context, re-checks policy hash and age, and answers on three axes it never collapses: does it apply, what did it decide, what may you do.</p>
+          <p class="lede">A receipt is not authority. A separate reader re-reads semantic metadata and complete one-hop lineage, then checks policy hash and age. Applicability, verdict, authorization, and coverage stay separate: a current BLOCK means &ldquo;checked and refused&rdquo; and still authorizes only STOP; absent, stale, or unreadable means RECHECK.</p>
 
           <div class="dispositions">
             <div class="disp disp-pass"><span class="disp-dot" aria-hidden="true"></span><strong>Current PASS</strong><span>Continue.</span></div>
@@ -280,15 +370,84 @@ Swarm worker gamma
             <div class="disp disp-unv"><span class="disp-dot" aria-hidden="true"></span><strong>NOT VERIFIED</strong><span>Missing, stale, or unreadable. Check again.</span></div>
           </div>
 
+          <h3 class="triad-heading" id="written-back">The verdict lands in DataHub&rsquo;s own Quality tab.</h3>
+<p class="fine">Not a dashboard of Sidq's own. Each policy rule becomes a native DataHub Assertion through the documented custom-assertion API, reported by that rule's own severity, sitting beside the dataset's real owners and glossary terms — with <code>sidq</code> as the assertion platform.</p>
+
+          <figure class="native-shot">
+            <img src="quality-tab.png?v=2e8b83ce11bfdd0f" width="1500" height="820" alt="DataHub's Quality tab for the products dataset: one passing assertion named Sidq policy rule sidq.verdict, platform sidq, category SIDQ.POLICY_RULE, from an External source." loading="lazy">
+            <figcaption class="fine">DataHub OSS v1.5.0.6, captured in a logged-in browser session. The filter row reads <strong>Passing (1)</strong>, <strong>SIDQ.POLICY_RULE (1)</strong>, <strong>External (1)</strong>. A rule that stops firing is retired once; an assertion an operator soft-deleted is never resurrected. The reproducible half — the GraphQL response DataHub's own UI issues — is in <a href="https://github.com/NexuChat/sidq/tree/02969cb46a86c44a7b411ff98d9e05c4f6fd3c93/examples/06-native-assertion">examples/06-native-assertion ↗</a>.</figcaption>
+          </figure>
+
+          <h3 class="triad-heading">One loop, through DataHub, end to end.</h3>
+          <ol class="loop-steps" aria-label="The complete DataHub loop">
+            <li><span class="loop-n" aria-hidden="true">1</span><strong>Read</strong><span>graph context through the official DataHub MCP server.</span></li>
+            <li><span class="loop-n" aria-hidden="true">2</span><strong>Decide</strong><span>one deterministic policy returns PASS, WARN, or BLOCK. No model participates.</span></li>
+            <li><span class="loop-n" aria-hidden="true">3</span><strong>Write</strong><span>each rule mirrors into <a href="#written-back">DataHub&rsquo;s own Quality tab</a> as a native Assertion; a Receipt is persisted through official MCP only when asked.</span></li>
+            <li><span class="loop-n" aria-hidden="true">4</span><strong>Read it back</strong><span>the exact structured body, or the write stays <code>write_unconfirmed</code>.</span></li>
+            <li><span class="loop-n" aria-hidden="true">5</span><strong>Re-verify</strong><span>a separate process re-reads the current context and judges again. An asset nobody examined stays <strong>NOT VERIFIED</strong>.</span></li>
+          </ol>
+          <p class="fine">A mutation acknowledgement is not success. Sidq trusts a Receipt only after a direct read returns its exact structured body; a mismatch remains <code>write_unconfirmed</code> and triggers bounded compensation instead of becoming trusted state.</p>
+
           <details class="method">
             <summary>How the decision is reached — one picture</summary>
             <div class="method-body">
               <div class="architecture-frame" tabindex="0" role="region" aria-label="Architecture diagram. Scroll horizontally to inspect at small sizes.">
                 <img src="architecture.svg?v=f6a3172bea473f00" alt="A change or agent question passes five evidence gates, one policy engine emits PASS, WARN or BLOCK, an opted-in audit can write a receipt into DataHub, and a later reader re-verifies it.">
               </div>
-              <p class="fine">Gates collect evidence. One engine decides. No model participates in a blocking decision. <a href="architecture.svg?v=f6a3172bea473f00" target="_blank" rel="noopener">Open full size ↗</a> · <a href="https://github.com/NexuChat/sidq/blob/main/ARCHITECTURE.md">ARCHITECTURE.md ↗</a></p>
+              <p class="fine">Gates collect evidence. One engine decides. No model participates in a blocking decision. <a href="architecture.svg?v=f6a3172bea473f00" target="_blank" rel="noopener">Open full size ↗</a> · <a href="https://github.com/NexuChat/sidq/blob/02969cb46a86c44a7b411ff98d9e05c4f6fd3c93/ARCHITECTURE.md">ARCHITECTURE.md ↗</a></p>
             </div>
           </details>
+        </div>
+      </section>
+
+<section class="exhibit" id="as-a-team" aria-labelledby="swarm-heading">
+        <div class="wrap">
+          <p class="kicker"><span class="kicker-no">06</span> The swarm</p>
+          <h2 id="swarm-heading">Four agents. No coordinator.<br>DataHub is the shared state.</h2>
+          <p class="lede">Four concurrent auditors coordinate only through DataHub-native receipts—no IPC, message bus, lock service, or shared filesystem. Kill one mid-run; the others keep working, because nothing was ever assigned to it. A fifth, independent process reconstructs the ledger from DataHub alone.</p>
+          <p class="fine">The same receipts are also how Sidq remembers across <em>time</em>. An audit runs on a bounded budget, so a catalog larger than one budget used to re-examine its worst assets forever and defer the tail forever. <code>sidq audit --resume</code> re-reads the receipts earlier runs wrote back, re-derives whether each still holds under the current policy hash, and spends the budget on assets no run has reached &mdash; so repeated runs converge on coverage instead of circling. The memory lives in the catalog, not in a file beside the agent.</p>
+
+          <p class="fine"><strong>Recorded, not runnable here — and that is the point.</strong> Every proof button on this page runs a command that cannot write to a catalog. The swarm coordinates <em>by writing</em>, so it can never be one of them; a read-only swarm would demonstrate nothing. This is the verbatim output of <code>make swarm-demo</code> against a DataHub OSS v1.5.0.6 quickstart, run <code>swarm-1786323944</code>. Run it yourself with the five-command runbook.</p>
+
+          <ul class="proof-strip swarm-numbers" role="list" aria-label="What the swarm run produced">
+            <li><strong>4</strong> workers</li>
+            <li><strong>1</strong> killed mid-run</li>
+            <li><strong>14</strong> distinct assets in <strong>18</strong> examinations</li>
+            <li><strong>9</strong> Receipts read by a process that examined nothing</li>
+          </ul>
+          <details class="mcp-tools">
+            <summary>The full recorded run</summary>
+            <pre class="recorded-swarm" tabindex="0" role="region" aria-label="Recorded stdout from make swarm-demo">== four workers start together — no coordinator, no IPC ==
+
+Swarm worker alpha
+  examined          6
+  receipts written  6
+  vouched by peers  1 (beta) — their receipts held, so this worker moved on
+Swarm worker beta
+  examined          6
+  receipts written  5
+  vouched by peers  1 (alpha) — their receipts held, so this worker moved on
+  write failures    1
+Swarm worker gamma
+  examined          6
+  receipts written  3
+  vouched by peers  4 (alpha, beta) — their receipts held, so this worker moved on
+
+  >> killed delta mid-run — its unfinished assets were never assigned to it
+
+== overlap, from the surviving workers' own reports ==
+  worker reports found     3 of 4 expected
+  total examinations       18
+  distinct assets examined 14
+  duplicated examinations  4
+
+== the ledger, read from DataHub by a process that audited nothing ==
+  current valid receipts   9 of 50
+  alpha 4 · beta 2 · gamma 3
+</pre>
+          </details>
+
+          <p class="fine">The overlap and ledger answer different questions. Each worker records a digest for every examination; when two workers touch the same asset, Sidq checks whether their independent conclusions agree and surfaces divergence without choosing a winner. That overlap comes from worker reports — DataHub stores only the latest receipt and cannot count collisions after the fact. The ledger comes from a fifth process that trusts no worker and reads current receipts from DataHub alone. The first measurement of this run failed, at 6 distinct assets of 18 examinations, and two defects were found and fixed because the number existed.</p>
         </div>
       </section>
 
@@ -300,8 +459,42 @@ Swarm worker gamma
             <code class="command-sequence">git clone https://github.com/NexuChat/sidq.git
 cd sidq
 make gate-demo</code>
-            <button class="chip" type="button" data-copy="git clone https://github.com/NexuChat/sidq.git&#10;cd sidq&#10;make gate-demo">Copy</button>
+            <button class="chip" type="button" aria-describedby="copy-status" data-copy="git clone https://github.com/NexuChat/sidq.git&#10;cd sidq&#10;make gate-demo">Copy</button>
           </div>
+          <p class="copy-status" id="copy-status" role="status"></p>
+          <details class="mcp-tools cmd-index">
+            <summary>All commands and integrations</summary>
+            <p class="fine">Nine subcommands, one engine. Read-only unless a flag says otherwise; <code>sidq --help</code> is the source of truth for flags.</p>
+            <dl class="cmd-list">
+              <div><dt><code>sidq check</code></dt><dd>Gate one SQL file or a Git diff. Local read; no catalog mutation.</dd></div>
+              <div><dt><code>sidq explain</code></dt><dd>Explain one deterministic rule.</dd></div>
+              <div><dt><code>sidq audit</code></dt><dd>Hunt catalog contradictions. Read-only; <code>--write-receipts</code> and <code>--write-assertions</code> are explicit opt-in, <code>--resume</code> converges coverage.</dd></div>
+              <div><dt><code>sidq claims</code></dt><dd>Compile documented promises into bounded read-only SQL against the source.</dd></div>
+              <div><dt><code>sidq verify</code></dt><dd>Independently re-check a Receipt and its context.</dd></div>
+              <div><dt><code>sidq repair</code></dt><dd>Propose and prove repairs. Dry run by default; only <code>--apply</code> mutates.</dd></div>
+              <div><dt><code>sidq swarm</code></dt><dd>Run one swarm worker. Writes current Receipts — an operator flow, never a public button.</dd></div>
+              <div><dt><code>sidq swarm-overlap</code></dt><dd>Measure worker overlap from local reports only.</dd></div>
+              <div><dt><code>sidq swarm-ledger</code></dt><dd>Read the swarm back out of DataHub as an independent observer.</dd></div>
+            </dl>
+            <p class="fine">The repository wraps the ones a reader is most likely to want. Two of the buttons above are literally these targets — Claims runs <code>make claims-demo</code> and the offline verdict runs <code>make gate-demo</code>; the other three call the <code>sidq</code> binary directly.</p>
+            <dl class="cmd-list">
+              <div><dt><code>make doctor</code></dt><dd>Report what is present and what is missing before anything is run. Changes nothing.</dd></div>
+              <div><dt><code>make check</code></dt><dd>ruff, ruff format, mypy, then the whole suite with coverage — where the test count and coverage figure on this page come from.</dd></div>
+              <div><dt><code>make regen-check</code></dt><dd>Re-derive every generated artifact and fail if a committed copy has drifted from what the engine now produces.</dd></div>
+              <div><dt><code>make gate-demo</code></dt><dd>Re-derive the published verdict from the committed recording. Offline.</dd></div>
+              <div><dt><code>make claims-demo</code></dt><dd>Compile the documented promises and test them against live PostgreSQL.</dd></div>
+              <div><dt><code>make mcp-smoke</code></dt><dd>Prove the MCP server starts and exposes exactly the three read-only tools named above.</dd></div>
+            </dl>
+            <p class="fine">In CI, the same engine runs as a GitHub Action that publishes one sticky verdict comment and one check:</p>
+            <pre class="install-lines" role="region" tabindex="0" aria-label="GitHub Action usage">- uses: NexuChat/sidq@02969cb46a86c44a7b411ff98d9e05c4f6fd3c93
+  with:
+    token: ${{ secrets.GITHUB_TOKEN }}
+    mode: live          # or: fixture
+    repo-root: .</pre>
+            <p class="fine">The bot writes through the issue-comments endpoint, but its target is a pull request, so the workflow needs <code>pull-requests: write</code>. <code>issues: write</code> reads as sufficient from that endpoint path and is not — GitHub answers 403. The committed workflow and <a href="https://github.com/NexuChat/sidq/blob/02969cb46a86c44a7b411ff98d9e05c4f6fd3c93/docs/PR-BOT.md" rel="noopener">docs/PR-BOT.md ↗</a> still carry the narrower scope; that is the red check on the demo pull requests above, and the corrected permission is the one written here. Full setup in <a href="https://github.com/NexuChat/sidq/blob/02969cb46a86c44a7b411ff98d9e05c4f6fd3c93/docs/SETUP.md" rel="noopener">docs/SETUP.md ↗</a>.</p>
+          </details>
+          <p class="fine" lang="ar-x-none"><strong>صِدق — Sidq — means truthfulness: claim only what the evidence can support.</strong></p>
+          <p class="fine">Upstream evidence: a DataHub packaging defect was reported before the deadline in <a href="https://github.com/datahub-project/datahub/pull/19017" rel="noopener">datahub#19017 ↗</a> and later fixed by an equivalent merged change; the <code>datahub-verify</code> Skill PR <a href="https://github.com/datahub-project/datahub-skills/pull/81" rel="noopener">datahub-skills#81 ↗</a> is open and unmerged.</p>
           <p class="fine">No DataHub or credentials — the replay bootstraps a hash-locked environment and re-derives the published verdict byte-for-byte. Then open <code>examples/01-blocked-pii-dashboard/verdict.json</code> and compare hashes.</p>
         </div>
       </section>
@@ -309,10 +502,10 @@ make gate-demo</code>
       <nav class="site-links wrap" aria-label="Project links">
         <a href="https://github.com/NexuChat/sidq">GitHub ↗</a>
         <a href="https://datahub.mlki.app">Live DataHub ↗</a>
-        <a href="https://github.com/NexuChat/sidq/tree/main/examples">Evidence examples ↗</a>
+        <a href="https://github.com/NexuChat/sidq/tree/02969cb46a86c44a7b411ff98d9e05c4f6fd3c93/examples">Evidence examples ↗</a>
         <a href="/scope.html">Scope &amp; limits →</a>
       </nav>
-      <p class="wrap fine judge-key">Signing in to the live DataHub: <code>sidq-judge@local.invalid</code> / <code>sidq-judge-2026</code>. Published deliberately, and deliberately powerless — the account holds DataHub's Reader role and nothing else. It reads every asset, lineage graph and Sidq receipt; every write is refused with <code>403 UNAUTHORIZED</code>, rechecked before submission. This form has no private field, so any credential a judge needs is public by necessity, which is exactly why the published one cannot change anything.</p>
+      <p class="wrap fine judge-key">Signing in to the live DataHub: <code><!--email_off-->sidq-judge@local.invalid<!--/email_off--></code> / <code>sidq-judge-2026</code>. Published deliberately, and deliberately powerless — the account holds DataHub's Reader role and nothing else. It reads every asset, lineage graph and Sidq receipt; every write is refused with <code>403 UNAUTHORIZED</code>, rechecked before submission. This form has no private field, so any credential a judge needs is public by necessity, which is exactly why the published one cannot change anything.</p>
     </main>
 
     <footer class="site-footer">
@@ -322,10 +515,10 @@ make gate-demo</code>
         <span id="release-identity">Release: unavailable</span>
       </div>
       <div class="wrap standing">
-        <p class="fine"><a href="https://www.youtube.com/watch?v=W0uHsq2Kb0E" rel="noopener">Watch the 2:51 film ↗</a> — real footage in 4 of 7 chapters. <strong>1,266 tests</strong> in one gate, and guards that fail the build when any number this project publishes goes stale. Open-source contributions in review: <a href="https://github.com/datahub-project/datahub/pull/19017" rel="noopener">datahub#19017 ↗</a> and <a href="https://github.com/datahub-project/datahub-skills/pull/81" rel="noopener">datahub-skills#81 ↗</a> — both open, neither merged.</p>
+        <p class="fine"><a href="https://www.youtube.com/watch?v=W0uHsq2Kb0E" rel="noopener">Watch the 2:51 film ↗</a> — real footage in 4 of 7 chapters. <strong>1,284 tests</strong>, 8 hostile catalog corpora in Arabic, Chinese, Cyrillic and Japanese, plus the shapes that break a naive engine &mdash; lineage cycles, self-loops, a 200-hop chain, a 500-way fan-out, edges into assets that do not exist, and 8 malformed Receipt payloads that vouch for nothing, <strong>29 adversarial tests</strong> in all &mdash; and build guards that fail whenever a published count drifts from its evidence artifact.</p>
       </div>
     </footer>
 
-    <script src="app.js?v=2805f82165bc4e8c" defer></script>
+    <script src="app.js?v=7c2115ed00e7bebf" defer></script>
   </body>
 </html>
