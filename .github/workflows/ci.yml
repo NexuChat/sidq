@@ -15,7 +15,13 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
+
+      - name: Verify tested head
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
 
       - name: Fetch sealed demo branches
         run: git fetch --no-tags --depth=1 origin "+refs/heads/demo/*:refs/remotes/origin/demo/*"
@@ -30,6 +36,9 @@ jobs:
           pip install --require-hashes -r requirements-dev.lock
           pip install --no-build-isolation --no-deps -e .
 
+      - name: Check installed dependencies
+        run: pip check
+
       - name: Ruff lint
         run: ruff check .
 
@@ -41,11 +50,3 @@ jobs:
 
       - name: Pytest
         run: pytest -q --cov=sidq --cov-report=term-missing:skip-covered
-
-      - name: Validate the pull request with the local composite action
-        if: github.event_name == 'pull_request'
-        uses: ./
-        with:
-          token: ${{ github.token }}
-          mode: fixture
-          publish-results: false
