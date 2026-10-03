@@ -725,13 +725,17 @@ def test_the_operations_runbook_covers_probe_release_and_rollback() -> None:
         assert f'"$runtime_compatible_release/{prerequisite}"' in rollback
 
 
-def test_pull_request_ci_executes_the_local_action_without_publish_authority() -> None:
+def test_pull_request_ci_validates_the_exact_head_without_publish_authority() -> None:
     workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text()
 
     assert "pull_request:" in workflow
     assert "contents: read" in workflow
-    assert "uses: ./" in workflow
-    assert "publish-results: false" in workflow
+    assert "Verify tested head" in workflow
+    assert "ref: ${{ github.event.pull_request.head.sha || github.sha }}" in workflow
+    assert "Check installed dependencies" in workflow
+    assert "uses: ./" not in workflow
+    assert "checks: write" not in workflow
+    assert "pull-requests: write" not in workflow
     assert "persist-credentials: false" in workflow
     assert "secrets." not in workflow
 
@@ -739,10 +743,18 @@ def test_pull_request_ci_executes_the_local_action_without_publish_authority() -
 def test_write_capable_demo_action_stays_on_the_trusted_base_checkout() -> None:
     workflow = (ROOT / ".github" / "workflows" / "sidq-demo.yml").read_text()
 
-    assert "pull_request_target:" in workflow
-    assert "ref: ${{ github.event.pull_request.base.sha }}" in workflow
+    assert "workflow_run:" in workflow
+    assert "workflows: [CI]" in workflow
+    assert "types: [completed]" in workflow
     assert "persist-credentials: false" in workflow
-    assert "uses: ./" in workflow
+    assert "-m sidq.bot.repository --prepare" in workflow
+    assert "path: .sidq-pr" in workflow
+    assert "steps.context.outputs.head_sha" in workflow
+    assert workflow.index("Install trusted publisher") < workflow.index(
+        "Check out pull request files as data"
+    )
+    assert "actions/cache" not in workflow
+    assert "download-artifact" not in workflow
 
 
 def test_dependency_lock_is_consumed_and_has_an_explicit_update_command() -> None:

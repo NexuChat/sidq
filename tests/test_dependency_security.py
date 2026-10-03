@@ -87,3 +87,46 @@ def test_supply_chain_runbook_does_not_hide_the_setuptools_advisory() -> None:
     ]
     assert audit_commands
     assert all("--ignore-vuln" not in command for command in audit_commands)
+
+
+def test_application_export_pins_and_hashes_are_present_in_uv_lock() -> None:
+    """A green software check must not test stale exported dependency versions.
+
+    This verifies every exported pin and its complete artifact hash set. It is
+    not a vulnerability audit or proof of optional-environment reachability.
+    The installed dependency closure is independently checked by pip check.
+    """
+    lock = tomllib.loads((ROOT / "uv.lock").read_text(encoding="utf-8"))
+    packages = {
+        (package["name"], package.get("version")): package
+        for package in lock["package"]
+    }
+    entry_pattern = re.compile(
+        r"(?m)^([A-Za-z0-9_.-]+)==([^ ;\\\n]+)[^\n]*\n"
+        r"((?:[ \t]+--hash=[^\n]+\n)+)"
+    )
+    for filename in APPLICATION_LOCKS:
+        contents = (ROOT / filename).read_text(encoding="utf-8")
+        entries = list(entry_pattern.finditer(contents))
+        assert entries, filename
+        # A malformed/unhashed pin cannot vanish from the comparison silently.
+        pin_lines = [
+            line
+            for line in contents.splitlines()
+            if line and not line.startswith(("#", " ", "\t"))
+        ]
+        assert len(entries) == len(pin_lines), filename
+        for entry in entries:
+            name, version, hashes_text = entry.groups()
+            package = packages.get((re.sub(r"[-_.]+", "-", name).lower(), version))
+            assert package is not None, (
+                f"{filename}: {name}=={version} is absent from uv.lock"
+            )
+            artifacts = [*package.get("wheels", [])]
+            if "sdist" in package:
+                artifacts.append(package["sdist"])
+            expected = {artifact["hash"] for artifact in artifacts}
+            actual = set(re.findall(r"--hash=(sha256:[0-9a-f]{64})", hashes_text))
+            assert actual and actual == expected, (
+                f"{filename}: {name} artifact hashes differ"
+            )

@@ -1,50 +1,63 @@
 name: Sidq demo
 
 on:
-  pull_request_target:
-    types: [opened, synchronize, reopened]
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
 
 permissions:
   contents: read
-  # The bot posts through /issues/{n}/comments, but the target is a pull
-  # request: that endpoint needs pull-requests: write. issues: write reads
-  # as sufficient from the path and is not — GitHub answers 403.
+  actions: read
   pull-requests: write
   checks: write
 
 concurrency:
-  group: sidq-${{ github.event.pull_request.number }}
+  group: sidq-${{ github.event.workflow_run.pull_requests[0].number || github.event.workflow_run.id }}
   cancel-in-progress: true
 
 jobs:
   verdict:
     name: Sidq fixture verdict
+    if: github.event.workflow_run.event == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      # pull_request_target supplies a write-capable token. Keep the executable
-      # action and policy on the trusted base SHA; PR-controlled files are only
-      # parsed as data from the isolated checkout below.
+      # workflow_run is privileged: execute only the default/base branch.
+      # Never restore PR caches, download PR artifacts, or run proposed code.
       - name: Check out trusted Sidq action
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
-          ref: ${{ github.event.pull_request.base.sha }}
           persist-credentials: false
 
+      - name: Set up Python 3.12
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12"
+
+      - name: Install trusted publisher
+        run: |
+          python -m venv "${RUNNER_TEMP}/sidq-publisher"
+          "${RUNNER_TEMP}/sidq-publisher/bin/pip" install --require-hashes -r requirements-action.lock
+          "${RUNNER_TEMP}/sidq-publisher/bin/pip" install --no-build-isolation --no-deps .
+
+      - name: Resolve current validated pull request
+        id: context
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: '"${RUNNER_TEMP}/sidq-publisher/bin/python" -m sidq.bot.repository --prepare'
+
       - name: Check out pull request files as data
+        if: steps.context.outputs.ready == 'true'
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
-          ref: ${{ github.event.pull_request.head.sha }}
+          repository: ${{ steps.context.outputs.head_repository }}
+          ref: ${{ steps.context.outputs.head_sha }}
           path: .sidq-pr
           persist-credentials: false
 
-      - name: Run Sidq against recorded graph fixtures
-        uses: ./
-        with:
-          token: ${{ github.token }}
-          mode: fixture
-          repo-root: .sidq-pr
-          # The fixtures replay this project's own catalog, so the assets they
-          # name are the ones a reader can open in the project's DataHub instance.
-          datahub-ui-url: https://datahub.mlki.app
+      - name: Assess applicability and publish the data check
+        if: steps.context.outputs.ready == 'true'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          SIDQ_DATAHUB_UI_URL: https://datahub.mlki.app
+        run: '"${RUNNER_TEMP}/sidq-publisher/bin/python" -m sidq.bot.repository'
