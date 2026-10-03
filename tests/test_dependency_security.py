@@ -87,3 +87,21 @@ def test_supply_chain_runbook_does_not_hide_the_setuptools_advisory() -> None:
     ]
     assert audit_commands
     assert all("--ignore-vuln" not in command for command in audit_commands)
+
+
+def test_pyjwt_exports_match_the_uv_lock_version_and_hashes() -> None:
+    """CI and the action must exercise the dependency version Dependabot proposes."""
+    lock = tomllib.loads((ROOT / "uv.lock").read_text(encoding="utf-8"))
+    packages = [package for package in lock["package"] if package["name"] == "pyjwt"]
+    assert len(packages) == 1
+    package = packages[0]
+    version = tuple(int(part) for part in package["version"].split("."))
+    artifacts = [package["sdist"], *package["wheels"]]
+    expected_hashes = {artifact["hash"] for artifact in artifacts}
+    for filename in APPLICATION_LOCKS:
+        assert _locked_version(filename, "pyjwt") == version, filename
+        contents = (ROOT / filename).read_text(encoding="utf-8")
+        entry = re.search(r"(?m)^pyjwt==[^\n]+\n(?:[ \t]+--hash=[^\n]+\n)+", contents)
+        assert entry is not None, filename
+        hashes = set(re.findall(r"--hash=(sha256:[0-9a-f]{64})", entry.group()))
+        assert hashes == expected_hashes, filename
