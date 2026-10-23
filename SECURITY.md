@@ -389,6 +389,15 @@ from public requests, and runs in the separately locked-down MCP environment.
 This precise non-applicability limits the residual risk; it does not make the
 installed vulnerable version patched or justify suppressing the finding.
 
+`GHSA-xmj3-9gf7-h52w` affects `setuptools` before 84.1.0: on Windows, a crafted
+`namespace_packages.txt` inside a wheel can make setuptools' legacy wheel-to-egg
+installation create an `__init__.py` outside the target directory. The
+application locks pin a patched setuptools. The isolated MCP lock keeps 81.0.0
+for the same `setuptools<82` reason. The deployed MCP workload runs on Linux and
+installs hash-locked wheels with pip, never through setuptools' egg
+installation, so this path is not reachable either. It is recorded the same
+way and must not be suppressed.
+
 After regenerating the locks, audit every independently installed environment:
 
 `requirements-bench.lock` is deliberately separate: reproducible pre-flight
@@ -401,7 +410,7 @@ for lock in requirements.lock requirements-action.lock requirements-bench.lock \
   requirements-dev.lock requirements-landing.lock; do
   uvx pip-audit --disable-pip --requirement "$lock"
 done
-# Expected to report PYSEC-2026-3447/CVE-2026-59890 until acryl-datahub lifts
+# Expected to report PYSEC-2026-3447/CVE-2026-59890 and GHSA-xmj3-9gf7-h52w until acryl-datahub lifts
 # setuptools<82. Record it; do not add an ignore.
 uvx pip-audit --disable-pip --requirement requirements-mcp.lock
 ```

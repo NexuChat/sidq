@@ -47,14 +47,17 @@ best-effort compensation, not transactional exactly-once storage.
 
 ### P2 — isolated MCP dependency advisory
 
-`uv audit --locked --no-cache` resolved 126 entries / audited 125 packages and
+`uv audit --locked --no-cache` resolved 127 entries / audited 126 packages and
 reported no known vulnerability or adverse project status for the application
-lock. `pip-audit` reports two rows for one unique advisory in the isolated MCP
-lock: `setuptools==81.0.0`, `PYSEC-2026-3447` / `CVE-2026-59890`; the published
-fix is 83.0.0 while the current DataHub SDK constrains setuptools below 82. The
-affected macOS Unicode-path sdist creation is not reachable in the deployed
-Linux, hash-locked, wheel-only MCP runtime, which does not build or publish
-sdists or accept caller-controlled packaging paths. The finding is recorded,
+lock. `pip-audit` reports two unique advisories, in three rows, for
+`setuptools==81.0.0` in the isolated MCP lock: `PYSEC-2026-3447` /
+`CVE-2026-59890` (fixed in 83.0.0) and `GHSA-xmj3-9gf7-h52w` (fixed in 84.1.0).
+The current DataHub SDK constrains setuptools below 82. Neither path is
+reachable in the deployed Linux, hash-locked, wheel-only MCP runtime: the first
+needs macOS Unicode-path sdist creation, and the second needs setuptools'
+Windows legacy egg installation. The runtime does not build or publish sdists,
+does not install through setuptools, and accepts no caller-controlled packaging
+paths. The finding is recorded,
 not suppressed, and must be re-audited when the upstream constraint changes.
 
 ### P2 — trusted local peer boundary
@@ -72,14 +75,15 @@ make check
   Ruff check: pass
   Ruff format --check: pass
   mypy src/: pass
-  pytest: 1258 collected, 1257 passed, 1 skipped   # re-run 2026-09-11
+  pytest: 1258 collected, 1257 passed, 1 skipped   # re-run 2026-10-23
   branch coverage: 84.44% (minimum 80%)
 
-uv audit --locked --no-cache
-  125 packages audited; no known application-lock vulnerability
+uv audit --locked --no-cache                      # re-run 2026-10-23
+  126 packages audited; no known application-lock vulnerability
 
-uvx pip-audit --disable-pip --requirement requirements-mcp.lock
-  one unique advisory, repeated in two rows: setuptools 81.0.0 / PYSEC-2026-3447
+uvx pip-audit --disable-pip --requirement requirements-mcp.lock   # re-run 2026-10-23
+  two unique advisories in three rows: setuptools 81.0.0 / PYSEC-2026-3447 (two rows)
+  and GHSA-xmj3-9gf7-h52w
 
 high-signal current-tree scan: clean
 high-signal full-Git-history patch scan: clean

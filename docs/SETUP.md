@@ -137,8 +137,9 @@ For the supported automated equivalent, use `make install` followed by
 
 That tool environment, unlike the project venv, necessarily resolves
 `setuptools==81.0.0` because the DataHub SDK requires `setuptools<82`. The
-remaining `PYSEC-2026-3447` risk and its exact sdist-only non-applicability are
-documented in `SECURITY.md`; the finding is not ignored.
+remaining setuptools advisories (`PYSEC-2026-3447` and `GHSA-xmj3-9gf7-h52w`) and
+why neither applies to the deployed runtime are documented in `SECURITY.md`; the
+findings are not ignored.
 
 Observed version output:
 
